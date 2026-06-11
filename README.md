@@ -7,6 +7,34 @@
 - 🎵 **音乐** - 支持 Navidrome 服务器
 - 📚 **有声书** - 支持 AudiobookShelf 服务器
 - 📺 **视频** - 支持 Emby、Plex、WebDAV
+- 🌓 **主题切换** - 日间/深色模式自由切换
+- 🔐 **完整认证** - 支持用户名、密码、API Key
+
+## 服务器配置
+
+### Navidrome
+- 服务器地址（如 `https://music.example.com`）
+- 用户名
+- 密码
+
+### AudiobookShelf
+- 服务器地址（如 `https://audiobook.example.com`）
+- 用户名
+- 密码
+
+### 视频服务器
+**Emby:**
+- 服务器地址
+- 用户名、密码
+- API Key（可选）
+
+**Plex:**
+- 服务器地址
+- 用户名、密码
+
+**WebDAV:**
+- 服务器地址
+- 用户名、密码
 
 ## 技术栈
 

@@ -1,17 +1,25 @@
 # Design System
 
 ## Color Strategy
-**Committed - 深色背景配紫色系渐变**
+**Committed - 深色/日间双主题，紫色系渐变**
 
-### Palette
+### Dark Theme
 - **Background**: `#0A0A0F` - 深黑紫
-- **Surface**: `#1A1A24` (87%透明度) - 半透明深色表面
-- **Surface Variant**: `#252530` - 卡片背景
+- **Surface**: `#1A1A24` (87%透明度)
+- **Surface Variant**: `#252530`
 - **Primary**: `#B098FF` - 明亮紫色
 - **Secondary**: `#7DD3FC` - 青蓝色
-- **Accent**: `#FB7185` - 珊瑚粉
 - **Text Primary**: `#E8E8EE`
 - **Text Secondary**: `#9898A8`
+
+### Light Theme
+- **Background**: `#F5F4F8` - 浅紫灰
+- **Surface**: `#FFFEFF` (87%透明度)
+- **Surface Variant**: `#EBEAF0`
+- **Primary**: `#7B5FD3` - 深紫色
+- **Secondary**: `#0EA5E9` - 明蓝色
+- **Text Primary**: `#1A1A20`
+- **Text Secondary**: `#6B6B7B`
 
 ## Typography
 - **Font**: 系统默认 (Roboto/思源黑体)
