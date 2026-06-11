@@ -5,7 +5,9 @@
       "Bash(git add *)",
       "Bash(git commit -m 'chore: 清理旧项目文件 *)",
       "Bash(git commit -m 'feat: 实现 Nordic Media Hub 初始版本 *)",
-      "Bash(git commit -m 'feat: 深色主题美化和服务器配置 *)"
+      "Bash(git commit -m 'feat: 深色主题美化和服务器配置 *)",
+      "Bash(git commit -m 'docs: 更新设计文档和变更日志 *)",
+      "Bash(git commit -m 'feat: 日间/深色主题切换和完整服务器配置 *)"
     ]
   }
 }

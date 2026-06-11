@@ -21,7 +21,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import coil.compose.AsyncImage
+import com.nordic.mediahub.data.*
 import com.nordic.mediahub.ui.theme.*
 
 class MainActivity : ComponentActivity() {
@@ -29,54 +32,54 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            NordicTheme {
-                MainScreen()
+            var isDark by remember { mutableStateOf(true) }
+            NordicTheme(darkTheme = isDark) {
+                MainScreen(isDark) { isDark = it }
             }
         }
     }
 }
 
 @Composable
-fun MainScreen() {
+fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     var selectedTab by remember { mutableStateOf(0) }
+    val colorScheme = MaterialTheme.colorScheme
 
     Scaffold(
-        containerColor = Background,
+        containerColor = colorScheme.background,
         bottomBar = {
             Column {
-                NowPlayingBar()
-                BottomNav(selectedTab) { selectedTab = it }
+                NowPlayingBar(colorScheme)
+                BottomNav(selectedTab, colorScheme) { selectedTab = it }
             }
         }
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             when (selectedTab) {
-                0 -> MusicScreen()
-                1 -> AudiobookScreen()
-                2 -> VideoScreen()
+                0 -> MusicScreen(colorScheme, isDark, onThemeToggle)
+                1 -> AudiobookScreen(colorScheme, isDark, onThemeToggle)
+                2 -> VideoScreen(colorScheme, isDark, onThemeToggle)
             }
         }
     }
 }
 
 @Composable
-fun BottomNav(selected: Int, onSelect: (Int) -> Unit) {
-    Surface(
-        color = Surface
-    ) {
+fun BottomNav(selected: Int, colorScheme: ColorScheme, onSelect: (Int) -> Unit) {
+    Surface(color = colorScheme.surface) {
         Row(
             Modifier.fillMaxWidth().padding(vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            NavItem("🎵", "音乐", selected == 0) { onSelect(0) }
-            NavItem("📚", "有声书", selected == 1) { onSelect(1) }
-            NavItem("📺", "视频", selected == 2) { onSelect(2) }
+            NavItem("🎵", "音乐", selected == 0, colorScheme) { onSelect(0) }
+            NavItem("📚", "有声书", selected == 1, colorScheme) { onSelect(1) }
+            NavItem("📺", "视频", selected == 2, colorScheme) { onSelect(2) }
         }
     }
 }
 
 @Composable
-fun NavItem(icon: String, label: String, selected: Boolean, onClick: () -> Unit) {
+fun NavItem(icon: String, label: String, selected: Boolean, colorScheme: ColorScheme, onClick: () -> Unit) {
     Column(
         Modifier.clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -85,39 +88,33 @@ fun NavItem(icon: String, label: String, selected: Boolean, onClick: () -> Unit)
         Text(
             label,
             fontSize = 11.sp,
-            color = if (selected) Primary else TextSecondary,
+            color = if (selected) colorScheme.primary else colorScheme.onSurface.copy(0.6f),
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
         )
     }
 }
 
 @Composable
-fun NowPlayingBar() {
-    Surface(
-        color = Surface,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+fun NowPlayingBar(colorScheme: ColorScheme) {
+    Surface(color = colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier.size(48.dp).clip(RoundedCornerShape(8.dp))
-                    .background(Brush.linearGradient(listOf(Primary.copy(0.4f), Accent.copy(0.4f))))
+                    .background(Brush.linearGradient(listOf(colorScheme.primary.copy(0.4f), colorScheme.secondary.copy(0.4f))))
             )
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text("播放队列", fontSize = 15.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
-                Text("等待播放", fontSize = 13.sp, color = TextSecondary)
+                Text("播放队列", fontSize = 15.sp, color = colorScheme.onSurface, fontWeight = FontWeight.Medium)
+                Text("等待播放", fontSize = 13.sp, color = colorScheme.onSurface.copy(0.6f))
             }
-            Text("⏸", fontSize = 28.sp, color = Primary)
+            Text("⏸", fontSize = 28.sp, color = colorScheme.primary)
         }
     }
 }
 
 @Composable
-fun MusicScreen() {
-    var serverUrl by remember { mutableStateOf("") }
+fun MusicScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
+    var config by remember { mutableStateOf(NavidromeConfig()) }
     var showConfig by remember { mutableStateOf(false) }
 
     LazyColumn(
@@ -131,31 +128,31 @@ fun MusicScreen() {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("音乐库", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                IconButton(onClick = { showConfig = !showConfig }) {
-                    Text("⚙", fontSize = 24.sp)
+                Text("音乐库", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = colorScheme.onBackground)
+                Row {
+                    IconButton(onClick = { onThemeToggle(!isDark) }) {
+                        Text(if (isDark) "☀" else "🌙", fontSize = 24.sp)
+                    }
+                    IconButton(onClick = { showConfig = !showConfig }) {
+                        Text("⚙", fontSize = 24.sp)
+                    }
                 }
             }
         }
         if (showConfig) {
             item {
-                ServerConfigCard(
-                    label = "Navidrome 服务器",
-                    value = serverUrl,
-                    onValueChange = { serverUrl = it },
-                    placeholder = "https://music.example.com"
-                )
+                NavidromeConfigCard(config, colorScheme) { config = it }
             }
         }
         items(5) {
-            TrackCard("歌曲 ${it + 1}", "艺术家", "04:3$it")
+            TrackCard("歌曲 ${it + 1}", "艺术家", "04:3$it", colorScheme)
         }
     }
 }
 
 @Composable
-fun AudiobookScreen() {
-    var serverUrl by remember { mutableStateOf("") }
+fun AudiobookScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
+    var config by remember { mutableStateOf(AudiobookShelfConfig()) }
     var showConfig by remember { mutableStateOf(false) }
 
     LazyColumn(
@@ -169,32 +166,31 @@ fun AudiobookScreen() {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("有声书", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                IconButton(onClick = { showConfig = !showConfig }) {
-                    Text("⚙", fontSize = 24.sp)
+                Text("有声书", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = colorScheme.onBackground)
+                Row {
+                    IconButton(onClick = { onThemeToggle(!isDark) }) {
+                        Text(if (isDark) "☀" else "🌙", fontSize = 24.sp)
+                    }
+                    IconButton(onClick = { showConfig = !showConfig }) {
+                        Text("⚙", fontSize = 24.sp)
+                    }
                 }
             }
         }
         if (showConfig) {
             item {
-                ServerConfigCard(
-                    label = "AudiobookShelf 服务器",
-                    value = serverUrl,
-                    onValueChange = { serverUrl = it },
-                    placeholder = "https://audiobook.example.com"
-                )
+                AudiobookConfigCard(config, colorScheme) { config = it }
             }
         }
         items(3) {
-            AudiobookCard("书名 ${it + 1}", "作者", "12章")
+            AudiobookCard("书名 ${it + 1}", "作者", "12章", colorScheme)
         }
     }
 }
 
 @Composable
-fun VideoScreen() {
-    var serverType by remember { mutableStateOf("Emby") }
-    var serverUrl by remember { mutableStateOf("") }
+fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
+    var config by remember { mutableStateOf(VideoServerConfig()) }
     var showConfig by remember { mutableStateOf(false) }
 
     LazyColumn(
@@ -208,139 +204,193 @@ fun VideoScreen() {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("视频", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                IconButton(onClick = { showConfig = !showConfig }) {
-                    Text("⚙", fontSize = 24.sp)
+                Text("视频", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = colorScheme.onBackground)
+                Row {
+                    IconButton(onClick = { onThemeToggle(!isDark) }) {
+                        Text(if (isDark) "☀" else "🌙", fontSize = 24.sp)
+                    }
+                    IconButton(onClick = { showConfig = !showConfig }) {
+                        Text("⚙", fontSize = 24.sp)
+                    }
                 }
             }
         }
         if (showConfig) {
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("Emby", "Plex", "WebDAV").forEach { type ->
-                            Surface(
-                                color = if (serverType == type) Primary else SurfaceVariant,
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.weight(1f).clickable { serverType = type }
-                            ) {
-                                Text(
-                                    type,
-                                    modifier = Modifier.padding(12.dp),
-                                    color = if (serverType == type) Background else TextPrimary,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-                    ServerConfigCard(
-                        label = "$serverType 服务器",
-                        value = serverUrl,
-                        onValueChange = { serverUrl = it },
-                        placeholder = "https://video.example.com"
-                    )
-                }
+                VideoConfigCard(config, colorScheme) { config = it }
             }
         }
         items(4) {
-            VideoCard("视频 ${it + 1}", "2小时3${it}分")
+            VideoCard("视频 ${it + 1}", "2小时3${it}分", colorScheme)
         }
     }
 }
 
 @Composable
-fun TrackCard(title: String, artist: String, duration: String) {
-    Surface(
-        color = SurfaceVariant,
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+fun TrackCard(title: String, artist: String, duration: String, colorScheme: ColorScheme) {
+    Surface(color = colorScheme.surfaceVariant, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier.size(56.dp).clip(RoundedCornerShape(8.dp))
-                    .background(Brush.linearGradient(listOf(Primary.copy(0.3f), Secondary.copy(0.3f))))
+                    .background(Brush.linearGradient(listOf(colorScheme.primary.copy(0.3f), colorScheme.secondary.copy(0.3f))))
             )
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text(title, fontSize = 15.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
-                Text(artist, fontSize = 13.sp, color = TextSecondary)
+                Text(title, fontSize = 15.sp, color = colorScheme.onSurface, fontWeight = FontWeight.Medium)
+                Text(artist, fontSize = 13.sp, color = colorScheme.onSurface.copy(0.6f))
             }
-            Text(duration, fontSize = 13.sp, color = TextSecondary)
+            Text(duration, fontSize = 13.sp, color = colorScheme.onSurface.copy(0.6f))
         }
     }
 }
 
 @Composable
-fun AudiobookCard(title: String, author: String, chapters: String) {
-    Surface(
-        color = SurfaceVariant,
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+fun AudiobookCard(title: String, author: String, chapters: String, colorScheme: ColorScheme) {
+    Surface(color = colorScheme.surfaceVariant, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier.size(64.dp).clip(RoundedCornerShape(8.dp))
-                    .background(Brush.linearGradient(listOf(Accent.copy(0.3f), Primary.copy(0.3f))))
+                    .background(Brush.linearGradient(listOf(colorScheme.primary.copy(0.3f), colorScheme.secondary.copy(0.3f))))
             )
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Text(title, fontSize = 15.sp, color = TextPrimary, fontWeight = FontWeight.SemiBold)
-                Text(author, fontSize = 13.sp, color = TextSecondary)
-                Text(chapters, fontSize = 13.sp, color = TextSecondary)
+                Text(title, fontSize = 15.sp, color = colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                Text(author, fontSize = 13.sp, color = colorScheme.onSurface.copy(0.6f))
+                Text(chapters, fontSize = 13.sp, color = colorScheme.onSurface.copy(0.6f))
             }
         }
     }
 }
 
 @Composable
-fun VideoCard(title: String, duration: String) {
-    Surface(
-        color = SurfaceVariant,
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
+fun VideoCard(title: String, duration: String, colorScheme: ColorScheme) {
+    Surface(color = colorScheme.surfaceVariant, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
         Column {
             Box(
                 Modifier.fillMaxWidth().height(180.dp)
-                    .background(Brush.linearGradient(listOf(Secondary.copy(0.3f), Primary.copy(0.3f))))
+                    .background(Brush.linearGradient(listOf(colorScheme.secondary.copy(0.3f), colorScheme.primary.copy(0.3f))))
             )
             Column(Modifier.padding(14.dp)) {
-                Text(title, fontSize = 15.sp, color = TextPrimary, fontWeight = FontWeight.SemiBold)
-                Text(duration, fontSize = 13.sp, color = TextSecondary)
+                Text(title, fontSize = 15.sp, color = colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+                Text(duration, fontSize = 13.sp, color = colorScheme.onSurface.copy(0.6f))
             }
         }
     }
 }
 
 @Composable
-fun ServerConfigCard(label: String, value: String, onValueChange: (String) -> Unit, placeholder: String) {
-    Surface(
-        color = SurfaceVariant,
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(label, fontSize = 13.sp, color = TextSecondary, fontWeight = FontWeight.Medium)
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
-                placeholder = { Text(placeholder, color = TextSecondary.copy(0.5f)) },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Primary,
-                    unfocusedBorderColor = TextSecondary.copy(0.3f),
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary
-                ),
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp)
-            )
+fun NavidromeConfigCard(config: NavidromeConfig, colorScheme: ColorScheme, onConfigChange: (NavidromeConfig) -> Unit) {
+    Surface(color = colorScheme.surfaceVariant, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Navidrome 服务器", fontSize = 15.sp, color = colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+            ConfigTextField("服务器地址", config.serverUrl, "https://music.example.com", colorScheme) {
+                onConfigChange(config.copy(serverUrl = it))
+            }
+            ConfigTextField("用户名", config.username, "username", colorScheme) {
+                onConfigChange(config.copy(username = it))
+            }
+            ConfigTextField("密码", config.password, "password", colorScheme, true) {
+                onConfigChange(config.copy(password = it))
+            }
         }
+    }
+}
+
+@Composable
+fun AudiobookConfigCard(config: AudiobookShelfConfig, colorScheme: ColorScheme, onConfigChange: (AudiobookShelfConfig) -> Unit) {
+    Surface(color = colorScheme.surfaceVariant, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("AudiobookShelf 服务器", fontSize = 15.sp, color = colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+            ConfigTextField("服务器地址", config.serverUrl, "https://audiobook.example.com", colorScheme) {
+                onConfigChange(config.copy(serverUrl = it))
+            }
+            ConfigTextField("用户名", config.username, "username", colorScheme) {
+                onConfigChange(config.copy(username = it))
+            }
+            ConfigTextField("密码", config.password, "password", colorScheme, true) {
+                onConfigChange(config.copy(password = it))
+            }
+        }
+    }
+}
+
+@Composable
+fun VideoConfigCard(config: VideoServerConfig, colorScheme: ColorScheme, onConfigChange: (VideoServerConfig) -> Unit) {
+    Surface(color = colorScheme.surfaceVariant, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("视频服务器", fontSize = 15.sp, color = colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                VideoServerType.values().forEach { type ->
+                    Surface(
+                        color = if (config.type == type) colorScheme.primary else colorScheme.surface,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f).clickable { onConfigChange(config.copy(type = type)) }
+                    ) {
+                        Text(
+                            type.name,
+                            modifier = Modifier.padding(10.dp),
+                            color = if (config.type == type) Color.White else colorScheme.onSurface,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+            ConfigTextField("服务器地址", config.serverUrl, "https://video.example.com", colorScheme) {
+                onConfigChange(config.copy(serverUrl = it))
+            }
+            when (config.type) {
+                VideoServerType.EMBY, VideoServerType.PLEX -> {
+                    ConfigTextField("用户名", config.username, "username", colorScheme) {
+                        onConfigChange(config.copy(username = it))
+                    }
+                    ConfigTextField("密码", config.password, "password", colorScheme, true) {
+                        onConfigChange(config.copy(password = it))
+                    }
+                    if (config.type == VideoServerType.EMBY) {
+                        ConfigTextField("API Key (可选)", config.apiKey, "api key", colorScheme) {
+                            onConfigChange(config.copy(apiKey = it))
+                        }
+                    }
+                }
+                VideoServerType.WEBDAV -> {
+                    ConfigTextField("用户名", config.username, "username", colorScheme) {
+                        onConfigChange(config.copy(username = it))
+                    }
+                    ConfigTextField("密码", config.password, "password", colorScheme, true) {
+                        onConfigChange(config.copy(password = it))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ConfigTextField(
+    label: String,
+    value: String,
+    placeholder: String,
+    colorScheme: ColorScheme,
+    isPassword: Boolean = false,
+    onValueChange: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, fontSize = 12.sp, color = colorScheme.onSurface.copy(0.7f))
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            placeholder = { Text(placeholder, color = colorScheme.onSurface.copy(0.4f), fontSize = 14.sp) },
+            visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = colorScheme.primary,
+                unfocusedBorderColor = colorScheme.onSurface.copy(0.2f),
+                focusedTextColor = colorScheme.onSurface,
+                unfocusedTextColor = colorScheme.onSurface
+            ),
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(8.dp),
+            singleLine = true
+        )
     }
 }
