@@ -2,6 +2,23 @@
 
 所有项目的重要更改都会记录在此文件中。
 
+## [1.1.0] - 2026-06-11
+
+### 新增
+- 添加设置界面（SettingsFragment）
+- 实现服务器配置功能
+  - Navidrome 音乐服务器配置（URL、用户名、密码）
+  - AudiobookShelf 有声书服务器配置（URL、Token）
+  - 视频服务配置（Emby/Plex/WebDav，URL、用户名、密码）
+- 创建 ServerConfig 数据模型
+- 创建 ConfigManager 本地存储（SharedPreferences）
+- 底部导航新增"设置"标签
+
+### 技术实现
+- 使用 Material TextInputLayout 表单组件
+- Spinner 选择视频服务类型
+- SharedPreferences 持久化配置
+
 ## [1.0.0] - 2026-06-11
 
 ### 新增

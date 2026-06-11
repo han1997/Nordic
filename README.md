@@ -7,6 +7,7 @@
 - **音乐播放器**：连接 Navidrome 服务，播放音乐库
 - **有声书**：连接 AudiobookShelf 服务，管理有声书和电子书
 - **视频播放器**：支持 Emby、Plex、WebDav 视频服务
+- **设置**：配置各服务器连接信息
 
 ## 技术栈
 
@@ -25,18 +26,22 @@ app/src/main/
 │   ├── MusicFragment.kt          # 音乐模块
 │   ├── AudiobookFragment.kt      # 有声书模块
 │   ├── VideoFragment.kt          # 视频模块
+│   ├── SettingsFragment.kt       # 设置模块
 │   ├── MusicAdapter.kt           # 音乐列表适配器
 │   ├── AudiobookAdapter.kt       # 有声书列表适配器
 │   ├── VideoAdapter.kt           # 视频列表适配器
 │   ├── Track.kt                  # 音乐数据模型
 │   ├── Audiobook.kt              # 有声书数据模型
-│   └── Video.kt                  # 视频数据模型
+│   ├── Video.kt                  # 视频数据模型
+│   ├── ServerConfig.kt           # 服务器配置模型
+│   └── ConfigManager.kt          # 配置管理器
 └── res/
     ├── layout/
     │   ├── activity_main.xml     # 主界面布局
     │   ├── fragment_music.xml    # 音乐界面
     │   ├── fragment_audiobook.xml # 有声书界面
     │   ├── fragment_video.xml    # 视频界面
+    │   ├── fragment_settings.xml # 设置界面
     │   ├── item_music.xml        # 音乐列表项
     │   ├── item_audiobook.xml    # 有声书列表项
     │   └── item_video.xml        # 视频列表项

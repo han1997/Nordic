@@ -21,6 +21,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_music -> MusicFragment()
                 R.id.nav_audiobook -> AudiobookFragment()
                 R.id.nav_video -> VideoFragment()
+                R.id.nav_settings -> SettingsFragment()
                 else -> null
             }
             fragment?.let { loadFragment(it) }
