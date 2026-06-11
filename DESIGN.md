@@ -1,15 +1,17 @@
 # Design System
 
 ## Color Strategy
-**Restrained with soft pastels**
+**Committed - 深色背景配紫色系渐变**
 
 ### Palette
-- **Background**: `oklch(95% 0.008 280)` - 柔和的淡紫灰
-- **Surface**: `oklch(97% 0.006 280 / 0.8)` - 半透明白色表面
-- **Primary**: `oklch(65% 0.15 280)` - 柔和紫色
-- **Secondary**: `oklch(70% 0.12 200)` - 柔和蓝色
-- **Text Primary**: `oklch(25% 0.01 280)`
-- **Text Secondary**: `oklch(50% 0.01 280)`
+- **Background**: `#0A0A0F` - 深黑紫
+- **Surface**: `#1A1A24` (87%透明度) - 半透明深色表面
+- **Surface Variant**: `#252530` - 卡片背景
+- **Primary**: `#B098FF` - 明亮紫色
+- **Secondary**: `#7DD3FC` - 青蓝色
+- **Accent**: `#FB7185` - 珊瑚粉
+- **Text Primary**: `#E8E8EE`
+- **Text Secondary**: `#9898A8`
 
 ## Typography
 - **Font**: 系统默认 (Roboto/思源黑体)
