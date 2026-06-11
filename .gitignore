@@ -1,0 +1,41 @@
+# Gradle files
+.gradle/
+build/
+*/build/
+gradle-app.setting
+!gradle-wrapper.jar
+
+# Android Studio
+.idea/
+*.iml
+.DS_Store
+local.properties
+captures/
+.externalNativeBuild
+.cxx
+
+# Built application files
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Java class files
+*.class
+
+# Log files
+*.log
+
+# Generated files
+bin/
+gen/
+out/
+
+# Keystore files
+*.jks
+*.keystore
+
+# Project images (keep in repo)
+!*.png
+!*.jpg
+!*.webp
