@@ -4,11 +4,16 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -16,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -26,6 +32,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import coil.compose.AsyncImage
 import com.nordic.mediahub.data.*
 import com.nordic.mediahub.ui.theme.*
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,10 +62,18 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         }
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
-            when (selectedTab) {
-                0 -> MusicScreen(colorScheme, isDark, onThemeToggle)
-                1 -> AudiobookScreen(colorScheme, isDark, onThemeToggle)
-                2 -> VideoScreen(colorScheme, isDark, onThemeToggle)
+            AnimatedContent(
+                targetState = selectedTab,
+                transitionSpec = {
+                    fadeIn(tween(300, easing = FastOutSlowInEasing)) togetherWith
+                        fadeOut(tween(200))
+                }
+            ) { tab ->
+                when (tab) {
+                    0 -> MusicScreen(colorScheme, isDark, onThemeToggle)
+                    1 -> AudiobookScreen(colorScheme, isDark, onThemeToggle)
+                    2 -> VideoScreen(colorScheme, isDark, onThemeToggle)
+                }
             }
         }
     }
@@ -130,22 +145,32 @@ fun MusicScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
             ) {
                 Text("音乐库", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = colorScheme.onBackground)
                 Row {
-                    IconButton(onClick = { onThemeToggle(!isDark) }) {
-                        Text(if (isDark) "☀" else "🌙", fontSize = 24.sp)
-                    }
-                    IconButton(onClick = { showConfig = !showConfig }) {
-                        Text("⚙", fontSize = 24.sp)
-                    }
+                    AnimatedIconButton(if (isDark) "☀" else "🌙") { onThemeToggle(!isDark) }
+                    AnimatedIconButton("⚙") { showConfig = !showConfig }
                 }
             }
         }
-        if (showConfig) {
-            item {
+        item {
+            AnimatedVisibility(
+                visible = showConfig,
+                enter = fadeIn(tween(300, easing = FastOutSlowInEasing)) + expandVertically(),
+                exit = fadeOut(tween(200)) + shrinkVertically()
+            ) {
                 NavidromeConfigCard(config, colorScheme) { config = it }
             }
         }
-        items(5) {
-            TrackCard("歌曲 ${it + 1}", "艺术家", "04:3$it", colorScheme)
+        itemsIndexed(listOf("歌曲 1", "歌曲 2", "歌曲 3", "歌曲 4", "歌曲 5")) { index, title ->
+            var visible by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) {
+                delay(index * 50L)
+                visible = true
+            }
+            AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn(tween(400)) + slideInVertically { it / 2 }
+            ) {
+                TrackCard(title, "艺术家", "04:3$index", colorScheme)
+            }
         }
     }
 }
@@ -168,22 +193,32 @@ fun AudiobookScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (B
             ) {
                 Text("有声书", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = colorScheme.onBackground)
                 Row {
-                    IconButton(onClick = { onThemeToggle(!isDark) }) {
-                        Text(if (isDark) "☀" else "🌙", fontSize = 24.sp)
-                    }
-                    IconButton(onClick = { showConfig = !showConfig }) {
-                        Text("⚙", fontSize = 24.sp)
-                    }
+                    AnimatedIconButton(if (isDark) "☀" else "🌙") { onThemeToggle(!isDark) }
+                    AnimatedIconButton("⚙") { showConfig = !showConfig }
                 }
             }
         }
-        if (showConfig) {
-            item {
+        item {
+            AnimatedVisibility(
+                visible = showConfig,
+                enter = fadeIn(tween(300, easing = FastOutSlowInEasing)) + expandVertically(),
+                exit = fadeOut(tween(200)) + shrinkVertically()
+            ) {
                 AudiobookConfigCard(config, colorScheme) { config = it }
             }
         }
-        items(3) {
-            AudiobookCard("书名 ${it + 1}", "作者", "12章", colorScheme)
+        itemsIndexed(listOf("书名 1", "书名 2", "书名 3")) { index, title ->
+            var visible by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) {
+                delay(index * 50L)
+                visible = true
+            }
+            AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn(tween(400)) + slideInVertically { it / 2 }
+            ) {
+                AudiobookCard(title, "作者", "12章", colorScheme)
+            }
         }
     }
 }
@@ -206,29 +241,50 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
             ) {
                 Text("视频", fontSize = 32.sp, fontWeight = FontWeight.Bold, color = colorScheme.onBackground)
                 Row {
-                    IconButton(onClick = { onThemeToggle(!isDark) }) {
-                        Text(if (isDark) "☀" else "🌙", fontSize = 24.sp)
-                    }
-                    IconButton(onClick = { showConfig = !showConfig }) {
-                        Text("⚙", fontSize = 24.sp)
-                    }
+                    AnimatedIconButton(if (isDark) "☀" else "🌙") { onThemeToggle(!isDark) }
+                    AnimatedIconButton("⚙") { showConfig = !showConfig }
                 }
             }
         }
-        if (showConfig) {
-            item {
+        item {
+            AnimatedVisibility(
+                visible = showConfig,
+                enter = fadeIn(tween(300, easing = FastOutSlowInEasing)) + expandVertically(),
+                exit = fadeOut(tween(200)) + shrinkVertically()
+            ) {
                 VideoConfigCard(config, colorScheme) { config = it }
             }
         }
-        items(4) {
-            VideoCard("视频 ${it + 1}", "2小时3${it}分", colorScheme)
+        itemsIndexed(listOf("视频 1", "视频 2", "视频 3", "视频 4")) { index, title ->
+            var visible by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) {
+                delay(index * 50L)
+                visible = true
+            }
+            AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn(tween(400)) + slideInVertically { it / 2 }
+            ) {
+                VideoCard(title, "2小时3${index}分", colorScheme)
+            }
         }
     }
 }
 
 @Composable
 fun TrackCard(title: String, artist: String, duration: String, colorScheme: ColorScheme) {
-    Surface(color = colorScheme.surfaceVariant, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+    )
+
+    Surface(
+        color = colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth().scale(scale).clickable(interactionSource, null) {}
+    ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier.size(56.dp).clip(RoundedCornerShape(8.dp))
@@ -246,7 +302,18 @@ fun TrackCard(title: String, artist: String, duration: String, colorScheme: Colo
 
 @Composable
 fun AudiobookCard(title: String, author: String, chapters: String, colorScheme: ColorScheme) {
-    Surface(color = colorScheme.surfaceVariant, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+    )
+
+    Surface(
+        color = colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth().scale(scale).clickable(interactionSource, null) {}
+    ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier.size(64.dp).clip(RoundedCornerShape(8.dp))
@@ -264,7 +331,18 @@ fun AudiobookCard(title: String, author: String, chapters: String, colorScheme: 
 
 @Composable
 fun VideoCard(title: String, duration: String, colorScheme: ColorScheme) {
-    Surface(color = colorScheme.surfaceVariant, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+    )
+
+    Surface(
+        color = colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth().scale(scale).clickable(interactionSource, null) {}
+    ) {
         Column {
             Box(
                 Modifier.fillMaxWidth().height(180.dp)
@@ -321,44 +399,56 @@ fun VideoConfigCard(config: VideoServerConfig, colorScheme: ColorScheme, onConfi
             Text("视频服务器", fontSize = 15.sp, color = colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 VideoServerType.values().forEach { type ->
+                    val selected = config.type == type
+                    val scale by animateFloatAsState(
+                        targetValue = if (selected) 1.05f else 1f,
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+                    )
                     Surface(
-                        color = if (config.type == type) colorScheme.primary else colorScheme.surface,
+                        color = if (selected) colorScheme.primary else colorScheme.surface,
                         shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.weight(1f).clickable { onConfigChange(config.copy(type = type)) }
+                        modifier = Modifier.weight(1f).scale(scale).clickable { onConfigChange(config.copy(type = type)) }
                     ) {
                         Text(
                             type.name,
                             modifier = Modifier.padding(10.dp),
-                            color = if (config.type == type) Color.White else colorScheme.onSurface,
+                            color = if (selected) Color.White else colorScheme.onSurface,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         )
                     }
                 }
             }
-            ConfigTextField("服务器地址", config.serverUrl, "https://video.example.com", colorScheme) {
-                onConfigChange(config.copy(serverUrl = it))
-            }
-            when (config.type) {
-                VideoServerType.EMBY, VideoServerType.PLEX -> {
-                    ConfigTextField("用户名", config.username, "username", colorScheme) {
-                        onConfigChange(config.copy(username = it))
+            AnimatedContent(
+                targetState = config.type,
+                transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(200)) }
+            ) { type ->
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ConfigTextField("服务器地址", config.serverUrl, "https://video.example.com", colorScheme) {
+                        onConfigChange(config.copy(serverUrl = it))
                     }
-                    ConfigTextField("密码", config.password, "password", colorScheme, true) {
-                        onConfigChange(config.copy(password = it))
-                    }
-                    if (config.type == VideoServerType.EMBY) {
-                        ConfigTextField("API Key (可选)", config.apiKey, "api key", colorScheme) {
-                            onConfigChange(config.copy(apiKey = it))
+                    when (type) {
+                        VideoServerType.EMBY, VideoServerType.PLEX -> {
+                            ConfigTextField("用户名", config.username, "username", colorScheme) {
+                                onConfigChange(config.copy(username = it))
+                            }
+                            ConfigTextField("密码", config.password, "password", colorScheme, true) {
+                                onConfigChange(config.copy(password = it))
+                            }
+                            if (type == VideoServerType.EMBY) {
+                                ConfigTextField("API Key (可选)", config.apiKey, "api key", colorScheme) {
+                                    onConfigChange(config.copy(apiKey = it))
+                                }
+                            }
                         }
-                    }
-                }
-                VideoServerType.WEBDAV -> {
-                    ConfigTextField("用户名", config.username, "username", colorScheme) {
-                        onConfigChange(config.copy(username = it))
-                    }
-                    ConfigTextField("密码", config.password, "password", colorScheme, true) {
-                        onConfigChange(config.copy(password = it))
+                        VideoServerType.WEBDAV -> {
+                            ConfigTextField("用户名", config.username, "username", colorScheme) {
+                                onConfigChange(config.copy(username = it))
+                            }
+                            ConfigTextField("密码", config.password, "password", colorScheme, true) {
+                                onConfigChange(config.copy(password = it))
+                            }
+                        }
                     }
                 }
             }
