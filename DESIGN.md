@@ -1,27 +1,44 @@
 # Design System
 
-## Colors (OKLCH)
-- **Surface**: oklch(0.95 0.008 270) - 浅灰微紫调
-- **Surface Elevated**: oklch(0.98 0.005 270 / 0.85) - 半透明白
-- **Primary**: oklch(0.55 0.18 270) - 柔和紫
-- **On Surface**: oklch(0.25 0.01 270)
-- **On Surface Variant**: oklch(0.50 0.01 270)
+## Color Strategy
+**Restrained with soft pastels**
+
+### Palette
+- **Background**: `oklch(95% 0.008 280)` - 柔和的淡紫灰
+- **Surface**: `oklch(97% 0.006 280 / 0.8)` - 半透明白色表面
+- **Primary**: `oklch(65% 0.15 280)` - 柔和紫色
+- **Secondary**: `oklch(70% 0.12 200)` - 柔和蓝色
+- **Text Primary**: `oklch(25% 0.01 280)`
+- **Text Secondary**: `oklch(50% 0.01 280)`
 
 ## Typography
-- **Primary Font**: Roboto
-- **Hierarchy**: 
-  - Title: 24sp / Medium
-  - Subtitle: 16sp / Regular
-  - Body: 14sp / Regular
-  - Caption: 12sp / Regular
+- **Font**: 系统默认 (Roboto/思源黑体)
+- **Scale**: 
+  - Title: 20sp / Medium
+  - Body: 15sp / Regular
+  - Caption: 13sp / Regular
 
-## Elevation
-- Cards: 2dp elevation with subtle shadow
-- Bottom player: 8dp elevation
-- Navigation: 0dp (surface level)
+## Layout
+- **Spacing scale**: 4dp, 8dp, 12dp, 16dp, 24dp
+- **Border radius**: 12dp (卡片), 8dp (小元素)
+- **Content max-width**: 无限制（移动端全宽）
 
 ## Components
-- **Cards**: 16dp corner radius, 2dp elevation
-- **Bottom Sheet Player**: 24dp top corners, 8dp elevation
-- **Navigation Bar**: Material 3 style, 5 items max
-- **List Items**: 56dp min height, 16dp horizontal padding
+
+### Cards
+- 半透明背景 + 轻微模糊（毛玻璃效果）
+- 12dp圆角
+- 微妙阴影
+
+### Bottom Navigation
+- 固定底部，半透明背景
+- 图标 + 文字标签
+
+### Now Playing Bar
+- 浮动在底部导航上方
+- 显示封面、标题、播放控制
+
+## Motion
+- 页面切换：300ms ease-out
+- 元素出现：200ms ease-out
+- 避免弹性动画

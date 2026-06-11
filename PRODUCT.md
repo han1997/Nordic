@@ -1,20 +1,24 @@
 # Nordic Media Hub
 
+## Product Purpose
+统一的多媒体管理客户端，整合音乐（Navidrome）、有声书（AudiobookShelf）、视频（Emby/Plex/WebDAV）三种媒体服务。
+
+## Users
+个人用户，需要在Android设备上访问自托管媒体服务器的内容。
+
 ## Register
 product
 
-## Users
-个人媒体库用户，需要在一个应用内统一管理音乐、有声书和视频内容。
-
-## Product Purpose
-整合 Navidrome（音乐）、AudiobookShelf（电子书/有声书）、Emby/Plex/WebDav（视频）三大媒体服务的 Android 客户端。
-
 ## Brand
-- **Tone**: 简洁、高效、统一
-- **Values**: 一站式媒体体验，无缝切换
-- **Anti-references**: 过度装饰的媒体应用，复杂的多应用切换
+- **Tone**: 简洁、现代、优雅
+- **Personality**: 专注内容而非装饰，界面退居幕后让媒体成为主角
+
+## Anti-references
+- 不要过度装饰的卡片设计
+- 不要深色科技风（避免"工具感"的深色主题）
+- 不要扁平单调的Material Design默认样式
 
 ## Strategic Principles
-1. 统一的视觉语言贯穿三个媒体类型
-2. 快速切换不同媒体服务
-3. 保持原生 Android 性能和体验
+- 内容优先：专辑封面、视频缩略图是视觉重心
+- 统一体验：三种媒体类型共享设计语言
+- 轻盈感：使用柔和色彩和微妙的毛玻璃效果
