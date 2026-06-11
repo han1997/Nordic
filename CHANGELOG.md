@@ -14,6 +14,14 @@
 - 创建 ConfigManager 本地存储（SharedPreferences）
 - 底部导航新增"设置"标签
 
+### 改进
+- 优化设置界面视觉设计
+  - 卡片分组（三个独立服务卡片）
+  - Emoji 图标标识（🎵 🎬 📚）
+  - Material Outline 风格输入框（12dp 圆角）
+  - 密码可见性切换
+  - 统一 16dp 间距
+
 ### 技术实现
 - 使用 Material TextInputLayout 表单组件
 - Spinner 选择视频服务类型
