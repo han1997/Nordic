@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.nordic.mediahub.app-mergeDebugResources-40:/values-v18/values-v18.xml",
+            "map": [
+                {
+                    "source": "C:\\Users\\hanhu\\.gradle\\caches\\transforms-3\\16c53920605ce42810e6639750cef0a2\\transformed\\appcompat-1.6.1\\res\\values-v18\\values-v18.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "48",
+                        "endOffsets": "99"
+                    }
+                }
+            ]
+        }
+    ]
+}

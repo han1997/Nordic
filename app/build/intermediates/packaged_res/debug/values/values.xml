@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="on_surface">#3F3F42</color>
+    <color name="on_surface_variant">#7F7F82</color>
+    <color name="primary">#8B7AB8</color>
+    <color name="scrim">#80000000</color>
+    <color name="surface">#F2F2F5</color>
+    <color name="surface_elevated">#D9FAFBFF</color>
+    <string name="app_name">Nordic Media</string>
+    <string name="next">下一首</string>
+    <string name="now_playing">正在播放</string>
+    <string name="pause">暂停</string>
+    <string name="play">播放</string>
+    <string name="previous">上一首</string>
+    <string name="tab_audiobook">有声书</string>
+    <string name="tab_music">音乐</string>
+    <string name="tab_video">视频</string>
+    <style name="Theme.NordicMediaHub" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorOnSurface">@color/on_surface</item>
+        <item name="colorSurfaceVariant">@color/surface</item>
+        <item name="android:statusBarColor">@color/surface</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>
