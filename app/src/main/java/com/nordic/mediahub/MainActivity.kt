@@ -31,6 +31,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import coil.compose.AsyncImage
 import com.nordic.mediahub.data.*
+import com.nordic.mediahub.ui.AnimatedIconButton
 import com.nordic.mediahub.ui.theme.*
 import kotlinx.coroutines.delay
 
