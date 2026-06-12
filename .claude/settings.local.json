@@ -21,7 +21,9 @@
       "Bash(git commit -m 'feat: 添加服务器配置持久化存储 *)",
       "Bash(git commit -m 'feat: 添加保存配置按钮 *)",
       "Bash(git commit -m 'docs: 更新变更日志 *)",
-      "Bash(git commit -m 'feat: 实现音乐数据自动加载和新界面布局 *)"
+      "Bash(git commit -m 'feat: 实现音乐数据自动加载和新界面布局 *)",
+      "Bash(git commit -m 'fix: 完善MusicCards组件包声明和导入 *)",
+      "Bash(git commit -m 'docs: 更新变更日志至v1.5.0 *)"
     ]
   }
 }
