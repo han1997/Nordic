@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -32,8 +33,10 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.nordic.mediahub.api.*
 import com.nordic.mediahub.data.*
 import com.nordic.mediahub.ui.AnimatedIconButton
+import com.nordic.mediahub.ui.*
 import com.nordic.mediahub.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -43,7 +46,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            var isDark by remember { mutableStateOf(true) }
+            val isSystemDark = isSystemInDarkTheme()
+            var isDark by remember { mutableStateOf(isSystemDark) }
             NordicTheme(darkTheme = isDark) {
                 MainScreen(isDark) { isDark = it }
             }
@@ -138,9 +142,23 @@ fun MusicScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
     val savedConfig by repository.navidromeConfig.collectAsStateWithLifecycle(NavidromeConfig())
     var config by remember { mutableStateOf(NavidromeConfig()) }
     var showConfig by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableStateOf(0) }
+    var albums by remember { mutableStateOf<List<com.nordic.mediahub.api.NavidromeAlbum>>(emptyList()) }
+    var songs by remember { mutableStateOf<List<com.nordic.mediahub.api.NavidromeSong>>(emptyList()) }
+    var artists by remember { mutableStateOf<List<com.nordic.mediahub.api.NavidromeArtist>>(emptyList()) }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(savedConfig) { config = savedConfig }
+    LaunchedEffect(savedConfig) {
+        config = savedConfig
+        if (savedConfig.serverUrl.isNotEmpty()) {
+            try {
+                val repo = NavidromeRepository(savedConfig)
+                albums = repo.getRecentAlbums().body() ?: emptyList()
+                songs = repo.getRecentSongs().body() ?: emptyList()
+                artists = repo.getArtists().body() ?: emptyList()
+            } catch (e: Exception) {}
+        }
+    }
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -168,22 +186,62 @@ fun MusicScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
             ) {
                 NavidromeConfigCard(config, colorScheme,
                     onConfigChange = { config = it },
-                    onSave = { scope.launch { repository.saveNavidromeConfig(config) } }
+                    onSave = {
+                        scope.launch {
+                            repository.saveNavidromeConfig(config)
+                            try {
+                                val repo = NavidromeRepository(config)
+                                albums = repo.getRecentAlbums().body() ?: emptyList()
+                                songs = repo.getRecentSongs().body() ?: emptyList()
+                                artists = repo.getArtists().body() ?: emptyList()
+                            } catch (e: Exception) {}
+                        }
+                    }
                 )
             }
         }
-        itemsIndexed(listOf("歌曲 1", "歌曲 2", "歌曲 3", "歌曲 4", "歌曲 5")) { index, title ->
-            var visible by remember { mutableStateOf(false) }
-            LaunchedEffect(Unit) {
-                delay(index * 50L)
-                visible = true
+        item {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("发现", "歌单", "搜索").forEachIndexed { index, label ->
+                    Surface(
+                        color = if (selectedTab == index) colorScheme.primary else colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f).clickable { selectedTab = index }
+                    ) {
+                        Text(
+                            label,
+                            modifier = Modifier.padding(12.dp),
+                            color = if (selectedTab == index) Color.White else colorScheme.onSurface,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
             }
-            AnimatedVisibility(
-                visible = visible,
-                enter = fadeIn(tween(400)) + slideInVertically { it / 2 }
-            ) {
-                TrackCard(title, "艺术家", "04:3$index", colorScheme)
-            }
+        }
+        item {
+            Text("最近添加", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = colorScheme.onBackground)
+        }
+        items(albums.take(5)) { album ->
+            AlbumCard(album, colorScheme)
+        }
+        item {
+            Text("最近播放", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = colorScheme.onBackground)
+        }
+        items(songs.take(5)) { song ->
+            SongCard(song, colorScheme)
+        }
+        item {
+            Text("歌手", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = colorScheme.onBackground)
+        }
+        items(artists.take(5)) { artist ->
+            ArtistCard(artist, colorScheme)
+        }
+        item {
+            Text("专辑", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = colorScheme.onBackground)
+        }
+        items(albums.take(5)) { album ->
+            AlbumCard(album, colorScheme)
         }
     }
 }

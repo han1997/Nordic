@@ -1,0 +1,109 @@
+@Composable
+fun AlbumCard(album: com.nordic.mediahub.api.NavidromeAlbum, colorScheme: ColorScheme) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+    )
+
+    Surface(
+        color = colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth().scale(scale).clickable(interactionSource, null) {}
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(56.dp).clip(RoundedCornerShape(8.dp))
+                    .background(Brush.linearGradient(listOf(colorScheme.primary.copy(0.3f), colorScheme.secondary.copy(0.3f))))
+            ) {
+                if (album.coverArt != null) {
+                    AsyncImage(
+                        model = album.coverArt,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(album.name, fontSize = 15.sp, color = colorScheme.onSurface, fontWeight = FontWeight.Medium)
+                Text(album.artist ?: "Unknown", fontSize = 13.sp, color = colorScheme.onSurface.copy(0.6f))
+            }
+            Text("${album.songCount}首", fontSize = 13.sp, color = colorScheme.onSurface.copy(0.6f))
+        }
+    }
+}
+
+@Composable
+fun SongCard(song: com.nordic.mediahub.api.NavidromeSong, colorScheme: ColorScheme) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+    )
+
+    Surface(
+        color = colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth().scale(scale).clickable(interactionSource, null) {}
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(56.dp).clip(RoundedCornerShape(8.dp))
+                    .background(Brush.linearGradient(listOf(colorScheme.primary.copy(0.3f), colorScheme.secondary.copy(0.3f))))
+            ) {
+                if (song.coverArt != null) {
+                    AsyncImage(
+                        model = song.coverArt,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(song.title, fontSize = 15.sp, color = colorScheme.onSurface, fontWeight = FontWeight.Medium)
+                Text(song.artist ?: "Unknown", fontSize = 13.sp, color = colorScheme.onSurface.copy(0.6f))
+            }
+            Text("${song.duration / 60}:${(song.duration % 60).toString().padStart(2, '0')}", fontSize = 13.sp, color = colorScheme.onSurface.copy(0.6f))
+        }
+    }
+}
+
+@Composable
+fun ArtistCard(artist: com.nordic.mediahub.api.NavidromeArtist, colorScheme: ColorScheme) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+    )
+
+    Surface(
+        color = colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth().scale(scale).clickable(interactionSource, null) {}
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(56.dp).clip(RoundedCornerShape(28.dp))
+                    .background(Brush.linearGradient(listOf(colorScheme.primary.copy(0.3f), colorScheme.secondary.copy(0.3f))))
+            ) {
+                if (artist.coverArt != null) {
+                    AsyncImage(
+                        model = artist.coverArt,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(artist.name, fontSize = 15.sp, color = colorScheme.onSurface, fontWeight = FontWeight.Medium)
+                Text("${artist.albumCount}张专辑", fontSize = 13.sp, color = colorScheme.onSurface.copy(0.6f))
+            }
+        }
+    }
+}
