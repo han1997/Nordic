@@ -2,10 +2,12 @@ package com.nordic.mediahub
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -25,8 +27,10 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.VisualTransformation
@@ -35,11 +39,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.nordic.mediahub.api.*
 import com.nordic.mediahub.data.*
+import com.nordic.mediahub.playback.MusicPlaybackEngine
 import com.nordic.mediahub.ui.AnimatedIconButton
 import com.nordic.mediahub.ui.*
 import com.nordic.mediahub.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import android.graphics.Color as AndroidColor
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,6 +54,17 @@ class MainActivity : ComponentActivity() {
         setContent {
             val isSystemDark = isSystemInDarkTheme()
             var isDark by remember { mutableStateOf(isSystemDark) }
+            SideEffect {
+                val barStyle = if (isDark) {
+                    SystemBarStyle.dark(AndroidColor.TRANSPARENT)
+                } else {
+                    SystemBarStyle.light(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT)
+                }
+                enableEdgeToEdge(
+                    statusBarStyle = barStyle,
+                    navigationBarStyle = barStyle
+                )
+            }
             NordicTheme(darkTheme = isDark) {
                 MainScreen(isDark) { isDark = it }
             }
@@ -58,34 +75,358 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     var selectedTab by remember { mutableStateOf(0) }
+    var showPlayer by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val playbackEngine = remember { MusicPlaybackEngine(context) }
+    val configRepository = remember { ConfigRepository(context) }
+    val navidromeConfig by configRepository.navidromeConfig.collectAsStateWithLifecycle(NavidromeConfig())
+    DisposableEffect(playbackEngine) {
+        onDispose { playbackEngine.release() }
+    }
+    val playbackState by playbackEngine.state.collectAsStateWithLifecycle()
+    val currentSong = playbackState.currentSong
+    val isPlaying = playbackState.isPlaying
+    var lyrics by remember { mutableStateOf<MusicLyrics?>(null) }
+    var isLyricsLoading by remember { mutableStateOf(false) }
+    var lyricsError by remember { mutableStateOf<String?>(null) }
     val colorScheme = MaterialTheme.colorScheme
+    val onPlayPause = {
+        if (currentSong == null) {
+            showPlayer = true
+        } else {
+            playbackEngine.togglePlayPause()
+        }
+    }
+    val playbackStatus = when {
+        playbackState.errorMessage != null -> playbackState.errorMessage
+        playbackState.isBuffering -> "正在缓冲"
+        else -> null
+    }
+
+    LaunchedEffect(
+        currentSong?.id,
+        navidromeConfig.serverUrl,
+        navidromeConfig.username,
+        navidromeConfig.password
+    ) {
+        val song = currentSong
+        lyrics = null
+        lyricsError = null
+
+        if (song == null) {
+            isLyricsLoading = false
+            return@LaunchedEffect
+        }
+
+        if (navidromeConfig.serverUrl.isBlank() || navidromeConfig.username.isBlank()) {
+            isLyricsLoading = false
+            lyricsError = "未配置 Navidrome"
+            return@LaunchedEffect
+        }
+
+        isLyricsLoading = true
+        val loadedLyrics = runCatching {
+            NavidromeRepository(navidromeConfig).getLyrics(song)
+        }.getOrNull()
+        lyrics = loadedLyrics
+        lyricsError = if (loadedLyrics == null) "暂无歌词" else null
+        isLyricsLoading = false
+    }
 
     Scaffold(
         containerColor = colorScheme.background,
         bottomBar = {
-            Column {
-                NowPlayingBar(colorScheme)
-                BottomNav(selectedTab, colorScheme) { selectedTab = it }
+            if (!showPlayer) {
+                PolishedPlaybackDock(
+                    selected = selectedTab,
+                    colorScheme = colorScheme,
+                    currentSong = currentSong,
+                    isPlaying = isPlaying,
+                    playbackStatus = playbackStatus,
+                    onOpenPlayer = { showPlayer = true },
+                    onPlayPause = onPlayPause,
+                    onSelect = { selectedTab = it }
+                )
             }
         }
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
+        Box(Modifier.fillMaxSize()) {
             AnimatedContent(
-                targetState = selectedTab,
+                targetState = showPlayer,
                 transitionSpec = {
                     fadeIn(tween(300, easing = FastOutSlowInEasing)) togetherWith
                         fadeOut(tween(200))
                 }
-            ) { tab ->
-                when (tab) {
-                    0 -> MusicScreen(colorScheme, isDark, onThemeToggle)
-                    1 -> AudiobookScreen(colorScheme, isDark, onThemeToggle)
-                    2 -> VideoScreen(colorScheme, isDark, onThemeToggle)
+            ) { playerVisible ->
+                if (playerVisible) {
+                    MusicPlayerScreen(
+                        song = currentSong,
+                        colorScheme = colorScheme,
+                        isPlaying = isPlaying,
+                        isBuffering = playbackState.isBuffering,
+                        playbackError = playbackState.errorMessage,
+                        positionSeconds = playbackState.positionSeconds,
+                        durationSeconds = playbackState.durationSeconds,
+                        lyrics = lyrics,
+                        isLyricsLoading = isLyricsLoading,
+                        lyricsError = lyricsError,
+                        onSeek = playbackEngine::seekTo,
+                        onPlayPause = onPlayPause,
+                        onClose = { showPlayer = false },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Box(Modifier.fillMaxSize().padding(padding)) {
+                        AnimatedContent(
+                            targetState = selectedTab,
+                            transitionSpec = {
+                                fadeIn(tween(300, easing = FastOutSlowInEasing)) togetherWith
+                                    fadeOut(tween(200))
+                            }
+                        ) { tab ->
+                            when (tab) {
+                                0 -> MusicScreenV2(
+                                    isDark = isDark,
+                                    onThemeToggle = onThemeToggle,
+                                    onSongSelected = { song ->
+                                        playbackEngine.play(song)
+                                        showPlayer = true
+                                    }
+                                )
+                                1 -> AudiobookScreen(colorScheme, isDark, onThemeToggle)
+                                2 -> VideoScreen(colorScheme, isDark, onThemeToggle)
+                            }
+                        }
+                    }
                 }
             }
         }
     }
 }
+
+@Composable
+fun PolishedPlaybackDock(
+    selected: Int,
+    colorScheme: ColorScheme,
+    currentSong: NavidromeSong?,
+    isPlaying: Boolean,
+    playbackStatus: String? = null,
+    onOpenPlayer: () -> Unit,
+    onPlayPause: () -> Unit,
+    onSelect: (Int) -> Unit
+) {
+    Surface(
+        color = colorScheme.surface.copy(alpha = 0.94f),
+        contentColor = colorScheme.onSurface,
+        shape = RoundedCornerShape(28.dp),
+        tonalElevation = 6.dp,
+        shadowElevation = 12.dp,
+        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.08f)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(start = 12.dp, end = 12.dp, bottom = 10.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            PolishedNowPlayingBar(
+                song = currentSong,
+                colorScheme = colorScheme,
+                isPlaying = isPlaying,
+                playbackStatus = playbackStatus,
+                onOpenPlayer = onOpenPlayer,
+                onPlayPause = onPlayPause
+            )
+            Box(
+                Modifier
+                    .padding(horizontal = 18.dp, vertical = 2.dp)
+                    .height(1.dp)
+                    .fillMaxWidth()
+                    .background(colorScheme.onSurface.copy(alpha = 0.07f))
+            )
+            PolishedBottomNav(selected, colorScheme, onSelect)
+        }
+    }
+}
+
+@Composable
+fun PolishedBottomNav(selected: Int, colorScheme: ColorScheme, onSelect: (Int) -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(58.dp)
+            .padding(horizontal = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        PolishedNavItem("♪", "音乐", selected == 0, colorScheme, Modifier.weight(1f)) { onSelect(0) }
+        PolishedNavItem("▤", "有声书", selected == 1, colorScheme, Modifier.weight(1f)) { onSelect(1) }
+        PolishedNavItem("▶", "视频", selected == 2, colorScheme, Modifier.weight(1f)) { onSelect(2) }
+    }
+}
+
+@Composable
+fun PolishedNavItem(
+    icon: String,
+    label: String,
+    selected: Boolean,
+    colorScheme: ColorScheme,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
+    )
+    val itemColor by animateColorAsState(
+        targetValue = if (selected) colorScheme.primary.copy(alpha = 0.13f) else Color.Transparent,
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.58f),
+        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+    )
+
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .scale(scale)
+            .clip(RoundedCornerShape(18.dp))
+            .background(itemColor)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(icon, fontSize = 19.sp, color = contentColor, fontWeight = FontWeight.SemiBold)
+            Text(
+                label,
+                fontSize = 11.sp,
+                color = contentColor,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
+            )
+        }
+    }
+}
+
+@Composable
+fun PolishedNowPlayingBar(
+    song: NavidromeSong?,
+    colorScheme: ColorScheme,
+    isPlaying: Boolean,
+    playbackStatus: String? = null,
+    onOpenPlayer: () -> Unit,
+    onPlayPause: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(66.dp)
+            .clickable(onClick = onOpenPlayer)
+            .padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .clip(RoundedCornerShape(13.dp))
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            colorScheme.primary.copy(alpha = 0.28f),
+                            colorScheme.secondary.copy(alpha = 0.18f)
+                        )
+                    )
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (song?.coverArt != null) {
+                AsyncImage(
+                    model = song.coverArt,
+                    contentDescription = song.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.matchParentSize()
+                )
+            } else {
+            Text("♪", fontSize = 22.sp, color = colorScheme.primary, fontWeight = FontWeight.Bold)
+        }
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(
+            Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            if (song == null) {
+            Text(
+                "播放队列",
+                fontSize = 15.sp,
+                color = colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            } else {
+                Text(
+                    song.title,
+                    fontSize = 15.sp,
+                    color = colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            if (song == null) {
+            Text(
+                "等待播放",
+                fontSize = 12.sp,
+                color = colorScheme.onSurface.copy(alpha = 0.56f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            } else {
+                Text(
+                    playbackStatus ?: song.artist ?: song.album ?: "Unknown artist",
+                    fontSize = 12.sp,
+                    color = if (playbackStatus == null) {
+                        colorScheme.onSurface.copy(alpha = 0.56f)
+                    } else {
+                        colorScheme.primary.copy(alpha = 0.78f)
+                    },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        Surface(
+            color = colorScheme.primary,
+            contentColor = colorScheme.onPrimary,
+            shape = RoundedCornerShape(999.dp),
+            shadowElevation = 2.dp,
+            modifier = Modifier.clickable(onClick = onPlayPause)
+        ) {
+            Box(
+                modifier = Modifier.size(38.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isPlaying) {
+                    Text("Ⅱ", fontSize = 16.sp, color = colorScheme.onPrimary)
+                } else {
+                Text("▶", fontSize = 16.sp, color = colorScheme.onPrimary)
+            }
+        }
+    }
+}
+}
+
 
 @Composable
 fun BottomNav(selected: Int, colorScheme: ColorScheme, onSelect: (Int) -> Unit) {
@@ -146,17 +487,29 @@ fun MusicScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
     var albums by remember { mutableStateOf<List<com.nordic.mediahub.api.NavidromeAlbum>>(emptyList()) }
     var songs by remember { mutableStateOf<List<com.nordic.mediahub.api.NavidromeSong>>(emptyList()) }
     var artists by remember { mutableStateOf<List<com.nordic.mediahub.api.NavidromeArtist>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMsg by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+
+    suspend fun loadMusicData() {
+        isLoading = true
+        errorMsg = null
+        try {
+            val repo = NavidromeRepository(config)
+            albums = repo.getRecentAlbums()
+            songs = repo.getRecentSongs()
+            artists = repo.getArtists()
+        } catch (e: Exception) {
+            errorMsg = "连接失败: ${e.message}"
+        } finally {
+            isLoading = false
+        }
+    }
 
     LaunchedEffect(savedConfig) {
         config = savedConfig
-        if (savedConfig.serverUrl.isNotEmpty()) {
-            try {
-                val repo = NavidromeRepository(savedConfig)
-                albums = repo.getRecentAlbums().body() ?: emptyList()
-                songs = repo.getRecentSongs().body() ?: emptyList()
-                artists = repo.getArtists().body() ?: emptyList()
-            } catch (e: Exception) {}
+        if (savedConfig.serverUrl.isNotEmpty() && savedConfig.username.isNotEmpty()) {
+            loadMusicData()
         }
     }
 
@@ -189,12 +542,7 @@ fun MusicScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
                     onSave = {
                         scope.launch {
                             repository.saveNavidromeConfig(config)
-                            try {
-                                val repo = NavidromeRepository(config)
-                                albums = repo.getRecentAlbums().body() ?: emptyList()
-                                songs = repo.getRecentSongs().body() ?: emptyList()
-                                artists = repo.getArtists().body() ?: emptyList()
-                            } catch (e: Exception) {}
+                            loadMusicData()
                         }
                     }
                 )
@@ -211,12 +559,31 @@ fun MusicScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
                         Text(
                             label,
                             modifier = Modifier.padding(12.dp),
-                            color = if (selectedTab == index) Color.White else colorScheme.onSurface,
+                            color = if (selectedTab == index) colorScheme.onPrimary else colorScheme.onSurface,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium
                         )
                     }
                 }
+            }
+        }
+        if (errorMsg != null) {
+            item {
+                Surface(color = colorScheme.errorContainer, shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    Text(errorMsg!!, modifier = Modifier.padding(12.dp), color = colorScheme.onErrorContainer, fontSize = 13.sp)
+                }
+            }
+        }
+        if (isLoading) {
+            item {
+                Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                    Text("加载中...", fontSize = 14.sp, color = colorScheme.onSurface.copy(0.6f))
+                }
+            }
+        }
+        if (!isLoading && errorMsg == null && albums.isEmpty()) {
+            item {
+                Text("请配置服务器以查看内容", fontSize = 14.sp, color = colorScheme.onSurface.copy(0.6f), modifier = Modifier.fillMaxWidth().padding(32.dp))
             }
         }
         item {
@@ -365,8 +732,8 @@ fun TrackCard(title: String, artist: String, duration: String, colorScheme: Colo
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+        targetValue = if (isPressed) 0.985f else 1f,
+        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
     )
 
     Surface(
@@ -394,8 +761,8 @@ fun AudiobookCard(title: String, author: String, chapters: String, colorScheme: 
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+        targetValue = if (isPressed) 0.985f else 1f,
+        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
     )
 
     Surface(
@@ -423,8 +790,8 @@ fun VideoCard(title: String, duration: String, colorScheme: ColorScheme) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+        targetValue = if (isPressed) 0.985f else 1f,
+        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
     )
 
     Surface(
@@ -496,8 +863,8 @@ fun VideoConfigCard(config: VideoServerConfig, colorScheme: ColorScheme, onConfi
                 VideoServerType.values().forEach { type ->
                     val selected = config.type == type
                     val scale by animateFloatAsState(
-                        targetValue = if (selected) 1.05f else 1f,
-                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+                        targetValue = if (selected) 1.01f else 1f,
+                        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
                     )
                     Surface(
                         color = if (selected) colorScheme.primary else colorScheme.surface,
@@ -507,7 +874,7 @@ fun VideoConfigCard(config: VideoServerConfig, colorScheme: ColorScheme, onConfi
                         Text(
                             type.name,
                             modifier = Modifier.padding(10.dp),
-                            color = if (selected) Color.White else colorScheme.onSurface,
+                            color = if (selected) colorScheme.onPrimary else colorScheme.onSurface,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         )

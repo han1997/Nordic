@@ -1,8 +1,8 @@
 package com.nordic.mediahub.ui
 
-import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -19,8 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.ColorScheme
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -30,19 +30,19 @@ fun AlbumCard(album: com.nordic.mediahub.api.NavidromeAlbum, colorScheme: ColorS
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+        targetValue = if (isPressed) 0.985f else 1f,
+        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
     )
 
     Surface(
-        color = colorScheme.surfaceVariant,
-        shape = RoundedCornerShape(12.dp),
+        color = colorScheme.surfaceVariant.copy(alpha = 0.72f),
+        shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth().scale(scale).clickable(interactionSource, null) {}
     ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
-                Modifier.size(56.dp).clip(RoundedCornerShape(8.dp))
-                    .background(Brush.linearGradient(listOf(colorScheme.primary.copy(0.3f), colorScheme.secondary.copy(0.3f))))
+                Modifier.size(54.dp).clip(RoundedCornerShape(12.dp))
+                    .background(Brush.linearGradient(listOf(colorScheme.primary.copy(0.2f), colorScheme.secondary.copy(0.14f))))
             ) {
                 if (album.coverArt != null) {
                     AsyncImage(
@@ -67,19 +67,19 @@ fun SongCard(song: com.nordic.mediahub.api.NavidromeSong, colorScheme: ColorSche
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+        targetValue = if (isPressed) 0.985f else 1f,
+        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
     )
 
     Surface(
-        color = colorScheme.surfaceVariant,
-        shape = RoundedCornerShape(12.dp),
+        color = colorScheme.surfaceVariant.copy(alpha = 0.72f),
+        shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth().scale(scale).clickable(interactionSource, null) {}
     ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
-                Modifier.size(56.dp).clip(RoundedCornerShape(8.dp))
-                    .background(Brush.linearGradient(listOf(colorScheme.primary.copy(0.3f), colorScheme.secondary.copy(0.3f))))
+                Modifier.size(54.dp).clip(RoundedCornerShape(12.dp))
+                    .background(Brush.linearGradient(listOf(colorScheme.primary.copy(0.2f), colorScheme.secondary.copy(0.14f))))
             ) {
                 if (song.coverArt != null) {
                     AsyncImage(
@@ -104,19 +104,19 @@ fun ArtistCard(artist: com.nordic.mediahub.api.NavidromeArtist, colorScheme: Col
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+        targetValue = if (isPressed) 0.985f else 1f,
+        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
     )
 
     Surface(
-        color = colorScheme.surfaceVariant,
-        shape = RoundedCornerShape(12.dp),
+        color = colorScheme.surfaceVariant.copy(alpha = 0.72f),
+        shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth().scale(scale).clickable(interactionSource, null) {}
     ) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
-                Modifier.size(56.dp).clip(RoundedCornerShape(28.dp))
-                    .background(Brush.linearGradient(listOf(colorScheme.primary.copy(0.3f), colorScheme.secondary.copy(0.3f))))
+                Modifier.size(54.dp).clip(RoundedCornerShape(27.dp))
+                    .background(Brush.linearGradient(listOf(colorScheme.primary.copy(0.2f), colorScheme.secondary.copy(0.14f))))
             ) {
                 if (artist.coverArt != null) {
                     AsyncImage(
