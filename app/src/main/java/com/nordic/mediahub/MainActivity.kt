@@ -24,16 +24,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.nordic.mediahub.data.*
 import com.nordic.mediahub.ui.AnimatedIconButton
 import com.nordic.mediahub.ui.theme.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -130,8 +133,14 @@ fun NowPlayingBar(colorScheme: ColorScheme) {
 
 @Composable
 fun MusicScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
+    val context = LocalContext.current
+    val repository = remember { ConfigRepository(context) }
+    val savedConfig by repository.navidromeConfig.collectAsStateWithLifecycle(NavidromeConfig())
     var config by remember { mutableStateOf(NavidromeConfig()) }
     var showConfig by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(savedConfig) { config = savedConfig }
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -157,7 +166,10 @@ fun MusicScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
                 enter = fadeIn(tween(300, easing = FastOutSlowInEasing)) + expandVertically(),
                 exit = fadeOut(tween(200)) + shrinkVertically()
             ) {
-                NavidromeConfigCard(config, colorScheme) { config = it }
+                NavidromeConfigCard(config, colorScheme,
+                    onConfigChange = { config = it },
+                    onSave = { scope.launch { repository.saveNavidromeConfig(config) } }
+                )
             }
         }
         itemsIndexed(listOf("歌曲 1", "歌曲 2", "歌曲 3", "歌曲 4", "歌曲 5")) { index, title ->
@@ -178,8 +190,14 @@ fun MusicScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
 
 @Composable
 fun AudiobookScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
+    val context = LocalContext.current
+    val repository = remember { ConfigRepository(context) }
+    val savedConfig by repository.audiobookConfig.collectAsStateWithLifecycle(AudiobookShelfConfig())
     var config by remember { mutableStateOf(AudiobookShelfConfig()) }
     var showConfig by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(savedConfig) { config = savedConfig }
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -205,7 +223,10 @@ fun AudiobookScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (B
                 enter = fadeIn(tween(300, easing = FastOutSlowInEasing)) + expandVertically(),
                 exit = fadeOut(tween(200)) + shrinkVertically()
             ) {
-                AudiobookConfigCard(config, colorScheme) { config = it }
+                AudiobookConfigCard(config, colorScheme,
+                    onConfigChange = { config = it },
+                    onSave = { scope.launch { repository.saveAudiobookConfig(config) } }
+                )
             }
         }
         itemsIndexed(listOf("书名 1", "书名 2", "书名 3")) { index, title ->
@@ -226,8 +247,14 @@ fun AudiobookScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (B
 
 @Composable
 fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
+    val context = LocalContext.current
+    val repository = remember { ConfigRepository(context) }
+    val savedConfig by repository.videoConfig.collectAsStateWithLifecycle(VideoServerConfig())
     var config by remember { mutableStateOf(VideoServerConfig()) }
     var showConfig by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(savedConfig) { config = savedConfig }
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -253,7 +280,10 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
                 enter = fadeIn(tween(300, easing = FastOutSlowInEasing)) + expandVertically(),
                 exit = fadeOut(tween(200)) + shrinkVertically()
             ) {
-                VideoConfigCard(config, colorScheme) { config = it }
+                VideoConfigCard(config, colorScheme,
+                    onConfigChange = { config = it },
+                    onSave = { scope.launch { repository.saveVideoConfig(config) } }
+                )
             }
         }
         itemsIndexed(listOf("视频 1", "视频 2", "视频 3", "视频 4")) { index, title ->
@@ -358,7 +388,7 @@ fun VideoCard(title: String, duration: String, colorScheme: ColorScheme) {
 }
 
 @Composable
-fun NavidromeConfigCard(config: NavidromeConfig, colorScheme: ColorScheme, onConfigChange: (NavidromeConfig) -> Unit) {
+fun NavidromeConfigCard(config: NavidromeConfig, colorScheme: ColorScheme, onConfigChange: (NavidromeConfig) -> Unit, onSave: () -> Unit) {
     Surface(color = colorScheme.surfaceVariant, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Navidrome 服务器", fontSize = 15.sp, color = colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
@@ -371,12 +401,15 @@ fun NavidromeConfigCard(config: NavidromeConfig, colorScheme: ColorScheme, onCon
             ConfigTextField("密码", config.password, "password", colorScheme, true) {
                 onConfigChange(config.copy(password = it))
             }
+            Button(onClick = onSave, modifier = Modifier.fillMaxWidth()) {
+                Text("保存配置")
+            }
         }
     }
 }
 
 @Composable
-fun AudiobookConfigCard(config: AudiobookShelfConfig, colorScheme: ColorScheme, onConfigChange: (AudiobookShelfConfig) -> Unit) {
+fun AudiobookConfigCard(config: AudiobookShelfConfig, colorScheme: ColorScheme, onConfigChange: (AudiobookShelfConfig) -> Unit, onSave: () -> Unit) {
     Surface(color = colorScheme.surfaceVariant, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("AudiobookShelf 服务器", fontSize = 15.sp, color = colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
@@ -389,12 +422,15 @@ fun AudiobookConfigCard(config: AudiobookShelfConfig, colorScheme: ColorScheme, 
             ConfigTextField("密码", config.password, "password", colorScheme, true) {
                 onConfigChange(config.copy(password = it))
             }
+            Button(onClick = onSave, modifier = Modifier.fillMaxWidth()) {
+                Text("保存配置")
+            }
         }
     }
 }
 
 @Composable
-fun VideoConfigCard(config: VideoServerConfig, colorScheme: ColorScheme, onConfigChange: (VideoServerConfig) -> Unit) {
+fun VideoConfigCard(config: VideoServerConfig, colorScheme: ColorScheme, onConfigChange: (VideoServerConfig) -> Unit, onSave: () -> Unit) {
     Surface(color = colorScheme.surfaceVariant, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("视频服务器", fontSize = 15.sp, color = colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
@@ -450,6 +486,9 @@ fun VideoConfigCard(config: VideoServerConfig, colorScheme: ColorScheme, onConfi
                                 onConfigChange(config.copy(password = it))
                             }
                         }
+                    }
+                    Button(onClick = onSave, modifier = Modifier.fillMaxWidth()) {
+                        Text("保存配置")
                     }
                 }
             }

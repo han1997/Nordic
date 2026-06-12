@@ -16,7 +16,9 @@
       "Bash(git show *)",
       "Read(//tmp/**)",
       "Bash(git commit -m 'fix: 恢复完整UI实现 *)",
-      "Bash(git commit -m 'fix: 恢复完整UI并修正import *)"
+      "Bash(git commit -m 'fix: 恢复完整UI并修正import *)",
+      "Bash(git commit -m 'fix: 添加AnimatedIconButton导入 *)",
+      "Bash(git commit -m 'feat: 添加服务器配置持久化存储 *)"
     ]
   }
 }
