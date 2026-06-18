@@ -135,7 +135,10 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         if (session != null && repo != null) {
             scope.launch {
                 runCatching {
-                    repo.closeSession(session, positionSeconds)
+                    repo.syncAndCloseSession(session, positionSeconds)
+                }.onFailure { error ->
+                    audiobookPlaybackError = error.message ?: "关闭有声书播放会话失败"
+                    showAudiobookPlayer = true
                 }
             }
         }
@@ -283,6 +286,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                                 audiobookRepository?.startPlayback(item.id)
                                                     ?: error("未配置 AudiobookShelf")
                                             }.onSuccess { session ->
+                                                playbackEngine.stop()
                                                 audiobookPlaybackEngine.play(session)
                                                 showAudiobookPlayer = true
                                                 showPlayer = false

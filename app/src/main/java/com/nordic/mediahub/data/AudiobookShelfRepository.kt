@@ -11,6 +11,7 @@ import com.nordic.mediahub.api.AudiobookShelfProgressUpdateRequest
 import com.nordic.mediahub.api.AudiobookShelfSessionSyncRequest
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
@@ -178,39 +179,46 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
     suspend fun syncProgress(session: AudiobookPlaybackSession, currentTimeSeconds: Int, deltaSeconds: Int) {
         val auth = bearerToken()
         val duration = session.durationSeconds.coerceAtLeast(1)
-        val progress = currentTimeSeconds.toFloat() / duration.toFloat()
+        val safeCurrentTime = currentTimeSeconds.coerceAtLeast(0)
+        val progress = (safeCurrentTime.toDouble() / duration.toDouble()).coerceIn(0.0, 1.0)
         api.updateProgress(
             bearerToken = auth,
             itemId = session.libraryItemId,
             request = AudiobookShelfProgressUpdateRequest(
                 duration = duration.toDouble(),
-                currentTime = currentTimeSeconds.toDouble(),
-                progress = progress.toDouble(),
+                currentTime = safeCurrentTime.toDouble(),
+                progress = progress,
                 lastUpdate = System.currentTimeMillis()
             )
-        )
+        ).requireUnitResponse("同步有声书进度失败")
         api.syncSession(
             bearerToken = auth,
             sessionId = session.sessionId,
             request = AudiobookShelfSessionSyncRequest(
-                currentTime = currentTimeSeconds.toDouble(),
+                currentTime = safeCurrentTime.toDouble(),
                 timeListened = deltaSeconds.toDouble().coerceAtLeast(0.0),
                 duration = duration.toDouble()
             )
-        )
+        ).requireUnitResponse("同步有声书播放会话失败")
     }
 
     suspend fun closeSession(session: AudiobookPlaybackSession, currentTimeSeconds: Int) {
         val auth = bearerToken()
+        val safeCurrentTime = currentTimeSeconds.coerceAtLeast(0)
         api.closeSession(
             bearerToken = auth,
             sessionId = session.sessionId,
             request = AudiobookShelfSessionSyncRequest(
-                currentTime = currentTimeSeconds.toDouble(),
+                currentTime = safeCurrentTime.toDouble(),
                 timeListened = 0.0,
                 duration = session.durationSeconds.toDouble().coerceAtLeast(1.0)
             )
-        )
+        ).requireUnitResponse("关闭有声书播放会话失败")
+    }
+
+    suspend fun syncAndCloseSession(session: AudiobookPlaybackSession, currentTimeSeconds: Int, deltaSeconds: Int = 0) {
+        syncProgress(session, currentTimeSeconds, deltaSeconds)
+        closeSession(session, currentTimeSeconds)
     }
 
     private fun AudiobookShelfLibraryItemMinifiedDto.toSummary(): AudiobookItemSummary {
@@ -275,6 +283,15 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
         return if (absolute.contains("token=")) absolute else {
             val separator = if (absolute.contains("?")) "&" else "?"
             "$absolute${separator}token=$token"
+        }
+    }
+
+    private fun Response<Unit>.requireUnitResponse(action: String) {
+        if (!isSuccessful) {
+            throw AudiobookShelfApiException(
+                "$action: HTTP ${code()}",
+                AudiobookShelfApiException.Kind.HTTP
+            )
         }
     }
 }

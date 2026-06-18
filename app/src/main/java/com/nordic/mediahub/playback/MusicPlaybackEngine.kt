@@ -261,6 +261,21 @@ class MusicPlaybackEngine(context: Context) {
         publishPlayerState()
     }
 
+    fun stop() {
+        stopPositionUpdates()
+        controller?.run {
+            pause()
+            stop()
+            clearMediaItems()
+        }
+        pendingSong = null
+        pendingQueue = null
+        pendingQueueStartIndex = 0
+        cachedTimelineGeneration = -1
+        cachedQueue = emptyList()
+        _state.value = MusicPlaybackState()
+    }
+
     fun release() {
         stopPositionUpdates()
         scope.cancel()

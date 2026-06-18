@@ -239,10 +239,16 @@ class AudiobookPlaybackEngine(context: Context) {
         tracks: List<AudiobookAudioTrack>,
         currentIndex: Int,
         currentPositionMs: Long
-    ): Int {
-        val currentTrack = tracks.getOrNull(currentIndex) ?: return (currentPositionMs / 1000L).toInt()
-        return currentTrack.startOffsetSeconds + (currentPositionMs.coerceAtLeast(0L) / 1000L).toInt()
-    }
+    ): Int = resolveAudiobookAbsolutePositionSeconds(tracks, currentIndex, currentPositionMs)
+}
+
+internal fun resolveAudiobookAbsolutePositionSeconds(
+    tracks: List<AudiobookAudioTrack>,
+    currentIndex: Int,
+    currentPositionMs: Long
+): Int {
+    val currentTrack = tracks.getOrNull(currentIndex) ?: return (currentPositionMs.coerceAtLeast(0L) / 1000L).toInt()
+    return currentTrack.startOffsetSeconds + (currentPositionMs.coerceAtLeast(0L) / 1000L).toInt()
 }
 
 private fun AudiobookAudioTrack.toMediaItem(session: AudiobookPlaybackSession): MediaItem {
