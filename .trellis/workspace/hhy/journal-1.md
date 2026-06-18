@@ -72,3 +72,37 @@ Integrated AudiobookShelf auth, library browsing, playback session handling, pro
 ### Next Steps
 
 - None - task complete
+
+
+## Session 3: Weekly stabilization slice
+
+**Date**: 2026-06-18
+**Task**: Weekly stabilization slice
+**Branch**: `main`
+
+### Summary
+
+Hardened AudiobookShelf session lifecycle, added unit test baseline, and updated the session contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8504bd5` | (see git log) |
+| `7279f96` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
