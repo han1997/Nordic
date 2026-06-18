@@ -29,7 +29,10 @@ data class MusicPlaybackState(
     val isBuffering: Boolean = false,
     val positionSeconds: Int = 0,
     val durationSeconds: Int = 0,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val repeatMode: Int = Player.REPEAT_MODE_OFF,
+    val queue: List<NavidromeSong> = emptyList(),
+    val queueIndex: Int = 0
 )
 
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -43,7 +46,11 @@ class MusicPlaybackEngine(context: Context) {
     private val controllerFuture = MediaController.Builder(appContext, sessionToken).buildAsync()
     private var controller: MediaController? = null
     private var pendingSong: NavidromeSong? = null
+    private var pendingQueue: List<NavidromeSong>? = null
+    private var pendingQueueStartIndex: Int = 0
     private var positionUpdateJob: Job? = null
+    private var cachedTimelineGeneration: Int = -1
+    private var cachedQueue: List<NavidromeSong> = emptyList()
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -63,12 +70,19 @@ class MusicPlaybackEngine(context: Context) {
             publishPlayerState()
         }
 
-        @Deprecated("Deprecated in Media3")
-        override fun onPositionDiscontinuity(reason: Int) {
+        override fun onPositionDiscontinuity(
+            oldPosition: Player.PositionInfo,
+            newPosition: Player.PositionInfo,
+            reason: Int
+        ) {
             publishPlayerState()
         }
 
         override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
+            publishPlayerState()
+        }
+
+        override fun onRepeatModeChanged(repeatMode: Int) {
             publishPlayerState()
         }
 
@@ -94,9 +108,13 @@ class MusicPlaybackEngine(context: Context) {
                 runCatching {
                     controller = controllerFuture.get().also { it.addListener(playerListener) }
                     val song = pendingSong
+                    val queue = pendingQueue
                     pendingSong = null
+                    pendingQueue = null
                     if (song != null) {
                         play(song)
+                    } else if (queue != null) {
+                        playQueue(queue, pendingQueueStartIndex)
                     } else {
                         publishPlayerState()
                     }
@@ -154,6 +172,60 @@ class MusicPlaybackEngine(context: Context) {
             activeController.prepare()
         }
         activeController.play()
+        publishPlayerState()
+    }
+
+    fun playQueue(songs: List<NavidromeSong>, startIndex: Int = 0) {
+        if (songs.isEmpty()) return
+
+        val activeController = controller
+        if (activeController == null) {
+            pendingQueue = songs
+            pendingQueueStartIndex = startIndex
+            val startSong = songs.getOrNull(startIndex)
+            _state.update {
+                it.copy(
+                    currentSong = startSong,
+                    isBuffering = true,
+                    queue = songs,
+                    queueIndex = startIndex.coerceIn(0, songs.lastIndex)
+                )
+            }
+            return
+        }
+
+        val mediaItems = songs.map { it.toMediaItem() }
+        val safeStartIndex = startIndex.coerceIn(0, songs.lastIndex)
+        activeController.setMediaItems(mediaItems, safeStartIndex, 0L)
+        activeController.prepare()
+        activeController.play()
+        publishPlayerState()
+    }
+
+    fun seekToNext() {
+        controller?.seekToNext()
+        publishPlayerState()
+    }
+
+    fun seekToPrevious() {
+        controller?.seekToPrevious()
+        publishPlayerState()
+    }
+
+    fun toggleRepeatMode() {
+        val activeController = controller ?: return
+        val nextMode = when (activeController.repeatMode) {
+            Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ONE
+            Player.REPEAT_MODE_ONE -> Player.REPEAT_MODE_ALL
+            else -> Player.REPEAT_MODE_OFF
+        }
+        activeController.repeatMode = nextMode
+        publishPlayerState()
+    }
+
+    fun seekToQueueIndex(index: Int) {
+        controller?.seekToDefaultPosition(index)
+        controller?.play()
         publishPlayerState()
     }
 
@@ -220,6 +292,15 @@ class MusicPlaybackEngine(context: Context) {
             ?.coerceAtLeast(0L)
         val fallbackDuration = current?.duration?.coerceAtLeast(0) ?: 0
 
+        val timelineGeneration = activeController.currentTimeline.hashCode()
+        if (timelineGeneration != cachedTimelineGeneration) {
+            cachedTimelineGeneration = timelineGeneration
+            cachedQueue = (0 until activeController.mediaItemCount).mapNotNull { index ->
+                activeController.getMediaItemAt(index).toNavidromeSong()
+            }
+        }
+        val currentIndex = activeController.currentMediaItemIndex
+
         _state.update {
             it.copy(
                 currentSong = current,
@@ -231,7 +312,10 @@ class MusicPlaybackEngine(context: Context) {
                 errorMessage = when (activeController.playbackState) {
                     Player.STATE_READY, Player.STATE_ENDED -> null
                     else -> it.errorMessage
-                }
+                },
+                repeatMode = activeController.repeatMode,
+                queue = cachedQueue,
+                queueIndex = currentIndex
             )
         }
     }

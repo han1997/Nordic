@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -286,11 +285,12 @@ fun ArtistRoundCard(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         MusicArtwork(
-            imageUrl = artist.coverArt,
+            imageUrl = null,
             contentDescription = artist.name,
             colorScheme = colorScheme,
             size = 78.dp,
-            shape = CircleShape
+            shape = CircleShape,
+            initials = artist.initials
         )
 
         Column(
@@ -349,7 +349,7 @@ fun SongShelfCard(
     CompactMusicShelfItem(
         title = song.title,
         subtitle = song.artist ?: "Unknown artist",
-        meta = formatTrackDuration(song.duration),
+        meta = formatDuration(song.duration),
         artworkUrl = song.coverArt,
         contentDescription = song.title,
         colorScheme = colorScheme,
@@ -369,11 +369,12 @@ fun ArtistShelfCard(
         title = artist.name,
         subtitle = "${artist.albumCount} albums",
         meta = "Artist",
-        artworkUrl = artist.coverArt,
+        artworkUrl = null,
         contentDescription = artist.name,
         colorScheme = colorScheme,
         modifier = modifier,
         artworkShape = CircleShape,
+        initials = artist.initials,
         onClick = onClick
     )
 }
@@ -443,7 +444,7 @@ fun SongListRow(
             }
 
             Text(
-                formatTrackDuration(song.duration),
+                formatDuration(song.duration),
                 fontSize = 12.sp,
                 color = colorScheme.onSurface.copy(alpha = 0.48f),
                 fontWeight = FontWeight.Medium,
@@ -457,14 +458,15 @@ fun SongListRow(
 fun ArtistListRow(
     artist: NavidromeArtist,
     colorScheme: ColorScheme,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
 ) {
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
         contentColor = colorScheme.onSurface,
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth().clickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
@@ -472,10 +474,11 @@ fun ArtistListRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             MusicArtwork(
-                imageUrl = artist.coverArt,
+                imageUrl = null,
                 contentDescription = artist.name,
                 colorScheme = colorScheme,
-                shape = CircleShape
+                shape = CircleShape,
+                initials = artist.initials
             )
 
             Column(
@@ -519,6 +522,7 @@ private fun CompactMusicShelfItem(
     colorScheme: ColorScheme,
     modifier: Modifier = Modifier,
     artworkShape: Shape = RoundedCornerShape(18.dp),
+    initials: String? = null,
     onClick: () -> Unit = {}
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -536,7 +540,8 @@ private fun CompactMusicShelfItem(
             contentDescription = contentDescription,
             colorScheme = colorScheme,
             size = 124.dp,
-            shape = artworkShape
+            shape = artworkShape,
+            initials = initials
         )
 
         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -572,7 +577,8 @@ private fun MusicArtwork(
     contentDescription: String,
     colorScheme: ColorScheme,
     size: Dp = 52.dp,
-    shape: Shape = RoundedCornerShape(12.dp)
+    shape: Shape = RoundedCornerShape(12.dp),
+    initials: String? = null
 ) {
     var imageFailed by remember(imageUrl) { mutableStateOf(false) }
     val fallbackAccent = remember(contentDescription) {
@@ -583,6 +589,9 @@ private fun MusicArtwork(
         1 -> colorScheme.secondary
         else -> colorScheme.tertiary
     }
+
+    val showImage = !imageUrl.isNullOrBlank() && !imageFailed
+    val showInitials = !showImage && !initials.isNullOrBlank()
 
     Box(
         modifier = Modifier
@@ -598,14 +607,13 @@ private fun MusicArtwork(
             ),
         contentAlignment = Alignment.Center
     ) {
-        if (!imageUrl.isNullOrBlank() && !imageFailed) {
+        if (showImage) {
             AsyncImage(
-                model = imageUrl,
+                model = imageUrl!!,
                 contentDescription = contentDescription,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.matchParentSize(),
                 onSuccess = {
-                    imageFailed = false
                     Log.d("MusicArtwork", "Artwork loaded [$contentDescription]")
                 },
                 onError = { result ->
@@ -616,12 +624,19 @@ private fun MusicArtwork(
                     )
                 }
             )
+        } else if (showInitials) {
+            Text(
+                initials!!,
+                fontSize = (size.value * 0.38f).sp,
+                color = accentColor.copy(alpha = 0.68f),
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
 
 @Composable
-private fun MusicMetaChip(
+internal fun MusicMetaChip(
     text: String,
     colorScheme: ColorScheme
 ) {

@@ -15,10 +15,26 @@ data class SubsonicData(
     val albumList2: AlbumList? = null,
     val album: NavidromeAlbumDetail? = null,
     val artists: ArtistsIndex? = null,
+    @SerializedName("artist")
+    val artistDetail: NavidromeArtistDetail? = null,
     val randomSongs: SongList? = null,
+    val searchResult3: SearchResult3? = null,
     val lyrics: NavidromePlainLyrics? = null,
     val lyricsList: NavidromeLyricsList? = null,
     val error: SubsonicError? = null,
+)
+
+data class NavidromeArtistDetail(
+    val id: String,
+    val name: String,
+    val albumCount: Int = 0,
+    val album: List<NavidromeAlbum> = emptyList()
+)
+
+data class SearchResult3(
+    val artist: List<NavidromeArtist> = emptyList(),
+    val album: List<NavidromeAlbum> = emptyList(),
+    val song: List<NavidromeSong> = emptyList()
 )
 
 data class SubsonicError(
@@ -74,7 +90,7 @@ data class NavidromeArtist(
     val id: String,
     val name: String,
     val albumCount: Int = 0,
-    val coverArt: String? = null
+    @Transient val initials: String = ""
 )
 
 data class NavidromePlainLyrics(
@@ -134,6 +150,17 @@ interface NavidromeApi {
         @Query("f") format: String = "json"
     ): Response<SubsonicResponse>
 
+    @GET("rest/getArtist.view")
+    suspend fun getArtist(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("f") format: String = "json",
+        @Query("id") artistId: String
+    ): Response<SubsonicResponse>
+
     @GET("rest/getRandomSongs.view")
     suspend fun getRandomSongs(
         @Query("u") username: String,
@@ -166,5 +193,19 @@ interface NavidromeApi {
         @Query("f") format: String = "json",
         @Query("artist") artist: String,
         @Query("title") title: String
+    ): Response<SubsonicResponse>
+
+    @GET("rest/search3.view")
+    suspend fun search3(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("f") format: String = "json",
+        @Query("query") query: String,
+        @Query("artistCount") artistCount: Int = 10,
+        @Query("albumCount") albumCount: Int = 10,
+        @Query("songCount") songCount: Int = 20
     ): Response<SubsonicResponse>
 }

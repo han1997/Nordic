@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.media3.common.Player
 import coil.compose.AsyncImage
 import com.nordic.mediahub.api.NavidromeSong
 import com.nordic.mediahub.data.MusicLyrics
@@ -56,9 +57,14 @@ fun MusicPlayerScreen(
     lyrics: MusicLyrics?,
     isLyricsLoading: Boolean,
     lyricsError: String?,
+    repeatMode: Int = Player.REPEAT_MODE_OFF,
     onSeek: (Int) -> Unit,
     onPlayPause: () -> Unit,
     onClose: () -> Unit,
+    onSeekToNext: () -> Unit = {},
+    onSeekToPrevious: () -> Unit = {},
+    onToggleRepeat: () -> Unit = {},
+    onOpenQueue: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val resolvedDurationSeconds = maxOf(durationSeconds, song?.duration ?: 0, 1)
@@ -146,7 +152,12 @@ fun MusicPlayerScreen(
                     onSeek(target.toInt())
                     scrubPosition = null
                 },
-                onPlayPause = onPlayPause
+                onPlayPause = onPlayPause,
+                repeatMode = repeatMode,
+                onSeekToNext = onSeekToNext,
+                onSeekToPrevious = onSeekToPrevious,
+                onToggleRepeat = onToggleRepeat,
+                onOpenQueue = onOpenQueue
             )
         }
     }
@@ -430,7 +441,7 @@ private fun PlayerTrackInfo(
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             PlayerMetaChip(song?.album ?: "Nordic", colorScheme)
-            PlayerMetaChip(formatPlayerDuration(song?.duration ?: 0), colorScheme)
+            PlayerMetaChip(formatDuration(song?.duration ?: 0), colorScheme)
         }
     }
 }
@@ -445,7 +456,12 @@ private fun PlayerConsole(
     compact: Boolean,
     onPositionChange: (Float) -> Unit,
     onPositionChangeFinished: () -> Unit,
-    onPlayPause: () -> Unit
+    onPlayPause: () -> Unit,
+    repeatMode: Int = Player.REPEAT_MODE_OFF,
+    onSeekToNext: () -> Unit = {},
+    onSeekToPrevious: () -> Unit = {},
+    onToggleRepeat: () -> Unit = {},
+    onOpenQueue: () -> Unit = {}
 ) {
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -483,12 +499,12 @@ private fun PlayerConsole(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    formatPlayerDuration(position.toInt()),
+                    formatDuration(position.toInt()),
                     fontSize = 12.sp,
                     color = colorScheme.onSurface.copy(alpha = 0.5f)
                 )
                 Text(
-                    formatPlayerDuration(duration),
+                    formatDuration(duration),
                     fontSize = 12.sp,
                     color = colorScheme.onSurface.copy(alpha = 0.5f)
                 )
@@ -498,8 +514,14 @@ private fun PlayerConsole(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                PlayerControlButton("↺", colorScheme, size = if (compact) 38 else 42, enabled = hasSong) {}
-                PlayerControlButton("‹", colorScheme, size = if (compact) 46 else 50, enabled = hasSong) {}
+                val repeatLabel = when (repeatMode) {
+                    Player.REPEAT_MODE_ONE -> "↺1"
+                    Player.REPEAT_MODE_ALL -> "↺A"
+                    else -> "↺"
+                }
+                val repeatActive = repeatMode != Player.REPEAT_MODE_OFF
+                PlayerControlButton(repeatLabel, colorScheme, size = if (compact) 38 else 42, enabled = hasSong, active = repeatActive, onClick = onToggleRepeat)
+                PlayerControlButton("‹", colorScheme, size = if (compact) 46 else 50, enabled = hasSong, onClick = onSeekToPrevious)
                 PlayerControlButton(
                     label = if (isPlaying) "Ⅱ" else "▶",
                     colorScheme = colorScheme,
@@ -508,8 +530,8 @@ private fun PlayerConsole(
                     enabled = hasSong,
                     onClick = onPlayPause
                 )
-                PlayerControlButton("›", colorScheme, size = if (compact) 46 else 50, enabled = hasSong) {}
-                PlayerControlButton("≡", colorScheme, size = if (compact) 38 else 42, enabled = hasSong) {}
+                PlayerControlButton("›", colorScheme, size = if (compact) 46 else 50, enabled = hasSong, onClick = onSeekToNext)
+                PlayerControlButton("≡", colorScheme, size = if (compact) 38 else 42, enabled = hasSong, onClick = onOpenQueue)
             }
         }
     }
@@ -542,16 +564,19 @@ private fun PlayerControlButton(
     colorScheme: ColorScheme,
     size: Int,
     filled: Boolean = false,
+    active: Boolean = false,
     enabled: Boolean = true,
-    onClick: () -> Unit
+    onClick: () -> Unit = {}
 ) {
     val background = when {
         filled && enabled -> colorScheme.primary
         filled -> colorScheme.primary.copy(alpha = 0.32f)
+        active && enabled -> colorScheme.primary.copy(alpha = 0.18f)
         else -> colorScheme.surface.copy(alpha = if (enabled) 0.72f else 0.34f)
     }
     val foreground = when {
         filled -> colorScheme.onPrimary
+        active && enabled -> colorScheme.primary
         enabled -> colorScheme.onSurface.copy(alpha = 0.76f)
         else -> colorScheme.onSurface.copy(alpha = 0.28f)
     }
@@ -574,12 +599,6 @@ private fun PlayerControlButton(
             )
         }
     }
-}
-
-private fun formatPlayerDuration(duration: Int): String {
-    val minutes = duration / 60
-    val seconds = (duration % 60).toString().padStart(2, '0')
-    return "$minutes:$seconds"
 }
 
 private data class VisibleLyricLine(

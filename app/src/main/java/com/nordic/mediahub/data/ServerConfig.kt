@@ -6,6 +6,10 @@ data class NavidromeConfig(
     val password: String = ""
 )
 
+fun NavidromeConfig.isReadyForMusicSync(): Boolean {
+    return serverUrl.isNotBlank() && username.isNotBlank()
+}
+
 data class AudiobookShelfConfig(
     val serverUrl: String = "",
     val username: String = "",

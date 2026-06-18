@@ -8,14 +8,16 @@ import com.nordic.mediahub.api.NavidromeSong
 import com.nordic.mediahub.api.NavidromeStructuredLyrics
 import com.nordic.mediahub.api.SubsonicData
 import com.nordic.mediahub.api.SubsonicResponse
-import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+
+class NavidromeApiException(message: String, val kind: Kind) : Exception(message) {
+    enum class Kind { HTTP, SUBSONIC }
+}
 
 class NavidromeRepository(private val config: NavidromeConfig) {
     private val baseUrl = config.normalizedBaseUrl()
@@ -64,68 +66,34 @@ class NavidromeRepository(private val config: NavidromeConfig) {
         return buildAuthedMediaUrl("getCoverArt", id, params)
     }
 
-    private fun buildArtistCoverArtUrl(coverArtId: String): String {
-        return buildCoverArtUrl(coverArtId, size = 600, square = true)
-    }
-
     private fun buildStreamUrl(id: String): String = buildAuthedMediaUrl("stream", id)
-
-    private fun normalizeImageUrl(url: String): String {
-        val trimmed = url.trim()
-        val resolvedUrl = if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-            trimmed.toHttpUrlOrNull()
-        } else {
-            "$baseUrl/".toHttpUrl().resolve(trimmed)
-        }
-
-        return resolvedUrl
-            ?.withNavidromeAuthIfNeeded()
-            ?.toString()
-            ?: trimmed
-    }
-
-    private fun HttpUrl.withNavidromeAuthIfNeeded(): HttpUrl {
-        val serverUrl = "$baseUrl/".toHttpUrl()
-        val sameServer = scheme == serverUrl.scheme && host == serverUrl.host && port == serverUrl.port
-        if (!sameServer || !encodedPath.contains("/rest/") || queryParameter("u") != null) {
-            return this
-        }
-
-        return newBuilder()
-            .addNavidromeAuth(config)
-            .build()
-    }
 
     private fun Response<SubsonicResponse>.requireResponse(): SubsonicData {
         if (!isSuccessful) {
-            throw Exception("HTTP错误: ${code()}")
+            throw NavidromeApiException("HTTP错误: ${code()}", NavidromeApiException.Kind.HTTP)
         }
 
-        val body = body() ?: throw Exception("响应为空")
+        val body = body() ?: throw NavidromeApiException("响应为空", NavidromeApiException.Kind.HTTP)
         if (body.response.status == "ok") {
             return body.response
         }
 
         val detail = body.response.error?.let { "[${it.code}] ${it.message}" } ?: "未知错误"
-        throw Exception("Subsonic错误: $detail")
+        throw NavidromeApiException("Subsonic错误: $detail", NavidromeApiException.Kind.SUBSONIC)
     }
 
     private fun NavidromeAlbum.withCoverArtUrl(): NavidromeAlbum {
         return copy(coverArt = coverArt?.let(::buildCoverArtUrl))
     }
 
-    private fun NavidromeArtist.withArtistImageUrl(): NavidromeArtist {
-        val imageUrl = coverArt
-            ?.takeIf { it.isNotBlank() }
-            ?.let(::buildArtistCoverArtUrl)
-            ?: artistImageUrl
-                ?.takeIf { it.isNotBlank() }
-                ?.let(::normalizeImageUrl)
+    private fun NavidromeArtist.withInitials(): NavidromeArtist {
+        val computedInitials = name.trim()
+            .split("\\s+".toRegex())
+            .filter { it.isNotEmpty() }
+            .take(2)
+            .joinToString("") { word -> word.first().uppercaseChar().toString() }
 
-        return copy(
-            coverArt = imageUrl,
-            artistImageUrl = imageUrl
-        )
+        return copy(initials = computedInitials)
     }
 
     private fun NavidromeSong.withCoverArtUrl(fallbackCoverArt: String? = null): NavidromeSong {
@@ -163,19 +131,17 @@ class NavidromeRepository(private val config: NavidromeConfig) {
                 song.withCoverArtUrl(albumDetail.coverArt)
             }
         } ?: emptyList()
+    } catch (e: NavidromeApiException) {
+        throw e
     } catch (e: Exception) {
-        if (e.message?.contains("Subsonic错误") == true || e.message?.contains("HTTP错误") == true) {
-            throw e
-        }
         throw Exception("获取专辑曲目失败: ${e.message}")
     }
 
     suspend fun getRecentlyAddedSongs(albums: List<NavidromeAlbum>, limit: Int = 20) = try {
         getSongsFromAlbums(albums, limit)
+    } catch (e: NavidromeApiException) {
+        throw e
     } catch (e: Exception) {
-        if (e.message?.contains("Subsonic错误") == true || e.message?.contains("HTTP错误") == true) {
-            throw e
-        }
         throw Exception("获取最近添加曲目失败: ${e.message}")
     }
 
@@ -186,11 +152,10 @@ class NavidromeRepository(private val config: NavidromeConfig) {
         val albums = subsonic.albumList2?.album?.map { it.withCoverArtUrl() } ?: emptyList()
         Log.d("NavidromeRepo", "Got ${albums.size} albums")
         albums
+    } catch (e: NavidromeApiException) {
+        throw e
     } catch (e: Exception) {
         Log.e("NavidromeRepo", "Error getting albums", e)
-        if (e.message?.contains("Subsonic错误") == true || e.message?.contains("HTTP错误") == true) {
-            throw e
-        }
         throw Exception("获取专辑失败: ${e.message}")
     }
 
@@ -204,10 +169,9 @@ class NavidromeRepository(private val config: NavidromeConfig) {
         }
 
         if (songs.isNotEmpty()) songs else getSongsFromAlbums(getRecentAlbums())
+    } catch (e: NavidromeApiException) {
+        throw e
     } catch (e: Exception) {
-        if (e.message?.contains("Subsonic错误") == true || e.message?.contains("HTTP错误") == true) {
-            throw e
-        }
         throw Exception("获取歌曲失败: ${e.message}")
     }
 
@@ -218,18 +182,12 @@ class NavidromeRepository(private val config: NavidromeConfig) {
             index.artist
         } ?: emptyList()
 
-        val resolvedArtists = artists.map { artist ->
-            artist.withArtistImageUrl()
-        }
-        Log.d(
-            "NavidromeRepo",
-            "Prepared ${resolvedArtists.count { !it.coverArt.isNullOrBlank() }} artist image URLs from getArtists, total=${resolvedArtists.size}"
-        )
+        val resolvedArtists = artists.map { it.withInitials() }
+        Log.d("NavidromeRepo", "Prepared ${resolvedArtists.size} artists")
         resolvedArtists
+    } catch (e: NavidromeApiException) {
+        throw e
     } catch (e: Exception) {
-        if (e.message?.contains("Subsonic错误") == true || e.message?.contains("HTTP错误") == true) {
-            throw e
-        }
         throw Exception("获取歌手失败: ${e.message}")
     }
 
@@ -330,4 +288,42 @@ class NavidromeRepository(private val config: NavidromeConfig) {
             toInt()
         }.coerceAtLeast(0)
     }
+
+    suspend fun search(query: String): SearchMusicResult {
+        if (query.isBlank()) return SearchMusicResult()
+        return try {
+            val auth = config.authParams()
+            val response = api.search3(config.username, auth.token, auth.salt, query = query.trim()).requireResponse()
+            val result = response.searchResult3 ?: return SearchMusicResult()
+            SearchMusicResult(
+                artists = result.artist.map { it.withInitials() },
+                albums = result.album.map { it.withCoverArtUrl() },
+                songs = result.song.map { it.withCoverArtUrl() }
+            )
+        } catch (e: NavidromeApiException) {
+            throw e
+        } catch (e: Exception) {
+            throw Exception("搜索失败: ${e.message}")
+        }
+    }
+
+    suspend fun getArtistAlbums(artistId: String): List<NavidromeAlbum> {
+        return try {
+            val auth = config.authParams()
+            val detail = api.getArtist(config.username, auth.token, auth.salt, artistId = artistId)
+                .requireResponse().artistDetail
+                ?: return emptyList()
+            detail.album.map { it.withCoverArtUrl() }
+        } catch (e: NavidromeApiException) {
+            throw e
+        } catch (e: Exception) {
+            throw Exception("获取歌手专辑失败: ${e.message}")
+        }
+    }
 }
+
+data class SearchMusicResult(
+    val artists: List<NavidromeArtist> = emptyList(),
+    val albums: List<NavidromeAlbum> = emptyList(),
+    val songs: List<NavidromeSong> = emptyList()
+)
