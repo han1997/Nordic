@@ -38,3 +38,37 @@ Consolidated duplicate duration formatters and MusicMetaChip, introduced Navidro
 ### Next Steps
 
 - None - task complete
+
+
+## Session 2: AudiobookShelf integration
+
+**Date**: 2026-06-18
+**Task**: AudiobookShelf integration
+**Branch**: `main`
+
+### Summary
+
+Integrated AudiobookShelf auth, library browsing, playback session handling, progress sync, and recorded the integration contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e63c3f2` | (see git log) |
+| `3481982` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
