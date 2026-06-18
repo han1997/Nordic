@@ -203,28 +203,11 @@ fun AudiobookScreen(
 
         if (errorMessage != null) {
             item {
-                Surface(
-                    color = colorScheme.errorContainer,
-                    shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(
-                            "AudiobookShelf 错误",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = colorScheme.onErrorContainer
-                        )
-                        Text(
-                            errorMessage.orEmpty(),
-                            fontSize = 13.sp,
-                            color = colorScheme.onErrorContainer.copy(alpha = 0.82f)
-                        )
-                    }
-                }
+                MediaStateCard(
+                    title = "AudiobookShelf 错误",
+                    subtitle = errorMessage.orEmpty(),
+                    tone = MediaStateTone.Error
+                )
             }
         }
 
@@ -572,40 +555,16 @@ private fun AudiobookEmptyState(
     hint: String,
     colorScheme: ColorScheme
 ) {
-    Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.72f),
-        shape = RoundedCornerShape(24.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(title, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = colorScheme.onSurface)
-            Text(subtitle, fontSize = 14.sp, lineHeight = 20.sp, color = colorScheme.onSurface.copy(alpha = 0.64f))
-            if (hint.isNotBlank()) {
-                Text(hint, fontSize = 13.sp, color = colorScheme.primary, fontWeight = FontWeight.Medium)
-            }
-        }
-    }
+    MediaStateCard(
+        title = title,
+        subtitle = subtitle,
+        hint = hint
+    )
 }
 
 @Composable
 private fun AudiobookLoadingCard(title: String, subtitle: String) {
-    val colorScheme = MaterialTheme.colorScheme
-    Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.76f),
-        shape = RoundedCornerShape(24.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(title, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = colorScheme.onSurface)
-            Text(subtitle, fontSize = 13.sp, color = colorScheme.onSurface.copy(alpha = 0.62f))
-        }
-    }
+    MediaLoadingCard(title = title, subtitle = subtitle)
 }
 
 @Composable

@@ -150,7 +150,7 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
                         if (savedConfig.isReadyForVideoSync()) {
                             add(
                                 HeaderAction(
-                                    icon = if (isLoading) "..." else "↻",
+                                    icon = if (isLoading) "…" else "↻",
                                     enabled = !isLoading,
                                     onClick = { scope.launch { refreshVideo() } }
                                 )
@@ -411,29 +411,11 @@ private fun VideoMessageCard(
     colorScheme: ColorScheme,
     isError: Boolean = false
 ) {
-    Surface(
-        color = if (isError) colorScheme.errorContainer else colorScheme.surfaceVariant.copy(alpha = 0.72f),
-        contentColor = if (isError) colorScheme.onErrorContainer else colorScheme.onSurface,
-        shape = RoundedCornerShape(24.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(title, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-            Text(
-                subtitle,
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
-                color = if (isError) {
-                    colorScheme.onErrorContainer.copy(alpha = 0.82f)
-                } else {
-                    colorScheme.onSurface.copy(alpha = 0.64f)
-                }
-            )
-        }
-    }
+    MediaStateCard(
+        title = title,
+        subtitle = subtitle,
+        tone = if (isError) MediaStateTone.Error else MediaStateTone.Neutral
+    )
 }
 
 @Composable

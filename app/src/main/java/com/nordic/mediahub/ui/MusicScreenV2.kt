@@ -364,72 +364,30 @@ fun MusicScreenV2(
 
         if (errorMsg != null) {
             item {
-                Surface(
-                    color = colorScheme.errorContainer,
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text(
-                            if (hasContent) "刷新失败" else "连接失败",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = colorScheme.onErrorContainer
-                        )
-                        Text(errorMsg!!, fontSize = 13.sp, color = colorScheme.onErrorContainer.copy(alpha = 0.82f))
-                    }
-                }
+                MediaStateCard(
+                    title = if (hasContent) "刷新失败" else "连接失败",
+                    subtitle = errorMsg.orEmpty(),
+                    tone = MediaStateTone.Error
+                )
             }
         }
 
         if (isLoading && !hasContent) {
             item {
-                Surface(
-                    color = colorScheme.surfaceVariant.copy(alpha = 0.76f),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 34.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("正在同步 Navidrome 内容...", fontSize = 14.sp, color = colorScheme.onSurface.copy(alpha = 0.62f))
-                    }
-                }
+                MediaLoadingCard(
+                    title = "正在同步 Navidrome",
+                    subtitle = "加载专辑、歌曲和歌手..."
+                )
             }
         }
 
         if (!isLoading && errorMsg == null && !hasContent) {
             item {
-                Surface(
-                    color = colorScheme.surfaceVariant.copy(alpha = 0.72f),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text("先接入你的音乐库", fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = colorScheme.onSurface)
-                        Text(
-                            "填入 Navidrome 地址、用户名和密码后，最近添加的专辑和歌曲会直接出现在这里。",
-                            fontSize = 14.sp,
-                            color = colorScheme.onSurface.copy(alpha = 0.64f),
-                            lineHeight = 20.sp
-                        )
-                        Text(
-                            "点右上角设置开始连接",
-                            fontSize = 13.sp,
-                            color = colorScheme.primary,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
+                MediaStateCard(
+                    title = "先接入你的音乐库",
+                    subtitle = "填入 Navidrome 地址、用户名和密码后，最近添加的专辑和歌曲会直接出现在这里。",
+                    hint = "点右上角设置开始连接"
+                )
             }
         }
 
@@ -808,30 +766,11 @@ private fun MusicDetailEmptyState(
     subtitle: String,
     colorScheme: ColorScheme
 ) {
-    Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Text(
-                title,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = colorScheme.onSurface
-            )
-            Text(
-                subtitle,
-                fontSize = 13.sp,
-                lineHeight = 19.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.62f)
-            )
-        }
-    }
+    MediaStateCard(
+        title = title,
+        subtitle = subtitle,
+        density = MediaStateDensity.Compact
+    )
 }
 
 @Composable
