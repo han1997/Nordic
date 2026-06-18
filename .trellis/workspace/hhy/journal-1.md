@@ -106,3 +106,36 @@ Hardened AudiobookShelf session lifecycle, added unit test baseline, and updated
 ### Next Steps
 
 - None - task complete
+
+
+## Session 4: Emby video browsing MVP
+
+**Date**: 2026-06-19
+**Task**: Emby video browsing MVP
+**Branch**: `main`
+
+### Summary
+
+Implemented Emby read-only video browsing, replacing placeholder video cards with real libraries/items/thumbnails, adding repository tests and integration spec.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fd19d0f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
