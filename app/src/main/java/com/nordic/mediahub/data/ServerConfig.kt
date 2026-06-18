@@ -27,3 +27,11 @@ data class VideoServerConfig(
 enum class VideoServerType {
     EMBY, PLEX, WEBDAV
 }
+
+fun VideoServerConfig.isReadyForVideoSync(): Boolean {
+    if (type != VideoServerType.EMBY) return false
+
+    val hasApiKey = apiKey.isNotBlank()
+    val hasPasswordLogin = username.isNotBlank() && password.isNotBlank()
+    return serverUrl.isNotBlank() && (hasApiKey || hasPasswordLogin)
+}

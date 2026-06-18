@@ -20,6 +20,7 @@ This directory contains guidelines for backend development. Fill in each file wi
 | [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns | Filled |
 | [Logging Guidelines](./logging-guidelines.md) | Structured logging, log levels | To fill |
 | [AudiobookShelf Integration Contract](./audiobookshelf-integration.md) | Auth, library, playback-session, and progress sync contract | Filled |
+| [Emby Integration Contract](./emby-integration.md) | Video auth, library browsing, item mapping, and thumbnail URL contract | Filled |
 
 ---
 

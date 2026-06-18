@@ -1,0 +1,112 @@
+# Emby Integration Contract
+
+## Scenario: Read-Only Video Browsing MVP
+
+### 1. Scope / Trigger
+- Trigger: The Android app now exposes Emby as the first real video provider instead of placeholder cards.
+- Scope: Authentication, user media-library discovery, video item listing, thumbnail URL generation, typed errors, and repository tests.
+- Out of scope: Video playback, Plex, WebDAV browsing, persistent Emby token storage, and provider-wide account management.
+
+### 2. Signatures
+- Config readiness:
+```kotlin
+fun VideoServerConfig.isReadyForVideoSync(): Boolean
+```
+- Base URL normalization:
+```kotlin
+internal fun normalizeVideoServerBaseUrl(serverUrl: String): String
+internal fun VideoServerConfig.normalizedBaseUrl(): String
+```
+- Repository:
+```kotlin
+class EmbyRepository(private val config: VideoServerConfig) {
+    suspend fun getCatalog(selectedLibraryId: String? = null): VideoCatalog
+    suspend fun getLibraryItems(libraryId: String): List<VideoItem>
+}
+```
+- Retrofit API:
+```kotlin
+POST Users/AuthenticateByName
+GET Users
+GET Users/{userId}/Views
+GET Users/{userId}/Items
+```
+
+### 3. Contracts
+- `VideoServerConfig.isReadyForVideoSync()` returns `true` only when:
+  - `type == VideoServerType.EMBY`
+  - `serverUrl` is not blank
+  - either `apiKey` is not blank, or both `username` and `password` are not blank
+- API key flow:
+  - `GET Users` with `X-Emby-Token: <apiKey>`
+  - choose the user whose `Name` matches `config.username` ignoring case, otherwise choose the first returned user
+  - use the API key as the session token for later requests
+- Username/password flow:
+  - `POST Users/AuthenticateByName`
+  - request body: `{"Username": "...", "Pw": "..."}`
+  - header: `X-Emby-Authorization` with Nordic Android client metadata
+  - response must include `User.Id` and non-blank `AccessToken`
+- Library filtering:
+  - Include libraries whose `CollectionType` is one of `movies`, `tvshows`, `homevideos`, or `mixed`
+  - Include `Type == "CollectionFolder"` only as a fallback when `CollectionType` is blank
+  - Do not include known non-video collections such as `music`
+- Item listing:
+  - `GET Users/{userId}/Items`
+  - query includes `ParentId`, `Recursive=true`, `IncludeItemTypes=Movie,Series,Episode,Video`
+  - map `RunTimeTicks` to seconds using `10_000_000` ticks per second
+- Thumbnail URL:
+  - Build `/Items/{itemId}/Images/Primary`
+  - Include `maxWidth=640`, `quality=90`, `tag=<ImageTags.Primary>`, and `api_key=<session token>`
+  - Return `null` when `ImageTags.Primary` is absent
+
+### 4. Validation & Error Matrix
+- Non-2xx response -> throw `EmbyApiException(kind = HTTP, message contains "HTTP <code>")`
+- Empty response body -> throw `EmbyApiException(kind = API)`
+- API key flow returns no users -> throw `EmbyApiException(kind = AUTH)`
+- Password flow returns blank `AccessToken` -> throw `EmbyApiException(kind = AUTH)`
+- Unknown repository exceptions -> wrap with user-action context, e.g. `"连接 Emby 失败: ..."`
+- Do not classify errors by `message.contains(...)`; callers should catch `EmbyApiException` by type/kind.
+
+### 5. Good/Base/Bad Cases
+- Good: API key + username, multiple users, matching user selected, video libraries and items load.
+- Base: Username/password login, one video library, empty item list, UI shows an empty media-library state.
+- Bad: Emby returns HTTP 500 for views, repository throws `EmbyApiException.Kind.HTTP` and UI shows the error card.
+- Bad: Server has music and movie collections, repository filters out music by `CollectionType`.
+
+### 6. Tests Required
+- Readiness:
+  - API key alone is enough with server URL
+  - username/password is enough with server URL
+  - Plex/WebDAV config is not ready for Emby sync
+- API key flow:
+  - asserts `GET /Users` and `X-Emby-Token`
+  - asserts matching/first user behavior when applicable
+- Password flow:
+  - asserts `POST /Users/AuthenticateByName`
+  - asserts `Username` and `Pw` body fields
+  - asserts later requests use `AccessToken`
+- Mapping:
+  - asserts non-video libraries are filtered
+  - asserts duration ticks become seconds
+  - asserts thumbnail URL contains item path, primary tag, and token query
+- Error:
+  - asserts non-2xx responses throw typed `EmbyApiException.Kind.HTTP`
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```kotlin
+val libraries = response.items.filter { it.type == "CollectionFolder" }
+```
+
+This includes music and other non-video Emby collections, causing the Video tab to show unrelated libraries.
+
+#### Correct
+```kotlin
+val libraries = response.items.filter { item ->
+    item.collectionType in setOf("movies", "tvshows", "homevideos", "mixed") ||
+        (item.collectionType.isNullOrBlank() && item.type == "CollectionFolder")
+}
+```
+
+This keeps video-first behavior while retaining a compatibility fallback for older or incomplete Emby responses.
