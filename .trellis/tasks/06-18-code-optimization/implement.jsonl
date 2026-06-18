@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Only configured spec layer for this single-repo project; documents available quality guidance."}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Quality conventions placeholder; include for optimization and verification context."}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Cross-cutting guidance for avoiding unnecessary duplication during refactor."}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Cross-layer guidance for checking data, playback, and UI interactions."}
