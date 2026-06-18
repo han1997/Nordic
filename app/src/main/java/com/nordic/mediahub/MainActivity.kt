@@ -14,15 +14,21 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nordic.mediahub.data.ConfigRepository
+import com.nordic.mediahub.data.AudiobookShelfConfig
+import com.nordic.mediahub.data.AudiobookShelfRepository
 import com.nordic.mediahub.data.MusicLyrics
 import com.nordic.mediahub.data.NavidromeConfig
 import com.nordic.mediahub.data.NavidromeRepository
+import com.nordic.mediahub.data.isReadyForAudiobookSync
 import com.nordic.mediahub.data.isReadyForMusicSync
+import com.nordic.mediahub.playback.AudiobookPlaybackEngine
 import com.nordic.mediahub.playback.MusicPlaybackEngine
 import com.nordic.mediahub.ui.*
 import com.nordic.mediahub.ui.theme.*
 import coil.Coil
 import coil.ImageLoader
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 import android.graphics.Color as AndroidColor
@@ -67,11 +73,15 @@ class MainActivity : ComponentActivity() {
 fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     var selectedTab by remember { mutableStateOf(0) }
     var showPlayer by remember { mutableStateOf(false) }
+    var showAudiobookPlayer by remember { mutableStateOf(false) }
     var showQueueSheet by remember { mutableStateOf(false) }
+    var audiobookPlaybackError by remember { mutableStateOf<String?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val playbackEngine = remember { MusicPlaybackEngine(context) }
+    val audiobookPlaybackEngine = remember { AudiobookPlaybackEngine(context) }
     val configRepository = remember { ConfigRepository(context) }
     val navidromeConfig by configRepository.navidromeConfig.collectAsStateWithLifecycle(NavidromeConfig())
+    val audiobookConfig by configRepository.audiobookConfig.collectAsStateWithLifecycle(AudiobookShelfConfig())
     val navidromeRepository = remember(navidromeConfig) {
         if (navidromeConfig.isReadyForMusicSync()) {
             NavidromeRepository(navidromeConfig)
@@ -79,16 +89,28 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             null
         }
     }
+    val audiobookRepository = remember(audiobookConfig) {
+        if (audiobookConfig.isReadyForAudiobookSync()) {
+            AudiobookShelfRepository(audiobookConfig)
+        } else {
+            null
+        }
+    }
     DisposableEffect(playbackEngine) {
         onDispose { playbackEngine.release() }
     }
+    DisposableEffect(audiobookPlaybackEngine) {
+        onDispose { audiobookPlaybackEngine.release() }
+    }
     val playbackState by playbackEngine.state.collectAsStateWithLifecycle()
+    val audiobookPlaybackState by audiobookPlaybackEngine.state.collectAsStateWithLifecycle()
     val currentSong = playbackState.currentSong
     val isPlaying = playbackState.isPlaying
     var lyrics by remember { mutableStateOf<MusicLyrics?>(null) }
     var isLyricsLoading by remember { mutableStateOf(false) }
     var lyricsError by remember { mutableStateOf<String?>(null) }
     val colorScheme = MaterialTheme.colorScheme
+    val scope = rememberCoroutineScope()
     val onPlayPause = {
         if (currentSong == null) {
             showPlayer = true
@@ -100,6 +122,23 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         playbackState.errorMessage != null -> playbackState.errorMessage
         playbackState.isBuffering -> "正在缓冲"
         else -> null
+    }
+
+    fun closeAudiobookPlayback() {
+        val session = audiobookPlaybackEngine.state.value.session
+        val positionSeconds = audiobookPlaybackEngine.state.value.positionSeconds
+        val repo = audiobookRepository
+        showAudiobookPlayer = false
+        audiobookPlaybackError = null
+        audiobookPlaybackEngine.stop()
+
+        if (session != null && repo != null) {
+            scope.launch {
+                runCatching {
+                    repo.closeSession(session, positionSeconds)
+                }
+            }
+        }
     }
 
     LaunchedEffect(
@@ -133,10 +172,40 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         isLyricsLoading = false
     }
 
+    LaunchedEffect(
+        audiobookPlaybackState.session?.sessionId,
+        audiobookRepository
+    ) {
+        val initialSession = audiobookPlaybackState.session ?: return@LaunchedEffect
+        val repo = audiobookRepository ?: return@LaunchedEffect
+        var lastSyncedPosition = audiobookPlaybackState.positionSeconds
+
+        while (true) {
+            delay(30_000)
+            val currentState = audiobookPlaybackEngine.state.value
+            val currentSession = currentState.session ?: return@LaunchedEffect
+            if (currentSession.sessionId != initialSession.sessionId) {
+                return@LaunchedEffect
+            }
+
+            val currentPosition = currentState.positionSeconds
+            val deltaSeconds = (currentPosition - lastSyncedPosition).coerceAtLeast(0)
+            runCatching {
+                repo.syncProgress(currentSession, currentPosition, deltaSeconds)
+            }.onSuccess {
+                lastSyncedPosition = currentPosition
+            }.onFailure { error ->
+                if (showAudiobookPlayer) {
+                    audiobookPlaybackError = error.message ?: "同步有声书进度失败"
+                }
+            }
+        }
+    }
+
     Scaffold(
         containerColor = colorScheme.background,
         bottomBar = {
-            if (!showPlayer) {
+            if (!showPlayer && !showAudiobookPlayer) {
                 PolishedPlaybackDock(
                     selected = selectedTab,
                     colorScheme = colorScheme,
@@ -194,11 +263,35 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                     isDark = isDark,
                                     onThemeToggle = onThemeToggle,
                                     onSongSelected = { songs, index ->
+                                        closeAudiobookPlayback()
                                         playbackEngine.playQueue(songs, index)
                                         showPlayer = true
                                     }
                                 )
-                                1 -> AudiobookScreen(colorScheme, isDark, onThemeToggle)
+                                1 -> AudiobookScreen(
+                                    colorScheme = colorScheme,
+                                    isDark = isDark,
+                                    onThemeToggle = onThemeToggle,
+                                    onPlayAudiobook = { item ->
+                                        if (!audiobookConfig.isReadyForAudiobookSync()) {
+                                            audiobookPlaybackError = "未配置 AudiobookShelf"
+                                            return@AudiobookScreen
+                                        }
+                                        scope.launch {
+                                            audiobookPlaybackError = null
+                                            runCatching {
+                                                audiobookRepository?.startPlayback(item.id)
+                                                    ?: error("未配置 AudiobookShelf")
+                                            }.onSuccess { session ->
+                                                audiobookPlaybackEngine.play(session)
+                                                showAudiobookPlayer = true
+                                                showPlayer = false
+                                            }.onFailure { error ->
+                                                audiobookPlaybackError = error.message ?: "启动有声书播放失败"
+                                            }
+                                        }
+                                    }
+                                )
                                 2 -> VideoScreen(colorScheme, isDark, onThemeToggle)
                             }
                         }
@@ -206,6 +299,17 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                 }
             }
         }
+    }
+
+    if (showAudiobookPlayer || audiobookPlaybackError != null) {
+        AudiobookPlayerScreen(
+            state = audiobookPlaybackState,
+            colorScheme = colorScheme,
+            externalError = audiobookPlaybackError,
+            onSeek = audiobookPlaybackEngine::seekTo,
+            onPlayPause = audiobookPlaybackEngine::togglePlayPause,
+            onClose = { closeAudiobookPlayback() }
+        )
     }
 
     if (showQueueSheet) {
