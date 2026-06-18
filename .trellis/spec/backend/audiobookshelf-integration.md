@@ -18,11 +18,14 @@
   - `suspend fun startPlayback(itemId: String): AudiobookPlaybackSession`
   - `suspend fun syncProgress(session: AudiobookPlaybackSession, currentTimeSeconds: Int, deltaSeconds: Int)`
   - `suspend fun closeSession(session: AudiobookPlaybackSession, currentTimeSeconds: Int)`
+  - `suspend fun syncAndCloseSession(session: AudiobookPlaybackSession, currentTimeSeconds: Int, deltaSeconds: Int = 0)`
 - Playback engine:
   - `fun play(session: AudiobookPlaybackSession)`
   - `fun seekTo(positionSeconds: Int)`
   - `fun togglePlayPause()`
   - `fun stop()`
+- Music playback engine:
+  - `fun stop()` clears music Media3 state before audiobook playback takes over the shared session service.
 
 ### 3. Contracts
 
@@ -39,6 +42,8 @@
 - Domain mapping must keep music and audiobook models separate. Do not map audiobook sessions into `NavidromeSong`.
 - Audio URLs may need the bearer token appended as `token=<token>` when AudiobookShelf returns relative `contentUrl` values.
 - Progress sync must use current absolute audiobook time, not current track-local time.
+- `PATCH /api/me/progress/*`, `POST /api/session/*/sync`, and `POST /api/session/*/close` must validate `Response<Unit>.isSuccessful`. Do not fire-and-forget these session endpoints.
+- UI close flows should call `syncAndCloseSession(...)` so the final position is written before closing the AudiobookShelf session.
 
 ### 4. Validation & Error Matrix
 
@@ -50,11 +55,13 @@
 | Library/item/playback response is empty | Throw `AudiobookShelfApiException.Kind.API` |
 | Playback session has no playable tracks | Keep session visible with a playback error; do not start Media3 |
 | Progress sync fails while player is visible | Surface a progress-sync error without crashing playback |
-| User leaves audiobook playback | Call `closeSession(...)` and clear Media3 audiobook state |
+| Progress update/session sync/session close returns non-2xx | Throw `AudiobookShelfApiException.Kind.HTTP` with the failing status code |
+| User leaves audiobook playback | Call `syncAndCloseSession(...)` with the last absolute position and clear Media3 audiobook state |
+| User starts audiobook playback while music is active | Call `MusicPlaybackEngine.stop()` before `AudiobookPlaybackEngine.play(...)` |
 
 ### 5. Good/Base/Bad Cases
 
-- Good: User opens an audiobook, `startPlayback()` returns a session, Media3 plays session tracks, progress sync runs periodically, and `closeSession()` is called when leaving the player.
+- Good: User opens an audiobook, `startPlayback()` returns a session, Media3 plays session tracks, progress sync runs periodically, and `syncAndCloseSession()` is called when leaving the player.
 - Base: User only browses libraries and details; no playback session is created and no progress endpoint is called.
 - Bad: App extracts a stream URL and plays it without calling `/play`, `/sync`, or `/close`; AudiobookShelf resume state will drift.
 
@@ -70,6 +77,7 @@
   - relative cover/audio URL normalization
   - progress fraction and current time payload fields
   - HTTP and empty-body errors map to typed `AudiobookShelfApiException` kinds
+  - non-2xx progress/session responses throw `AudiobookShelfApiException.Kind.HTTP`
 - Playback tests should assert:
   - absolute audiobook position is track offset plus player position
   - `stop()` clears session state and media items
@@ -95,6 +103,6 @@ audiobookPlaybackEngine.play(session)
 repository.syncProgress(session, currentTimeSeconds, deltaSeconds)
 
 // When leaving playback:
-repository.closeSession(session, currentTimeSeconds)
+repository.syncAndCloseSession(session, currentTimeSeconds)
 audiobookPlaybackEngine.stop()
 ```
