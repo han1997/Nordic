@@ -44,7 +44,7 @@ class ConfigRepository(private val context: Context) {
 
     val videoConfig: Flow<VideoServerConfig> = context.dataStore.data.map {
         VideoServerConfig(
-            type = VideoServerType.valueOf(it[VIDEO_TYPE] ?: "EMBY"),
+            type = it[VIDEO_TYPE].toVideoServerType(),
             serverUrl = it[VIDEO_URL] ?: "",
             username = it[VIDEO_USER] ?: "",
             password = it[VIDEO_PASS] ?: "",
@@ -77,4 +77,11 @@ class ConfigRepository(private val context: Context) {
             it[VIDEO_API_KEY] = config.apiKey
         }
     }
+}
+
+private fun String?.toVideoServerType(): VideoServerType {
+    val normalizedType = this?.trim()?.uppercase()
+    return normalizedType
+        ?.let { rawType -> VideoServerType.entries.firstOrNull { it.name == rawType } }
+        ?: VideoServerType.EMBY
 }

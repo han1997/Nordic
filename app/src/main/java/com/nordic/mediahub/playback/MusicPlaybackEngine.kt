@@ -6,11 +6,13 @@ import androidx.core.content.ContextCompat
 import androidx.media3.common.C
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.nordic.mediahub.api.NavidromeSong
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -30,6 +32,7 @@ data class MusicPlaybackState(
     val errorMessage: String? = null
 )
 
+@androidx.annotation.OptIn(UnstableApi::class)
 class MusicPlaybackEngine(context: Context) {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -40,21 +43,37 @@ class MusicPlaybackEngine(context: Context) {
     private val controllerFuture = MediaController.Builder(appContext, sessionToken).buildAsync()
     private var controller: MediaController? = null
     private var pendingSong: NavidromeSong? = null
+    private var positionUpdateJob: Job? = null
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             publishPlayerState()
+            if (isPlaying) startPositionUpdates() else stopPositionUpdates()
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
             publishPlayerState()
+            val activeController = controller
+            if (activeController != null && !activeController.isPlaying) {
+                stopPositionUpdates()
+            }
         }
 
         override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
             publishPlayerState()
         }
 
+        @Deprecated("Deprecated in Media3")
+        override fun onPositionDiscontinuity(reason: Int) {
+            publishPlayerState()
+        }
+
+        override fun onTimelineChanged(timeline: androidx.media3.common.Timeline, reason: Int) {
+            publishPlayerState()
+        }
+
         override fun onPlayerError(error: PlaybackException) {
+            stopPositionUpdates()
             _state.update {
                 it.copy(
                     currentSong = controller?.currentMediaItem?.toNavidromeSong() ?: it.currentSong,
@@ -93,13 +112,6 @@ class MusicPlaybackEngine(context: Context) {
             },
             ContextCompat.getMainExecutor(appContext)
         )
-
-        scope.launch {
-            while (isActive) {
-                publishPlayerState()
-                delay(500)
-            }
-        }
     }
 
     fun play(song: NavidromeSong) {
@@ -178,10 +190,26 @@ class MusicPlaybackEngine(context: Context) {
     }
 
     fun release() {
+        stopPositionUpdates()
         scope.cancel()
         controller?.removeListener(playerListener)
         MediaController.releaseFuture(controllerFuture)
         controller = null
+    }
+
+    private fun startPositionUpdates() {
+        stopPositionUpdates()
+        positionUpdateJob = scope.launch {
+            while (isActive) {
+                publishPlayerState()
+                delay(1000)
+            }
+        }
+    }
+
+    private fun stopPositionUpdates() {
+        positionUpdateJob?.cancel()
+        positionUpdateJob = null
     }
 
     private fun publishPlayerState() {
@@ -200,7 +228,10 @@ class MusicPlaybackEngine(context: Context) {
                 positionSeconds = (activeController.currentPosition.coerceAtLeast(0L) / 1000L).toInt(),
                 durationSeconds = (playerDuration?.div(1000L)?.toInt() ?: fallbackDuration)
                     .coerceAtLeast(fallbackDuration),
-                errorMessage = it.errorMessage
+                errorMessage = when (activeController.playbackState) {
+                    Player.STATE_READY, Player.STATE_ENDED -> null
+                    else -> it.errorMessage
+                }
             )
         }
     }

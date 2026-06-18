@@ -9,6 +9,8 @@ import com.nordic.mediahub.api.NavidromeArtist
 import com.nordic.mediahub.api.NavidromeSong
 import kotlinx.coroutines.flow.first
 
+private const val MUSIC_CACHE_SCHEMA_VERSION = 6
+
 data class NavidromeMusicCache(
     val configKey: String = "",
     val updatedAtMillis: Long = 0L,
@@ -53,12 +55,7 @@ class NavidromeMusicCacheRepository(private val context: Context) {
 }
 
 fun NavidromeConfig.cacheKey(): String {
-    val trimmedUrl = serverUrl.trim().trimEnd('/')
-    val normalizedUrl = if (trimmedUrl.startsWith("http://") || trimmedUrl.startsWith("https://")) {
-        trimmedUrl
-    } else {
-        "http://$trimmedUrl"
-    }.lowercase()
-    val normalizedUser = username.trim()
-    return "$normalizedUrl|$normalizedUser"
+    val normalizedUrl = normalizedBaseUrl().lowercase()
+    val normalizedUser = username.trim().lowercase()
+    return "$normalizedUrl|$normalizedUser|v$MUSIC_CACHE_SCHEMA_VERSION"
 }
