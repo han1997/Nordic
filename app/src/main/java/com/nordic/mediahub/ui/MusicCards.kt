@@ -1,18 +1,13 @@
 package com.nordic.mediahub.ui
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,11 +23,7 @@ import coil.compose.AsyncImage
 @Composable
 fun AlbumCard(album: com.nordic.mediahub.api.NavidromeAlbum, colorScheme: ColorScheme) {
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.985f else 1f,
-        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
-    )
+    val scale = rememberPressScale(interactionSource)
 
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.72f),
@@ -65,11 +56,7 @@ fun AlbumCard(album: com.nordic.mediahub.api.NavidromeAlbum, colorScheme: ColorS
 @Composable
 fun SongCard(song: com.nordic.mediahub.api.NavidromeSong, colorScheme: ColorScheme) {
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.985f else 1f,
-        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
-    )
+    val scale = rememberPressScale(interactionSource)
 
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.72f),
@@ -94,7 +81,7 @@ fun SongCard(song: com.nordic.mediahub.api.NavidromeSong, colorScheme: ColorSche
                 Text(song.title, fontSize = 15.sp, color = colorScheme.onSurface, fontWeight = FontWeight.Medium)
                 Text(song.artist ?: "Unknown", fontSize = 13.sp, color = colorScheme.onSurface.copy(0.6f))
             }
-            Text("${song.duration / 60}:${(song.duration % 60).toString().padStart(2, '0')}", fontSize = 13.sp, color = colorScheme.onSurface.copy(0.6f))
+            Text(formatTrackDuration(song.duration), fontSize = 13.sp, color = colorScheme.onSurface.copy(0.6f))
         }
     }
 }
@@ -102,11 +89,7 @@ fun SongCard(song: com.nordic.mediahub.api.NavidromeSong, colorScheme: ColorSche
 @Composable
 fun ArtistCard(artist: com.nordic.mediahub.api.NavidromeArtist, colorScheme: ColorScheme) {
     val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.985f else 1f,
-        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
-    )
+    val scale = rememberPressScale(interactionSource)
 
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.72f),
