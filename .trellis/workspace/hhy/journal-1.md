@@ -139,3 +139,37 @@ Implemented Emby read-only video browsing, replacing placeholder video cards wit
 ### Next Steps
 
 - None - task complete
+
+
+## Session 5: Unify app shell UI states
+
+**Date**: 2026-06-19
+**Task**: Unify app shell UI states
+**Branch**: `main`
+
+### Summary
+
+Unified Music, Audiobook, and Video loading/error/empty state surfaces, added UI copy encoding regression coverage, and documented shared UI state and Windows Gradle verification conventions.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2c12ef0` | (see git log) |
+| `7c7f045` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

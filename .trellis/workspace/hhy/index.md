@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 4
+- **Total Sessions**: 5
 - **Last Active**: 2026-06-19
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~141 | Active |
+| `journal-1.md` | ~175 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 5 | 2026-06-19 | Unify app shell UI states | `2c12ef0`, `7c7f045` | `main` |
 | 4 | 2026-06-19 | Emby video browsing MVP | `fd19d0f` | `main` |
 | 3 | 2026-06-18 | Weekly stabilization slice | `8504bd5`, `7279f96` | `main` |
 | 2 | 2026-06-18 | AudiobookShelf integration | `e63c3f2`, `3481982` | `main` |
