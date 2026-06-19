@@ -345,3 +345,38 @@ Added manageable music queue controls inspired by Musiver queue polish: play nex
 ### Next Steps
 
 - None - task complete
+
+
+## Session 11: Music UI cleanup and song sorting
+
+**Date**: 2026-06-19
+**Task**: Music UI cleanup and song sorting
+**Branch**: `main`
+
+### Summary
+
+Simplified the music player and home navigation, added song sorting controls, added added-time sorting backed by Navidrome created timestamps, updated cache schema and specs, and verified compile, unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `736b4e0` | (see git log) |
+| `2aa5b01` | (see git log) |
+| `153b229` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
