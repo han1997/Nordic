@@ -35,6 +35,25 @@ data class MusicPlaybackState(
     val queueIndex: Int = 0
 )
 
+internal fun resolvePlayNextTargetIndex(index: Int, currentIndex: Int, itemCount: Int): Int? {
+    if (itemCount <= 1 || index !in 0 until itemCount || currentIndex !in 0 until itemCount || index == currentIndex) {
+        return null
+    }
+
+    val targetIndex = if (index < currentIndex) currentIndex else currentIndex + 1
+    return targetIndex
+        .coerceIn(0, itemCount - 1)
+        .takeUnless { it == index }
+}
+
+internal fun <T> List<T>.moveItemToIndex(fromIndex: Int, targetIndex: Int): List<T> {
+    if (fromIndex !in indices) return this
+    val mutable = toMutableList()
+    val item = mutable.removeAt(fromIndex)
+    mutable.add(targetIndex.coerceIn(0, mutable.size), item)
+    return mutable
+}
+
 @androidx.annotation.OptIn(UnstableApi::class)
 class MusicPlaybackEngine(context: Context) {
     private val appContext = context.applicationContext
@@ -224,8 +243,64 @@ class MusicPlaybackEngine(context: Context) {
     }
 
     fun seekToQueueIndex(index: Int) {
-        controller?.seekToDefaultPosition(index)
-        controller?.play()
+        val activeController = controller ?: return
+        if (index !in 0 until activeController.mediaItemCount) return
+        activeController.seekToDefaultPosition(index)
+        activeController.play()
+        publishPlayerState()
+    }
+
+    fun moveQueueItemToPlayNext(index: Int) {
+        val activeController = controller
+        if (activeController == null) {
+            movePendingQueueItemToPlayNext(index)
+            return
+        }
+
+        val itemCount = activeController.mediaItemCount
+        val currentIndex = activeController.currentMediaItemIndex
+        val targetIndex = resolvePlayNextTargetIndex(index, currentIndex, itemCount) ?: return
+
+        activeController.moveMediaItem(index, targetIndex)
+        cachedTimelineGeneration = -1
+        publishPlayerState()
+    }
+
+    fun removeQueueItem(index: Int) {
+        val activeController = controller
+        if (activeController == null) {
+            removePendingQueueItem(index)
+            return
+        }
+
+        val itemCount = activeController.mediaItemCount
+        if (index !in 0 until itemCount) return
+
+        if (itemCount == 1) {
+            stop()
+            return
+        }
+
+        activeController.removeMediaItem(index)
+        cachedTimelineGeneration = -1
+        publishPlayerState()
+    }
+
+    fun clearUpcomingQueueItems() {
+        val activeController = controller
+        if (activeController == null) {
+            clearPendingUpcomingQueueItems()
+            return
+        }
+
+        val itemCount = activeController.mediaItemCount
+        val currentIndex = activeController.currentMediaItemIndex
+        if (currentIndex !in 0 until itemCount || currentIndex >= itemCount - 1) return
+
+        for (index in itemCount - 1 downTo currentIndex + 1) {
+            activeController.removeMediaItem(index)
+        }
+        cachedTimelineGeneration = -1
         publishPlayerState()
     }
 
@@ -334,4 +409,67 @@ class MusicPlaybackEngine(context: Context) {
             )
         }
     }
+
+    private fun movePendingQueueItemToPlayNext(index: Int) {
+        val queue = pendingQueue ?: _state.value.queue
+        val currentIndex = _state.value.queueIndex
+        if (queue.size <= 1 || index !in queue.indices || currentIndex !in queue.indices || index == currentIndex) {
+            return
+        }
+
+        val targetIndex = resolvePlayNextTargetIndex(index, currentIndex, queue.size) ?: return
+        val nextQueue = queue.moveItemToIndex(index, targetIndex)
+        pendingQueue = nextQueue
+        val nextIndex = nextQueue.indexOfFirst { song -> song.id == _state.value.currentSong?.id }
+            .takeIf { queueIndex -> queueIndex >= 0 }
+            ?: currentIndex.coerceIn(nextQueue.indices)
+        pendingQueueStartIndex = nextIndex
+        _state.update {
+            it.copy(
+                queue = nextQueue,
+                queueIndex = nextIndex
+            )
+        }
+    }
+
+    private fun removePendingQueueItem(index: Int) {
+        val queue = pendingQueue ?: _state.value.queue
+        if (index !in queue.indices) return
+
+        val nextQueue = queue.toMutableList().also { it.removeAt(index) }
+        if (nextQueue.isEmpty()) {
+            pendingQueue = null
+            pendingQueueStartIndex = 0
+            _state.value = MusicPlaybackState()
+            return
+        }
+
+        val nextIndex = when {
+            index < _state.value.queueIndex -> _state.value.queueIndex - 1
+            index == _state.value.queueIndex -> _state.value.queueIndex.coerceAtMost(nextQueue.lastIndex)
+            else -> _state.value.queueIndex
+        }.coerceIn(nextQueue.indices)
+
+        pendingQueue = nextQueue
+        pendingQueueStartIndex = nextIndex
+        _state.update {
+            it.copy(
+                currentSong = nextQueue.getOrNull(nextIndex),
+                queue = nextQueue,
+                queueIndex = nextIndex
+            )
+        }
+    }
+
+    private fun clearPendingUpcomingQueueItems() {
+        val queue = pendingQueue ?: _state.value.queue
+        val currentIndex = _state.value.queueIndex
+        if (currentIndex !in queue.indices || currentIndex >= queue.lastIndex) return
+
+        val nextQueue = queue.take(currentIndex + 1)
+        pendingQueue = nextQueue
+        pendingQueueStartIndex = currentIndex
+        _state.update { it.copy(queue = nextQueue, queueIndex = currentIndex) }
+    }
+
 }

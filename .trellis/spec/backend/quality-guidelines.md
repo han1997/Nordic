@@ -144,6 +144,55 @@ val albums = repo.getAlbums(NavidromeAlbumSort.Name).sortedByDescending { it.yea
 val albums = repo.getAlbums(NavidromeAlbumSort.ReleaseYear)
 ```
 
+### Music playback queue management
+
+**Scope / Trigger**: Any change to the music queue sheet, `MusicPlaybackEngine`, `MusicPlaybackState.queue`, `MusicPlaybackState.queueIndex`, or Media3 music playlist mutations.
+
+**Signatures**:
+- `data class MusicPlaybackState(..., val queue: List<NavidromeSong>, val queueIndex: Int)`
+- `fun MusicPlaybackEngine.seekToQueueIndex(index: Int)`
+- `fun MusicPlaybackEngine.moveQueueItemToPlayNext(index: Int)`
+- `fun MusicPlaybackEngine.removeQueueItem(index: Int)`
+- `fun MusicPlaybackEngine.clearUpcomingQueueItems()`
+- `internal fun resolvePlayNextTargetIndex(index: Int, currentIndex: Int, itemCount: Int): Int?`
+
+**Contract**:
+- `MusicPlaybackEngine` owns all queue mutations. Compose UI passes commands and renders `MusicPlaybackState`; it must not maintain or reorder a shadow queue.
+- After any Media3 playlist mutation, invalidate cached queue state (`cachedTimelineGeneration = -1`) before publishing state so `queue` and `queueIndex` cannot stay stale.
+- Queue commands must guard invalid indexes. Invalid/current/already-next "play next" requests are no-ops.
+- Removing the only queued item stops playback and clears state.
+- `clearUpcomingQueueItems()` preserves the current item and removes only items after `queueIndex`.
+- Queue UI keys must tolerate duplicate songs in the queue; do not key rows by `song.id` alone.
+- If the Media3 controller is not connected yet, mutate `pendingQueue` and `_state` consistently so the eventual controller start uses the same queue order/index shown in UI.
+
+**Validation & Error Matrix**:
+- Index outside `0 until mediaItemCount` -> no-op.
+- Current index outside queue bounds -> no-op for queue reordering/clearing.
+- "Play next" on the current item or the item already immediately after current -> no-op.
+- Remove single-item queue -> call `stop()` and clear `MusicPlaybackState`.
+- Duplicate song ids in queue -> use position-aware UI keys such as `"$id:$index"`.
+
+**Good/Base/Bad Cases**:
+- Good: Queue sheet actions call `MusicPlaybackEngine`, engine mutates Media3, then publishes fresh `queue` and `queueIndex`.
+- Base: Tapping a queue row seeks with `seekToQueueIndex(index)` and closes the sheet.
+- Bad: UI removes a row from a local list while Media3 keeps the original playlist, causing the highlighted item and actual playback item to diverge.
+
+**Tests Required**:
+- Unit tests for pure queue index rules, especially future item, previous item, current item, already-next item, and invalid indexes.
+- Compile checks for Media3 API usage and callback wiring.
+- Unit tests or focused helper tests when adding non-trivial queue ordering logic.
+
+**Wrong vs Correct**:
+```kotlin
+// Wrong: local UI state diverges from Media3 playback state.
+visibleQueue = visibleQueue.toMutableList().also { it.removeAt(index) }
+```
+
+```kotlin
+// Correct: command goes through playback layer and UI observes published state.
+onRemoveFromQueue = playbackEngine::removeQueueItem
+```
+
 ---
 
 ## Testing Requirements

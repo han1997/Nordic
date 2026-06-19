@@ -6,10 +6,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -38,8 +41,18 @@ fun MusicQueueSheet(
     currentIndex: Int,
     colorScheme: ColorScheme,
     onSeekToIndex: (Int) -> Unit,
+    onPlayNext: (Int) -> Unit,
+    onRemoveFromQueue: (Int) -> Unit,
+    onClearUpcoming: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val resolvedCurrentIndex = currentIndex.takeIf { it in queue.indices } ?: -1
+    val upcomingCount = if (resolvedCurrentIndex >= 0) {
+        (queue.lastIndex - resolvedCurrentIndex).coerceAtLeast(0)
+    } else {
+        0
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = colorScheme.surface,
@@ -49,32 +62,38 @@ fun MusicQueueSheet(
             modifier = Modifier.padding(bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                "播放队列",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = colorScheme.onSurface,
-                modifier = Modifier.padding(horizontal = 20.dp)
-            )
-            Text(
-                "${queue.size} 首",
-                fontSize = 13.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.56f),
-                modifier = Modifier.padding(horizontal = 20.dp)
+            QueueSheetHeader(
+                queueSize = queue.size,
+                currentIndex = resolvedCurrentIndex,
+                upcomingCount = upcomingCount,
+                colorScheme = colorScheme,
+                onClearUpcoming = onClearUpcoming
             )
 
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                itemsIndexed(queue) { index, song ->
-                    val isCurrent = index == currentIndex
-                    QueueRow(
-                        song = song,
-                        isCurrent = isCurrent,
-                        colorScheme = colorScheme,
-                        onClick = { onSeekToIndex(index) }
-                    )
+            if (queue.isEmpty()) {
+                QueueEmptyState(colorScheme = colorScheme)
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 520.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    itemsIndexed(queue, key = { index, song -> "${song.id}:$index" }) { index, song ->
+                        val isCurrent = index == resolvedCurrentIndex
+                        QueueRow(
+                            song = song,
+                            isCurrent = isCurrent,
+                            canPlayNext = resolvedCurrentIndex >= 0 &&
+                                !isCurrent &&
+                                index != resolvedCurrentIndex + 1,
+                            canRemove = queue.size > 1,
+                            colorScheme = colorScheme,
+                            onClick = { onSeekToIndex(index) },
+                            onPlayNext = { onPlayNext(index) },
+                            onRemove = { onRemoveFromQueue(index) }
+                        )
+                    }
                 }
             }
         }
@@ -82,11 +101,88 @@ fun MusicQueueSheet(
 }
 
 @Composable
+private fun QueueSheetHeader(
+    queueSize: Int,
+    currentIndex: Int,
+    upcomingCount: Int,
+    colorScheme: ColorScheme,
+    onClearUpcoming: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Text(
+                "播放队列",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                queueSubtitle(queueSize, currentIndex, upcomingCount),
+                fontSize = 13.sp,
+                color = colorScheme.onSurface.copy(alpha = 0.56f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+        QueueTextAction(
+            text = "清空后续",
+            enabled = upcomingCount > 0,
+            colorScheme = colorScheme,
+            onClick = onClearUpcoming
+        )
+    }
+}
+
+private fun queueSubtitle(queueSize: Int, currentIndex: Int, upcomingCount: Int): String {
+    return when {
+        queueSize <= 0 -> "暂无歌曲"
+        currentIndex >= 0 -> "${queueSize} 首 · 当前第 ${currentIndex + 1} 首 · 后续 ${upcomingCount} 首"
+        else -> "${queueSize} 首"
+    }
+}
+
+@Composable
+private fun QueueEmptyState(colorScheme: ColorScheme) {
+    Surface(
+        color = colorScheme.surfaceVariant.copy(alpha = 0.46f),
+        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+    ) {
+        Text(
+            "当前没有播放队列",
+            fontSize = 14.sp,
+            color = colorScheme.onSurface.copy(alpha = 0.58f),
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 28.dp)
+        )
+    }
+}
+
+@Composable
 private fun QueueRow(
     song: NavidromeSong,
     isCurrent: Boolean,
+    canPlayNext: Boolean,
+    canRemove: Boolean,
     colorScheme: ColorScheme,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onPlayNext: () -> Unit,
+    onRemove: () -> Unit
 ) {
     val backgroundColor = if (isCurrent) {
         colorScheme.primary.copy(alpha = 0.1f)
@@ -158,6 +254,21 @@ private fun QueueRow(
                 )
             }
 
+            Spacer(modifier = Modifier.width(2.dp))
+
+            QueueTextAction(
+                text = "下一首",
+                enabled = canPlayNext,
+                colorScheme = colorScheme,
+                onClick = onPlayNext
+            )
+            QueueIconAction(
+                text = "×",
+                enabled = canRemove,
+                colorScheme = colorScheme,
+                onClick = onRemove
+            )
+
             if (isCurrent) {
                 Text(
                     "♪",
@@ -166,6 +277,76 @@ private fun QueueRow(
                     fontWeight = FontWeight.Bold
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun QueueTextAction(
+    text: String,
+    enabled: Boolean,
+    colorScheme: ColorScheme,
+    onClick: () -> Unit
+) {
+    Surface(
+        color = if (enabled) {
+            colorScheme.primary.copy(alpha = 0.1f)
+        } else {
+            colorScheme.surfaceVariant.copy(alpha = 0.4f)
+        },
+        contentColor = if (enabled) {
+            colorScheme.primary
+        } else {
+            colorScheme.onSurface.copy(alpha = 0.3f)
+        },
+        shape = RoundedCornerShape(999.dp),
+        modifier = Modifier
+            .width(58.dp)
+            .clickable(enabled = enabled, onClick = onClick)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.padding(vertical = 7.dp)
+        ) {
+            Text(
+                text,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+private fun QueueIconAction(
+    text: String,
+    enabled: Boolean,
+    colorScheme: ColorScheme,
+    onClick: () -> Unit
+) {
+    Surface(
+        color = if (enabled) {
+            colorScheme.error.copy(alpha = 0.1f)
+        } else {
+            colorScheme.surfaceVariant.copy(alpha = 0.4f)
+        },
+        contentColor = if (enabled) {
+            colorScheme.error
+        } else {
+            colorScheme.onSurface.copy(alpha = 0.3f)
+        },
+        shape = RoundedCornerShape(999.dp),
+        modifier = Modifier
+            .size(32.dp)
+            .clickable(enabled = enabled, onClick = onClick)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

@@ -481,6 +481,9 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                 playbackEngine.seekToQueueIndex(index)
                 showQueueSheet = false
             },
+            onPlayNext = playbackEngine::moveQueueItemToPlayNext,
+            onRemoveFromQueue = playbackEngine::removeQueueItem,
+            onClearUpcoming = playbackEngine::clearUpcomingQueueItems,
             onDismiss = { showQueueSheet = false }
         )
     }
