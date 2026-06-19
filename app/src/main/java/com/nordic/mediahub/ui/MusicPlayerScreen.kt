@@ -323,62 +323,54 @@ private fun PlayerLyricsDisplay(
         selectVisibleLyricLines(lyrics, positionSeconds, lineCount)
     }
 
-    Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.44f),
-        contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(30.dp),
-        shadowElevation = 6.dp,
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
+    Box(
         modifier = modifier
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            colorScheme.surface.copy(alpha = 0.9f),
-                            colorScheme.primary.copy(alpha = 0.08f),
-                            colorScheme.secondary.copy(alpha = 0.05f)
-                        )
+            .clip(RoundedCornerShape(30.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        colorScheme.surfaceVariant.copy(alpha = 0.50f),
+                        colorScheme.primary.copy(alpha = 0.10f),
+                        colorScheme.secondary.copy(alpha = 0.06f),
+                        colorScheme.surfaceVariant.copy(alpha = 0.42f)
                     )
                 )
-                .padding(horizontal = 22.dp, vertical = if (compact) 16.dp else 22.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            when {
-                isLoading -> PlayerLyricsStatus("正在加载歌词", colorScheme)
-                visibleLines.isEmpty() -> PlayerLyricsStatus(error ?: "暂无歌词", colorScheme)
-                else -> {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 11.dp)
-                    ) {
-                        visibleLines.forEach { line ->
-                            Text(
-                                line.text,
-                                fontSize = if (line.active) {
-                                    if (compact) 19.sp else 22.sp
-                                } else {
-                                    if (compact) 14.sp else 16.sp
-                                },
-                                lineHeight = if (line.active) {
-                                    if (compact) 23.sp else 27.sp
-                                } else {
-                                    if (compact) 18.sp else 20.sp
-                                },
-                                color = if (line.active) {
-                                    colorScheme.onSurface
-                                } else {
-                                    colorScheme.onSurface.copy(alpha = 0.46f)
-                                },
-                                fontWeight = if (line.active) FontWeight.Bold else FontWeight.Medium,
-                                textAlign = TextAlign.Center,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
+            )
+            .padding(horizontal = 22.dp, vertical = if (compact) 16.dp else 22.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        when {
+            isLoading -> PlayerLyricsStatus("正在加载歌词", colorScheme)
+            visibleLines.isEmpty() -> PlayerLyricsStatus(error ?: "暂无歌词", colorScheme)
+            else -> {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 11.dp)
+                ) {
+                    visibleLines.forEach { line ->
+                        Text(
+                            line.text,
+                            fontSize = if (line.active) {
+                                if (compact) 19.sp else 22.sp
+                            } else {
+                                if (compact) 14.sp else 16.sp
+                            },
+                            lineHeight = if (line.active) {
+                                if (compact) 23.sp else 27.sp
+                            } else {
+                                if (compact) 18.sp else 20.sp
+                            },
+                            color = if (line.active) {
+                                colorScheme.onSurface
+                            } else {
+                                colorScheme.onSurface.copy(alpha = 0.46f)
+                            },
+                            fontWeight = if (line.active) FontWeight.Bold else FontWeight.Medium,
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
