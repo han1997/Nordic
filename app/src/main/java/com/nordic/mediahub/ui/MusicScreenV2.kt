@@ -85,6 +85,14 @@ private enum class MusicLibraryPage {
     PlaylistDetail
 }
 
+private enum class MusicSongSort {
+    Default,
+    Title,
+    Artist,
+    Album,
+    Duration
+}
+
 @Composable
 fun MusicScreenV2(
     isDark: Boolean,
@@ -106,6 +114,7 @@ fun MusicScreenV2(
     var albums by remember { mutableStateOf(emptyList<NavidromeAlbum>()) }
     var sortedAlbums by remember { mutableStateOf(emptyList<NavidromeAlbum>()) }
     var albumSort by remember { mutableStateOf(NavidromeAlbumSort.RecentlyAdded) }
+    var songSort by remember { mutableStateOf(MusicSongSort.Default) }
     var songs by remember { mutableStateOf(emptyList<NavidromeSong>()) }
     var recentlyAddedSongs by remember { mutableStateOf(emptyList<NavidromeSong>()) }
     var artists by remember { mutableStateOf(emptyList<NavidromeArtist>()) }
@@ -363,6 +372,9 @@ fun MusicScreenV2(
     }
 
     val hasContent = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty() || playlists.isNotEmpty()
+    val visibleSongs = remember(songs, songSort) {
+        sortMusicSongs(songs, songSort)
+    }
     val cacheAgeLabel = formatCacheAge(cacheUpdatedAtMillis)
     val headerActions = buildList {
         if (config.isReadyForMusicSync()) {
@@ -688,13 +700,20 @@ fun MusicScreenV2(
                         )
                     }
                 } else {
-                    items(songs, key = { it.id }) { song ->
+                    item {
+                        SongSortSegmentedControl(
+                            selectedSort = songSort,
+                            colorScheme = colorScheme,
+                            onSortSelected = { songSort = it }
+                        )
+                    }
+                    items(visibleSongs, key = { it.id }) { song ->
                         SongListRow(
                             song = song,
                             colorScheme = colorScheme,
                             onClick = {
-                                val index = songs.indexOf(song)
-                                onSongSelected(songs, index)
+                                val index = visibleSongs.indexOf(song)
+                                onSongSelected(visibleSongs, index)
                             }
                         )
                     }
@@ -1484,6 +1503,94 @@ private fun NavidromeAlbumSort.displayLabel(): String {
         NavidromeAlbumSort.RecentlyAdded -> "最近添加"
         NavidromeAlbumSort.ReleaseYear -> "发行年份"
         NavidromeAlbumSort.Name -> "名称"
+    }
+}
+
+private fun MusicSongSort.displayLabel(): String {
+    return when (this) {
+        MusicSongSort.Default -> "默认"
+        MusicSongSort.Title -> "标题"
+        MusicSongSort.Artist -> "歌手"
+        MusicSongSort.Album -> "专辑"
+        MusicSongSort.Duration -> "时长"
+    }
+}
+
+private fun sortMusicSongs(
+    songs: List<NavidromeSong>,
+    sort: MusicSongSort
+): List<NavidromeSong> {
+    return when (sort) {
+        MusicSongSort.Default -> songs
+        MusicSongSort.Title -> songs.sortedWith(
+            compareBy(String.CASE_INSENSITIVE_ORDER) { it.title }
+        )
+        MusicSongSort.Artist -> songs.sortedWith(
+            compareBy<NavidromeSong, String>(String.CASE_INSENSITIVE_ORDER) { it.artist.orEmpty() }
+                .thenBy(String.CASE_INSENSITIVE_ORDER) { it.title }
+        )
+        MusicSongSort.Album -> songs.sortedWith(
+            compareBy<NavidromeSong, String>(String.CASE_INSENSITIVE_ORDER) { it.album.orEmpty() }
+                .thenBy(String.CASE_INSENSITIVE_ORDER) { it.title }
+        )
+        MusicSongSort.Duration -> songs.sortedWith(
+            compareBy<NavidromeSong> { it.duration }
+                .thenBy(String.CASE_INSENSITIVE_ORDER) { it.title }
+        )
+    }
+}
+
+@Composable
+private fun SongSortSegmentedControl(
+    selectedSort: MusicSongSort,
+    colorScheme: ColorScheme,
+    onSortSelected: (MusicSongSort) -> Unit
+) {
+    val sorts = listOf(
+        MusicSongSort.Default,
+        MusicSongSort.Title,
+        MusicSongSort.Artist,
+        MusicSongSort.Album,
+        MusicSongSort.Duration
+    )
+
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(sorts, key = { it.name }) { sort ->
+            val selected = selectedSort == sort
+            val background by animateColorAsState(
+                targetValue = if (selected) colorScheme.surface.copy(alpha = 0.96f) else colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+            )
+            val textColor by animateColorAsState(
+                targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.64f),
+                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+            )
+
+            Surface(
+                color = background,
+                contentColor = textColor,
+                shape = RoundedCornerShape(999.dp),
+                border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
+                tonalElevation = if (selected) 2.dp else 0.dp,
+                modifier = Modifier
+                    .height(38.dp)
+                    .clickable { onSortSelected(sort) }
+            ) {
+                Box(
+                    modifier = Modifier.padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        sort.displayLabel(),
+                        color = textColor,
+                        fontSize = 13.sp,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
     }
 }
 
