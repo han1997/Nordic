@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 5
+- **Total Sessions**: 6
 - **Last Active**: 2026-06-19
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~175 | Active |
+| `journal-1.md` | ~208 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 6 | 2026-06-19 | Hide bottom dock while scrolling | `00ae1fd` | `main` |
 | 5 | 2026-06-19 | Unify app shell UI states | `2c12ef0`, `7c7f045` | `main` |
 | 4 | 2026-06-19 | Emby video browsing MVP | `fd19d0f` | `main` |
 | 3 | 2026-06-18 | Weekly stabilization slice | `8504bd5`, `7279f96` | `main` |

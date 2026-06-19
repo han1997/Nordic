@@ -173,3 +173,36 @@ Unified Music, Audiobook, and Video loading/error/empty state surfaces, added UI
 ### Next Steps
 
 - None - task complete
+
+
+## Session 6: Hide bottom dock while scrolling
+
+**Date**: 2026-06-19
+**Task**: Hide bottom dock while scrolling
+**Branch**: `main`
+
+### Summary
+
+Added shell-level nested scroll handling so the playback/navigation dock hides while users scroll main content and reappears after brief idle; verified with :app:compileDebugKotlin.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `00ae1fd` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
