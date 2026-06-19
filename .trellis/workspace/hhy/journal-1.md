@@ -380,3 +380,39 @@ Simplified the music player and home navigation, added song sorting controls, ad
 ### Next Steps
 
 - None - task complete
+
+
+## Session 12: Polish music player UI
+
+**Date**: 2026-06-20
+**Task**: Polish music player UI
+**Branch**: `main`
+
+### Summary
+
+Polished the music player lyrics and playback surfaces, reordered music home sections, adjusted recently-added placement, and moved player track metadata into the top area. Verified with compileDebugKotlin, testDebugUnitTest, and lintDebug.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `123b054` | (see git log) |
+| `4a71031` | (see git log) |
+| `9bcb3c3` | (see git log) |
+| `5d1cd69` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
