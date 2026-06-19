@@ -295,3 +295,11 @@ Playback logic tests should isolate pure calculations where possible, as in `app
 .\gradlew.bat :app:lintDebug --no-daemon
 .\gradlew.bat :app:assembleDebug --no-daemon
 ```
+
+### Rewriting UTF-8 Kotlin files with PowerShell `Set-Content`
+
+**Don't**: Use `Set-Content` or shell range rewrites for whole Kotlin source files unless you explicitly preserve UTF-8 encoding.
+
+**Why**: Older Windows PowerShell defaults can rewrite UTF-8 files as UTF-16 LE with a BOM. Git then treats the file as binary, and non-ASCII UI copy can appear corrupted in diffs.
+
+**Do**: Prefer `apply_patch` for source edits. If a whole-file rewrite is unavoidable, write with an explicit UTF-8 encoding and verify the file still starts with ASCII bytes such as `70 61 63 6B` for `package`.

@@ -3,9 +3,6 @@ package com.nordic.mediahub.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -37,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -120,18 +116,7 @@ fun MusicPlayerScreen(
             PlayerTopBar(
                 album = song?.album ?: "音乐库",
                 colorScheme = colorScheme,
-                onClose = onClose,
-                onOpenQueue = onOpenQueue
-            )
-            PlayerModeTabs(
-                showLyrics = showLyrics,
-                lyrics = lyrics,
-                isLyricsLoading = isLyricsLoading,
-                lyricsError = lyricsError,
-                colorScheme = colorScheme,
-                compact = compact,
-                onShowArtwork = { showLyrics = false },
-                onShowLyrics = { showLyrics = true }
+                onClose = onClose
             )
             PlayerPrimaryDisplay(
                 song = song,
@@ -142,6 +127,7 @@ fun MusicPlayerScreen(
                 showLyrics = showLyrics,
                 colorScheme = colorScheme,
                 compact = compact,
+                onToggleDisplay = { showLyrics = !showLyrics },
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
@@ -180,8 +166,7 @@ fun MusicPlayerScreen(
 private fun PlayerTopBar(
     album: String,
     colorScheme: ColorScheme,
-    onClose: () -> Unit,
-    onOpenQueue: () -> Unit
+    onClose: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().height(42.dp),
@@ -209,7 +194,7 @@ private fun PlayerTopBar(
                 overflow = TextOverflow.Ellipsis
             )
         }
-        PlayerTopButton("≡", colorScheme, onClick = onOpenQueue)
+        Box(modifier = Modifier.size(42.dp))
     }
 }
 
@@ -233,116 +218,6 @@ private fun PlayerTopButton(
 }
 
 @Composable
-private fun PlayerModeTabs(
-    showLyrics: Boolean,
-    lyrics: MusicLyrics?,
-    isLyricsLoading: Boolean,
-    lyricsError: String?,
-    colorScheme: ColorScheme,
-    compact: Boolean,
-    onShowArtwork: () -> Unit,
-    onShowLyrics: () -> Unit
-) {
-    val lyricState = when {
-        isLyricsLoading -> "加载中"
-        lyrics?.synced == true -> "同步歌词"
-        lyrics?.lines?.any { it.text.isNotBlank() } == true -> "文本歌词"
-        !lyricsError.isNullOrBlank() -> lyricsError
-        else -> "暂无歌词"
-    }
-
-    Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(if (compact) 46.dp else 50.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            PlayerModeTab(
-                selected = !showLyrics,
-                title = "封面",
-                subtitle = "专辑视觉",
-                colorScheme = colorScheme,
-                onClick = onShowArtwork,
-                modifier = Modifier.weight(1f)
-            )
-            PlayerModeTab(
-                selected = showLyrics,
-                title = "歌词",
-                subtitle = lyricState,
-                colorScheme = colorScheme,
-                onClick = onShowLyrics,
-                modifier = Modifier.weight(1f)
-            )
-        }
-    }
-}
-
-@Composable
-private fun PlayerModeTab(
-    selected: Boolean,
-    title: String,
-    subtitle: String,
-    colorScheme: ColorScheme,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val background by animateColorAsState(
-        targetValue = if (selected) colorScheme.surface.copy(alpha = 0.96f) else Color.Transparent,
-        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
-    )
-    val titleColor by animateColorAsState(
-        targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.72f),
-        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
-    )
-    val subtitleColor by animateColorAsState(
-        targetValue = if (selected) colorScheme.onSurface.copy(alpha = 0.58f) else colorScheme.onSurface.copy(alpha = 0.42f),
-        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
-    )
-
-    Surface(
-        color = background,
-        contentColor = titleColor,
-        shape = RoundedCornerShape(14.dp),
-        tonalElevation = if (selected) 2.dp else 0.dp,
-        modifier = modifier
-            .fillMaxSize()
-            .clickable(onClick = onClick)
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                title,
-                fontSize = 13.sp,
-                color = titleColor,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                subtitle,
-                fontSize = 11.sp,
-                color = subtitleColor,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-@Composable
 private fun PlayerPrimaryDisplay(
     song: NavidromeSong?,
     lyrics: MusicLyrics?,
@@ -352,24 +227,27 @@ private fun PlayerPrimaryDisplay(
     showLyrics: Boolean,
     colorScheme: ColorScheme,
     compact: Boolean,
+    onToggleDisplay: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (showLyrics) {
-        PlayerLyricsDisplay(
-            lyrics = lyrics,
-            isLoading = isLyricsLoading,
-            error = lyricsError,
-            positionSeconds = positionSeconds,
-            colorScheme = colorScheme,
-            compact = compact,
-            modifier = modifier
-        )
-    } else {
-        PlayerArtwork(
-            song = song,
-            colorScheme = colorScheme,
-            modifier = modifier
-        )
+    Box(modifier = modifier.clickable(onClick = onToggleDisplay)) {
+        if (showLyrics) {
+            PlayerLyricsDisplay(
+                lyrics = lyrics,
+                isLoading = isLyricsLoading,
+                error = lyricsError,
+                positionSeconds = positionSeconds,
+                colorScheme = colorScheme,
+                compact = compact,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            PlayerArtwork(
+                song = song,
+                colorScheme = colorScheme,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
     }
 }
 
