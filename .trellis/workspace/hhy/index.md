@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 7
+- **Total Sessions**: 8
 - **Last Active**: 2026-06-19
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~242 | Active |
+| `journal-1.md` | ~275 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 8 | 2026-06-19 | Config auth refresh consistency | `f30b1ec` | `main` |
 | 7 | 2026-06-19 | Finish remaining Trellis tasks | `93e7374`, `5d7a1c8` | `main` |
 | 6 | 2026-06-19 | Hide bottom dock while scrolling | `00ae1fd` | `main` |
 | 5 | 2026-06-19 | Unify app shell UI states | `2c12ef0`, `7c7f045` | `main` |

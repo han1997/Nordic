@@ -240,3 +240,36 @@ Audited remaining active tasks, committed Navidrome all-song navigation with rep
 ### Next Steps
 
 - None - task complete
+
+
+## Session 8: Config auth refresh consistency
+
+**Date**: 2026-06-19
+**Task**: Config auth refresh consistency
+**Branch**: `main`
+
+### Summary
+
+Stopped tracking local Claude settings, required passwords for Navidrome and AudiobookShelf readiness, scoped Navidrome refresh repositories to the target config, added regression tests, and documented the config-scoped refresh contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f30b1ec` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
