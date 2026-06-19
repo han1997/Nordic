@@ -18,6 +18,20 @@ import retrofit2.converter.gson.GsonConverterFactory
 private const val RECENT_ALBUM_LIMIT = 20
 private const val RECENT_SONG_LIMIT = 20
 private const val ALBUM_PAGE_SIZE = 100
+private const val RELEASE_YEAR_SORT_FROM_YEAR = 2100
+private const val RELEASE_YEAR_SORT_TO_YEAR = 1900
+
+enum class NavidromeAlbumSort {
+    RecentlyAdded,
+    ReleaseYear,
+    Name
+}
+
+private data class AlbumListRequest(
+    val type: String,
+    val fromYear: Int? = null,
+    val toYear: Int? = null
+)
 
 class NavidromeApiException(message: String, val kind: Kind) : Exception(message) {
     enum class Kind { HTTP, SUBSONIC }
@@ -110,7 +124,9 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
     private suspend fun getAlbumList(
         type: String,
         size: Int,
-        offset: Int = 0
+        offset: Int = 0,
+        fromYear: Int? = null,
+        toYear: Int? = null
     ): List<NavidromeAlbum> {
         val auth = config.authParams()
         val subsonic = api.getAlbumList2(
@@ -119,20 +135,37 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
             salt = auth.salt,
             type = type,
             size = size,
-            offset = offset
+            offset = offset,
+            fromYear = fromYear,
+            toYear = toYear
         ).requireResponse()
         return subsonic.albumList2?.album?.map { it.withCoverArtUrl() } ?: emptyList()
     }
 
-    private suspend fun getAllAlbums(): List<NavidromeAlbum> {
+    private fun NavidromeAlbumSort.toAlbumListRequest(): AlbumListRequest {
+        return when (this) {
+            NavidromeAlbumSort.RecentlyAdded -> AlbumListRequest(type = "newest")
+            NavidromeAlbumSort.ReleaseYear -> AlbumListRequest(
+                type = "byYear",
+                fromYear = RELEASE_YEAR_SORT_FROM_YEAR,
+                toYear = RELEASE_YEAR_SORT_TO_YEAR
+            )
+            NavidromeAlbumSort.Name -> AlbumListRequest(type = "alphabeticalByName")
+        }
+    }
+
+    private suspend fun getPagedAlbums(sort: NavidromeAlbumSort): List<NavidromeAlbum> {
+        val request = sort.toAlbumListRequest()
         val albums = mutableListOf<NavidromeAlbum>()
         var offset = 0
 
         while (true) {
             val page = getAlbumList(
-                type = "alphabeticalByName",
+                type = request.type,
                 size = ALBUM_PAGE_SIZE,
-                offset = offset
+                offset = offset,
+                fromYear = request.fromYear,
+                toYear = request.toYear
             )
             if (page.isEmpty()) break
 
@@ -142,6 +175,10 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
         }
 
         return albums
+    }
+
+    private suspend fun getAllAlbums(): List<NavidromeAlbum> {
+        return getPagedAlbums(NavidromeAlbumSort.Name)
     }
 
     private suspend fun getSongsFromAlbums(albums: List<NavidromeAlbum>, limit: Int? = RECENT_SONG_LIMIT): List<NavidromeSong> {
@@ -200,6 +237,14 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
     } catch (e: Exception) {
         Log.e("NavidromeRepo", "Error getting albums", e)
         throw Exception("获取专辑失败: ${e.message}")
+    }
+
+    suspend fun getAlbums(sort: NavidromeAlbumSort) = try {
+        getPagedAlbums(sort)
+    } catch (e: NavidromeApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("获取专辑列表失败: ${e.message}")
     }
 
     override suspend fun getAllSongs() = try {

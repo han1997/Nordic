@@ -105,6 +105,45 @@ val freshRecentlyAddedSongs = repo.getRecentlyAddedSongs(freshAlbums)
 val freshSongs = repo.getAllSongs()
 ```
 
+### Navidrome album browsing sort modes
+
+**Scope / Trigger**: Any change to the Music screen album page, album sort UI, `NavidromeRepository.getAlbums(...)`, or `NavidromeApi.getAlbumList2(...)`.
+
+**Signatures**:
+- `enum class NavidromeAlbumSort { RecentlyAdded, ReleaseYear, Name }`
+- `NavidromeApi.getAlbumList2(..., type: String, size: Int, offset: Int, fromYear: Int? = null, toYear: Int? = null)`
+- `suspend fun NavidromeRepository.getAlbums(sort: NavidromeAlbumSort): List<NavidromeAlbum>`
+
+**Contract**:
+- Album browsing is entered from the Music home album section's "All" action; do not replace the top-level Music tabs unless the PRD explicitly changes that scope.
+- `RecentlyAdded` maps to `getAlbumList2(type = "newest")`.
+- `ReleaseYear` maps to `getAlbumList2(type = "byYear", fromYear = 2100, toYear = 1900)` so the API returns newest release years first across a broad year range.
+- `Name` maps to `getAlbumList2(type = "alphabeticalByName")`.
+- Album browsing should page with `size = 100` and `offset = n` until an empty or short page.
+- The sorted album list is view state, not part of `NavidromeMusicCache`; cached `albums` remains the home/recent album preview unless the cache contract is explicitly revised and schema-bumped.
+
+**Validation & Error Matrix**:
+- Subsonic/HTTP error while loading sorted albums -> preserve `NavidromeApiException`.
+- Unknown failure while loading sorted albums -> wrap as `"获取专辑列表失败: ..."` for UI context.
+- Empty sorted album response -> show album empty state; do not fall back to songs or random albums.
+
+**Good/Base/Bad Cases**:
+- Good: Home shows recent album previews, "All" opens album browsing, and sort chips refetch with the mapped API type.
+- Base: Recently added sort shows the same ordering family as the home album preview but can page beyond the preview limit.
+- Bad: Release-year sorting uses alphabetical albums and sorts locally; this can be incorrect across paged server data.
+
+**Tests Required**:
+- Repository unit test with `MockWebServer` asserting `getAlbums(...)` sends `type=newest`, `type=byYear&fromYear=2100&toYear=1900`, and `type=alphabeticalByName` for the three sort modes.
+
+**Wrong vs Correct**:
+```kotlin
+// Wrong: local sort after fetching alphabetical data can miss server-side page ordering.
+val albums = repo.getAlbums(NavidromeAlbumSort.Name).sortedByDescending { it.year ?: 0 }
+
+// Correct: request the server-side album list type for the selected sort.
+val albums = repo.getAlbums(NavidromeAlbumSort.ReleaseYear)
+```
+
 ---
 
 ## Testing Requirements

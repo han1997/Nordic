@@ -5,6 +5,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -82,6 +83,33 @@ class NavidromeRepositoryTest {
         assertTrue(server.takeRequest().path.orEmpty().contains("/rest/getAlbum.view"))
     }
 
+    @Test
+    fun getAlbums_mapsSortModesToAlbumListRequests() = runTest {
+        server.enqueueJson(emptyAlbumListResponse())
+        server.enqueueJson(emptyAlbumListResponse())
+        server.enqueueJson(emptyAlbumListResponse())
+
+        repository().getAlbums(NavidromeAlbumSort.RecentlyAdded)
+        repository().getAlbums(NavidromeAlbumSort.ReleaseYear)
+        repository().getAlbums(NavidromeAlbumSort.Name)
+
+        val recentlyAddedRequest = server.takeRequest().path.orEmpty()
+        assertTrue(recentlyAddedRequest.startsWith("/rest/getAlbumList2.view?"))
+        assertTrue(recentlyAddedRequest.contains("type=newest"))
+        assertTrue(recentlyAddedRequest.contains("size=100"))
+        assertTrue(recentlyAddedRequest.contains("offset=0"))
+
+        val releaseYearRequest = server.takeRequest().path.orEmpty()
+        assertTrue(releaseYearRequest.contains("type=byYear"))
+        assertTrue(releaseYearRequest.contains("fromYear=2100"))
+        assertTrue(releaseYearRequest.contains("toYear=1900"))
+
+        val nameRequest = server.takeRequest().path.orEmpty()
+        assertTrue(nameRequest.contains("type=alphabeticalByName"))
+        assertFalse(nameRequest.contains("fromYear="))
+        assertFalse(nameRequest.contains("toYear="))
+    }
+
     private fun repository(): NavidromeRepository {
         return NavidromeRepository(
             NavidromeConfig(
@@ -102,6 +130,16 @@ class NavidromeRepositoryTest {
               }
             }
         """.trimIndent()
+    }
+
+    private fun emptyAlbumListResponse(): String {
+        return subsonicResponse(
+            """
+            "albumList2": {
+              "album": []
+            }
+            """.trimIndent()
+        )
     }
 }
 

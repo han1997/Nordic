@@ -58,6 +58,7 @@ import com.nordic.mediahub.api.NavidromeAlbum
 import com.nordic.mediahub.api.NavidromeArtist
 import com.nordic.mediahub.api.NavidromeSong
 import com.nordic.mediahub.data.ConfigRepository
+import com.nordic.mediahub.data.NavidromeAlbumSort
 import com.nordic.mediahub.data.NavidromeConfig
 import com.nordic.mediahub.data.NavidromeMusicCacheRepository
 import com.nordic.mediahub.data.NavidromeRepository
@@ -68,6 +69,7 @@ import kotlinx.coroutines.launch
 
 private enum class MusicLibraryPage {
     Home,
+    Albums,
     Songs,
     Artists,
     ArtistDetail,
@@ -95,10 +97,13 @@ fun MusicScreenV2(
     var selectedTab by remember { mutableStateOf(0) }
     var libraryPage by remember { mutableStateOf(MusicLibraryPage.Home) }
     var albums by remember { mutableStateOf(emptyList<NavidromeAlbum>()) }
+    var sortedAlbums by remember { mutableStateOf(emptyList<NavidromeAlbum>()) }
+    var albumSort by remember { mutableStateOf(NavidromeAlbumSort.RecentlyAdded) }
     var songs by remember { mutableStateOf(emptyList<NavidromeSong>()) }
     var recentlyAddedSongs by remember { mutableStateOf(emptyList<NavidromeSong>()) }
     var artists by remember { mutableStateOf(emptyList<NavidromeArtist>()) }
     var isLoading by remember { mutableStateOf(false) }
+    var isLoadingAlbumList by remember { mutableStateOf(false) }
     var loadingAlbumId by remember { mutableStateOf<String?>(null) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
     var selectedAlbum by remember { mutableStateOf<NavidromeAlbum?>(null) }
@@ -172,6 +177,35 @@ fun MusicScreenV2(
         }
     }
 
+    suspend fun loadAlbumList(sort: NavidromeAlbumSort): Boolean {
+        if (isLoadingAlbumList) return false
+        val repo = navidromeRepository
+        if (repo == null) {
+            errorMsg = "请先保存 Navidrome 配置"
+            return false
+        }
+
+        albumSort = sort
+        isLoadingAlbumList = true
+        errorMsg = null
+        return try {
+            sortedAlbums = repo.getAlbums(sort)
+            true
+        } catch (e: Exception) {
+            errorMsg = "获取专辑列表失败: ${e.message}"
+            false
+        } finally {
+            isLoadingAlbumList = false
+        }
+    }
+
+    fun openAlbumLibrary() {
+        libraryPage = MusicLibraryPage.Albums
+        if (sortedAlbums.isEmpty()) {
+            scope.launch { loadAlbumList(albumSort) }
+        }
+    }
+
     suspend fun playAlbum(album: NavidromeAlbum) {
         if (loadingAlbumId != null) return
         val repo = navidromeRepository
@@ -230,6 +264,8 @@ fun MusicScreenV2(
 
     LaunchedEffect(savedConfig) {
         config = savedConfig
+        sortedAlbums = emptyList()
+        albumSort = NavidromeAlbumSort.RecentlyAdded
         if (savedConfig.isReadyForMusicSync()) {
             applyCachedMusicData(savedConfig)
             refreshMusicData(savedConfig)
@@ -238,6 +274,7 @@ fun MusicScreenV2(
             songs = emptyList()
             recentlyAddedSongs = emptyList()
             artists = emptyList()
+            sortedAlbums = emptyList()
             libraryPage = MusicLibraryPage.Home
             cacheUpdatedAtMillis = null
             errorMsg = null
@@ -252,7 +289,13 @@ fun MusicScreenV2(
                 HeaderAction(
                     icon = if (isLoading) "…" else "↻",
                     enabled = !isLoading,
-                    onClick = { scope.launch { refreshMusicData(config) } }
+                    onClick = {
+                        scope.launch {
+                            if (refreshMusicData(config) && libraryPage == MusicLibraryPage.Albums) {
+                                loadAlbumList(albumSort)
+                            }
+                        }
+                    }
                 )
             )
         }
@@ -262,6 +305,7 @@ fun MusicScreenV2(
     val isHomePage = libraryPage == MusicLibraryPage.Home
     val headerTitle = when (libraryPage) {
         MusicLibraryPage.Home -> "音乐库"
+        MusicLibraryPage.Albums -> "专辑"
         MusicLibraryPage.Songs -> "歌曲"
         MusicLibraryPage.Artists -> "常听歌手"
         MusicLibraryPage.ArtistDetail -> selectedArtist?.name ?: "歌手"
@@ -275,6 +319,11 @@ fun MusicScreenV2(
             cacheAgeLabel != null -> "本地缓存，$cacheAgeLabel"
             hasContent -> "最近添加按曲目展示，点一下直接播放"
             else -> "连接 Navidrome 后，这里会自动同步你的内容"
+        }
+        MusicLibraryPage.Albums -> when {
+            isLoadingAlbumList -> "正在按${albumSort.displayLabel()}加载专辑"
+            sortedAlbums.isNotEmpty() -> "${sortedAlbums.size} 张专辑 · ${albumSort.displayLabel()}"
+            else -> "按${albumSort.displayLabel()}浏览 Navidrome 专辑"
         }
         MusicLibraryPage.Songs -> "共 ${songs.size} 首，点一下直接播放"
         MusicLibraryPage.Artists -> "共 ${artists.size} 位歌手"
@@ -414,6 +463,26 @@ fun MusicScreenV2(
                             }
                         )
                     }
+                    item {
+                        MusicSectionHeader(
+                            title = "最近专辑",
+                            subtitle = "按最近添加展示，进入全部后可切换排序",
+                            colorScheme = colorScheme,
+                            actionLabel = "全部",
+                            onAction = { openAlbumLibrary() }
+                        )
+                    }
+                    item {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(albums.take(10), key = { it.id }) { album ->
+                                CompactAlbumShelfCard(
+                                    album = album,
+                                    colorScheme = colorScheme,
+                                    onClick = { openAlbumDetail(album) }
+                                )
+                            }
+                        }
+                    }
                 }
 
                 if (recentlyAddedSongs.isNotEmpty()) {
@@ -462,6 +531,49 @@ fun MusicScreenV2(
                                 ArtistShelfCard(artist = artist, colorScheme = colorScheme, onClick = { openArtistDetail(artist) })
                             }
                         }
+                    }
+                }
+            }
+
+            MusicLibraryPage.Albums -> {
+                item {
+                    AlbumSortSegmentedControl(
+                        selectedSort = albumSort,
+                        colorScheme = colorScheme,
+                        onSortSelected = { sort ->
+                            if (sort != albumSort) {
+                                scope.launch { loadAlbumList(sort) }
+                            }
+                        }
+                    )
+                }
+
+                if (isLoadingAlbumList) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("正在加载专辑...", fontSize = 14.sp, color = colorScheme.onSurface.copy(alpha = 0.56f))
+                        }
+                    }
+                } else if (sortedAlbums.isEmpty()) {
+                    item {
+                        MusicDetailEmptyState(
+                            title = "暂无专辑",
+                            subtitle = "刷新音乐库后，Navidrome 专辑会显示在这里。",
+                            colorScheme = colorScheme
+                        )
+                    }
+                } else {
+                    items(sortedAlbums, key = { it.id }) { album ->
+                        AlbumListRow(
+                            album = album,
+                            colorScheme = colorScheme,
+                            onClick = { openAlbumDetail(album) }
+                        )
                     }
                 }
             }
@@ -855,6 +967,81 @@ private fun MusicSegmentedTabs(
             }
         }
         MusicSearchButton(colorScheme = colorScheme, onClick = onSearchClick)
+    }
+}
+
+private fun NavidromeAlbumSort.displayLabel(): String {
+    return when (this) {
+        NavidromeAlbumSort.RecentlyAdded -> "最近添加"
+        NavidromeAlbumSort.ReleaseYear -> "发行年份"
+        NavidromeAlbumSort.Name -> "名称"
+    }
+}
+
+@Composable
+private fun AlbumSortSegmentedControl(
+    selectedSort: NavidromeAlbumSort,
+    colorScheme: ColorScheme,
+    onSortSelected: (NavidromeAlbumSort) -> Unit
+) {
+    val sorts = listOf(
+        NavidromeAlbumSort.RecentlyAdded,
+        NavidromeAlbumSort.ReleaseYear,
+        NavidromeAlbumSort.Name
+    )
+
+    Surface(
+        color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
+        contentColor = colorScheme.onSurface,
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            sorts.forEach { sort ->
+                val selected = selectedSort == sort
+                val tabColor by animateColorAsState(
+                    targetValue = if (selected) colorScheme.surface.copy(alpha = 0.96f) else Color.Transparent,
+                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                )
+                val textColor by animateColorAsState(
+                    targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.62f),
+                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                )
+
+                Surface(
+                    color = tabColor,
+                    contentColor = textColor,
+                    shape = RoundedCornerShape(14.dp),
+                    tonalElevation = if (selected) 2.dp else 0.dp,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable { onSortSelected(sort) }
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            sort.displayLabel(),
+                            color = textColor,
+                            fontSize = 14.sp,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

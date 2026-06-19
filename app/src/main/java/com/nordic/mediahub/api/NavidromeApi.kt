@@ -127,7 +127,9 @@ interface NavidromeApi {
         @Query("f") format: String = "json",
         @Query("type") type: String = "newest",
         @Query("size") size: Int = 20,
-        @Query("offset") offset: Int = 0
+        @Query("offset") offset: Int = 0,
+        @Query("fromYear") fromYear: Int? = null,
+        @Query("toYear") toYear: Int? = null
     ): Response<SubsonicResponse>
 
     @GET("rest/getAlbum.view")
