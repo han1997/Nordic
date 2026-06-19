@@ -32,6 +32,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
@@ -86,8 +87,9 @@ fun MusicPlayerScreen(
             .background(
                 Brush.verticalGradient(
                     listOf(
-                        colorScheme.primary.copy(alpha = 0.16f),
-                        colorScheme.secondary.copy(alpha = 0.06f),
+                        colorScheme.primary.copy(alpha = 0.12f),
+                        colorScheme.secondary.copy(alpha = 0.08f),
+                        colorScheme.surfaceVariant.copy(alpha = 0.18f),
                         colorScheme.background,
                         colorScheme.background
                     )
@@ -100,6 +102,30 @@ fun MusicPlayerScreen(
         val topPadding = statusTopPadding + if (compact) 8.dp else 12.dp
         val bottomPadding = if (compact) 12.dp else 18.dp
         val sectionGap = if (compact) 10.dp else 14.dp
+
+        if (song?.coverArt != null) {
+            AsyncImage(
+                model = song.coverArt,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .alpha(0.12f)
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                colorScheme.background.copy(alpha = 0.18f),
+                                colorScheme.background.copy(alpha = 0.72f),
+                                colorScheme.background
+                            )
+                        )
+                    )
+            )
+        }
 
         Column(
             modifier = Modifier
@@ -205,10 +231,10 @@ private fun PlayerTopButton(
     onClick: () -> Unit
 ) {
     Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.58f),
+        color = colorScheme.surface.copy(alpha = 0.56f),
         contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
+        shape = RoundedCornerShape(999.dp),
+        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.04f)),
         modifier = Modifier.size(42.dp).clickable(onClick = onClick)
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -423,14 +449,33 @@ private fun PlayerTrackInfo(
             maxLines = if (compact) 1 else 2,
             overflow = TextOverflow.Ellipsis
         )
-        Text(
-            subtitle,
-            fontSize = 14.sp,
-            color = subtitleColor,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+        if (playbackStatus == null) {
+            Text(
+                subtitle,
+                fontSize = 14.sp,
+                color = subtitleColor,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        } else {
+            Surface(
+                color = subtitleColor.copy(alpha = 0.13f),
+                contentColor = subtitleColor,
+                shape = RoundedCornerShape(999.dp)
+            ) {
+                Text(
+                    subtitle,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                    fontSize = 12.sp,
+                    color = subtitleColor,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             PlayerMetaChip(song?.album ?: "Nordic", colorScheme)
             PlayerMetaChip(formatDuration(song?.duration ?: 0), colorScheme)
@@ -456,19 +501,29 @@ private fun PlayerConsole(
     onOpenQueue: () -> Unit = {}
 ) {
     Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
         contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(24.dp),
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
+        shape = RoundedCornerShape(28.dp),
+        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.04f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(
-                start = 14.dp,
-                top = if (compact) 8.dp else 10.dp,
-                end = 14.dp,
-                bottom = if (compact) 12.dp else 14.dp
-            ),
+            modifier = Modifier
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            colorScheme.surface.copy(alpha = 0.62f),
+                            colorScheme.surfaceVariant.copy(alpha = 0.50f),
+                            colorScheme.primary.copy(alpha = 0.06f)
+                        )
+                    )
+                )
+                .padding(
+                    start = 14.dp,
+                    top = if (compact) 8.dp else 10.dp,
+                    end = 14.dp,
+                    bottom = if (compact) 12.dp else 14.dp
+                ),
             verticalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 9.dp)
         ) {
             Slider(
@@ -535,7 +590,7 @@ private fun PlayerMetaChip(
     colorScheme: ColorScheme
 ) {
     Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.62f),
+        color = colorScheme.surface.copy(alpha = 0.50f),
         contentColor = colorScheme.onSurface,
         shape = RoundedCornerShape(999.dp)
     ) {
@@ -564,7 +619,7 @@ private fun PlayerControlButton(
         filled && enabled -> colorScheme.primary
         filled -> colorScheme.primary.copy(alpha = 0.32f)
         active && enabled -> colorScheme.primary.copy(alpha = 0.18f)
-        else -> colorScheme.surface.copy(alpha = if (enabled) 0.72f else 0.34f)
+        else -> colorScheme.surface.copy(alpha = if (enabled) 0.58f else 0.30f)
     }
     val foreground = when {
         filled -> colorScheme.onPrimary
