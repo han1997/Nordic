@@ -7,7 +7,7 @@ data class NavidromeConfig(
 )
 
 fun NavidromeConfig.isReadyForMusicSync(): Boolean {
-    return serverUrl.isNotBlank() && username.isNotBlank()
+    return serverUrl.isNotBlank() && username.isNotBlank() && password.isNotBlank()
 }
 
 data class AudiobookShelfConfig(

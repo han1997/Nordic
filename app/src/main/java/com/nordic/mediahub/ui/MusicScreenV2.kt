@@ -63,6 +63,7 @@ import com.nordic.mediahub.data.NavidromeMusicCacheRepository
 import com.nordic.mediahub.data.NavidromeRepository
 import com.nordic.mediahub.data.SearchMusicResult
 import com.nordic.mediahub.data.isReadyForMusicSync
+import com.nordic.mediahub.data.loadNavidromeMusicRefresh
 import kotlinx.coroutines.launch
 
 private enum class MusicLibraryPage {
@@ -138,23 +139,23 @@ fun MusicScreenV2(
         isLoading = true
         errorMsg = null
         return try {
-            val repo = navidromeRepository ?: return false
-            val freshAlbums = repo.getRecentAlbums()
-            val freshRecentlyAddedSongs = repo.getRecentlyAddedSongs(freshAlbums)
-            val freshSongs = repo.getAllSongs()
-            val freshArtists = repo.getArtists()
+            val freshData = loadNavidromeMusicRefresh(
+                targetConfig = targetConfig,
+                savedConfig = savedConfig,
+                savedRepository = navidromeRepository
+            ) ?: return false
             val freshCache = cacheRepository.buildCache(
                 config = targetConfig,
-                albums = freshAlbums,
-                songs = freshSongs,
-                recentlyAddedSongs = freshRecentlyAddedSongs,
-                artists = freshArtists
+                albums = freshData.albums,
+                songs = freshData.songs,
+                recentlyAddedSongs = freshData.recentlyAddedSongs,
+                artists = freshData.artists
             )
 
-            albums = freshAlbums
-            songs = freshSongs
-            recentlyAddedSongs = freshRecentlyAddedSongs
-            artists = freshArtists
+            albums = freshData.albums
+            songs = freshData.songs
+            recentlyAddedSongs = freshData.recentlyAddedSongs
+            artists = freshData.artists
             cacheUpdatedAtMillis = freshCache.updatedAtMillis
             cacheRepository.save(targetConfig, freshCache)
             true

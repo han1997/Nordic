@@ -19,5 +19,5 @@ internal fun AudiobookShelfConfig.normalizedBaseUrl(): String {
 }
 
 fun AudiobookShelfConfig.isReadyForAudiobookSync(): Boolean {
-    return serverUrl.isNotBlank() && username.isNotBlank()
+    return serverUrl.isNotBlank() && username.isNotBlank() && password.isNotBlank()
 }

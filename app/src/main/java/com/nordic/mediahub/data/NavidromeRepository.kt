@@ -23,7 +23,7 @@ class NavidromeApiException(message: String, val kind: Kind) : Exception(message
     enum class Kind { HTTP, SUBSONIC }
 }
 
-class NavidromeRepository(private val config: NavidromeConfig) {
+class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicDataSource {
     private val baseUrl = config.normalizedBaseUrl()
 
     private val loggingInterceptor = HttpLoggingInterceptor { message ->
@@ -178,7 +178,11 @@ class NavidromeRepository(private val config: NavidromeConfig) {
         throw Exception("获取专辑曲目失败: ${e.message}")
     }
 
-    suspend fun getRecentlyAddedSongs(albums: List<NavidromeAlbum>, limit: Int = RECENT_SONG_LIMIT) = try {
+    override suspend fun getRecentlyAddedSongs(albums: List<NavidromeAlbum>): List<NavidromeSong> {
+        return getRecentlyAddedSongs(albums, RECENT_SONG_LIMIT)
+    }
+
+    suspend fun getRecentlyAddedSongs(albums: List<NavidromeAlbum>, limit: Int) = try {
         getSongsFromAlbums(albums, limit)
     } catch (e: NavidromeApiException) {
         throw e
@@ -186,7 +190,7 @@ class NavidromeRepository(private val config: NavidromeConfig) {
         throw Exception("获取最近添加曲目失败: ${e.message}")
     }
 
-    suspend fun getRecentAlbums() = try {
+    override suspend fun getRecentAlbums() = try {
         Log.d("NavidromeRepo", "Getting albums from: $baseUrl")
         val albums = getAlbumList(type = "newest", size = RECENT_ALBUM_LIMIT)
         Log.d("NavidromeRepo", "Got ${albums.size} albums")
@@ -198,7 +202,7 @@ class NavidromeRepository(private val config: NavidromeConfig) {
         throw Exception("获取专辑失败: ${e.message}")
     }
 
-    suspend fun getAllSongs() = try {
+    override suspend fun getAllSongs() = try {
         getSongsFromAlbums(getAllAlbums(), limit = null)
     } catch (e: NavidromeApiException) {
         throw e
@@ -222,7 +226,7 @@ class NavidromeRepository(private val config: NavidromeConfig) {
         throw Exception("获取歌曲失败: ${e.message}")
     }
 
-    suspend fun getArtists() = try {
+    override suspend fun getArtists() = try {
         val auth = config.authParams()
         val subsonic = api.getArtists(config.username, auth.token, auth.salt).requireResponse()
         val artists = subsonic.artists?.index?.flatMap { index ->
