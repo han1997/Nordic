@@ -11,7 +11,14 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Velocity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.AudiobookShelfConfig
@@ -27,11 +34,84 @@ import com.nordic.mediahub.ui.*
 import com.nordic.mediahub.ui.theme.*
 import coil.Coil
 import coil.ImageLoader
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 import android.graphics.Color as AndroidColor
+
+private const val BOTTOM_DOCK_REVEAL_DELAY_MS = 650L
+private const val BOTTOM_DOCK_ENTER_ANIMATION_MS = 260
+private const val BOTTOM_DOCK_EXIT_ANIMATION_MS = 150
+private const val BOTTOM_DOCK_ENTER_FADE_DELAY_MS = 40
+
+private class BottomDockRevealController {
+    var revealJob: Job? = null
+}
+
+@Composable
+private fun AnimatedBottomDock(
+    visible: Boolean,
+    content: @Composable () -> Unit
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(
+            tween(
+                durationMillis = BOTTOM_DOCK_ENTER_ANIMATION_MS,
+                delayMillis = BOTTOM_DOCK_ENTER_FADE_DELAY_MS,
+                easing = FastOutSlowInEasing
+            )
+        ) + slideInVertically(
+            animationSpec = tween(
+                durationMillis = BOTTOM_DOCK_ENTER_ANIMATION_MS,
+                easing = FastOutSlowInEasing
+            ),
+            initialOffsetY = { it / 3 }
+        ) + scaleIn(
+            animationSpec = tween(
+                durationMillis = BOTTOM_DOCK_ENTER_ANIMATION_MS,
+                easing = FastOutSlowInEasing
+            ),
+            initialScale = 0.985f,
+            transformOrigin = TransformOrigin(0.5f, 1f)
+        ) + expandVertically(
+            animationSpec = tween(
+                durationMillis = BOTTOM_DOCK_ENTER_ANIMATION_MS,
+                easing = FastOutSlowInEasing
+            ),
+            expandFrom = Alignment.Bottom
+        ),
+        exit = fadeOut(
+            tween(
+                durationMillis = BOTTOM_DOCK_EXIT_ANIMATION_MS,
+                easing = FastOutSlowInEasing
+            )
+        ) + slideOutVertically(
+            animationSpec = tween(
+                durationMillis = BOTTOM_DOCK_EXIT_ANIMATION_MS,
+                easing = FastOutSlowInEasing
+            ),
+            targetOffsetY = { (it * 2) / 3 }
+        ) + scaleOut(
+            animationSpec = tween(
+                durationMillis = BOTTOM_DOCK_EXIT_ANIMATION_MS,
+                easing = FastOutSlowInEasing
+            ),
+            targetScale = 0.985f,
+            transformOrigin = TransformOrigin(0.5f, 1f)
+        ) + shrinkVertically(
+            animationSpec = tween(
+                durationMillis = BOTTOM_DOCK_EXIT_ANIMATION_MS,
+                easing = FastOutSlowInEasing
+            ),
+            shrinkTowards = Alignment.Bottom
+        )
+    ) {
+        content()
+    }
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -124,6 +204,76 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         else -> null
     }
 
+    var bottomDockVisible by remember { mutableStateOf(true) }
+    val bottomDockRevealController = remember { BottomDockRevealController() }
+
+    fun scheduleBottomDockReveal() {
+        bottomDockRevealController.revealJob?.cancel()
+        bottomDockRevealController.revealJob = scope.launch {
+            delay(BOTTOM_DOCK_REVEAL_DELAY_MS)
+            bottomDockVisible = true
+        }
+    }
+
+    fun hideBottomDockForScroll(scheduleReveal: Boolean) {
+        if (showPlayer || showAudiobookPlayer) return
+        if (bottomDockVisible) {
+            bottomDockVisible = false
+        }
+        if (scheduleReveal) {
+            scheduleBottomDockReveal()
+        } else {
+            bottomDockRevealController.revealJob?.cancel()
+        }
+    }
+
+    val bottomDockScrollConnection = remember(showPlayer, showAudiobookPlayer) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (available.y != 0f) {
+                    hideBottomDockForScroll(scheduleReveal = true)
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                if (consumed.y != 0f || available.y != 0f) {
+                    hideBottomDockForScroll(scheduleReveal = true)
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (available.y != 0f) {
+                    hideBottomDockForScroll(scheduleReveal = false)
+                }
+                return Velocity.Zero
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                if (consumed.y != 0f || available.y != 0f) {
+                    scheduleBottomDockReveal()
+                }
+                return Velocity.Zero
+            }
+        }
+    }
+
+    LaunchedEffect(selectedTab, showPlayer, showAudiobookPlayer) {
+        bottomDockRevealController.revealJob?.cancel()
+        bottomDockVisible = true
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            bottomDockRevealController.revealJob?.cancel()
+        }
+    }
+
     fun closeAudiobookPlayback() {
         val session = audiobookPlaybackEngine.state.value.session
         val positionSeconds = audiobookPlaybackEngine.state.value.positionSeconds
@@ -208,7 +358,9 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     Scaffold(
         containerColor = colorScheme.background,
         bottomBar = {
-            if (!showPlayer && !showAudiobookPlayer) {
+            AnimatedBottomDock(
+                visible = !showPlayer && !showAudiobookPlayer && bottomDockVisible
+            ) {
                 PolishedPlaybackDock(
                     selected = selectedTab,
                     colorScheme = colorScheme,
@@ -222,7 +374,11 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             }
         }
     ) { padding ->
-        Box(Modifier.fillMaxSize()) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .nestedScroll(bottomDockScrollConnection)
+        ) {
             AnimatedContent(
                 targetState = showPlayer,
                 transitionSpec = {
