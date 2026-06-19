@@ -69,6 +69,8 @@ import com.nordic.mediahub.data.NavidromeRepository
 import com.nordic.mediahub.data.SearchMusicResult
 import com.nordic.mediahub.data.isReadyForMusicSync
 import com.nordic.mediahub.data.loadNavidromeMusicRefresh
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private enum class MusicLibraryPage {
@@ -125,6 +127,8 @@ fun MusicScreenV2(
     var searchQuery by remember { mutableStateOf("") }
     var searchResult by remember { mutableStateOf<SearchMusicResult?>(null) }
     var isSearching by remember { mutableStateOf(false) }
+    var searchError by remember { mutableStateOf<String?>(null) }
+    var searchJob by remember { mutableStateOf<Job?>(null) }
     var cacheUpdatedAtMillis by remember { mutableStateOf<Long?>(null) }
     val scope = rememberCoroutineScope()
 
@@ -245,6 +249,15 @@ fun MusicScreenV2(
         }
     }
 
+    fun openSearch() {
+        searchJob?.cancel()
+        searchQuery = ""
+        searchResult = null
+        searchError = null
+        isSearching = false
+        libraryPage = MusicLibraryPage.Search
+    }
+
     suspend fun playAlbum(album: NavidromeAlbum) {
         if (loadingAlbumId != null) return
         val repo = navidromeRepository
@@ -326,6 +339,10 @@ fun MusicScreenV2(
         playlists = emptyList()
         playlistSongs = emptyList()
         selectedPlaylist = null
+        searchJob?.cancel()
+        searchResult = null
+        searchError = null
+        isSearching = false
         albumSort = NavidromeAlbumSort.RecentlyAdded
         if (savedConfig.isReadyForMusicSync()) {
             applyCachedMusicData(savedConfig)
@@ -500,11 +517,7 @@ fun MusicScreenV2(
                             else -> MusicLibraryPage.Home
                         }
                     },
-                    onSearchClick = {
-                        searchQuery = ""
-                        searchResult = null
-                        libraryPage = MusicLibraryPage.Search
-                    }
+                    onSearchClick = { openSearch() }
                 )
             }
             if (savedConfig.isReadyForMusicSync() || hasContent) {
@@ -516,11 +529,7 @@ fun MusicScreenV2(
                         playlistCount = playlists.size,
                         isLoadingPlaylists = isLoadingPlaylists,
                         colorScheme = colorScheme,
-                        onSearchClick = {
-                            searchQuery = ""
-                            searchResult = null
-                            libraryPage = MusicLibraryPage.Search
-                        },
+                        onSearchClick = { openSearch() },
                         onSongsClick = {
                             selectedTab = 1
                             libraryPage = MusicLibraryPage.Songs
@@ -868,20 +877,31 @@ fun MusicScreenV2(
                         value = searchQuery,
                         onValueChange = { newQuery ->
                             searchQuery = newQuery
-                            if (newQuery.isBlank()) {
+                            searchJob?.cancel()
+                            searchError = null
+                            val query = newQuery.trim()
+                            if (query.isBlank()) {
                                 searchResult = null
                                 isSearching = false
                             } else {
                                 isSearching = true
-                                scope.launch {
+                                searchJob = scope.launch {
+                                    delay(300)
                                     try {
-                                        if (newQuery == searchQuery) {
-                                            navidromeRepository?.let { repo ->
-                                                searchResult = repo.search(newQuery)
-                                            }
+                                        val result = navidromeRepository?.search(query) ?: SearchMusicResult()
+                                        if (searchQuery.trim() == query) {
+                                            searchResult = result
                                         }
-                                    } catch (_: Exception) {}
-                                    isSearching = false
+                                    } catch (e: Exception) {
+                                        if (searchQuery.trim() == query) {
+                                            searchResult = null
+                                            searchError = e.message ?: "请稍后重试。"
+                                        }
+                                    } finally {
+                                        if (searchQuery.trim() == query) {
+                                            isSearching = false
+                                        }
+                                    }
                                 }
                             }
                         },
@@ -897,25 +917,71 @@ fun MusicScreenV2(
                     )
                 }
 
+                if (searchQuery.isBlank()) {
+                    item {
+                        MusicSearchLanding(
+                            albums = albums,
+                            songs = recentlyAddedSongs.ifEmpty { songs },
+                            artists = artists,
+                            colorScheme = colorScheme,
+                            onAlbumClick = { album -> openAlbumDetail(album) },
+                            onSongClick = { song ->
+                                val source = recentlyAddedSongs.ifEmpty { songs }
+                                val index = source.indexOf(song).coerceAtLeast(0)
+                                if (source.isNotEmpty()) {
+                                    onSongSelected(source, index)
+                                }
+                            },
+                            onArtistClick = { artist -> openArtistDetail(artist) }
+                        )
+                    }
+                }
+
                 if (isSearching) {
                     item {
-                        Text("搜索中...", fontSize = 14.sp, color = colorScheme.onSurface.copy(alpha = 0.56f))
+                        MediaLoadingCard(
+                            title = "正在搜索",
+                            subtitle = "在 Navidrome 中查找匹配的歌曲、专辑和歌手。"
+                        )
+                    }
+                }
+
+                if (!isSearching && searchError != null) {
+                    item {
+                        MediaStateCard(
+                            title = "搜索失败",
+                            subtitle = searchError.orEmpty(),
+                            tone = MediaStateTone.Error,
+                            density = MediaStateDensity.Compact
+                        )
                     }
                 }
 
                 val result = searchResult
-                if (!isSearching && result != null) {
+                if (!isSearching && searchError == null && result != null) {
                     if (result.artists.isNotEmpty()) {
                         item {
-                            Text("歌手", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = colorScheme.onBackground)
+                            SearchResultSectionHeader(
+                                title = "歌手",
+                                count = result.artists.size,
+                                colorScheme = colorScheme
+                            )
                         }
                         items(result.artists, key = { "artist-${it.id}" }) { artist ->
-                            ArtistListRow(artist = artist, colorScheme = colorScheme)
+                            ArtistListRow(
+                                artist = artist,
+                                colorScheme = colorScheme,
+                                onClick = { openArtistDetail(artist) }
+                            )
                         }
                     }
                     if (result.albums.isNotEmpty()) {
                         item {
-                            Text("专辑", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = colorScheme.onBackground)
+                            SearchResultSectionHeader(
+                                title = "专辑",
+                                count = result.albums.size,
+                                colorScheme = colorScheme
+                            )
                         }
                         item {
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -931,7 +997,11 @@ fun MusicScreenV2(
                     }
                     if (result.songs.isNotEmpty()) {
                         item {
-                            Text("歌曲", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = colorScheme.onBackground)
+                            SearchResultSectionHeader(
+                                title = "歌曲",
+                                count = result.songs.size,
+                                colorScheme = colorScheme
+                            )
                         }
                         items(result.songs, key = { "song-${it.id}" }) { song ->
                             SongListRow(
@@ -1164,6 +1234,116 @@ private fun MusicQuickAccessItem(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun MusicSearchLanding(
+    albums: List<NavidromeAlbum>,
+    songs: List<NavidromeSong>,
+    artists: List<NavidromeArtist>,
+    colorScheme: ColorScheme,
+    onAlbumClick: (NavidromeAlbum) -> Unit,
+    onSongClick: (NavidromeSong) -> Unit,
+    onArtistClick: (NavidromeArtist) -> Unit
+) {
+    val hasSuggestions = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty()
+
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        if (!hasSuggestions) {
+            MediaStateCard(
+                title = "输入关键词开始搜索",
+                subtitle = "可以搜索 Navidrome 中的歌曲、专辑和歌手。",
+                density = MediaStateDensity.Compact
+            )
+            return@Column
+        }
+
+        MusicSectionHeader(
+            title = "搜索建议",
+            subtitle = "先从最近同步的内容开始",
+            colorScheme = colorScheme
+        )
+
+        if (albums.isNotEmpty()) {
+            SearchResultSectionHeader(
+                title = "最近专辑",
+                count = albums.size,
+                colorScheme = colorScheme
+            )
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(albums.take(8), key = { "search-home-album-${it.id}" }) { album ->
+                    CompactAlbumShelfCard(
+                        album = album,
+                        colorScheme = colorScheme,
+                        onClick = { onAlbumClick(album) }
+                    )
+                }
+            }
+        }
+
+        if (songs.isNotEmpty()) {
+            SearchResultSectionHeader(
+                title = "最近歌曲",
+                count = songs.size,
+                colorScheme = colorScheme
+            )
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(songs.take(8), key = { "search-home-song-${it.id}" }) { song ->
+                    SongShelfCard(
+                        song = song,
+                        colorScheme = colorScheme,
+                        onClick = { onSongClick(song) }
+                    )
+                }
+            }
+        }
+
+        if (artists.isNotEmpty()) {
+            SearchResultSectionHeader(
+                title = "歌手",
+                count = artists.size,
+                colorScheme = colorScheme
+            )
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(artists.take(8), key = { "search-home-artist-${it.id}" }) { artist ->
+                    ArtistShelfCard(
+                        artist = artist,
+                        colorScheme = colorScheme,
+                        onClick = { onArtistClick(artist) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchResultSectionHeader(
+    title: String,
+    count: Int,
+    colorScheme: ColorScheme
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            title,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = colorScheme.onBackground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Text(
+            count.toString(),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium,
+            color = colorScheme.onSurface.copy(alpha = 0.5f),
+            maxLines = 1
+        )
     }
 }
 

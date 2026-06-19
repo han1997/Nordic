@@ -46,6 +46,11 @@ Continue optimizing the Nordic Android media hub after the recent Musiver-inspir
 * Keep the home surface content-first with album/song/playlist artwork as the visual focus.
 * Make navigation behavior predictable: home quick actions enter the same existing library pages instead of creating parallel flows.
 * Improve home copy, empty states, and key entry surfaces while preserving existing playback behavior.
+* Continue phase: improve music search usage logic.
+* Debounce Navidrome search requests so typing does not issue a request on every character.
+* Show useful search landing suggestions from existing cached/recent music content before the user types.
+* Group search results with counts and keep artist results clickable into the existing artist detail flow.
+* Show explicit search loading and error states using shared media state surfaces.
 
 ## Acceptance Criteria
 
@@ -64,6 +69,10 @@ Continue optimizing the Nordic Android media hub after the recent Musiver-inspir
 * [ ] Quick access entries reuse existing library pages and do not bypass repository/playback contracts.
 * [ ] Music home visual hierarchy emphasizes media artwork and avoids nested/decorative cards.
 * [ ] Existing playlist, album, song, artist, and search flows continue to compile.
+* [ ] Search requests are debounced and stale in-flight searches do not overwrite newer input.
+* [ ] Blank search shows actionable suggestions from existing music data.
+* [ ] Search result sections show artists, albums, and songs with clear counts.
+* [ ] Search artist rows open artist detail instead of being inert.
 
 ## Definition of Done
 
@@ -84,6 +93,7 @@ Continue optimizing the Nordic Android media hub after the recent Musiver-inspir
 * Lyrics search/manual override in this phase.
 * Rewriting the Media3 playback engine or queue model in this phase.
 * Copying 音流 visuals exactly; this phase adapts product logic to Nordic's existing design system.
+* Adding a local full-text search index or changing Navidrome search API semantics in this phase.
 
 ## Candidate MVPs
 
@@ -146,6 +156,8 @@ Continue optimizing the Nordic Android media hub after the recent Musiver-inspir
 * Use existing repository-loading functions for album and playlist entry actions.
 * Add or reuse small Compose primitives in the music UI layer instead of duplicating large one-off surfaces.
 * Keep playback callbacks unchanged: song, album, playlist, and search selections continue through `onSongSelected(list, index)`.
+* Use a cancellable coroutine job plus a short delay for search debouncing.
+* Keep search suggestions derived from already-loaded music lists so no new data/cache contract is introduced.
 * Run Kotlin compile, unit tests, lint, and debug assemble after implementation.
 
 ## Affected Files
