@@ -73,12 +73,14 @@ The Music tab's "歌曲" navigation must use all songs, not the recently added p
 **Scope / Trigger**: Any change to the Music screen song tab, `NavidromeRepository` song loading, or `NavidromeMusicCache` song fields.
 
 **Signatures**:
+- `data class NavidromeSong(..., val created: String? = null)` must preserve the Subsonic song `created` timestamp for added-time sorting.
 - `NavidromeApi.getAlbumList2(..., type: String, size: Int, offset: Int)` must expose `offset` so repositories can page through album lists.
 - `NavidromeRepository.getAllSongs(): List<NavidromeSong>` is the source for the song navigation page.
 - `NavidromeRepository.getRecentlyAddedSongs(albums, limit)` is only for recently added preview surfaces.
 
 **Contract**:
 - All songs are loaded by paging `getAlbumList2(type = "alphabeticalByName", size = ALBUM_PAGE_SIZE, offset = n)` until a short page or empty page, then expanding each album with `getAlbum`.
+- Song added-time sorting is a UI sort over `NavidromeSong.created`, newest first. Do not use the limited `recentlyAddedSongs` preview as the Songs page data source.
 - Home "最近添加" may show `recentlyAddedSongs`, but selecting navigation "歌曲" must render cached/refreshed `songs` from `getAllSongs()`.
 - When changing `NavidromeMusicCache` field semantics, bump `MUSIC_CACHE_SCHEMA_VERSION` so stale cached data is not displayed under the new meaning.
 
@@ -86,14 +88,16 @@ The Music tab's "歌曲" navigation must use all songs, not the recently added p
 - Subsonic/HTTP error while paging albums -> preserve `NavidromeApiException`.
 - Unknown failure while loading all songs -> wrap as `"获取全部歌曲失败: ..."` for UI context.
 - Empty album list -> return an empty song list, do not fall back to random songs.
+- Missing song `created` value -> added-time sort keeps those songs after timestamped songs via empty-string fallback, then title tiebreaker.
 
 **Good/Base/Bad Cases**:
 - Good: Song tab displays every track returned by all paged albums.
 - Base: Recently added carousel displays only the limited recent-song set.
-- Bad: Song tab uses `getRecentlyAddedSongs(...)` or `getRandomSongs(...)`.
+- Bad: Song tab uses `getRecentlyAddedSongs(...)` or `getRandomSongs(...)`, or drops `created` during DTO mapping / Media3 queue conversion.
 
 **Tests Required**:
 - Repository unit test with `MockWebServer` asserting `getAllSongs()` requests `type=alphabeticalByName`, `size=100`, `offset=0`, then expands album tracks via `getAlbum`.
+- Repository unit test asserting album song JSON `created` is preserved on returned `NavidromeSong`.
 
 **Wrong vs Correct**:
 ```kotlin

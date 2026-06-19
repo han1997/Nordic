@@ -9,7 +9,7 @@ import com.nordic.mediahub.api.NavidromeArtist
 import com.nordic.mediahub.api.NavidromeSong
 import kotlinx.coroutines.flow.first
 
-private const val MUSIC_CACHE_SCHEMA_VERSION = 2
+private const val MUSIC_CACHE_SCHEMA_VERSION = 3
 
 data class NavidromeMusicCache(
     val configKey: String = "",

@@ -116,7 +116,8 @@ data class NavidromeSong(
     val album: String? = null,
     val duration: Int = 0,
     val coverArt: String? = null,
-    val streamUrl: String? = null
+    val streamUrl: String? = null,
+    val created: String? = null
 )
 
 data class NavidromeArtist(

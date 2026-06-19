@@ -14,6 +14,7 @@ private const val EXTRA_ALBUM = "com.nordic.mediahub.extra.ALBUM"
 private const val EXTRA_DURATION = "com.nordic.mediahub.extra.DURATION"
 private const val EXTRA_COVER_ART = "com.nordic.mediahub.extra.COVER_ART"
 private const val EXTRA_STREAM_URL = "com.nordic.mediahub.extra.STREAM_URL"
+private const val EXTRA_CREATED = "com.nordic.mediahub.extra.CREATED"
 
 fun NavidromeSong.toMediaItem(): MediaItem {
     val streamUrl = streamUrl.orEmpty()
@@ -24,7 +25,8 @@ fun NavidromeSong.toMediaItem(): MediaItem {
         EXTRA_ALBUM to album,
         EXTRA_DURATION to duration,
         EXTRA_COVER_ART to coverArt,
-        EXTRA_STREAM_URL to streamUrl
+        EXTRA_STREAM_URL to streamUrl,
+        EXTRA_CREATED to created
     )
 
     val metadataBuilder = MediaMetadata.Builder()
@@ -56,6 +58,7 @@ fun MediaItem.toNavidromeSong(): NavidromeSong? {
         album = mediaMetadata.albumTitle?.toString() ?: extras.getString(EXTRA_ALBUM),
         duration = extras.getInt(EXTRA_DURATION, 0),
         coverArt = mediaMetadata.artworkUri?.toString() ?: extras.getString(EXTRA_COVER_ART),
-        streamUrl = localConfiguration?.uri?.toString() ?: extras.getString(EXTRA_STREAM_URL)
+        streamUrl = localConfiguration?.uri?.toString() ?: extras.getString(EXTRA_STREAM_URL),
+        created = extras.getString(EXTRA_CREATED)
     )
 }

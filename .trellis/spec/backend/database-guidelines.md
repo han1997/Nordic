@@ -37,6 +37,7 @@ Rules:
 - Keep cache model fields in `NavidromeMusicCache`.
 - Build cache objects through `buildCache(...)` so `configKey` and `updatedAtMillis` are set consistently.
 - Invalidate incompatible cached data by bumping `MUSIC_CACHE_SCHEMA_VERSION`.
+- Bump `MUSIC_CACHE_SCHEMA_VERSION` when adding persisted DTO fields required by UI behavior, such as `NavidromeSong.created` for added-time sorting.
 - Include config identity in cache keys via `NavidromeConfig.cacheKey()` so one server/user cache is not shown for another.
 
 ## Scenario: Navidrome Config-Scoped Music Refresh

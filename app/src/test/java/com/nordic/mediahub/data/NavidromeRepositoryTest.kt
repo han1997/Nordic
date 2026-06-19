@@ -46,7 +46,7 @@ class NavidromeRepositoryTest {
                   "name": "Album One",
                   "coverArt": "cover-1",
                   "song": [
-                    {"id": "song-1", "title": "Song One", "artist": "Artist One", "album": "Album One"}
+                    {"id": "song-1", "title": "Song One", "artist": "Artist One", "album": "Album One", "created": "2026-06-18T12:00:00Z"}
                   ]
                 }
                 """.trimIndent()
@@ -70,6 +70,7 @@ class NavidromeRepositoryTest {
         val songs = repository().getAllSongs()
 
         assertEquals(listOf("Song One", "Song Two"), songs.map { it.title })
+        assertEquals("2026-06-18T12:00:00Z", songs[0].created)
         assertTrue(songs[0].streamUrl.orEmpty().contains("/rest/stream.view?id=song-1"))
         assertTrue(songs[1].coverArt.orEmpty().contains("/rest/getCoverArt.view?id=cover-2"))
 

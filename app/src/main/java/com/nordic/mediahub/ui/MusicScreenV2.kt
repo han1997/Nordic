@@ -87,6 +87,7 @@ private enum class MusicLibraryPage {
 
 private enum class MusicSongSort {
     Default,
+    Added,
     Title,
     Artist,
     Album,
@@ -1509,6 +1510,7 @@ private fun NavidromeAlbumSort.displayLabel(): String {
 private fun MusicSongSort.displayLabel(): String {
     return when (this) {
         MusicSongSort.Default -> "默认"
+        MusicSongSort.Added -> "添加时间"
         MusicSongSort.Title -> "标题"
         MusicSongSort.Artist -> "歌手"
         MusicSongSort.Album -> "专辑"
@@ -1522,6 +1524,10 @@ private fun sortMusicSongs(
 ): List<NavidromeSong> {
     return when (sort) {
         MusicSongSort.Default -> songs
+        MusicSongSort.Added -> songs.sortedWith(
+            compareByDescending<NavidromeSong> { it.created.orEmpty() }
+                .thenBy(String.CASE_INSENSITIVE_ORDER) { it.title }
+        )
         MusicSongSort.Title -> songs.sortedWith(
             compareBy(String.CASE_INSENSITIVE_ORDER) { it.title }
         )
@@ -1548,6 +1554,7 @@ private fun SongSortSegmentedControl(
 ) {
     val sorts = listOf(
         MusicSongSort.Default,
+        MusicSongSort.Added,
         MusicSongSort.Title,
         MusicSongSort.Artist,
         MusicSongSort.Album,
