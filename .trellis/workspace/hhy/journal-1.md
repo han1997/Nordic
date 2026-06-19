@@ -206,3 +206,37 @@ Added shell-level nested scroll handling so the playback/navigation dock hides w
 ### Next Steps
 
 - None - task complete
+
+
+## Session 7: Finish remaining Trellis tasks
+
+**Date**: 2026-06-19
+**Task**: Finish remaining Trellis tasks
+**Branch**: `main`
+
+### Summary
+
+Audited remaining active tasks, committed Navidrome all-song navigation with repository test, completed Trellis bootstrap specs from source-backed Android app conventions, and archived the superseded audiobook consistency plus bootstrap tasks.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `93e7374` | (see git log) |
+| `5d7a1c8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
