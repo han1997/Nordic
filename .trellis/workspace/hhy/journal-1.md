@@ -273,3 +273,36 @@ Stopped tracking local Claude settings, required passwords for Navidrome and Aud
 ### Next Steps
 
 - None - task complete
+
+
+## Session 9: Sortable Navidrome album browsing
+
+**Date**: 2026-06-19
+**Task**: Sortable Navidrome album browsing
+**Branch**: `main`
+
+### Summary
+
+Researched Musiver as a product reference, added a home album entry and sortable Navidrome album browsing for recently added, release year, and name order, covered sort request mapping with repository tests, and documented the album sorting contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d0edc18` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
