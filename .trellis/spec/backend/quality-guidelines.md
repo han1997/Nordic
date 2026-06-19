@@ -66,11 +66,66 @@ val navidromeRepository = remember(savedConfig) {
 }
 ```
 
+### Navidrome all-song navigation data
+
+The Music tab's "歌曲" navigation must use all songs, not the recently added preview list.
+
+**Scope / Trigger**: Any change to the Music screen song tab, `NavidromeRepository` song loading, or `NavidromeMusicCache` song fields.
+
+**Signatures**:
+- `NavidromeApi.getAlbumList2(..., type: String, size: Int, offset: Int)` must expose `offset` so repositories can page through album lists.
+- `NavidromeRepository.getAllSongs(): List<NavidromeSong>` is the source for the song navigation page.
+- `NavidromeRepository.getRecentlyAddedSongs(albums, limit)` is only for recently added preview surfaces.
+
+**Contract**:
+- All songs are loaded by paging `getAlbumList2(type = "alphabeticalByName", size = ALBUM_PAGE_SIZE, offset = n)` until a short page or empty page, then expanding each album with `getAlbum`.
+- Home "最近添加" may show `recentlyAddedSongs`, but selecting navigation "歌曲" must render cached/refreshed `songs` from `getAllSongs()`.
+- When changing `NavidromeMusicCache` field semantics, bump `MUSIC_CACHE_SCHEMA_VERSION` so stale cached data is not displayed under the new meaning.
+
+**Validation & Error Matrix**:
+- Subsonic/HTTP error while paging albums -> preserve `NavidromeApiException`.
+- Unknown failure while loading all songs -> wrap as `"获取全部歌曲失败: ..."` for UI context.
+- Empty album list -> return an empty song list, do not fall back to random songs.
+
+**Good/Base/Bad Cases**:
+- Good: Song tab displays every track returned by all paged albums.
+- Base: Recently added carousel displays only the limited recent-song set.
+- Bad: Song tab uses `getRecentlyAddedSongs(...)` or `getRandomSongs(...)`.
+
+**Tests Required**:
+- Repository unit test with `MockWebServer` asserting `getAllSongs()` requests `type=alphabeticalByName`, `size=100`, `offset=0`, then expands album tracks via `getAlbum`.
+
+**Wrong vs Correct**:
+```kotlin
+// Wrong: binds the Songs navigation page to a recent preview.
+val freshSongs = repo.getRecentlyAddedSongs(freshAlbums)
+
+// Correct: keep preview and all-song navigation separate.
+val freshRecentlyAddedSongs = repo.getRecentlyAddedSongs(freshAlbums)
+val freshSongs = repo.getAllSongs()
+```
+
 ---
 
 ## Testing Requirements
 
-(To be filled by the team)
+Run the smallest reliable Gradle gate for the change, and run tasks sequentially on Windows.
+
+- Kotlin compile check for app code changes:
+  `.\gradlew.bat :app:compileDebugKotlin --no-daemon`
+- Unit tests for repository, auth, playback, or copy-encoding behavior:
+  `.\gradlew.bat :app:testDebugUnitTest --no-daemon`
+- Android lint before broader UI/resource/dependency changes:
+  `.\gradlew.bat :app:lintDebug --no-daemon`
+- Debug assemble for final packaging verification when Media3 service, manifest, resources, or dependency wiring changes:
+  `.\gradlew.bat :app:assembleDebug --no-daemon`
+
+Repository tests use `MockWebServer` to assert request paths, query parameters, auth headers, response mapping, and typed error behavior. Existing examples:
+- `app/src/test/java/com/nordic/mediahub/data/AudiobookShelfRepositoryTest.kt`
+- `app/src/test/java/com/nordic/mediahub/data/EmbyRepositoryTest.kt`
+- `app/src/test/java/com/nordic/mediahub/data/NavidromeRepositoryTest.kt`
+
+Playback logic tests should isolate pure calculations where possible, as in `app/src/test/java/com/nordic/mediahub/playback/AudiobookPlaybackEngineTest.kt`.
 
 ---
 
@@ -83,6 +138,7 @@ val navidromeRepository = remember(savedConfig) {
 - [ ] `NavidromeRepository` is `remember`ed, not constructed per call
 - [ ] Config readiness checks use `isReadyForMusicSync()`, not inlined
 - [ ] All public `NavidromeRepository` methods have both `NavidromeApiException` and `Exception` catch blocks
+- [ ] Music "歌曲" navigation uses `NavidromeRepository.getAllSongs()`, not the recently added preview list
 
 ---
 

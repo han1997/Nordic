@@ -1,40 +1,40 @@
-# Backend Development Guidelines
+# Android App Development Guidelines
 
-> Best practices for backend development in this project.
-
----
+> Project-specific guidance for the Nordic media hub Android app.
 
 ## Overview
 
-This directory contains guidelines for backend development. Fill in each file with your project's specific conventions.
-
----
+This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. The most important boundaries are Retrofit API DTOs, repository/config/persistence code, Media3 playback engines, and Compose UI state surfaces.
 
 ## Guidelines Index
 
-| Guide | Description | Status |
-|-------|-------------|--------|
-| [Directory Structure](./directory-structure.md) | Module organization and file layout | To fill |
-| [Database Guidelines](./database-guidelines.md) | ORM patterns, queries, migrations | To fill |
-| [Error Handling](./error-handling.md) | Error types, handling strategies | Filled |
-| [Quality Guidelines](./quality-guidelines.md) | Code standards, forbidden patterns | Filled |
-| [Logging Guidelines](./logging-guidelines.md) | Structured logging, log levels | To fill |
-| [AudiobookShelf Integration Contract](./audiobookshelf-integration.md) | Auth, library, playback-session, and progress sync contract | Filled |
-| [Emby Integration Contract](./emby-integration.md) | Video auth, library browsing, item mapping, and thumbnail URL contract | Filled |
+| Guide | Use When |
+|-------|----------|
+| [Directory Structure](./directory-structure.md) | Placing new source files, tests, DTOs, repositories, playback code, or Compose components |
+| [Persistence Guidelines](./database-guidelines.md) | Changing DataStore config, cache fields, readiness helpers, or local persistence behavior |
+| [Error Handling](./error-handling.md) | Adding repository calls, typed exceptions, `Response<T>` validation, or UI error propagation |
+| [Quality Guidelines](./quality-guidelines.md) | Reviewing shared components, cache semantics, test coverage, and known anti-patterns |
+| [Logging Guidelines](./logging-guidelines.md) | Adding or changing `Log.*` calls or OkHttp logging interceptors |
+| [AudiobookShelf Integration Contract](./audiobookshelf-integration.md) | Changing audiobook auth, library browsing, playback sessions, progress sync, or Media3 audiobook state |
+| [Emby Integration Contract](./emby-integration.md) | Changing Emby auth, library/item mapping, thumbnail URLs, or video catalog repository behavior |
 
----
+## Pre-Development Checklist
 
-## How to Fill These Guidelines
+- Read [Directory Structure](./directory-structure.md) before adding files or moving code between layers.
+- Read [Persistence Guidelines](./database-guidelines.md) before changing `ConfigRepository`, server config models, or cache models.
+- Read [Error Handling](./error-handling.md) before adding repository methods or changing exception behavior.
+- Read [Quality Guidelines](./quality-guidelines.md) before modifying shared UI state components, music library navigation, or cache contracts.
+- Read [Logging Guidelines](./logging-guidelines.md) before adding diagnostics.
+- Read the service-specific contract when touching AudiobookShelf or Emby behavior.
 
-For each guideline file:
+## Verification
 
-1. Document your project's **actual conventions** (not ideals)
-2. Include **code examples** from your codebase
-3. List **forbidden patterns** and why
-4. Add **common mistakes** your team has made
+Run Gradle tasks sequentially on Windows:
 
-The goal is to help AI assistants and new team members understand how YOUR project works.
+```powershell
+.\gradlew.bat :app:compileDebugKotlin --no-daemon
+.\gradlew.bat :app:testDebugUnitTest --no-daemon
+.\gradlew.bat :app:lintDebug --no-daemon
+```
 
----
-
-**Language**: All documentation should be written in **English**.
+Use `:app:assembleDebug --no-daemon` for final packaging verification when playback, manifest, resources, or dependency wiring changes.
