@@ -19,7 +19,10 @@ Consolidated duplicate duration formatters and MusicMetaChip, introduced Navidro
 
 ### Main Changes
 
-(Add details)
+- Added queue management actions to the music queue sheet: play next, remove item, and clear upcoming tracks.
+- Extended `MusicPlaybackEngine` to mutate Media3 queue state and republish synchronized queue metadata.
+- Added unit coverage for play-next queue index rules.
+- Captured the music playback queue contract in backend quality guidelines.
 
 ### Git Commits
 
@@ -29,7 +32,10 @@ Consolidated duplicate duration formatters and MusicMetaChip, introduced Navidro
 
 ### Testing
 
-- [OK] (Add test results)
+- [OK] `.\gradlew.bat :app:compileDebugKotlin --no-daemon`
+- [OK] `.\gradlew.bat :app:testDebugUnitTest --no-daemon`
+- [OK] `.\gradlew.bat :app:lintDebug --no-daemon`
+- [OK] `.\gradlew.bat :app:assembleDebug --no-daemon`
 
 ### Status
 
@@ -294,6 +300,39 @@ Researched Musiver as a product reference, added a home album entry and sortable
 | Hash | Message |
 |------|---------|
 | `d0edc18` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 10: Enhance music queue controls
+
+**Date**: 2026-06-19
+**Task**: Enhance music queue controls
+**Branch**: `main`
+
+### Summary
+
+Added manageable music queue controls inspired by Musiver queue polish: play next, remove items, clear upcoming tracks, synchronized Media3 queue state, queue rule tests, and playback queue spec guidance.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f71483a` | (see git log) |
 
 ### Testing
 
