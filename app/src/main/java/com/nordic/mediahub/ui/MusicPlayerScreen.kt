@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -73,6 +74,7 @@ fun MusicPlayerScreen(
     var showLyrics by rememberSaveable(song?.id) { mutableStateOf(false) }
     val hasSong = song?.streamUrl?.isNotBlank() == true
     val visiblePosition = scrubPosition ?: positionSeconds.toFloat()
+    val playbackStatusIsError = playbackError != null || (song != null && !hasSong)
     val playbackStatus = when {
         playbackError != null -> playbackError
         isBuffering -> "正在缓冲"
@@ -140,8 +142,11 @@ fun MusicPlayerScreen(
             verticalArrangement = Arrangement.spacedBy(sectionGap)
         ) {
             PlayerTopBar(
-                album = song?.album ?: "音乐库",
+                song = song,
+                playbackStatus = playbackStatus,
+                playbackStatusIsError = playbackStatusIsError,
                 colorScheme = colorScheme,
+                compact = compact,
                 onClose = onClose
             )
             PlayerPrimaryDisplay(
@@ -157,12 +162,6 @@ fun MusicPlayerScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-            )
-            PlayerTrackInfo(
-                song = song,
-                colorScheme = colorScheme,
-                compact = compact,
-                playbackStatus = playbackStatus
             )
             PlayerConsole(
                 hasSong = hasSong,
@@ -190,37 +189,81 @@ fun MusicPlayerScreen(
 
 @Composable
 private fun PlayerTopBar(
-    album: String,
+    song: NavidromeSong?,
+    playbackStatus: String?,
+    playbackStatusIsError: Boolean,
     colorScheme: ColorScheme,
+    compact: Boolean,
     onClose: () -> Unit
 ) {
+    val title = song?.title ?: "等待播放"
+    val album = song?.album ?: "音乐库"
+    val duration = formatDuration(song?.duration ?: 0)
+    val status = playbackStatus ?: "正在播放"
+    val statusColor = if (playbackStatusIsError) colorScheme.error else colorScheme.primary.copy(alpha = 0.78f)
+
     Row(
-        modifier = Modifier.fillMaxWidth().height(42.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(if (compact) 72.dp else 84.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         PlayerTopButton("⌄", colorScheme, onClick = onClose)
         Column(
             modifier = Modifier.weight(1f).padding(horizontal = 14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            horizontalAlignment = Alignment.Start,
+            verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp)
         ) {
             Text(
-                "正在播放",
-                fontSize = 12.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.54f),
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                album,
-                fontSize = 14.sp,
+                title,
+                fontSize = if (compact) 19.sp else 22.sp,
+                lineHeight = if (compact) 23.sp else 26.sp,
                 color = colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                PlayerStatusChip(status, statusColor)
+                Text(
+                    album,
+                    fontSize = 13.sp,
+                    color = colorScheme.onSurface.copy(alpha = 0.62f),
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+            }
         }
-        Box(modifier = Modifier.size(42.dp))
+        PlayerMetaChip(duration, colorScheme)
+    }
+}
+
+@Composable
+private fun PlayerStatusChip(
+    text: String,
+    color: Color
+) {
+    Surface(
+        color = color.copy(alpha = 0.13f),
+        contentColor = color,
+        shape = RoundedCornerShape(999.dp)
+    ) {
+        Text(
+            text,
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+            fontSize = 11.sp,
+            color = color,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -418,69 +461,6 @@ private fun PlayerLyricsStatus(
         maxLines = 1,
         overflow = TextOverflow.Ellipsis
     )
-}
-
-@Composable
-private fun PlayerTrackInfo(
-    song: NavidromeSong?,
-    colorScheme: ColorScheme,
-    compact: Boolean,
-    playbackStatus: String?
-) {
-    val subtitle = playbackStatus ?: song?.artist ?: "从最近播放选择一首歌"
-    val subtitleColor = when {
-        playbackStatus == null -> colorScheme.onSurface.copy(alpha = 0.62f)
-        playbackStatus.startsWith("播放失败") || playbackStatus.contains("缺少") -> colorScheme.error
-        else -> colorScheme.primary.copy(alpha = 0.76f)
-    }
-
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp)
-    ) {
-        Text(
-            song?.title ?: "等待播放",
-            fontSize = if (compact) 22.sp else 25.sp,
-            lineHeight = if (compact) 26.sp else 30.sp,
-            color = colorScheme.onSurface,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            maxLines = if (compact) 1 else 2,
-            overflow = TextOverflow.Ellipsis
-        )
-        if (playbackStatus == null) {
-            Text(
-                subtitle,
-                fontSize = 14.sp,
-                color = subtitleColor,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        } else {
-            Surface(
-                color = subtitleColor.copy(alpha = 0.13f),
-                contentColor = subtitleColor,
-                shape = RoundedCornerShape(999.dp)
-            ) {
-                Text(
-                    subtitle,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                    fontSize = 12.sp,
-                    color = subtitleColor,
-                    fontWeight = FontWeight.SemiBold,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            PlayerMetaChip(song?.album ?: "Nordic", colorScheme)
-            PlayerMetaChip(formatDuration(song?.duration ?: 0), colorScheme)
-        }
-    }
 }
 
 @Composable

@@ -115,7 +115,7 @@ fun MusicScreenV2(
     var albums by remember { mutableStateOf(emptyList<NavidromeAlbum>()) }
     var sortedAlbums by remember { mutableStateOf(emptyList<NavidromeAlbum>()) }
     var albumSort by remember { mutableStateOf(NavidromeAlbumSort.RecentlyAdded) }
-    var songSort by remember { mutableStateOf(MusicSongSort.Added) }
+    var songSort by remember { mutableStateOf(MusicSongSort.Default) }
     var songs by remember { mutableStateOf(emptyList<NavidromeSong>()) }
     var recentlyAddedSongs by remember { mutableStateOf(emptyList<NavidromeSong>()) }
     var artists by remember { mutableStateOf(emptyList<NavidromeArtist>()) }
@@ -566,6 +566,25 @@ fun MusicScreenV2(
 
         when (libraryPage) {
             MusicLibraryPage.Home -> {
+                if (albums.isNotEmpty()) {
+                    item {
+                        MusicSectionHeader(
+                            title = "刚刚同步",
+                            subtitle = "最新进入曲库的专辑，先从这里开始",
+                            colorScheme = colorScheme
+                        )
+                    }
+                    item {
+                        MusicHeroBanner(
+                            album = albums.first(),
+                            colorScheme = colorScheme,
+                            onClick = {
+                                openAlbumDetail(albums.first())
+                            }
+                        )
+                    }
+                }
+
                 if (recentlyAddedSongs.isNotEmpty()) {
                     item {
                         MusicSectionHeader(
@@ -597,15 +616,6 @@ fun MusicScreenV2(
                 }
 
                 if (albums.isNotEmpty()) {
-                    item {
-                        MusicHeroBanner(
-                            album = albums.first(),
-                            colorScheme = colorScheme,
-                            onClick = {
-                                openAlbumDetail(albums.first())
-                            }
-                        )
-                    }
                     item {
                         MusicSectionHeader(
                             title = "最近专辑",
@@ -1553,8 +1563,8 @@ private fun SongSortSegmentedControl(
     onSortSelected: (MusicSongSort) -> Unit
 ) {
     val sorts = listOf(
-        MusicSongSort.Added,
         MusicSongSort.Default,
+        MusicSongSort.Added,
         MusicSongSort.Title,
         MusicSongSort.Artist,
         MusicSongSort.Album,
