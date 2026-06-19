@@ -11,6 +11,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -42,9 +44,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -503,6 +506,30 @@ fun MusicScreenV2(
                         libraryPage = MusicLibraryPage.Search
                     }
                 )
+            }
+            if (savedConfig.isReadyForMusicSync() || hasContent) {
+                item {
+                    MusicQuickAccessStrip(
+                        albumCount = albums.size,
+                        songCount = songs.size,
+                        artistCount = artists.size,
+                        playlistCount = playlists.size,
+                        isLoadingPlaylists = isLoadingPlaylists,
+                        colorScheme = colorScheme,
+                        onSearchClick = {
+                            searchQuery = ""
+                            searchResult = null
+                            libraryPage = MusicLibraryPage.Search
+                        },
+                        onSongsClick = {
+                            selectedTab = 1
+                            libraryPage = MusicLibraryPage.Songs
+                        },
+                        onAlbumsClick = { openAlbumLibrary() },
+                        onArtistsClick = { libraryPage = MusicLibraryPage.Artists },
+                        onPlaylistsClick = { openPlaylistLibrary() }
+                    )
+                }
             }
         }
 
@@ -1015,6 +1042,126 @@ fun MusicScreenV2(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+private data class MusicQuickAction(
+    val icon: String,
+    val label: String,
+    val detail: String,
+    val onClick: () -> Unit
+)
+
+@Composable
+private fun MusicQuickAccessStrip(
+    albumCount: Int,
+    songCount: Int,
+    artistCount: Int,
+    playlistCount: Int,
+    isLoadingPlaylists: Boolean,
+    colorScheme: ColorScheme,
+    onSearchClick: () -> Unit,
+    onSongsClick: () -> Unit,
+    onAlbumsClick: () -> Unit,
+    onArtistsClick: () -> Unit,
+    onPlaylistsClick: () -> Unit
+) {
+    val playlistDetail = when {
+        isLoadingPlaylists -> "加载中"
+        playlistCount > 0 -> "${playlistCount} 个歌单"
+        else -> "点按加载"
+    }
+    val actions = listOf(
+        MusicQuickAction("⌕", "搜索", "歌曲 / 专辑 / 歌手", onSearchClick),
+        MusicQuickAction("♪", "全部歌曲", "${songCount} 首", onSongsClick),
+        MusicQuickAction("▣", "专辑", "${albumCount} 张", onAlbumsClick),
+        MusicQuickAction("人", "歌手", "${artistCount} 位", onArtistsClick),
+        MusicQuickAction("≡", "歌单", playlistDetail, onPlaylistsClick)
+    )
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        MusicSectionHeader(
+            title = "快速进入",
+            subtitle = "按听歌场景直达曲库、歌单和搜索",
+            colorScheme = colorScheme
+        )
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(actions, key = { it.label }) { action ->
+                MusicQuickAccessItem(
+                    action = action,
+                    colorScheme = colorScheme
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MusicQuickAccessItem(
+    action: MusicQuickAction,
+    colorScheme: ColorScheme
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val scale = rememberPressScale(interactionSource = interactionSource, pressedScale = 0.985f)
+
+    Surface(
+        color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        contentColor = colorScheme.onSurface,
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.055f)),
+        modifier = Modifier
+            .width(142.dp)
+            .scale(scale)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = action.onClick
+            )
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                colorScheme.primary.copy(alpha = 0.18f),
+                                colorScheme.secondary.copy(alpha = 0.1f),
+                                colorScheme.surface.copy(alpha = 0.72f)
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    action.icon,
+                    fontSize = 18.sp,
+                    color = colorScheme.primary.copy(alpha = 0.82f),
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    action.label,
+                    fontSize = 14.sp,
+                    color = colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    action.detail,
+                    fontSize = 12.sp,
+                    color = colorScheme.onSurface.copy(alpha = 0.56f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
