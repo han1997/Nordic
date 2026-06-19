@@ -15,6 +15,10 @@ import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
+private const val RECENT_ALBUM_LIMIT = 20
+private const val RECENT_SONG_LIMIT = 20
+private const val ALBUM_PAGE_SIZE = 100
+
 class NavidromeApiException(message: String, val kind: Kind) : Exception(message) {
     enum class Kind { HTTP, SUBSONIC }
 }
@@ -103,12 +107,49 @@ class NavidromeRepository(private val config: NavidromeConfig) {
         )
     }
 
-    private suspend fun getSongsFromAlbums(albums: List<NavidromeAlbum>, limit: Int = 20): List<NavidromeSong> {
+    private suspend fun getAlbumList(
+        type: String,
+        size: Int,
+        offset: Int = 0
+    ): List<NavidromeAlbum> {
+        val auth = config.authParams()
+        val subsonic = api.getAlbumList2(
+            username = config.username,
+            token = auth.token,
+            salt = auth.salt,
+            type = type,
+            size = size,
+            offset = offset
+        ).requireResponse()
+        return subsonic.albumList2?.album?.map { it.withCoverArtUrl() } ?: emptyList()
+    }
+
+    private suspend fun getAllAlbums(): List<NavidromeAlbum> {
+        val albums = mutableListOf<NavidromeAlbum>()
+        var offset = 0
+
+        while (true) {
+            val page = getAlbumList(
+                type = "alphabeticalByName",
+                size = ALBUM_PAGE_SIZE,
+                offset = offset
+            )
+            if (page.isEmpty()) break
+
+            albums += page
+            if (page.size < ALBUM_PAGE_SIZE) break
+            offset += page.size
+        }
+
+        return albums
+    }
+
+    private suspend fun getSongsFromAlbums(albums: List<NavidromeAlbum>, limit: Int? = RECENT_SONG_LIMIT): List<NavidromeSong> {
         if (albums.isEmpty()) return emptyList()
 
         val songs = mutableListOf<NavidromeSong>()
         for (album in albums) {
-            if (songs.size >= limit) break
+            if (limit != null && songs.size >= limit) break
 
             val auth = config.authParams()
             val subsonic = api.getAlbum(config.username, auth.token, auth.salt, albumId = album.id).requireResponse()
@@ -120,7 +161,7 @@ class NavidromeRepository(private val config: NavidromeConfig) {
             }
         }
 
-        return songs.take(limit)
+        return if (limit == null) songs else songs.take(limit)
     }
 
     suspend fun getAlbumSongs(albumId: String) = try {
@@ -137,7 +178,7 @@ class NavidromeRepository(private val config: NavidromeConfig) {
         throw Exception("获取专辑曲目失败: ${e.message}")
     }
 
-    suspend fun getRecentlyAddedSongs(albums: List<NavidromeAlbum>, limit: Int = 20) = try {
+    suspend fun getRecentlyAddedSongs(albums: List<NavidromeAlbum>, limit: Int = RECENT_SONG_LIMIT) = try {
         getSongsFromAlbums(albums, limit)
     } catch (e: NavidromeApiException) {
         throw e
@@ -146,10 +187,8 @@ class NavidromeRepository(private val config: NavidromeConfig) {
     }
 
     suspend fun getRecentAlbums() = try {
-        val auth = config.authParams()
         Log.d("NavidromeRepo", "Getting albums from: $baseUrl")
-        val subsonic = api.getAlbumList2(config.username, auth.token, auth.salt).requireResponse()
-        val albums = subsonic.albumList2?.album?.map { it.withCoverArtUrl() } ?: emptyList()
+        val albums = getAlbumList(type = "newest", size = RECENT_ALBUM_LIMIT)
         Log.d("NavidromeRepo", "Got ${albums.size} albums")
         albums
     } catch (e: NavidromeApiException) {
@@ -157,6 +196,14 @@ class NavidromeRepository(private val config: NavidromeConfig) {
     } catch (e: Exception) {
         Log.e("NavidromeRepo", "Error getting albums", e)
         throw Exception("获取专辑失败: ${e.message}")
+    }
+
+    suspend fun getAllSongs() = try {
+        getSongsFromAlbums(getAllAlbums(), limit = null)
+    } catch (e: NavidromeApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("获取全部歌曲失败: ${e.message}")
     }
 
     suspend fun getRecentSongs() = try {

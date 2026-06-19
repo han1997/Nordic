@@ -126,7 +126,8 @@ interface NavidromeApi {
         @Query("c") client: String = "Nordic",
         @Query("f") format: String = "json",
         @Query("type") type: String = "newest",
-        @Query("size") size: Int = 20
+        @Query("size") size: Int = 20,
+        @Query("offset") offset: Int = 0
     ): Response<SubsonicResponse>
 
     @GET("rest/getAlbum.view")

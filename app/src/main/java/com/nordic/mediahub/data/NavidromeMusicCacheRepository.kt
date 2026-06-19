@@ -9,13 +9,14 @@ import com.nordic.mediahub.api.NavidromeArtist
 import com.nordic.mediahub.api.NavidromeSong
 import kotlinx.coroutines.flow.first
 
-private const val MUSIC_CACHE_SCHEMA_VERSION = 1
+private const val MUSIC_CACHE_SCHEMA_VERSION = 2
 
 data class NavidromeMusicCache(
     val configKey: String = "",
     val updatedAtMillis: Long = 0L,
     val albums: List<NavidromeAlbum> = emptyList(),
     val songs: List<NavidromeSong> = emptyList(),
+    val recentlyAddedSongs: List<NavidromeSong> = emptyList(),
     val artists: List<NavidromeArtist> = emptyList()
 )
 
@@ -42,6 +43,7 @@ class NavidromeMusicCacheRepository(private val context: Context) {
         config: NavidromeConfig,
         albums: List<NavidromeAlbum>,
         songs: List<NavidromeSong>,
+        recentlyAddedSongs: List<NavidromeSong>,
         artists: List<NavidromeArtist>
     ): NavidromeMusicCache {
         return NavidromeMusicCache(
@@ -49,6 +51,7 @@ class NavidromeMusicCacheRepository(private val context: Context) {
             updatedAtMillis = System.currentTimeMillis(),
             albums = albums,
             songs = songs,
+            recentlyAddedSongs = recentlyAddedSongs,
             artists = artists
         )
     }

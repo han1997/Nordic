@@ -67,7 +67,7 @@ import kotlinx.coroutines.launch
 
 private enum class MusicLibraryPage {
     Home,
-    RecentlyAdded,
+    Songs,
     Artists,
     ArtistDetail,
     AlbumDetail,
@@ -95,6 +95,7 @@ fun MusicScreenV2(
     var libraryPage by remember { mutableStateOf(MusicLibraryPage.Home) }
     var albums by remember { mutableStateOf(emptyList<NavidromeAlbum>()) }
     var songs by remember { mutableStateOf(emptyList<NavidromeSong>()) }
+    var recentlyAddedSongs by remember { mutableStateOf(emptyList<NavidromeSong>()) }
     var artists by remember { mutableStateOf(emptyList<NavidromeArtist>()) }
     var isLoading by remember { mutableStateOf(false) }
     var loadingAlbumId by remember { mutableStateOf<String?>(null) }
@@ -116,6 +117,7 @@ fun MusicScreenV2(
         if (cached == null) {
             albums = emptyList()
             songs = emptyList()
+            recentlyAddedSongs = emptyList()
             artists = emptyList()
             cacheUpdatedAtMillis = null
             return false
@@ -123,6 +125,7 @@ fun MusicScreenV2(
 
         albums = cached.albums
         songs = cached.songs
+        recentlyAddedSongs = cached.recentlyAddedSongs
         artists = cached.artists
         cacheUpdatedAtMillis = cached.updatedAtMillis
         errorMsg = null
@@ -137,17 +140,20 @@ fun MusicScreenV2(
         return try {
             val repo = navidromeRepository ?: return false
             val freshAlbums = repo.getRecentAlbums()
-            val freshSongs = repo.getRecentlyAddedSongs(freshAlbums)
+            val freshRecentlyAddedSongs = repo.getRecentlyAddedSongs(freshAlbums)
+            val freshSongs = repo.getAllSongs()
             val freshArtists = repo.getArtists()
             val freshCache = cacheRepository.buildCache(
                 config = targetConfig,
                 albums = freshAlbums,
                 songs = freshSongs,
+                recentlyAddedSongs = freshRecentlyAddedSongs,
                 artists = freshArtists
             )
 
             albums = freshAlbums
             songs = freshSongs
+            recentlyAddedSongs = freshRecentlyAddedSongs
             artists = freshArtists
             cacheUpdatedAtMillis = freshCache.updatedAtMillis
             cacheRepository.save(targetConfig, freshCache)
@@ -229,6 +235,7 @@ fun MusicScreenV2(
         } else {
             albums = emptyList()
             songs = emptyList()
+            recentlyAddedSongs = emptyList()
             artists = emptyList()
             libraryPage = MusicLibraryPage.Home
             cacheUpdatedAtMillis = null
@@ -254,7 +261,7 @@ fun MusicScreenV2(
     val isHomePage = libraryPage == MusicLibraryPage.Home
     val headerTitle = when (libraryPage) {
         MusicLibraryPage.Home -> "音乐库"
-        MusicLibraryPage.RecentlyAdded -> "最近添加"
+        MusicLibraryPage.Songs -> "歌曲"
         MusicLibraryPage.Artists -> "常听歌手"
         MusicLibraryPage.ArtistDetail -> selectedArtist?.name ?: "歌手"
         MusicLibraryPage.AlbumDetail -> selectedAlbum?.name ?: "专辑"
@@ -268,7 +275,7 @@ fun MusicScreenV2(
             hasContent -> "最近添加按曲目展示，点一下直接播放"
             else -> "连接 Navidrome 后，这里会自动同步你的内容"
         }
-        MusicLibraryPage.RecentlyAdded -> "共 ${songs.size} 首，点一下直接播放"
+        MusicLibraryPage.Songs -> "共 ${songs.size} 首，点一下直接播放"
         MusicLibraryPage.Artists -> "共 ${artists.size} 位歌手"
         MusicLibraryPage.ArtistDetail -> "${selectedArtist?.albumCount ?: 0} 张专辑"
         MusicLibraryPage.AlbumDetail -> selectedAlbum?.artist ?: ""
@@ -290,7 +297,10 @@ fun MusicScreenV2(
                 if (!isHomePage) {
                     MusicBackButton(
                         colorScheme = colorScheme,
-                        onClick = { libraryPage = MusicLibraryPage.Home }
+                        onClick = {
+                            selectedTab = 0
+                            libraryPage = MusicLibraryPage.Home
+                        }
                     )
                 }
                 Column(
@@ -348,7 +358,7 @@ fun MusicScreenV2(
                     onTabSelected = {
                         selectedTab = it
                         libraryPage = when (it) {
-                            1 -> MusicLibraryPage.RecentlyAdded
+                            1 -> MusicLibraryPage.Songs
                             2 -> MusicLibraryPage.Playlists
                             else -> MusicLibraryPage.Home
                         }
@@ -405,18 +415,21 @@ fun MusicScreenV2(
                     }
                 }
 
-                if (songs.isNotEmpty()) {
+                if (recentlyAddedSongs.isNotEmpty()) {
                     item {
                         MusicSectionHeader(
                             title = "最近添加",
                             subtitle = "新同步到曲库的曲目，点一下直接播放",
                             colorScheme = colorScheme,
                             actionLabel = "全部",
-                            onAction = { libraryPage = MusicLibraryPage.RecentlyAdded }
+                            onAction = {
+                                selectedTab = 1
+                                libraryPage = MusicLibraryPage.Songs
+                            }
                         )
                     }
                     item {
-                        val homeSongs = songs.take(12)
+                        val homeSongs = recentlyAddedSongs.take(12)
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             items(homeSongs) { song ->
                                 SongShelfCard(
@@ -452,12 +465,12 @@ fun MusicScreenV2(
                 }
             }
 
-            MusicLibraryPage.RecentlyAdded -> {
+            MusicLibraryPage.Songs -> {
                 if (songs.isEmpty()) {
                     item {
                         MusicDetailEmptyState(
-                            title = "暂无最近添加",
-                            subtitle = "刷新音乐库后，新同步的曲目会显示在这里。",
+                            title = "暂无歌曲",
+                            subtitle = "刷新音乐库后，Navidrome 中的全部歌曲会显示在这里。",
                             colorScheme = colorScheme
                         )
                     }
