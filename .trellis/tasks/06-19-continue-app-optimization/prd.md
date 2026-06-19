@@ -51,6 +51,10 @@ Continue optimizing the Nordic Android media hub after the recent Musiver-inspir
 * Show useful search landing suggestions from existing cached/recent music content before the user types.
 * Group search results with counts and keep artist results clickable into the existing artist detail flow.
 * Show explicit search loading and error states using shared media state surfaces.
+* Continue phase: improve full music player usage clarity.
+* Replace the ambiguous one-character cover/lyrics toggle with a clear cover/lyrics segmented control.
+* Surface lyrics availability state in the player without requiring trial-and-error.
+* Keep queue access visible from the player top bar while preserving the existing bottom console queue command.
 
 ## Acceptance Criteria
 
@@ -73,6 +77,9 @@ Continue optimizing the Nordic Android media hub after the recent Musiver-inspir
 * [ ] Blank search shows actionable suggestions from existing music data.
 * [ ] Search result sections show artists, albums, and songs with clear counts.
 * [ ] Search artist rows open artist detail instead of being inert.
+* [ ] Full player exposes clear Cover and Lyrics modes.
+* [ ] Lyrics mode shows whether synced lyrics, text lyrics, loading, error, or no lyrics are available.
+* [ ] Queue can be opened from the full player top bar without changing queue mutation ownership.
 
 ## Definition of Done
 
@@ -158,6 +165,8 @@ Continue optimizing the Nordic Android media hub after the recent Musiver-inspir
 * Keep playback callbacks unchanged: song, album, playlist, and search selections continue through `onSongSelected(list, index)`.
 * Use a cancellable coroutine job plus a short delay for search debouncing.
 * Keep search suggestions derived from already-loaded music lists so no new data/cache contract is introduced.
+* Add a player-local mode segmented control in `MusicPlayerScreen.kt`.
+* Keep queue commands delegated through existing callbacks and `MusicPlaybackEngine`.
 * Run Kotlin compile, unit tests, lint, and debug assemble after implementation.
 
 ## Affected Files
