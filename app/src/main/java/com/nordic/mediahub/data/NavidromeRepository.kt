@@ -4,6 +4,7 @@ import android.util.Log
 import com.nordic.mediahub.api.NavidromeAlbum
 import com.nordic.mediahub.api.NavidromeApi
 import com.nordic.mediahub.api.NavidromeArtist
+import com.nordic.mediahub.api.NavidromePlaylist
 import com.nordic.mediahub.api.NavidromeSong
 import com.nordic.mediahub.api.NavidromeStructuredLyrics
 import com.nordic.mediahub.api.SubsonicData
@@ -101,6 +102,10 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
     }
 
     private fun NavidromeAlbum.withCoverArtUrl(): NavidromeAlbum {
+        return copy(coverArt = coverArt?.let(::buildCoverArtUrl))
+    }
+
+    private fun NavidromePlaylist.withCoverArtUrl(): NavidromePlaylist {
         return copy(coverArt = coverArt?.let(::buildCoverArtUrl))
     }
 
@@ -245,6 +250,30 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
         throw e
     } catch (e: Exception) {
         throw Exception("获取专辑列表失败: ${e.message}")
+    }
+
+    suspend fun getPlaylists() = try {
+        val auth = config.authParams()
+        val subsonic = api.getPlaylists(config.username, auth.token, auth.salt).requireResponse()
+        subsonic.playlists?.playlist?.map { it.withCoverArtUrl() } ?: emptyList()
+    } catch (e: NavidromeApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("获取歌单失败: ${e.message}")
+    }
+
+    suspend fun getPlaylistSongs(playlistId: String) = try {
+        val auth = config.authParams()
+        val playlist = api.getPlaylist(config.username, auth.token, auth.salt, playlistId = playlistId)
+            .requireResponse()
+            .playlist
+        playlist?.entry?.map { song ->
+            song.withCoverArtUrl(playlist.coverArt)
+        } ?: emptyList()
+    } catch (e: NavidromeApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("获取歌单曲目失败: ${e.message}")
     }
 
     override suspend fun getAllSongs() = try {

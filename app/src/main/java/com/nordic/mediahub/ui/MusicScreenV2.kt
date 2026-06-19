@@ -56,6 +56,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.nordic.mediahub.api.NavidromeAlbum
 import com.nordic.mediahub.api.NavidromeArtist
+import com.nordic.mediahub.api.NavidromePlaylist
 import com.nordic.mediahub.api.NavidromeSong
 import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.NavidromeAlbumSort
@@ -75,7 +76,8 @@ private enum class MusicLibraryPage {
     ArtistDetail,
     AlbumDetail,
     Search,
-    Playlists
+    Playlists,
+    PlaylistDetail
 }
 
 @Composable
@@ -102,8 +104,10 @@ fun MusicScreenV2(
     var songs by remember { mutableStateOf(emptyList<NavidromeSong>()) }
     var recentlyAddedSongs by remember { mutableStateOf(emptyList<NavidromeSong>()) }
     var artists by remember { mutableStateOf(emptyList<NavidromeArtist>()) }
+    var playlists by remember { mutableStateOf(emptyList<NavidromePlaylist>()) }
     var isLoading by remember { mutableStateOf(false) }
     var isLoadingAlbumList by remember { mutableStateOf(false) }
+    var isLoadingPlaylists by remember { mutableStateOf(false) }
     var loadingAlbumId by remember { mutableStateOf<String?>(null) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
     var selectedAlbum by remember { mutableStateOf<NavidromeAlbum?>(null) }
@@ -112,6 +116,9 @@ fun MusicScreenV2(
     var selectedArtist by remember { mutableStateOf<NavidromeArtist?>(null) }
     var artistAlbums by remember { mutableStateOf(emptyList<NavidromeAlbum>()) }
     var isLoadingArtistDetail by remember { mutableStateOf(false) }
+    var selectedPlaylist by remember { mutableStateOf<NavidromePlaylist?>(null) }
+    var playlistSongs by remember { mutableStateOf(emptyList<NavidromeSong>()) }
+    var isLoadingPlaylistDetail by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var searchResult by remember { mutableStateOf<SearchMusicResult?>(null) }
     var isSearching by remember { mutableStateOf(false) }
@@ -206,6 +213,35 @@ fun MusicScreenV2(
         }
     }
 
+    suspend fun loadPlaylists(): Boolean {
+        if (isLoadingPlaylists) return false
+        val repo = navidromeRepository
+        if (repo == null) {
+            errorMsg = "请先保存 Navidrome 配置"
+            return false
+        }
+
+        isLoadingPlaylists = true
+        errorMsg = null
+        return try {
+            playlists = repo.getPlaylists()
+            true
+        } catch (e: Exception) {
+            errorMsg = "获取歌单失败: ${e.message}"
+            false
+        } finally {
+            isLoadingPlaylists = false
+        }
+    }
+
+    fun openPlaylistLibrary() {
+        selectedTab = 2
+        libraryPage = MusicLibraryPage.Playlists
+        if (playlists.isEmpty()) {
+            scope.launch { loadPlaylists() }
+        }
+    }
+
     suspend fun playAlbum(album: NavidromeAlbum) {
         if (loadingAlbumId != null) return
         val repo = navidromeRepository
@@ -262,9 +298,31 @@ fun MusicScreenV2(
         }
     }
 
+    fun openPlaylistDetail(playlist: NavidromePlaylist) {
+        selectedPlaylist = playlist
+        playlistSongs = emptyList()
+        isLoadingPlaylistDetail = true
+        errorMsg = null
+        libraryPage = MusicLibraryPage.PlaylistDetail
+        scope.launch {
+            try {
+                navidromeRepository?.let { repo ->
+                    playlistSongs = repo.getPlaylistSongs(playlist.id)
+                }
+            } catch (e: Exception) {
+                errorMsg = "获取歌单曲目失败: ${e.message}"
+            } finally {
+                isLoadingPlaylistDetail = false
+            }
+        }
+    }
+
     LaunchedEffect(savedConfig) {
         config = savedConfig
         sortedAlbums = emptyList()
+        playlists = emptyList()
+        playlistSongs = emptyList()
+        selectedPlaylist = null
         albumSort = NavidromeAlbumSort.RecentlyAdded
         if (savedConfig.isReadyForMusicSync()) {
             applyCachedMusicData(savedConfig)
@@ -275,13 +333,16 @@ fun MusicScreenV2(
             recentlyAddedSongs = emptyList()
             artists = emptyList()
             sortedAlbums = emptyList()
+            playlists = emptyList()
+            playlistSongs = emptyList()
+            selectedPlaylist = null
             libraryPage = MusicLibraryPage.Home
             cacheUpdatedAtMillis = null
             errorMsg = null
         }
     }
 
-    val hasContent = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty()
+    val hasContent = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty() || playlists.isNotEmpty()
     val cacheAgeLabel = formatCacheAge(cacheUpdatedAtMillis)
     val headerActions = buildList {
         if (config.isReadyForMusicSync()) {
@@ -293,6 +354,9 @@ fun MusicScreenV2(
                         scope.launch {
                             if (refreshMusicData(config) && libraryPage == MusicLibraryPage.Albums) {
                                 loadAlbumList(albumSort)
+                            }
+                            if (libraryPage == MusicLibraryPage.Playlists) {
+                                loadPlaylists()
                             }
                         }
                     }
@@ -312,6 +376,7 @@ fun MusicScreenV2(
         MusicLibraryPage.AlbumDetail -> selectedAlbum?.name ?: "专辑"
         MusicLibraryPage.Search -> "搜索"
         MusicLibraryPage.Playlists -> "歌单"
+        MusicLibraryPage.PlaylistDetail -> selectedPlaylist?.name ?: "歌单"
     }
     val headerSubtitle = when (libraryPage) {
         MusicLibraryPage.Home -> when {
@@ -330,7 +395,16 @@ fun MusicScreenV2(
         MusicLibraryPage.ArtistDetail -> "${selectedArtist?.albumCount ?: 0} 张专辑"
         MusicLibraryPage.AlbumDetail -> selectedAlbum?.artist ?: ""
         MusicLibraryPage.Search -> "搜索歌曲、专辑、歌手"
-        MusicLibraryPage.Playlists -> "即将支持 Navidrome 歌单"
+        MusicLibraryPage.Playlists -> when {
+            isLoadingPlaylists -> "正在加载 Navidrome 歌单"
+            playlists.isNotEmpty() -> "共 ${playlists.size} 个歌单"
+            else -> "浏览和播放 Navidrome 歌单"
+        }
+        MusicLibraryPage.PlaylistDetail -> when {
+            isLoadingPlaylistDetail -> "正在加载歌单曲目"
+            playlistSongs.isNotEmpty() -> "${playlistSongs.size} 首 · 点一下直接播放"
+            else -> selectedPlaylist?.comment ?: "歌单曲目"
+        }
     }
 
     LazyColumn(
@@ -348,8 +422,13 @@ fun MusicScreenV2(
                     MusicBackButton(
                         colorScheme = colorScheme,
                         onClick = {
-                            selectedTab = 0
-                            libraryPage = MusicLibraryPage.Home
+                            if (libraryPage == MusicLibraryPage.PlaylistDetail) {
+                                selectedTab = 2
+                                libraryPage = MusicLibraryPage.Playlists
+                            } else {
+                                selectedTab = 0
+                                libraryPage = MusicLibraryPage.Home
+                            }
                         }
                     )
                 }
@@ -409,7 +488,12 @@ fun MusicScreenV2(
                         selectedTab = it
                         libraryPage = when (it) {
                             1 -> MusicLibraryPage.Songs
-                            2 -> MusicLibraryPage.Playlists
+                            2 -> {
+                                if (playlists.isEmpty()) {
+                                    scope.launch { loadPlaylists() }
+                                }
+                                MusicLibraryPage.Playlists
+                            }
                             else -> MusicLibraryPage.Home
                         }
                     },
@@ -441,7 +525,7 @@ fun MusicScreenV2(
             }
         }
 
-        if (!isLoading && errorMsg == null && !hasContent) {
+        if (!isLoading && !isLoadingPlaylists && !isLoadingPlaylistDetail && errorMsg == null && !hasContent) {
             item {
                 MediaStateCard(
                     title = "先接入你的音乐库",
@@ -846,11 +930,249 @@ fun MusicScreenV2(
             }
 
             MusicLibraryPage.Playlists -> {
-                item {
-                    MusicDetailEmptyState(
-                        title = "歌单功能即将上线",
-                        subtitle = "下一版本将支持浏览和播放 Navidrome 歌单。",
-                        colorScheme = colorScheme
+                if (isLoadingPlaylists) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("正在加载歌单...", fontSize = 14.sp, color = colorScheme.onSurface.copy(alpha = 0.56f))
+                        }
+                    }
+                } else if (playlists.isEmpty()) {
+                    item {
+                        MusicDetailEmptyState(
+                            title = "暂无歌单",
+                            subtitle = "Navidrome 中的歌单会显示在这里。",
+                            colorScheme = colorScheme
+                        )
+                    }
+                } else {
+                    items(playlists, key = { it.id }) { playlist ->
+                        PlaylistListRow(
+                            playlist = playlist,
+                            colorScheme = colorScheme,
+                            onClick = { openPlaylistDetail(playlist) }
+                        )
+                    }
+                }
+            }
+
+            MusicLibraryPage.PlaylistDetail -> {
+                val playlist = selectedPlaylist
+                if (playlist == null) {
+                    item {
+                        MusicDetailEmptyState(
+                            title = "未选择歌单",
+                            subtitle = "返回歌单列表选择一个歌单。",
+                            colorScheme = colorScheme
+                        )
+                    }
+                } else if (isLoadingPlaylistDetail) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 34.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("加载歌单曲目...", fontSize = 14.sp, color = colorScheme.onSurface.copy(alpha = 0.56f))
+                        }
+                    }
+                } else {
+                    item {
+                        PlaylistDetailHeader(
+                            playlist = playlist,
+                            songCount = playlistSongs.size,
+                            colorScheme = colorScheme,
+                            onPlayAll = {
+                                if (playlistSongs.isNotEmpty()) {
+                                    onSongSelected(playlistSongs, 0)
+                                }
+                            }
+                        )
+                    }
+                    if (playlistSongs.isEmpty()) {
+                        item {
+                            MusicDetailEmptyState(
+                                title = "暂无曲目",
+                                subtitle = "这个歌单暂时没有可播放曲目。",
+                                colorScheme = colorScheme
+                            )
+                        }
+                    } else {
+                        items(playlistSongs, key = { it.id }) { song ->
+                            SongListRow(
+                                song = song,
+                                colorScheme = colorScheme,
+                                onClick = {
+                                    val index = playlistSongs.indexOf(song)
+                                    onSongSelected(playlistSongs, index)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlaylistListRow(
+    playlist: NavidromePlaylist,
+    colorScheme: ColorScheme,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {}
+) {
+    Surface(
+        color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
+        contentColor = colorScheme.onSurface,
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                colorScheme.primary.copy(alpha = 0.18f),
+                                colorScheme.secondary.copy(alpha = 0.12f)
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (playlist.coverArt != null) {
+                    AsyncImage(
+                        model = playlist.coverArt,
+                        contentDescription = playlist.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.matchParentSize()
+                    )
+                } else {
+                    Text("≡", fontSize = 22.sp, color = colorScheme.primary.copy(alpha = 0.56f))
+                }
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Text(
+                    playlist.name,
+                    fontSize = 15.sp,
+                    color = colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    playlist.comment?.takeIf { it.isNotBlank() } ?: playlist.owner ?: "Navidrome 歌单",
+                    fontSize = 13.sp,
+                    color = colorScheme.onSurface.copy(alpha = 0.62f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    "${playlist.songCount} 首  •  ${formatDuration(playlist.duration)}",
+                    fontSize = 12.sp,
+                    color = colorScheme.onSurface.copy(alpha = 0.46f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlaylistDetailHeader(
+    playlist: NavidromePlaylist,
+    songCount: Int,
+    colorScheme: ColorScheme,
+    onPlayAll: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(120.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            colorScheme.primary.copy(alpha = 0.22f),
+                            colorScheme.secondary.copy(alpha = 0.16f)
+                        )
+                    )
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (playlist.coverArt != null) {
+                AsyncImage(
+                    model = playlist.coverArt,
+                    contentDescription = playlist.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Text("≡", fontSize = 38.sp, color = colorScheme.primary.copy(alpha = 0.62f))
+            }
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                playlist.name,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            playlist.comment?.takeIf { it.isNotBlank() }?.let { comment ->
+                Text(
+                    comment,
+                    fontSize = 14.sp,
+                    color = colorScheme.onSurface.copy(alpha = 0.68f),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MusicMetaChip("${songCount} 首", colorScheme)
+                MusicMetaChip(formatDuration(playlist.duration), colorScheme)
+            }
+            Surface(
+                color = colorScheme.primary,
+                contentColor = colorScheme.onPrimary,
+                shape = RoundedCornerShape(999.dp),
+                modifier = Modifier
+                    .height(36.dp)
+                    .clickable(onClick = onPlayAll)
+            ) {
+                Box(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "播放全部",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }

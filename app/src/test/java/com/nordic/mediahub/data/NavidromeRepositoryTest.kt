@@ -110,6 +110,71 @@ class NavidromeRepositoryTest {
         assertFalse(nameRequest.contains("toYear="))
     }
 
+    @Test
+    fun getPlaylists_mapsPlaylistSummariesAndCoverArtUrls() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "playlists": {
+                  "playlist": [
+                    {
+                      "id": "playlist-1",
+                      "name": "Road Mix",
+                      "owner": "demo",
+                      "songCount": 2,
+                      "duration": 390,
+                      "coverArt": "playlist-cover"
+                    }
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val playlists = repository().getPlaylists()
+
+        assertEquals(1, playlists.size)
+        assertEquals("Road Mix", playlists[0].name)
+        assertEquals(2, playlists[0].songCount)
+        assertTrue(playlists[0].coverArt.orEmpty().contains("/rest/getCoverArt.view?id=playlist-cover"))
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/getPlaylists.view?"))
+        assertTrue(request.contains("u=demo"))
+        assertTrue(request.contains("c=Nordic"))
+        assertTrue(request.contains("f=json"))
+    }
+
+    @Test
+    fun getPlaylistSongs_mapsEntriesToPlayableSongs() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "playlist": {
+                  "id": "playlist-1",
+                  "name": "Road Mix",
+                  "coverArt": "playlist-cover",
+                  "entry": [
+                    {"id": "song-1", "title": "Song One", "artist": "Artist One", "album": "Playlist Album"},
+                    {"id": "song-2", "title": "Song Two", "artist": "Artist Two", "album": "Playlist Album", "coverArt": "song-cover"}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val songs = repository().getPlaylistSongs("playlist-1")
+
+        assertEquals(listOf("Song One", "Song Two"), songs.map { it.title })
+        assertTrue(songs[0].streamUrl.orEmpty().contains("/rest/stream.view?id=song-1"))
+        assertTrue(songs[0].coverArt.orEmpty().contains("/rest/getCoverArt.view?id=playlist-cover"))
+        assertTrue(songs[1].coverArt.orEmpty().contains("/rest/getCoverArt.view?id=song-cover"))
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/getPlaylist.view?"))
+        assertTrue(request.contains("id=playlist-1"))
+    }
+
     private fun repository(): NavidromeRepository {
         return NavidromeRepository(
             NavidromeConfig(

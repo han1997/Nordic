@@ -17,6 +17,8 @@ data class SubsonicData(
     val artists: ArtistsIndex? = null,
     @SerializedName("artist")
     val artistDetail: NavidromeArtistDetail? = null,
+    val playlists: NavidromePlaylistList? = null,
+    val playlist: NavidromePlaylistDetail? = null,
     val randomSongs: SongList? = null,
     val searchResult3: SearchResult3? = null,
     val lyrics: NavidromePlainLyrics? = null,
@@ -50,6 +52,10 @@ data class SongList(
     val song: List<NavidromeSong> = emptyList()
 )
 
+data class NavidromePlaylistList(
+    val playlist: List<NavidromePlaylist> = emptyList()
+)
+
 data class ArtistsIndex(
     val index: List<ArtistIndex> = emptyList()
 )
@@ -74,6 +80,33 @@ data class NavidromeAlbumDetail(
     val artist: String? = null,
     val coverArt: String? = null,
     val song: List<NavidromeSong> = emptyList()
+)
+
+data class NavidromePlaylist(
+    val id: String,
+    val name: String,
+    val comment: String? = null,
+    val owner: String? = null,
+    @SerializedName("public")
+    val isPublic: Boolean = false,
+    val songCount: Int = 0,
+    val duration: Int = 0,
+    val created: String? = null,
+    val changed: String? = null,
+    val coverArt: String? = null
+)
+
+data class NavidromePlaylistDetail(
+    val id: String,
+    val name: String,
+    val comment: String? = null,
+    val owner: String? = null,
+    @SerializedName("public")
+    val isPublic: Boolean = false,
+    val songCount: Int = 0,
+    val duration: Int = 0,
+    val coverArt: String? = null,
+    val entry: List<NavidromeSong> = emptyList()
 )
 
 data class NavidromeSong(
@@ -173,6 +206,27 @@ interface NavidromeApi {
         @Query("c") client: String = "Nordic",
         @Query("f") format: String = "json",
         @Query("size") size: Int = 20
+    ): Response<SubsonicResponse>
+
+    @GET("rest/getPlaylists.view")
+    suspend fun getPlaylists(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("f") format: String = "json"
+    ): Response<SubsonicResponse>
+
+    @GET("rest/getPlaylist.view")
+    suspend fun getPlaylist(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("f") format: String = "json",
+        @Query("id") playlistId: String
     ): Response<SubsonicResponse>
 
     @GET("rest/getLyricsBySongId.view")

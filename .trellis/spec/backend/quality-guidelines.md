@@ -144,6 +144,55 @@ val albums = repo.getAlbums(NavidromeAlbumSort.Name).sortedByDescending { it.yea
 val albums = repo.getAlbums(NavidromeAlbumSort.ReleaseYear)
 ```
 
+### Navidrome playlist browsing
+
+**Scope / Trigger**: Any change to Music playlist UI, `NavidromeApi` playlist DTOs/endpoints, or `NavidromeRepository` playlist methods.
+
+**Signatures**:
+- `SubsonicData.playlists: NavidromePlaylistList?`
+- `SubsonicData.playlist: NavidromePlaylistDetail?`
+- `NavidromeApi.getPlaylists(...): Response<SubsonicResponse>`
+- `NavidromeApi.getPlaylist(..., playlistId: String): Response<SubsonicResponse>`
+- `suspend fun NavidromeRepository.getPlaylists(): List<NavidromePlaylist>`
+- `suspend fun NavidromeRepository.getPlaylistSongs(playlistId: String): List<NavidromeSong>`
+
+**Contract**:
+- Playlist browsing is read-only unless the PRD explicitly includes playlist mutation.
+- `getPlaylists()` calls Subsonic `getPlaylists.view` and maps `playlists.playlist`.
+- `getPlaylistSongs(playlistId)` calls `getPlaylist.view` with `id=<playlistId>` and maps `playlist.entry`.
+- Playlist and playlist-song cover art must be converted through `getCoverArt.view`; playlist detail cover art may be used as a fallback for entries with missing `coverArt`.
+- Playlist entries returned to UI must include playable `streamUrl` values built through `stream.view`.
+- Playlist data is view state, not part of `NavidromeMusicCacheRepository`, unless the cache schema is explicitly revised and version-bumped.
+- The Music playlist tab should show an empty state for empty responses, not a "coming soon" placeholder.
+
+**Validation & Error Matrix**:
+- Subsonic/HTTP error while loading playlists or playlist detail -> preserve `NavidromeApiException`.
+- Unknown failure while loading playlists -> wrap as `"获取歌单失败: ..."` for UI context.
+- Unknown failure while loading playlist songs -> wrap as `"获取歌单曲目失败: ..."` for UI context.
+- Empty `playlists` or missing `playlist` detail -> return empty lists; do not fall back to albums, songs, or random songs.
+
+**Good/Base/Bad Cases**:
+- Good: Playlist tab loads real Navidrome playlists, opens detail, and plays the detail song list through the existing `onSongSelected(list, index)` flow.
+- Base: Empty server playlist list shows a compact empty state.
+- Bad: Playlist tab remains a hard-coded placeholder after playlist APIs exist, or UI calls Retrofit directly instead of `NavidromeRepository`.
+
+**Tests Required**:
+- Repository unit test asserting `getPlaylists()` requests `/rest/getPlaylists.view` and maps playlist fields plus cover art URLs.
+- Repository unit test asserting `getPlaylistSongs(id)` requests `/rest/getPlaylist.view?id=<id>`, maps entries, applies fallback cover art, and builds stream URLs.
+- Compile/lint checks for UI callback wiring.
+
+**Wrong vs Correct**:
+```kotlin
+// Wrong: UI bypasses repository mapping and auth conventions.
+api.getPlaylist(username, token, salt, playlistId = id)
+```
+
+```kotlin
+// Correct: UI asks repository for app-facing playable songs.
+val songs = repo.getPlaylistSongs(playlist.id)
+onSongSelected(songs, index)
+```
+
 ### Music playback queue management
 
 **Scope / Trigger**: Any change to the music queue sheet, `MusicPlaybackEngine`, `MusicPlaybackState.queue`, `MusicPlaybackState.queueIndex`, or Media3 music playlist mutations.
