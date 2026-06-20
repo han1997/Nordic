@@ -81,15 +81,23 @@ LazyRow {
 
 `NavidromeConfig.isReadyForMusicSync()` is defined once in `ServerConfig.kt` and imported where needed. Do not inline `serverUrl.isNotBlank() && username.isNotBlank()` or create duplicate extension functions.
 
-### NavidromeRepository instance reuse
+### Media repository instance reuse
 
-When a composable or screen needs `NavidromeRepository`, use `remember { NavidromeRepository(config) }` keyed on config changes, not `NavidromeRepository(config)` inline in each suspend call. Each construction creates a new Retrofit + OkHttpClient.
+When a composable or screen needs a media repository such as `NavidromeRepository`, `AudiobookShelfRepository`, or `EmbyRepository`, use `remember(config) { Repository(config) }` keyed on config changes. Do not construct repositories inline in every refresh/list-detail suspend call when the saved config already has a remembered repository. Each construction creates a new Retrofit + OkHttpClient.
 
 ```kotlin
 val navidromeRepository = remember(savedConfig) {
     if (savedConfig.isReadyForMusicSync()) NavidromeRepository(savedConfig) else null
 }
+
+val repo = if (targetConfig == savedConfig) {
+    navidromeRepository ?: NavidromeRepository(targetConfig)
+} else {
+    NavidromeRepository(targetConfig)
+}
 ```
+
+Construct a temporary repository only for unsaved form values being tested/saved, where `targetConfig != savedConfig`.
 
 ### Navidrome all-song navigation data
 
