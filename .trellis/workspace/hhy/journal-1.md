@@ -416,3 +416,37 @@ Polished the music player lyrics and playback surfaces, reordered music home sec
 ### Next Steps
 
 - None - task complete
+
+
+## Session 13: App performance and smoothness optimization
+
+**Date**: 2026-06-20
+**Task**: App performance and smoothness optimization
+**Branch**: `main`
+
+### Summary
+
+Optimized music list and image scrolling by adding stable lazy-list keys/content types, caching preview slices, avoiding indexOf in playback clicks, and removing artwork log spam. Recorded the Compose media list convention in project specs.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c65d65c` | (see git log) |
+| `cbdc437` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
