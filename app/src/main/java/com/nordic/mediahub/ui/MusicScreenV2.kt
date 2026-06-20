@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -376,6 +377,9 @@ fun MusicScreenV2(
     val visibleSongs = remember(songs, songSort) {
         sortMusicSongs(songs, songSort)
     }
+    val homeSongs = remember(recentlyAddedSongs) { recentlyAddedSongs.take(12) }
+    val homeAlbums = remember(albums) { albums.take(10) }
+    val homeArtists = remember(artists) { artists.take(10) }
     val cacheAgeLabel = formatCacheAge(cacheUpdatedAtMillis)
     val headerActions = buildList {
         if (config.isReadyForMusicSync()) {
@@ -599,14 +603,16 @@ fun MusicScreenV2(
                         )
                     }
                     item {
-                        val homeSongs = recentlyAddedSongs.take(12)
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(homeSongs) { song ->
+                            itemsIndexed(
+                                items = homeSongs,
+                                key = { _, song -> "home-song-${song.id}" },
+                                contentType = { _, _ -> "home-song-card" }
+                            ) { index, song ->
                                 SongShelfCard(
                                     song = song,
                                     colorScheme = colorScheme,
                                     onClick = {
-                                        val index = homeSongs.indexOf(song)
                                         onSongSelected(homeSongs, index)
                                     }
                                 )
@@ -627,7 +633,11 @@ fun MusicScreenV2(
                     }
                     item {
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(albums.take(10), key = { it.id }) { album ->
+                            items(
+                                items = homeAlbums,
+                                key = { "home-album-${it.id}" },
+                                contentType = { "home-album-card" }
+                            ) { album ->
                                 CompactAlbumShelfCard(
                                     album = album,
                                     colorScheme = colorScheme,
@@ -650,7 +660,11 @@ fun MusicScreenV2(
                     }
                     item {
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(artists.take(10)) { artist ->
+                            items(
+                                items = homeArtists,
+                                key = { "home-artist-${it.id}" },
+                                contentType = { "home-artist-card" }
+                            ) { artist ->
                                 ArtistShelfCard(artist = artist, colorScheme = colorScheme, onClick = { openArtistDetail(artist) })
                             }
                         }
@@ -691,7 +705,7 @@ fun MusicScreenV2(
                         )
                     }
                 } else {
-                    items(sortedAlbums, key = { it.id }) { album ->
+                    items(sortedAlbums, key = { it.id }, contentType = { "album-row" }) { album ->
                         AlbumListRow(
                             album = album,
                             colorScheme = colorScheme,
@@ -718,7 +732,7 @@ fun MusicScreenV2(
                             onSortSelected = { songSort = it }
                         )
                     }
-                    items(visibleSongs, key = { it.id }) { song ->
+                    items(visibleSongs, key = { it.id }, contentType = { "song-row" }) { song ->
                         SongListRow(
                             song = song,
                             colorScheme = colorScheme,
@@ -741,7 +755,7 @@ fun MusicScreenV2(
                         )
                     }
                 } else {
-                    items(artists, key = { it.id }) { artist ->
+                    items(artists, key = { it.id }, contentType = { "artist-row" }) { artist ->
                         ArtistListRow(
                             artist = artist,
                             colorScheme = colorScheme,
@@ -824,7 +838,7 @@ fun MusicScreenV2(
                             )
                         }
                     } else {
-                        items(artistAlbums, key = { it.id }) { album ->
+                        items(artistAlbums, key = { it.id }, contentType = { "artist-album-row" }) { album ->
                             AlbumListRow(
                                 album = album,
                                 colorScheme = colorScheme,
@@ -868,7 +882,7 @@ fun MusicScreenV2(
                             }
                         )
                     }
-                    items(albumDetailSongs, key = { it.id }) { song ->
+                    items(albumDetailSongs, key = { it.id }, contentType = { "album-song-row" }) { song ->
                         SongListRow(
                             song = song,
                             colorScheme = colorScheme,
@@ -977,7 +991,7 @@ fun MusicScreenV2(
                                 colorScheme = colorScheme
                             )
                         }
-                        items(result.artists, key = { "artist-${it.id}" }) { artist ->
+                        items(result.artists, key = { "artist-${it.id}" }, contentType = { "search-artist-row" }) { artist ->
                             ArtistListRow(
                                 artist = artist,
                                 colorScheme = colorScheme,
@@ -995,7 +1009,11 @@ fun MusicScreenV2(
                         }
                         item {
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                items(result.albums) { album ->
+                                items(
+                                    items = result.albums,
+                                    key = { "search-album-${it.id}" },
+                                    contentType = { "search-album-card" }
+                                ) { album ->
                                     CompactAlbumShelfCard(
                                         album = album,
                                         colorScheme = colorScheme,
@@ -1013,7 +1031,7 @@ fun MusicScreenV2(
                                 colorScheme = colorScheme
                             )
                         }
-                        items(result.songs, key = { "song-${it.id}" }) { song ->
+                        items(result.songs, key = { "song-${it.id}" }, contentType = { "search-song-row" }) { song ->
                             SongListRow(
                                 song = song,
                                 colorScheme = colorScheme,
@@ -1057,7 +1075,7 @@ fun MusicScreenV2(
                         )
                     }
                 } else {
-                    items(playlists, key = { it.id }) { playlist ->
+                    items(playlists, key = { it.id }, contentType = { "playlist-row" }) { playlist ->
                         PlaylistListRow(
                             playlist = playlist,
                             colorScheme = colorScheme,
@@ -1110,7 +1128,7 @@ fun MusicScreenV2(
                             )
                         }
                     } else {
-                        items(playlistSongs, key = { it.id }) { song ->
+                        items(playlistSongs, key = { it.id }, contentType = { "playlist-song-row" }) { song ->
                             SongListRow(
                                 song = song,
                                 colorScheme = colorScheme,
@@ -1138,6 +1156,9 @@ private fun MusicSearchLanding(
     onArtistClick: (NavidromeArtist) -> Unit
 ) {
     val hasSuggestions = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty()
+    val suggestedAlbums = remember(albums) { albums.take(8) }
+    val suggestedSongs = remember(songs) { songs.take(8) }
+    val suggestedArtists = remember(artists) { artists.take(8) }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         if (!hasSuggestions) {
@@ -1162,7 +1183,11 @@ private fun MusicSearchLanding(
                 colorScheme = colorScheme
             )
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(albums.take(8), key = { "search-home-album-${it.id}" }) { album ->
+                items(
+                    items = suggestedAlbums,
+                    key = { "search-home-album-${it.id}" },
+                    contentType = { "search-home-album-card" }
+                ) { album ->
                     CompactAlbumShelfCard(
                         album = album,
                         colorScheme = colorScheme,
@@ -1179,7 +1204,11 @@ private fun MusicSearchLanding(
                 colorScheme = colorScheme
             )
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(songs.take(8), key = { "search-home-song-${it.id}" }) { song ->
+                items(
+                    items = suggestedSongs,
+                    key = { "search-home-song-${it.id}" },
+                    contentType = { "search-home-song-card" }
+                ) { song ->
                     SongShelfCard(
                         song = song,
                         colorScheme = colorScheme,
@@ -1196,7 +1225,11 @@ private fun MusicSearchLanding(
                 colorScheme = colorScheme
             )
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(artists.take(8), key = { "search-home-artist-${it.id}" }) { artist ->
+                items(
+                    items = suggestedArtists,
+                    key = { "search-home-artist-${it.id}" },
+                    contentType = { "search-home-artist-card" }
+                ) { artist ->
                     ArtistShelfCard(
                         artist = artist,
                         colorScheme = colorScheme,

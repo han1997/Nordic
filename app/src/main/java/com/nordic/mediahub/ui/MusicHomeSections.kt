@@ -1,6 +1,5 @@
 package com.nordic.mediahub.ui
 
-import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -613,16 +612,7 @@ private fun MusicArtwork(
                 contentDescription = contentDescription,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.matchParentSize(),
-                onSuccess = {
-                    Log.d("MusicArtwork", "Artwork loaded [$contentDescription]")
-                },
-                onError = { result ->
-                    imageFailed = true
-                    Log.d(
-                        "MusicArtwork",
-                        "Artwork failed [$contentDescription]: ${result.result.throwable.message}"
-                    )
-                }
+                onError = { imageFailed = true }
             )
         } else if (showInitials) {
             Text(
