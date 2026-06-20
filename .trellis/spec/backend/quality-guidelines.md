@@ -52,6 +52,31 @@ Use `MediaStateDensity.Compact` for detail-level empty states and the default pr
 
 **Why**: These surfaces encode the design-system alpha levels (`0.72f` empty, `0.76f` loading, error container for errors). Repeating local `Surface` blocks causes visual drift and makes copy/encoding fixes harder to audit.
 
+### Compose media list stability
+
+Image-heavy `LazyColumn` and `LazyRow` sections should provide stable `key` values from domain identity and a stable `contentType` for each row/card family. Small fixed control rows such as sort chips do not need this.
+
+Cache preview slices with `remember(sourceList) { sourceList.take(n) }` when they are passed into lazy lists or playback callbacks, and prefer `itemsIndexed` when item click handling needs the index.
+
+```kotlin
+val homeSongs = remember(recentlyAddedSongs) { recentlyAddedSongs.take(12) }
+
+LazyRow {
+    itemsIndexed(
+        items = homeSongs,
+        key = { _, song -> "home-song-${song.id}" },
+        contentType = { _, _ -> "home-song-card" }
+    ) { index, song ->
+        SongShelfCard(
+            song = song,
+            onClick = { onSongSelected(homeSongs, index) }
+        )
+    }
+}
+```
+
+**Why**: Stable keys preserve item identity across inserts/reorders, `contentType` lets Compose reuse compatible item composition, and remembered slices avoid allocating new preview lists on unrelated recompositions.
+
 ### Config readiness checks centralized
 
 `NavidromeConfig.isReadyForMusicSync()` is defined once in `ServerConfig.kt` and imported where needed. Do not inline `serverUrl.isNotBlank() && username.isNotBlank()` or create duplicate extension functions.
