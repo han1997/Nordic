@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -76,7 +77,11 @@ fun AudiobookScreen(
         isLoading = true
         errorMessage = null
         try {
-            val repo = AudiobookShelfRepository(targetConfig)
+            val repo = if (targetConfig == savedConfig) {
+                audiobookRepository ?: AudiobookShelfRepository(targetConfig)
+            } else {
+                AudiobookShelfRepository(targetConfig)
+            }
             val loadedLibraries = repo.getLibraries()
             libraries = loadedLibraries
             val firstLibraryId = selectedLibraryId ?: loadedLibraries.firstOrNull()?.id
@@ -272,7 +277,7 @@ fun AudiobookScreen(
                     )
                 }
             } else {
-                items(items, key = { it.id }) { item ->
+                items(items, key = { it.id }, contentType = { "audiobook-summary-card" }) { item ->
                     AudiobookSummaryCard(
                         item = item,
                         colorScheme = colorScheme,
@@ -324,7 +329,7 @@ fun AudiobookScreen(
                                 color = colorScheme.onBackground
                             )
                         }
-                        items(item.chapters, key = { it.id }) { chapter ->
+                        items(item.chapters, key = { it.id }, contentType = { "audiobook-chapter-row" }) { chapter ->
                             AudiobookChapterRow(chapter, colorScheme)
                         }
                     }
@@ -361,11 +366,15 @@ private fun AudiobookLibrarySelector(
     colorScheme: ColorScheme,
     onSelect: (String) -> Unit
 ) {
-    Row(
+    LazyRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        libraries.forEach { library ->
+        items(
+            items = libraries,
+            key = { it.id },
+            contentType = { "audiobook-library-chip" }
+        ) { library ->
             val selected = library.id == selectedLibraryId
             Surface(
                 color = if (selected) colorScheme.primary.copy(alpha = 0.16f) else colorScheme.surfaceVariant.copy(alpha = 0.56f),
@@ -378,7 +387,9 @@ private fun AudiobookLibrarySelector(
                     library.name,
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     fontSize = 13.sp,
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -574,6 +585,8 @@ private fun AudiobookCover(
     colorScheme: ColorScheme,
     modifier: Modifier = Modifier
 ) {
+    var imageFailed by remember(coverUrl) { mutableStateOf(false) }
+
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(18.dp))
@@ -587,11 +600,12 @@ private fun AudiobookCover(
             ),
         contentAlignment = Center
     ) {
-        if (coverUrl != null) {
+        if (coverUrl != null && !imageFailed) {
             AsyncImage(
                 model = coverUrl,
                 contentDescription = contentDescription,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                onError = { imageFailed = true }
             )
         } else {
             Text("▤", fontSize = 24.sp, color = colorScheme.primary.copy(alpha = 0.72f))

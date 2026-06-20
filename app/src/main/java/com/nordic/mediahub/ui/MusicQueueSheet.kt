@@ -79,7 +79,11 @@ fun MusicQueueSheet(
                         .heightIn(max = 520.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    itemsIndexed(queue, key = { index, song -> "${song.id}:$index" }) { index, song ->
+                    itemsIndexed(
+                        items = queue,
+                        key = { index, song -> "${song.id}:$index" },
+                        contentType = { _, _ -> "music-queue-row" }
+                    ) { index, song ->
                         val isCurrent = index == resolvedCurrentIndex
                         QueueRow(
                             song = song,

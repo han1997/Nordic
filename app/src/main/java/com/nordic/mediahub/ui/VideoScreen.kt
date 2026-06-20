@@ -72,6 +72,7 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val loadingCardIndexes = remember { List(3) { it } }
 
     val embyRepository = remember(savedConfig) {
         if (savedConfig.isReadyForVideoSync()) EmbyRepository(savedConfig) else null
@@ -86,7 +87,12 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
         isLoading = true
         errorMessage = null
         try {
-            val catalog = EmbyRepository(targetConfig).getCatalog(targetLibraryId)
+            val repo = if (targetConfig == savedConfig) {
+                embyRepository ?: EmbyRepository(targetConfig)
+            } else {
+                EmbyRepository(targetConfig)
+            }
+            val catalog = repo.getCatalog(targetLibraryId)
             libraries = catalog.libraries
             selectedLibraryId = catalog.selectedLibraryId
             videos = catalog.items
@@ -224,7 +230,10 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
 
         when {
             isLoading && videos.isEmpty() -> {
-                itemsIndexed(List(3) { it }) { index, _ ->
+                itemsIndexed(
+                    items = loadingCardIndexes,
+                    contentType = { _, _ -> "video-loading-card" }
+                ) { index, _ ->
                     VideoLoadingCard(index = index, colorScheme = colorScheme)
                 }
             }
@@ -260,7 +269,7 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
             }
 
             else -> {
-                items(videos, key = { it.id }) { video ->
+                items(videos, key = { it.id }, contentType = { "video-card" }) { video ->
                     VideoCard(video = video, colorScheme = colorScheme)
                 }
             }
@@ -279,7 +288,7 @@ private fun VideoLibrarySelector(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        items(libraries, key = { it.id }) { library ->
+        items(libraries, key = { it.id }, contentType = { "video-library-chip" }) { library ->
             val selected = library.id == selectedLibraryId
             Surface(
                 color = if (selected) colorScheme.primary.copy(alpha = 0.16f) else colorScheme.surfaceVariant.copy(alpha = 0.56f),
@@ -372,6 +381,8 @@ private fun VideoThumbnail(
     colorScheme: ColorScheme,
     modifier: Modifier = Modifier
 ) {
+    var imageFailed by remember(imageUrl) { mutableStateOf(false) }
+
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
@@ -386,12 +397,13 @@ private fun VideoThumbnail(
             ),
         contentAlignment = Alignment.Center
     ) {
-        if (imageUrl != null) {
+        if (imageUrl != null && !imageFailed) {
             AsyncImage(
                 model = imageUrl,
                 contentDescription = title,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                onError = { imageFailed = true }
             )
         } else {
             Text(
