@@ -450,3 +450,37 @@ Optimized music list and image scrolling by adding stable lazy-list keys/content
 ### Next Steps
 
 - None - task complete
+
+
+## Session 14: App-wide performance and smoothness optimization
+
+**Date**: 2026-06-23
+**Task**: App-wide performance and smoothness optimization
+**Branch**: `main`
+
+### Summary
+
+Optimized video and audiobook scrolling (lazy column/row, key-based recomposition). Generalized media repository reuse pattern across media types.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `339d607` | (see git log) |
+| `8fdb886` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
