@@ -484,3 +484,36 @@ Optimized video and audiobook scrolling (lazy column/row, key-based recompositio
 ### Next Steps
 
 - None - task complete
+
+
+## Session 15: UI performance review and optimization
+
+**Date**: 2026-06-25
+**Task**: UI performance review and optimization
+**Branch**: `main`
+
+### Summary
+
+Optimized Compose UI recomposition and playback smoothness paths, fixed search debounce state handling, reused dock controls, documented Compose operational-state isolation, and verified compile, unit tests, lint, and debug assemble.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4d1bea4` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
