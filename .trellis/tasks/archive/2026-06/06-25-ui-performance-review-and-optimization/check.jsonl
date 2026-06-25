@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Quality guidelines — verify lint, type-check, and tests pass after changes"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Code reuse thinking guide — verify optimizations are consistent and non-duplicative"}
