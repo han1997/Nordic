@@ -73,6 +73,7 @@ import com.nordic.mediahub.data.loadNavidromeMusicRefresh
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicReference
 
 private enum class MusicLibraryPage {
     Home,
@@ -139,7 +140,7 @@ fun MusicScreenV2(
     var searchResult by remember { mutableStateOf<SearchMusicResult?>(null) }
     var isSearching by remember { mutableStateOf(false) }
     var searchError by remember { mutableStateOf<String?>(null) }
-    var searchJob by remember { mutableStateOf<Job?>(null) }
+    val searchJob = remember { AtomicReference<Job?>(null) }
     var cacheUpdatedAtMillis by remember { mutableStateOf<Long?>(null) }
     val scope = rememberCoroutineScope()
 
@@ -261,7 +262,7 @@ fun MusicScreenV2(
     }
 
     fun openSearch() {
-        searchJob?.cancel()
+        searchJob.get()?.cancel()
         searchQuery = ""
         searchResult = null
         searchError = null
@@ -350,7 +351,7 @@ fun MusicScreenV2(
         playlists = emptyList()
         playlistSongs = emptyList()
         selectedPlaylist = null
-        searchJob?.cancel()
+        searchJob.get()?.cancel()
         searchResult = null
         searchError = null
         isSearching = false
@@ -380,8 +381,9 @@ fun MusicScreenV2(
     val homeSongs = remember(recentlyAddedSongs) { recentlyAddedSongs.take(12) }
     val homeAlbums = remember(albums) { albums.take(10) }
     val homeArtists = remember(artists) { artists.take(10) }
-    val cacheAgeLabel = formatCacheAge(cacheUpdatedAtMillis)
-    val headerActions = buildList {
+    val cacheAgeLabel = remember(cacheUpdatedAtMillis) { formatCacheAge(cacheUpdatedAtMillis) }
+    val headerActions = remember(config.isReadyForMusicSync(), isLoading, isDark) {
+        buildList {
         if (config.isReadyForMusicSync()) {
             add(
                 HeaderAction(
@@ -402,6 +404,7 @@ fun MusicScreenV2(
         }
         add(HeaderAction(if (isDark) "☀" else "☾") { onThemeToggle(!isDark) })
         add(HeaderAction("⚙") { showConfig = !showConfig })
+    }
     }
     val isHomePage = libraryPage == MusicLibraryPage.Home
     val headerTitle = when (libraryPage) {
@@ -901,7 +904,7 @@ fun MusicScreenV2(
                         value = searchQuery,
                         onValueChange = { newQuery ->
                             searchQuery = newQuery
-                            searchJob?.cancel()
+                            searchJob.get()?.cancel()
                             searchError = null
                             val query = newQuery.trim()
                             if (query.isBlank()) {
@@ -909,7 +912,7 @@ fun MusicScreenV2(
                                 isSearching = false
                             } else {
                                 isSearching = true
-                                searchJob = scope.launch {
+                                searchJob.set(scope.launch {
                                     delay(300)
                                     try {
                                         val result = navidromeRepository?.search(query) ?: SearchMusicResult()
@@ -926,7 +929,7 @@ fun MusicScreenV2(
                                             isSearching = false
                                         }
                                     }
-                                }
+                                })
                             }
                         },
                         placeholder = { Text("搜索歌曲、专辑、歌手...", color = colorScheme.onSurface.copy(alpha = 0.4f)) },

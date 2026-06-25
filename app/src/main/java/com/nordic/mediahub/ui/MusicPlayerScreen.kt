@@ -388,7 +388,18 @@ private fun PlayerLyricsDisplay(
     modifier: Modifier = Modifier
 ) {
     val lineCount = if (compact) 5 else 7
-    val visibleLines = remember(lyrics, positionSeconds, lineCount) {
+    // Only recompute when the active lyric line changes, not every second
+    val activeLyricIndex = remember(lyrics, positionSeconds) {
+        val lines = lyrics?.lines?.filter { it.text.isNotBlank() }.orEmpty()
+        if (lyrics?.synced != true || lines.isEmpty()) -1
+        else {
+            val positionMillis = positionSeconds.coerceAtLeast(0) * 1000
+            lines.indexOfLast { line ->
+                line.startMillis != null && line.startMillis <= positionMillis
+            }.coerceAtLeast(0)
+        }
+    }
+    val visibleLines = remember(lyrics, activeLyricIndex, lineCount) {
         selectVisibleLyricLines(lyrics, positionSeconds, lineCount)
     }
 

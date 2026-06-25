@@ -20,6 +20,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Velocity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nordic.mediahub.api.NavidromeSong
 import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.AudiobookShelfConfig
 import com.nordic.mediahub.data.AudiobookShelfRepository
@@ -34,6 +35,8 @@ import com.nordic.mediahub.ui.*
 import com.nordic.mediahub.ui.theme.*
 import coil.Coil
 import coil.ImageLoader
+import coil.request.CachePolicy
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -125,6 +128,8 @@ class MainActivity : ComponentActivity() {
                         .callTimeout(45, TimeUnit.SECONDS)
                         .build()
                 }
+                .memoryCachePolicy(CachePolicy.ENABLED)
+                .crossfade(true)
                 .build()
         )
         enableEdgeToEdge()
@@ -149,6 +154,57 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+
+@Composable
+private fun TabContent(
+    tab: Int,
+    isDark: Boolean,
+    onThemeToggle: (Boolean) -> Unit,
+    colorScheme: ColorScheme,
+    onSongSelected: (List<NavidromeSong>, Int) -> Unit,
+    audiobookConfig: AudiobookShelfConfig,
+    audiobookRepository: AudiobookShelfRepository?,
+    audiobookPlaybackEngine: AudiobookPlaybackEngine,
+    playbackEngine: MusicPlaybackEngine,
+    scope: CoroutineScope,
+    onAudiobookPlaybackError: (String?) -> Unit,
+    onShowAudiobookPlayer: () -> Unit,
+    onHidePlayer: () -> Unit
+) {
+    when (tab) {
+        0 -> MusicScreenV2(
+            isDark = isDark,
+            onThemeToggle = onThemeToggle,
+            onSongSelected = onSongSelected
+        )
+        1 -> AudiobookScreen(
+            colorScheme = colorScheme,
+            isDark = isDark,
+            onThemeToggle = onThemeToggle,
+            onPlayAudiobook = { item ->
+                if (!audiobookConfig.isReadyForAudiobookSync()) {
+                    onAudiobookPlaybackError("未配置 AudiobookShelf")
+                    return@AudiobookScreen
+                }
+                scope.launch {
+                    onAudiobookPlaybackError(null)
+                    runCatching {
+                        audiobookRepository?.startPlayback(item.id)
+                            ?: error("未配置 AudiobookShelf")
+                    }.onSuccess { session ->
+                        playbackEngine.stop()
+                        audiobookPlaybackEngine.play(session)
+                        onShowAudiobookPlayer()
+                        onHidePlayer()
+                    }.onFailure { error ->
+                        onAudiobookPlaybackError(error.message ?: "启动有声书播放失败")
+                    }
+                }
+            }
+        )
+        2 -> VideoScreen(colorScheme, isDark, onThemeToggle)
+    }
+}
 @Composable
 fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     var selectedTab by remember { mutableStateOf(0) }
@@ -184,8 +240,9 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     }
     val playbackState by playbackEngine.state.collectAsStateWithLifecycle()
     val audiobookPlaybackState by audiobookPlaybackEngine.state.collectAsStateWithLifecycle()
-    val currentSong = playbackState.currentSong
-    val isPlaying = playbackState.isPlaying
+    // Dock-only derived state: skips recomposition when only positionSeconds changes
+    val currentSong by remember { derivedStateOf { playbackState.currentSong } }
+    val isPlaying by remember { derivedStateOf { playbackState.isPlaying } }
     var lyrics by remember { mutableStateOf<MusicLyrics?>(null) }
     var isLyricsLoading by remember { mutableStateOf(false) }
     var lyricsError by remember { mutableStateOf<String?>(null) }
@@ -198,11 +255,13 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             playbackEngine.togglePlayPause()
         }
     }
-    val playbackStatus = when {
-        playbackState.errorMessage != null -> playbackState.errorMessage
-        playbackState.isBuffering -> "正在缓冲"
-        else -> null
-    }
+    val playbackStatus by remember { derivedStateOf {
+        when {
+            playbackState.errorMessage != null -> playbackState.errorMessage
+            playbackState.isBuffering -> "正在缓冲"
+            else -> null
+        }
+    } }
 
     var bottomDockVisible by remember { mutableStateOf(true) }
     val bottomDockRevealController = remember { BottomDockRevealController() }
@@ -417,43 +476,27 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                     fadeOut(tween(200))
                             }
                         ) { tab ->
-                            when (tab) {
-                                0 -> MusicScreenV2(
-                                    isDark = isDark,
-                                    onThemeToggle = onThemeToggle,
-                                    onSongSelected = { songs, index ->
-                                        closeAudiobookPlayback()
-                                        playbackEngine.playQueue(songs, index)
-                                        showPlayer = true
-                                    }
-                                )
-                                1 -> AudiobookScreen(
-                                    colorScheme = colorScheme,
-                                    isDark = isDark,
-                                    onThemeToggle = onThemeToggle,
-                                    onPlayAudiobook = { item ->
-                                        if (!audiobookConfig.isReadyForAudiobookSync()) {
-                                            audiobookPlaybackError = "未配置 AudiobookShelf"
-                                            return@AudiobookScreen
-                                        }
-                                        scope.launch {
-                                            audiobookPlaybackError = null
-                                            runCatching {
-                                                audiobookRepository?.startPlayback(item.id)
-                                                    ?: error("未配置 AudiobookShelf")
-                                            }.onSuccess { session ->
-                                                playbackEngine.stop()
-                                                audiobookPlaybackEngine.play(session)
-                                                showAudiobookPlayer = true
-                                                showPlayer = false
-                                            }.onFailure { error ->
-                                                audiobookPlaybackError = error.message ?: "启动有声书播放失败"
-                                            }
-                                        }
-                                    }
-                                )
-                                2 -> VideoScreen(colorScheme, isDark, onThemeToggle)
-                            }
+                            TabContent(
+                                tab = tab,
+                                isDark = isDark,
+                                onThemeToggle = onThemeToggle,
+                                colorScheme = colorScheme,
+                                onSongSelected = { songs, index ->
+                                    closeAudiobookPlayback()
+                                    playbackEngine.playQueue(songs, index)
+                                    showPlayer = true
+                                },
+                                audiobookConfig = audiobookConfig,
+                                audiobookRepository = audiobookRepository,
+                                audiobookPlaybackEngine = audiobookPlaybackEngine,
+                                playbackEngine = playbackEngine,
+                                scope = scope,
+                                onAudiobookPlaybackError = { error ->
+                                    audiobookPlaybackError = error
+                                },
+                                onShowAudiobookPlayer = { showAudiobookPlayer = true },
+                                onHidePlayer = { showPlayer = false }
+                            )
                         }
                     }
                 }

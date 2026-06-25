@@ -1,11 +1,15 @@
 package com.nordic.mediahub.data
 
+import androidx.compose.runtime.Stable
+
+@Stable
 data class AudiobookLibrarySummary(
     val id: String,
     val name: String,
     val mediaType: String
 )
 
+@Stable
 data class AudiobookItemSummary(
     val id: String,
     val libraryId: String,
@@ -19,6 +23,7 @@ data class AudiobookItemSummary(
     val updatedAtMillis: Long
 )
 
+@Stable
 data class AudiobookItemDetail(
     val id: String,
     val libraryId: String,
@@ -34,6 +39,7 @@ data class AudiobookItemDetail(
     val progress: AudiobookProgress?
 )
 
+@Stable
 data class AudiobookChapter(
     val id: Int,
     val title: String,
@@ -41,6 +47,7 @@ data class AudiobookChapter(
     val endSeconds: Int
 )
 
+@Stable
 data class AudiobookProgress(
     val currentTimeSeconds: Int,
     val durationSeconds: Int,
@@ -49,6 +56,7 @@ data class AudiobookProgress(
     val lastUpdateMillis: Long
 )
 
+@Stable
 data class AudiobookPlaybackSession(
     val sessionId: String,
     val libraryItemId: String,
@@ -62,6 +70,7 @@ data class AudiobookPlaybackSession(
     val audioTracks: List<AudiobookAudioTrack>
 )
 
+@Stable
 data class AudiobookAudioTrack(
     val index: Int,
     val title: String,

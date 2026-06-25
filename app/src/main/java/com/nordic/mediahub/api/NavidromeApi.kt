@@ -1,14 +1,17 @@
 package com.nordic.mediahub.api
 
+import androidx.compose.runtime.Stable
 import com.google.gson.annotations.SerializedName
 import retrofit2.Response
 import retrofit2.http.*
 
+@Stable
 data class SubsonicResponse(
     @SerializedName("subsonic-response")
     val response: SubsonicData
 )
 
+@Stable
 data class SubsonicData(
     val status: String,
     val version: String,
@@ -26,6 +29,7 @@ data class SubsonicData(
     val error: SubsonicError? = null,
 )
 
+@Stable
 data class NavidromeArtistDetail(
     val id: String,
     val name: String,
@@ -33,38 +37,46 @@ data class NavidromeArtistDetail(
     val album: List<NavidromeAlbum> = emptyList()
 )
 
+@Stable
 data class SearchResult3(
     val artist: List<NavidromeArtist> = emptyList(),
     val album: List<NavidromeAlbum> = emptyList(),
     val song: List<NavidromeSong> = emptyList()
 )
 
+@Stable
 data class SubsonicError(
     val code: Int,
     val message: String
 )
 
+@Stable
 data class AlbumList(
     val album: List<NavidromeAlbum> = emptyList()
 )
 
+@Stable
 data class SongList(
     val song: List<NavidromeSong> = emptyList()
 )
 
+@Stable
 data class NavidromePlaylistList(
     val playlist: List<NavidromePlaylist> = emptyList()
 )
 
+@Stable
 data class ArtistsIndex(
     val index: List<ArtistIndex> = emptyList()
 )
 
+@Stable
 data class ArtistIndex(
     val name: String,
     val artist: List<NavidromeArtist> = emptyList()
 )
 
+@Stable
 data class NavidromeAlbum(
     val id: String,
     val name: String,
@@ -74,6 +86,7 @@ data class NavidromeAlbum(
     val year: Int? = null
 )
 
+@Stable
 data class NavidromeAlbumDetail(
     val id: String,
     val name: String,
@@ -82,6 +95,7 @@ data class NavidromeAlbumDetail(
     val song: List<NavidromeSong> = emptyList()
 )
 
+@Stable
 data class NavidromePlaylist(
     val id: String,
     val name: String,
@@ -96,6 +110,7 @@ data class NavidromePlaylist(
     val coverArt: String? = null
 )
 
+@Stable
 data class NavidromePlaylistDetail(
     val id: String,
     val name: String,
@@ -109,6 +124,7 @@ data class NavidromePlaylistDetail(
     val entry: List<NavidromeSong> = emptyList()
 )
 
+@Stable
 data class NavidromeSong(
     val id: String,
     val title: String,
@@ -120,6 +136,7 @@ data class NavidromeSong(
     val created: String? = null
 )
 
+@Stable
 data class NavidromeArtist(
     val id: String,
     val name: String,
@@ -127,16 +144,19 @@ data class NavidromeArtist(
     @Transient val initials: String = ""
 )
 
+@Stable
 data class NavidromePlainLyrics(
     val artist: String? = null,
     val title: String? = null,
     val value: String? = null
 )
 
+@Stable
 data class NavidromeLyricsList(
     val structuredLyrics: List<NavidromeStructuredLyrics> = emptyList()
 )
 
+@Stable
 data class NavidromeStructuredLyrics(
     val displayArtist: String? = null,
     val displayTitle: String? = null,
@@ -145,6 +165,7 @@ data class NavidromeStructuredLyrics(
     val line: List<NavidromeStructuredLyricLine> = emptyList()
 )
 
+@Stable
 data class NavidromeStructuredLyricLine(
     val start: Double? = null,
     val value: String = ""

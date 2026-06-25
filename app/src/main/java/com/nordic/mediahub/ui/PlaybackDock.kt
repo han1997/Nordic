@@ -25,6 +25,32 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.nordic.mediahub.api.NavidromeSong
 
+
+@Composable
+private fun DockPlayPauseButton(
+    isPlaying: Boolean,
+    colorScheme: ColorScheme,
+    onPlayPause: () -> Unit
+) {
+    Surface(
+        color = colorScheme.primary,
+        contentColor = colorScheme.onPrimary,
+        shape = RoundedCornerShape(999.dp),
+        shadowElevation = 2.dp,
+        modifier = Modifier.clickable(onClick = onPlayPause)
+    ) {
+        Box(
+            modifier = Modifier.size(38.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isPlaying) {
+                Text("⏸", fontSize = 16.sp, color = colorScheme.onPrimary)
+            } else {
+                Text("▶", fontSize = 16.sp, color = colorScheme.onPrimary)
+            }
+        }
+    }
+}
 @Composable
 fun PolishedPlaybackDock(
     selected: Int,
@@ -227,23 +253,10 @@ fun PolishedNowPlayingBar(
                 )
             }
         }
-        Surface(
-            color = colorScheme.primary,
-            contentColor = colorScheme.onPrimary,
-            shape = RoundedCornerShape(999.dp),
-            shadowElevation = 2.dp,
-            modifier = Modifier.clickable(onClick = onPlayPause)
-        ) {
-            Box(
-                modifier = Modifier.size(38.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                if (isPlaying) {
-                    Text("Ⅱ", fontSize = 16.sp, color = colorScheme.onPrimary)
-                } else {
-                    Text("▶", fontSize = 16.sp, color = colorScheme.onPrimary)
-                }
-            }
-        }
+        DockPlayPauseButton(
+            isPlaying = isPlaying,
+            colorScheme = colorScheme,
+            onPlayPause = onPlayPause
+        )
     }
 }

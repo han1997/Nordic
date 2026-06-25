@@ -77,6 +77,29 @@ LazyRow {
 
 **Why**: Stable keys preserve item identity across inserts/reorders, `contentType` lets Compose reuse compatible item composition, and remembered slices avoid allocating new preview lists on unrelated recompositions.
 
+### Compose performance state isolation
+
+High-frequency playback state, search debounce jobs, and other non-rendering handles should not force broad recomposition.
+
+**Contracts**:
+- Keep UI-rendered values in Compose state.
+- Keep non-rendering mutable handles such as `Job?` in a remembered non-state holder, for example `remember { AtomicReference<Job?>(null) }`, when changing the handle should not redraw the screen.
+- Extract expensive or mostly static screen content into child composables whose parameters do not include fast-ticking playback position.
+- Cache derived lists and labels with `remember(source) { ... }` when they are passed into lazy lists or callbacks.
+
+```kotlin
+// Wrong: every debounce job replacement invalidates the composable.
+var searchJob by remember { mutableStateOf<Job?>(null) }
+searchJob = scope.launch { /* search */ }
+
+// Correct: job identity is operational state, not rendered UI state.
+val searchJob = remember { AtomicReference<Job?>(null) }
+searchJob.get()?.cancel()
+searchJob.set(scope.launch { /* search */ })
+```
+
+**Why**: Playback ticks and debounce bookkeeping can update often. Isolating operational state prevents unrelated home/library content from being recomposed just because a handle changed.
+
 ### Config readiness checks centralized
 
 `NavidromeConfig.isReadyForMusicSync()` is defined once in `ServerConfig.kt` and imported where needed. Do not inline `serverUrl.isNotBlank() && username.isNotBlank()` or create duplicate extension functions.

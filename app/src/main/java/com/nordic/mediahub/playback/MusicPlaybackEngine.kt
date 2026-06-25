@@ -3,6 +3,7 @@ package com.nordic.mediahub.playback
 import android.content.ComponentName
 import android.content.Context
 import androidx.core.content.ContextCompat
+import androidx.compose.runtime.Stable
 import androidx.media3.common.C
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+@Stable
 data class MusicPlaybackState(
     val currentSong: NavidromeSong? = null,
     val isPlaying: Boolean = false,

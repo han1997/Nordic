@@ -1,5 +1,8 @@
 package com.nordic.mediahub.data
 
+import androidx.compose.runtime.Stable
+
+@Stable
 data class NavidromeConfig(
     val serverUrl: String = "",
     val username: String = "",
@@ -10,12 +13,14 @@ fun NavidromeConfig.isReadyForMusicSync(): Boolean {
     return serverUrl.isNotBlank() && username.isNotBlank() && password.isNotBlank()
 }
 
+@Stable
 data class AudiobookShelfConfig(
     val serverUrl: String = "",
     val username: String = "",
     val password: String = ""
 )
 
+@Stable
 data class VideoServerConfig(
     val type: VideoServerType = VideoServerType.EMBY,
     val serverUrl: String = "",

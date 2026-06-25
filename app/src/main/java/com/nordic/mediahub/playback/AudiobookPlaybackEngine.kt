@@ -3,6 +3,7 @@ package com.nordic.mediahub.playback
 import android.content.ComponentName
 import android.content.Context
 import androidx.core.content.ContextCompat
+import androidx.compose.runtime.Stable
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+@Stable
 data class AudiobookPlaybackState(
     val session: AudiobookPlaybackSession? = null,
     val isPlaying: Boolean = false,

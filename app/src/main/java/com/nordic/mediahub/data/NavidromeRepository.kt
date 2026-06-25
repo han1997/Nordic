@@ -1,6 +1,7 @@
 package com.nordic.mediahub.data
 
 import android.util.Log
+import androidx.compose.runtime.Stable
 import com.nordic.mediahub.api.NavidromeAlbum
 import com.nordic.mediahub.api.NavidromeApi
 import com.nordic.mediahub.api.NavidromeArtist
@@ -447,6 +448,7 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
     }
 }
 
+@Stable
 data class SearchMusicResult(
     val artists: List<NavidromeArtist> = emptyList(),
     val albums: List<NavidromeAlbum> = emptyList(),

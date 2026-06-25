@@ -1,5 +1,7 @@
 package com.nordic.mediahub.data
 
+import androidx.compose.runtime.Stable
+
 import android.util.Log
 import com.nordic.mediahub.api.EmbyApi
 import com.nordic.mediahub.api.EmbyAuthenticateRequest
@@ -15,6 +17,7 @@ class EmbyApiException(message: String, val kind: Kind) : Exception(message) {
     enum class Kind { HTTP, AUTH, API }
 }
 
+@Stable
 data class VideoLibrary(
     val id: String,
     val name: String,
@@ -22,6 +25,7 @@ data class VideoLibrary(
     val itemCount: Int = 0
 )
 
+@Stable
 data class VideoItem(
     val id: String,
     val libraryId: String,
@@ -33,6 +37,7 @@ data class VideoItem(
     val imageUrl: String? = null
 )
 
+@Stable
 data class VideoCatalog(
     val libraries: List<VideoLibrary>,
     val selectedLibraryId: String?,
