@@ -273,6 +273,7 @@ onSongSelected(songs, index)
 - `clearUpcomingQueueItems()` preserves the current item and removes only items after `queueIndex`.
 - Queue UI keys must tolerate duplicate songs in the queue; do not key rows by `song.id` alone.
 - If the Media3 controller is not connected yet, mutate `pendingQueue` and `_state` consistently so the eventual controller start uses the same queue order/index shown in UI.
+- Pending queue reorders must preserve the current item by position math, not by `song.id` lookup, because duplicate song ids can appear in a queue and `indexOfFirst { id == currentSong.id }` can highlight/start the wrong duplicate.
 
 **Validation & Error Matrix**:
 - Index outside `0 until mediaItemCount` -> no-op.
@@ -288,6 +289,7 @@ onSongSelected(songs, index)
 
 **Tests Required**:
 - Unit tests for pure queue index rules, especially future item, previous item, current item, already-next item, and invalid indexes.
+- Unit tests for pending-queue current-index preservation when moving future and previous items to play next.
 - Compile checks for Media3 API usage and callback wiring.
 - Unit tests or focused helper tests when adding non-trivial queue ordering logic.
 
@@ -298,8 +300,18 @@ visibleQueue = visibleQueue.toMutableList().also { it.removeAt(index) }
 ```
 
 ```kotlin
+// Wrong: duplicate song ids can point at the wrong queued instance.
+val nextIndex = nextQueue.indexOfFirst { song -> song.id == currentSong?.id }
+```
+
+```kotlin
 // Correct: command goes through playback layer and UI observes published state.
 onRemoveFromQueue = playbackEngine::removeQueueItem
+```
+
+```kotlin
+// Correct: preserve the current queued item by tracking how indexes shift.
+val nextIndex = resolveQueueIndexAfterMove(fromIndex, targetIndex, currentIndex, queue.size)
 ```
 
 ---

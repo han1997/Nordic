@@ -42,8 +42,10 @@
 - Domain mapping must keep music and audiobook models separate. Do not map audiobook sessions into `NavidromeSong`.
 - Audio URLs may need the bearer token appended as `token=<token>` when AudiobookShelf returns relative `contentUrl` values.
 - Progress sync must use current absolute audiobook time, not current track-local time.
+- Periodic sync delta must be calculated from the last successful absolute sync position and clamped at zero if playback seeks backwards.
 - `PATCH /api/me/progress/*`, `POST /api/session/*/sync`, and `POST /api/session/*/close` must validate `Response<Unit>.isSuccessful`. Do not fire-and-forget these session endpoints.
 - UI close flows should call `syncAndCloseSession(...)` so the final position is written before closing the AudiobookShelf session.
+- UI close flows should clear Media3 audiobook state only after `syncAndCloseSession(...)` succeeds. If close/sync fails, keep the player visible and surface the error so the user can retry without losing the session state.
 
 ### 4. Validation & Error Matrix
 
@@ -56,7 +58,8 @@
 | Playback session has no playable tracks | Keep session visible with a playback error; do not start Media3 |
 | Progress sync fails while player is visible | Surface a progress-sync error without crashing playback |
 | Progress update/session sync/session close returns non-2xx | Throw `AudiobookShelfApiException.Kind.HTTP` with the failing status code |
-| User leaves audiobook playback | Call `syncAndCloseSession(...)` with the last absolute position and clear Media3 audiobook state |
+| User leaves audiobook playback and close succeeds | Call `syncAndCloseSession(...)` with the last absolute position, then clear Media3 audiobook state |
+| User leaves audiobook playback and close fails | Keep the player visible, preserve Media3 audiobook state, and show the close error |
 | User starts audiobook playback while music is active | Call `MusicPlaybackEngine.stop()` before `AudiobookPlaybackEngine.play(...)` |
 
 ### 5. Good/Base/Bad Cases
@@ -82,6 +85,7 @@
   - absolute audiobook position is track offset plus player position
   - `stop()` clears session state and media items
   - closing playback calls repository `closeSession()` with the last absolute position
+  - sync delta helpers clamp backwards movement to zero and initialize from the furthest known absolute position
 
 ### 7. Wrong vs Correct
 
