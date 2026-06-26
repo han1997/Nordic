@@ -20,6 +20,8 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nordic.mediahub.api.NavidromeSong
 import com.nordic.mediahub.data.ConfigRepository
@@ -29,6 +31,8 @@ import com.nordic.mediahub.data.MusicDownloadManager
 import com.nordic.mediahub.data.MusicLyrics
 import com.nordic.mediahub.data.NavidromeConfig
 import com.nordic.mediahub.data.NavidromeRepository
+import com.nordic.mediahub.data.PlayHistoryEntry
+import com.nordic.mediahub.data.PlayHistoryRepository
 import com.nordic.mediahub.data.EmbyRepository
 import com.nordic.mediahub.data.VideoItem
 import com.nordic.mediahub.data.VideoServerConfig
@@ -182,14 +186,27 @@ private fun TabContent(
     onHideVideoPlayer: () -> Unit,
     onAudiobookSeekToChapter: (Int) -> Unit = {},
     onShowVideoDetail: (VideoItem) -> Unit = {},
-    downloadManager: MusicDownloadManager = MusicDownloadManager(LocalContext.current)
+    downloadManager: MusicDownloadManager = MusicDownloadManager(LocalContext.current),
+    currentPlayingSong: NavidromeSong? = null,
+    isMusicPlaying: Boolean = false,
+    onPlayPause: (() -> Unit)? = null,
+    onNext: (() -> Unit)? = null,
+    onOpenPlayer: (() -> Unit)? = null,
+    playHistoryEntries: List<PlayHistoryEntry> = emptyList()
 ) {
     when (tab) {
         0 -> MusicScreenV2(
             isDark = isDark,
             onThemeToggle = onThemeToggle,
             onSongSelected = onSongSelected,
-            downloadManager = downloadManager
+            downloadManager = downloadManager,
+            onAddToQueue = { song -> playbackEngine.addToQueue(song) },
+            currentPlayingSong = currentPlayingSong,
+            isMusicPlaying = isMusicPlaying,
+            onPlayPause = onPlayPause,
+            onNext = { playbackEngine.seekToNext() },
+            onOpenPlayer = onOpenPlayer,
+            playHistoryEntries = playHistoryEntries
         )
         1 -> AudiobookScreen(
             colorScheme = colorScheme,
@@ -229,6 +246,8 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     var showVideoPlayer by remember { mutableStateOf(false) }
     var videoDetailItem by remember { mutableStateOf<VideoItem?>(null) }
     var showQueueSheet by remember { mutableStateOf(false) }
+    var showEqualizerSheet by remember { mutableStateOf(false) }
+    var smartRadioMessage by remember { mutableStateOf<String?>(null) }
     var audiobookPlaybackError by remember { mutableStateOf<String?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val configRepository = remember { ConfigRepository(context) }
@@ -289,6 +308,17 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     var lyricsError by remember { mutableStateOf<String?>(null) }
     val colorScheme = MaterialTheme.colorScheme
     val scope = rememberCoroutineScope()
+
+    val playHistoryRepository = remember { PlayHistoryRepository(context) }
+    var playHistoryEntries by remember { mutableStateOf(emptyList<PlayHistoryEntry>()) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            playHistoryEntries = runCatching { playHistoryRepository.load() }.getOrDefault(emptyList())
+            delay(30_000)
+        }
+    }
+
     val onPlayPause = {
         if (currentSong == null) {
             showPlayer = true
@@ -430,6 +460,37 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         isLyricsLoading = false
     }
 
+    // Scrobbling: now-playing + submission when >=50% or >=4min played
+    LaunchedEffect(currentSong?.id, navidromeRepository) {
+        val song = currentSong ?: return@LaunchedEffect
+        val songId = song.id
+        val repo = navidromeRepository ?: return@LaunchedEffect
+
+        // Mark now-playing
+        runCatching { repo.scrobble(songId, submission = false) }
+
+        var hasSubmitted = false
+        while (true) {
+            delay(10_000)
+            if (playbackState.currentSong?.id != songId) return@LaunchedEffect
+            if (hasSubmitted) continue
+
+            val position = playbackState.positionSeconds
+            val duration = playbackState.durationSeconds.takeIf { it > 0 } ?: song.duration
+            val playedRatio = if (duration > 0) {
+                position.toFloat() / duration.toFloat()
+            } else {
+                0f
+            }
+            if (playedRatio >= 0.5f || position >= 240) {
+                runCatching { repo.scrobble(songId, submission = true) }
+                playHistoryRepository.recordPlay(songId)
+                playHistoryEntries = runCatching { playHistoryRepository.load() }.getOrDefault(playHistoryEntries)
+                hasSubmitted = true
+            }
+        }
+    }
+
     LaunchedEffect(
         audiobookPlaybackState.session?.sessionId,
         audiobookRepository
@@ -534,6 +595,33 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                         onToggleRepeat = playbackEngine::toggleRepeatMode,
                         onToggleShuffle = playbackEngine::toggleShuffle,
                         onOpenQueue = { showQueueSheet = true },
+                        onOpenEqualizer = { showEqualizerSheet = true },
+                        onSmartRadio = {
+                            val song = currentSong
+                            if (song != null) {
+                                scope.launch {
+                                    val repo = navidromeRepository
+                                    if (repo == null) {
+                                        smartRadioMessage = "未配置 Navidrome"
+                                        return@launch
+                                    }
+                                    try {
+                                        var radioSongs = repo.getSimilarSongs(song.id)
+                                        if (radioSongs.isEmpty()) {
+                                            radioSongs = repo.getRandomSongs(20)
+                                        }
+                                        if (radioSongs.isNotEmpty()) {
+                                            playbackEngine.addToQueue(radioSongs)
+                                            smartRadioMessage = "已添加 ${radioSongs.size} 首相似歌曲到队列"
+                                        } else {
+                                            smartRadioMessage = "未找到相似歌曲"
+                                        }
+                                    } catch (e: Exception) {
+                                        smartRadioMessage = "获取相似歌曲失败: ${e.message}"
+                                    }
+                                }
+                            }
+                        },
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
@@ -575,7 +663,13 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                 onAudiobookSeekToChapter = audiobookPlaybackEngine::seekTo,
                                 onShowVideoDetail = { videoItem ->
                                     videoDetailItem = videoItem
-                                }
+                                },
+                                currentPlayingSong = currentSong,
+                                isMusicPlaying = isPlaying,
+                                onPlayPause = onPlayPause,
+                                onNext = { playbackEngine.seekToNext() },
+                                onOpenPlayer = { showPlayer = true },
+                                playHistoryEntries = playHistoryEntries
                             )
                         }
                     }
@@ -642,7 +736,34 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             onPlayNext = playbackEngine::moveQueueItemToPlayNext,
             onRemoveFromQueue = playbackEngine::removeQueueItem,
             onClearUpcoming = playbackEngine::clearUpcomingQueueItems,
+            onMoveQueueItem = playbackEngine::moveQueueItem,
             onDismiss = { showQueueSheet = false }
         )
+    }
+
+    if (showEqualizerSheet) {
+        MusicEqualizerSheet(
+            audioSessionId = playbackEngine.audioSessionId,
+            colorScheme = colorScheme,
+            onDismiss = { showEqualizerSheet = false }
+        )
+    }
+
+    // Smart radio snackbar
+    val currentRadioMessage = smartRadioMessage
+    if (currentRadioMessage != null) {
+        Snackbar(
+            modifier = Modifier
+                .padding(bottom = 80.dp)
+                .padding(horizontal = 16.dp),
+            containerColor = colorScheme.surfaceVariant,
+            contentColor = colorScheme.onSurface
+        ) {
+            Text(currentRadioMessage, fontSize = 14.sp)
+        }
+        LaunchedEffect(currentRadioMessage) {
+            delay(3000)
+            smartRadioMessage = null
+        }
     }
 }

@@ -79,6 +79,7 @@ import com.nordic.mediahub.data.NavidromeAlbumSort
 import com.nordic.mediahub.data.NavidromeConfig
 import com.nordic.mediahub.data.NavidromeMusicCacheRepository
 import com.nordic.mediahub.data.NavidromeRepository
+import com.nordic.mediahub.data.PlayHistoryEntry
 import com.nordic.mediahub.data.SearchMusicResult
 import com.nordic.mediahub.data.StarredContent
 import com.nordic.mediahub.data.isReadyForMusicSync
@@ -114,7 +115,14 @@ fun MusicScreenV2(
     isDark: Boolean,
     onThemeToggle: (Boolean) -> Unit,
     onSongSelected: (List<NavidromeSong>, Int) -> Unit = { _, _ -> },
-    downloadManager: MusicDownloadManager = MusicDownloadManager(LocalContext.current)
+    downloadManager: MusicDownloadManager = MusicDownloadManager(LocalContext.current),
+    onAddToQueue: ((NavidromeSong) -> Unit)? = null,
+    currentPlayingSong: NavidromeSong? = null,
+    isMusicPlaying: Boolean = false,
+    onPlayPause: (() -> Unit)? = null,
+    onNext: (() -> Unit)? = null,
+    onOpenPlayer: (() -> Unit)? = null,
+    playHistoryEntries: List<PlayHistoryEntry> = emptyList()
 ) {
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
@@ -518,6 +526,27 @@ fun MusicScreenV2(
     val downloadedSongs = remember(downloadStatesMap, songs, recentlyAddedSongs) {
         downloadManager.getDownloadedSongs()
     }
+    val historySongs = remember(
+        playHistoryEntries,
+        songs,
+        recentlyAddedSongs,
+        downloadedSongs,
+        albumDetailSongs,
+        playlistSongs,
+        searchResult,
+        starredContent
+    ) {
+        val songMap = (
+            songs +
+                recentlyAddedSongs +
+                downloadedSongs +
+                albumDetailSongs +
+                playlistSongs +
+                (searchResult?.songs ?: emptyList()) +
+                starredContent.songs
+            ).associateBy { it.id }
+        playHistoryEntries.take(20).mapNotNull { entry -> songMap[entry.songId] }
+    }
     val cacheAgeLabel = remember(cacheUpdatedAtMillis) { formatCacheAge(cacheUpdatedAtMillis) }
     val headerActions = remember(config.isReadyForMusicSync(), isLoading, isDark) {
         buildList {
@@ -584,9 +613,10 @@ fun MusicScreenV2(
         }
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 18.dp, top = 18.dp, end = 18.dp, bottom = 28.dp),
+        contentPadding = PaddingValues(start = 18.dp, top = 18.dp, end = 18.dp, bottom = if (currentPlayingSong != null && isMusicPlaying) 88.dp else 28.dp),
         verticalArrangement = Arrangement.spacedBy(if (isHomePage) 18.dp else 10.dp)
     ) {
         item {
@@ -811,6 +841,38 @@ fun MusicScreenV2(
                     }
                 }
 
+                // Recently played section
+                if (historySongs.isNotEmpty()) {
+                    item {
+                        MusicSectionHeader(
+                            title = "最近播放",
+                            subtitle = "你最近听过的歌曲",
+                            colorScheme = colorScheme
+                        )
+                    }
+                    item {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            itemsIndexed(
+                                items = historySongs,
+                                key = { _, song -> "history-song-${song.id}" },
+                                contentType = { _, _ -> "history-song-card" }
+                            ) { index, song ->
+                                SongShelfCard(
+                                    song = song,
+                                    colorScheme = colorScheme,
+                                    onClick = {
+                                        onSongSelected(historySongs, index)
+                                    },
+                                    onToggleStar = { toggleSongStar(song) },
+                                    downloadState = downloadStatesMap[song.id]?.state ?: DownloadState.NOT_DOWNLOADED,
+                                    downloadProgress = downloadStatesMap[song.id]?.progress ?: 0f,
+                                    onToggleDownload = { toggleSongDownload(song) }
+                                )
+                            }
+                        }
+                    }
+                }
+
                 if (recentlyAddedSongs.isNotEmpty()) {
                     item {
                         MusicSectionHeader(
@@ -973,6 +1035,7 @@ fun MusicScreenV2(
                                 addToPlaylistSongId = song.id
                                 showAddToPlaylistDialog = true
                             },
+                            onAddToQueue = if (onAddToQueue != null) {{ onAddToQueue(song) }} else null,
                             downloadState = downloadStatesMap[song.id]?.state ?: DownloadState.NOT_DOWNLOADED,
                             downloadProgress = downloadStatesMap[song.id]?.progress ?: 0f,
                             onToggleDownload = { toggleSongDownload(song) }
@@ -1131,6 +1194,7 @@ fun MusicScreenV2(
                                 addToPlaylistSongId = song.id
                                 showAddToPlaylistDialog = true
                             },
+                            onAddToQueue = if (onAddToQueue != null) {{ onAddToQueue(song) }} else null,
                             downloadState = downloadStatesMap[song.id]?.state ?: DownloadState.NOT_DOWNLOADED,
                             downloadProgress = downloadStatesMap[song.id]?.progress ?: 0f,
                             onToggleDownload = { toggleSongDownload(song) }
@@ -1290,6 +1354,7 @@ fun MusicScreenV2(
                                     addToPlaylistSongId = song.id
                                     showAddToPlaylistDialog = true
                                 },
+                                onAddToQueue = if (onAddToQueue != null) {{ onAddToQueue(song) }} else null,
                                 downloadState = downloadStatesMap[song.id]?.state ?: DownloadState.NOT_DOWNLOADED,
                                 downloadProgress = downloadStatesMap[song.id]?.progress ?: 0f,
                                 onToggleDownload = { toggleSongDownload(song) }
@@ -1432,6 +1497,7 @@ fun MusicScreenV2(
                                     addToPlaylistSongId = song.id
                                     showAddToPlaylistDialog = true
                                 },
+                                onAddToQueue = if (onAddToQueue != null) {{ onAddToQueue(song) }} else null,
                                 downloadState = downloadStatesMap[song.id]?.state ?: DownloadState.NOT_DOWNLOADED,
                                 downloadProgress = downloadStatesMap[song.id]?.progress ?: 0f,
                                 onToggleDownload = { toggleSongDownload(song) }
@@ -1441,6 +1507,20 @@ fun MusicScreenV2(
                 }
             }
         }
+    }
+
+    // Mini now-playing bar
+    if (currentPlayingSong != null && isMusicPlaying && onPlayPause != null && onOpenPlayer != null) {
+        MiniNowPlayingBar(
+            song = currentPlayingSong!!,
+            isPlaying = isMusicPlaying,
+            colorScheme = colorScheme,
+            onPlayPause = onPlayPause!!,
+            onNext = onNext ?: {},
+            onClick = onOpenPlayer!!,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
     }
 
     // Create playlist dialog
@@ -2468,5 +2548,122 @@ private fun formatCacheAge(updatedAtMillis: Long?): String? {
         elapsedMinutes < 60L -> "${elapsedMinutes} 分钟前更新"
         elapsedHours < 24L -> "${elapsedHours} 小时前更新"
         else -> "${elapsedDays} 天前更新"
+    }
+}
+
+@Composable
+private fun MiniNowPlayingBar(
+    song: NavidromeSong,
+    isPlaying: Boolean,
+    colorScheme: ColorScheme,
+    onPlayPause: () -> Unit,
+    onNext: () -> Unit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = colorScheme.surfaceVariant.copy(alpha = 0.82f),
+        contentColor = colorScheme.onSurface,
+        shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
+        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                colorScheme.primary.copy(alpha = 0.2f),
+                                colorScheme.secondary.copy(alpha = 0.12f)
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (song.coverArt != null) {
+                    AsyncImage(
+                        model = song.coverArt,
+                        contentDescription = song.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.matchParentSize()
+                    )
+                } else {
+                    Text(
+                        "♪",
+                        fontSize = 14.sp,
+                        color = colorScheme.primary.copy(alpha = 0.68f)
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    song.title,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    song.artist ?: "Unknown",
+                    fontSize = 12.sp,
+                    color = colorScheme.onSurface.copy(alpha = 0.52f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Surface(
+                color = colorScheme.primary.copy(alpha = 0.12f),
+                contentColor = colorScheme.primary,
+                shape = RoundedCornerShape(999.dp),
+                modifier = Modifier.size(34.dp)
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.clickable(onClick = onPlayPause)
+                ) {
+                    Text(
+                        if (isPlaying) "Ⅱ" else "▶",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.primary
+                    )
+                }
+            }
+
+            Surface(
+                color = colorScheme.surface.copy(alpha = 0.56f),
+                contentColor = colorScheme.onSurface,
+                shape = RoundedCornerShape(999.dp),
+                modifier = Modifier.size(34.dp)
+            ) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.clickable(onClick = onNext)
+                ) {
+                    Text(
+                        "›",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colorScheme.onSurface.copy(alpha = 0.76f)
+                    )
+                }
+            }
+        }
     }
 }

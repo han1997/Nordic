@@ -84,3 +84,88 @@ api.star(username, token, salt, albumId = album.id)
 // Or for a song:
 api.star(username, token, salt, id = song.id)
 ```
+
+## Scenario: Smart Radio, Scrobbling, and Play History
+
+### 1. Scope / Trigger
+- Trigger: User starts smart radio from the music player, a song starts playback, or a song crosses the play-submission threshold.
+- Scope: `GET /getSimilarSongs`, `GET /getRandomSongs`, `GET /scrobble`, `PlayHistoryRepository`, music player/app-shell scrobble orchestration.
+- Out of scope: Last.fm scrobbling, server-side play-history browsing, and smart playlist mutation.
+
+### 2. Signatures
+- Retrofit:
+```kotlin
+@GET("rest/getSimilarSongs.view")
+suspend fun getSimilarSongs(@Query("u") username: String, ..., @Query("id") id: String, @Query("count") count: Int = 50): Response<SubsonicResponse>
+
+@GET("rest/getRandomSongs.view")
+suspend fun getRandomSongs(@Query("u") username: String, ..., @Query("size") size: Int = 20): Response<SubsonicResponse>
+
+@GET("rest/scrobble.view")
+suspend fun scrobble(@Query("u") username: String, ..., @Query("id") id: String, @Query("submission") submission: Boolean): Response<SubsonicResponse>
+```
+- Repository:
+```kotlin
+suspend fun getSimilarSongs(songId: String): List<NavidromeSong>
+suspend fun getRandomSongs(count: Int = 20): List<NavidromeSong>
+suspend fun scrobble(songId: String, submission: Boolean)
+```
+- Local persistence:
+```kotlin
+data class PlayHistoryEntry(val songId: String, val timestamp: Long, val playCount: Int = 1)
+suspend fun PlayHistoryRepository.load(): List<PlayHistoryEntry>
+suspend fun PlayHistoryRepository.recordPlay(songId: String)
+```
+
+### 3. Contracts
+- All Subsonic calls require auth params `u`, `t`, `s`, `v`, `c`, and `f=json` where applicable; `NavidromeRepository` owns auth parameter construction.
+- Smart radio first requests `getSimilarSongs(id=<currentSongId>, count=50)`. If it returns no songs, fall back to `getRandomSongs(size=20)`.
+- Smart-radio results must be mapped through existing song mapping helpers so cover art and playable stream URLs are populated before enqueueing.
+- `scrobble(submission=false)` is sent when a song starts to mark now-playing.
+- `scrobble(submission=true)` is sent once per song transition after either at least 50% of known duration has played or playback position reaches 240 seconds.
+- Do not calculate the 50% threshold from a zero or not-yet-loaded playback duration. Re-read playback duration inside the polling loop and fall back to the song DTO duration; if both are unknown, only the 240-second threshold may submit.
+- Local play history is app-owned DataStore state keyed by Navidrome song id. Replaying an existing song moves it to the front, updates `timestamp`, and increments `playCount`.
+- The home "Recently Played" section should resolve history IDs from the music library/cache data, not only from the active playback queue.
+
+### 4. Validation & Error Matrix
+- Non-2xx or Subsonic error from smart radio/scrobble -> preserve `NavidromeApiException`.
+- Unknown repository error -> wrap with context such as `"获取相似歌曲失败: ..."` or `"记录播放失败: ..."`.
+- Empty similar-song response -> call `getRandomSongs`; empty fallback -> show a no-results message and leave the queue unchanged.
+- Missing local song metadata for a play-history ID -> skip that ID in UI rather than rendering a partial row.
+- Malformed play-history JSON -> return an empty history list; do not crash the app shell.
+
+### 5. Good/Base/Bad Cases
+- Good: Smart radio adds mapped similar songs after the current queue item and shows the added count.
+- Base: Similar songs are empty, random songs are enqueued instead.
+- Bad: Scrobble submission fires 10 seconds into a track because duration was initially `0`; this over-reports plays.
+- Bad: Recently Played only checks the current queue, so prior plays disappear after app restart despite cached library data being available.
+
+### 6. Tests Required
+- `getSimilarSongs_callsEndpointAndMapsSongs`: assert path, `id`, `count=50`, and stream URL mapping.
+- `getRandomSongs_callsEndpointAndMapsSongs`: assert path, `size`, and stream URL mapping.
+- `scrobble_callsEndpointWithSubmissionTrue/False`: assert path, `id`, and `submission`.
+- For non-trivial scrobble threshold changes, isolate the threshold decision in a pure helper and test unknown duration, half duration, and 240-second cases.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```kotlin
+val duration = playbackState.durationSeconds.coerceAtLeast(1)
+val playedRatio = playbackState.positionSeconds.toFloat() / duration
+if (playedRatio >= 0.5f) {
+    repo.scrobble(song.id, submission = true)
+}
+```
+
+#### Correct
+```kotlin
+val duration = playbackState.durationSeconds.takeIf { it > 0 } ?: song.duration
+val playedRatio = if (duration > 0) {
+    playbackState.positionSeconds.toFloat() / duration.toFloat()
+} else {
+    0f
+}
+if (playedRatio >= 0.5f || playbackState.positionSeconds >= 240) {
+    repo.scrobble(song.id, submission = true)
+}
+```

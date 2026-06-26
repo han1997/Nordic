@@ -2,6 +2,7 @@ package com.nordic.mediahub.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,18 +22,27 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.nordic.mediahub.api.NavidromeSong
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,6 +54,7 @@ fun MusicQueueSheet(
     onPlayNext: (Int) -> Unit,
     onRemoveFromQueue: (Int) -> Unit,
     onClearUpcoming: () -> Unit,
+    onMoveQueueItem: (fromIndex: Int, toIndex: Int) -> Unit = { _, _ -> },
     onDismiss: () -> Unit
 ) {
     val resolvedCurrentIndex = currentIndex.takeIf { it in queue.indices } ?: -1
@@ -92,10 +103,20 @@ fun MusicQueueSheet(
                                 !isCurrent &&
                                 index != resolvedCurrentIndex + 1,
                             canRemove = queue.size > 1,
+                            canMoveUp = index > 0,
+                            canMoveDown = index < queue.lastIndex,
                             colorScheme = colorScheme,
                             onClick = { onSeekToIndex(index) },
                             onPlayNext = { onPlayNext(index) },
-                            onRemove = { onRemoveFromQueue(index) }
+                            onRemove = { onRemoveFromQueue(index) },
+                            onMoveUp = { onMoveQueueItem(index, index - 1) },
+                            onMoveDown = { onMoveQueueItem(index, index + 1) },
+                            onDragByRows = { rowDelta ->
+                                val targetIndex = (index + rowDelta).coerceIn(queue.indices)
+                                if (targetIndex != index) {
+                                    onMoveQueueItem(index, targetIndex)
+                                }
+                            }
                         )
                     }
                 }
@@ -183,11 +204,20 @@ private fun QueueRow(
     isCurrent: Boolean,
     canPlayNext: Boolean,
     canRemove: Boolean,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
     colorScheme: ColorScheme,
     onClick: () -> Unit,
     onPlayNext: () -> Unit,
-    onRemove: () -> Unit
+    onRemove: () -> Unit,
+    onMoveUp: () -> Unit = {},
+    onMoveDown: () -> Unit = {},
+    onDragByRows: (Int) -> Unit = {}
 ) {
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    val density = LocalDensity.current
+    val rowHeightPx = with(density) { 64.dp.toPx() }
+    val dragShadowPx = with(density) { 8.dp.toPx() }
     val backgroundColor = if (isCurrent) {
         colorScheme.primary.copy(alpha = 0.1f)
     } else {
@@ -200,6 +230,11 @@ private fun QueueRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp)
+            .zIndex(if (dragOffsetY != 0f) 1f else 0f)
+            .graphicsLayer {
+                translationY = dragOffsetY
+                shadowElevation = if (dragOffsetY != 0f) dragShadowPx else 0f
+            }
             .clickable(onClick = onClick)
     ) {
         Row(
@@ -207,6 +242,32 @@ private fun QueueRow(
             horizontalArrangement = Arrangement.spacedBy(11.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            QueueDragHandle(
+                enabled = canMoveUp || canMoveDown,
+                colorScheme = colorScheme,
+                modifier = Modifier.pointerInput(canMoveUp, canMoveDown) {
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = { dragOffsetY = 0f },
+                        onDragCancel = { dragOffsetY = 0f },
+                        onDragEnd = {
+                            val rowDelta = (dragOffsetY / rowHeightPx).roundToInt()
+                            val allowedDelta = when {
+                                rowDelta < 0 && canMoveUp -> rowDelta
+                                rowDelta > 0 && canMoveDown -> rowDelta
+                                else -> 0
+                            }
+                            if (allowedDelta != 0) {
+                                onDragByRows(allowedDelta)
+                            }
+                            dragOffsetY = 0f
+                        },
+                        onDrag = { _, dragAmount ->
+                            dragOffsetY += dragAmount.y
+                        }
+                    )
+                }
+            )
+
             Box(
                 modifier = Modifier
                     .size(42.dp)
@@ -281,6 +342,28 @@ private fun QueueRow(
                     fontWeight = FontWeight.Bold
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun QueueDragHandle(
+    enabled: Boolean,
+    colorScheme: ColorScheme,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = colorScheme.surfaceVariant.copy(alpha = if (enabled) 0.48f else 0.28f),
+        contentColor = colorScheme.onSurface.copy(alpha = if (enabled) 0.62f else 0.24f),
+        shape = RoundedCornerShape(999.dp),
+        modifier = modifier.size(28.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                "≡",
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }
