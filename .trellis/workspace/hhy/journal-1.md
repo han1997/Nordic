@@ -585,3 +585,40 @@ Added Emby direct video playback via PlaybackInfo + Media3 ExoPlayer: API endpoi
 ### Next Steps
 
 - None - task complete
+
+
+## Session 18: Media feature parity round 2: music, audiobook, video
+
+**Date**: 2026-06-26
+**Task**: Media feature parity round 2: music, audiobook, video
+**Branch**: `main`
+
+### Summary
+
+Added 11 features across three batches: music (star/favorite, shuffle, playlist CRUD), audiobook (playback speed, skip controls, chapter jump, sleep timer), video (detail page, playback speed, progress reporting, TV season/episode browsing). Also added Navidrome integration spec and updated Emby integration spec.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `17dca1e` | (see git log) |
+| `0b5516a` | (see git log) |
+| `27ca0e5` | (see git log) |
+| `5e86c8b` | (see git log) |
+| `a406d2f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

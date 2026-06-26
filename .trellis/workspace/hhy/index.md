@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 17
+- **Total Sessions**: 18
 - **Last Active**: 2026-06-26
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~587 | Active |
+| `journal-1.md` | ~624 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 18 | 2026-06-26 | Media feature parity round 2: music, audiobook, video | `17dca1e`, `0b5516a`, `27ca0e5`, `5e86c8b`, `a406d2f` | `main` |
 | 17 | 2026-06-26 | Emby video playback MVP | `0f10443`, `723bf0f` | `main` |
 | 16 | 2026-06-26 | Comprehensive playback review fixes | `017f2a7`, `9b28cd3` | `main` |
 | 15 | 2026-06-25 | UI performance review and optimization | `4d1bea4` | `main` |
