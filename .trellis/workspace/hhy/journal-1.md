@@ -551,3 +551,37 @@ Fixed audiobook close/sync edge cases and pending music queue index preservation
 ### Next Steps
 
 - None - task complete
+
+
+## Session 17: Emby video playback MVP
+
+**Date**: 2026-06-26
+**Task**: Emby video playback MVP
+**Branch**: `main`
+
+### Summary
+
+Added Emby direct video playback via PlaybackInfo + Media3 ExoPlayer: API endpoint, repository method with direct stream URL construction, VideoPlaybackEngine, VideoPlayerScreen with controls/error surfacing, wiring in MainActivity/VideoScreen, repository tests, and emby-integration spec update.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0f10443` | (see git log) |
+| `723bf0f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
