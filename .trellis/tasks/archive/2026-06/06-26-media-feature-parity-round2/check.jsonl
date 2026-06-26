@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend spec index — project conventions overview"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Emby integration spec — verify new endpoints and contracts against spec"}
+{"file": ".trellis/spec/backend/audiobookshelf-integration.md", "reason": "AudiobookShelf integration spec — verify audiobook playback extensions match existing patterns"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Quality guidelines — test, lint, type-check verification standards"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Error handling conventions — verify error handling for new API calls"}
