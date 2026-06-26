@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -45,7 +46,8 @@ fun MusicHeroBanner(
     album: NavidromeAlbum,
     colorScheme: ColorScheme,
     modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null,
+    onToggleStar: (() -> Unit)? = null
 ) {
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.62f),
@@ -73,12 +75,24 @@ fun MusicHeroBanner(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(
-                    "刚刚同步到你的曲库",
-                    fontSize = 12.sp,
-                    color = colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "刚刚同步到你的曲库",
+                        fontSize = 12.sp,
+                        color = colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    if (onToggleStar != null) {
+                        StarToggleButton(
+                            isStarred = album.starred != null,
+                            colorScheme = colorScheme,
+                            onClick = onToggleStar
+                        )
+                    }
+                }
                 Text(
                     album.name,
                     fontSize = 24.sp,
@@ -318,24 +332,37 @@ fun CompactAlbumShelfCard(
     album: NavidromeAlbum,
     colorScheme: ColorScheme,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    onToggleStar: (() -> Unit)? = null
 ) {
-    CompactMusicShelfItem(
-        title = album.name,
-        subtitle = album.artist ?: "Unknown artist",
-        meta = buildString {
-            append("${album.songCount} tracks")
-            album.year?.let {
-                append(" / ")
-                append(it)
-            }
-        },
-        artworkUrl = album.coverArt,
-        contentDescription = album.name,
-        colorScheme = colorScheme,
-        modifier = modifier,
-        onClick = onClick
-    )
+    Box {
+        CompactMusicShelfItem(
+            title = album.name,
+            subtitle = album.artist ?: "Unknown artist",
+            meta = buildString {
+                append("${album.songCount} tracks")
+                album.year?.let {
+                    append(" / ")
+                    append(it)
+                }
+            },
+            artworkUrl = album.coverArt,
+            contentDescription = album.name,
+            colorScheme = colorScheme,
+            modifier = modifier,
+            onClick = onClick
+        )
+        if (onToggleStar != null) {
+            StarToggleButton(
+                isStarred = album.starred != null,
+                colorScheme = colorScheme,
+                onClick = onToggleStar,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 4.dp, y = (-4).dp)
+            )
+        }
+    }
 }
 
 @Composable
@@ -343,18 +370,31 @@ fun SongShelfCard(
     song: NavidromeSong,
     colorScheme: ColorScheme,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    onToggleStar: (() -> Unit)? = null
 ) {
-    CompactMusicShelfItem(
-        title = song.title,
-        subtitle = song.artist ?: "Unknown artist",
-        meta = formatDuration(song.duration),
-        artworkUrl = song.coverArt,
-        contentDescription = song.title,
-        colorScheme = colorScheme,
-        modifier = modifier,
-        onClick = onClick
-    )
+    Box {
+        CompactMusicShelfItem(
+            title = song.title,
+            subtitle = song.artist ?: "Unknown artist",
+            meta = formatDuration(song.duration),
+            artworkUrl = song.coverArt,
+            contentDescription = song.title,
+            colorScheme = colorScheme,
+            modifier = modifier,
+            onClick = onClick
+        )
+        if (onToggleStar != null) {
+            StarToggleButton(
+                isStarred = song.starred != null,
+                colorScheme = colorScheme,
+                onClick = onToggleStar,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 4.dp, y = (-4).dp)
+            )
+        }
+    }
 }
 
 @Composable
@@ -362,20 +402,33 @@ fun ArtistShelfCard(
     artist: NavidromeArtist,
     colorScheme: ColorScheme,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    onToggleStar: (() -> Unit)? = null
 ) {
-    CompactMusicShelfItem(
-        title = artist.name,
-        subtitle = "${artist.albumCount} albums",
-        meta = "Artist",
-        artworkUrl = null,
-        contentDescription = artist.name,
-        colorScheme = colorScheme,
-        modifier = modifier,
-        artworkShape = CircleShape,
-        initials = artist.initials,
-        onClick = onClick
-    )
+    Box {
+        CompactMusicShelfItem(
+            title = artist.name,
+            subtitle = "${artist.albumCount} albums",
+            meta = "Artist",
+            artworkUrl = null,
+            contentDescription = artist.name,
+            colorScheme = colorScheme,
+            modifier = modifier,
+            artworkShape = CircleShape,
+            initials = artist.initials,
+            onClick = onClick
+        )
+        if (onToggleStar != null) {
+            StarToggleButton(
+                isStarred = artist.starred != null,
+                colorScheme = colorScheme,
+                onClick = onToggleStar,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 4.dp, y = (-4).dp)
+            )
+        }
+    }
 }
 
 @Composable
@@ -383,7 +436,9 @@ fun SongListRow(
     song: NavidromeSong,
     colorScheme: ColorScheme,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    onToggleStar: (() -> Unit)? = null,
+    onAddToPlaylist: (() -> Unit)? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val scale = rememberPressScale(
@@ -442,13 +497,44 @@ fun SongListRow(
                 }
             }
 
-            Text(
-                formatDuration(song.duration),
-                fontSize = 12.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.48f),
-                fontWeight = FontWeight.Medium,
-                maxLines = 1
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (onToggleStar != null) {
+                    StarToggleButton(
+                        isStarred = song.starred != null,
+                        colorScheme = colorScheme,
+                        onClick = onToggleStar
+                    )
+                }
+                if (onAddToPlaylist != null) {
+                    Surface(
+                        color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        contentColor = colorScheme.onSurface,
+                        shape = RoundedCornerShape(999.dp),
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clickable(onClick = onAddToPlaylist)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                "+",
+                                fontSize = 16.sp,
+                                color = colorScheme.primary.copy(alpha = 0.72f),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+                Text(
+                    formatDuration(song.duration),
+                    fontSize = 12.sp,
+                    color = colorScheme.onSurface.copy(alpha = 0.48f),
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1
+                )
+            }
         }
     }
 }
@@ -458,7 +544,8 @@ fun ArtistListRow(
     artist: NavidromeArtist,
     colorScheme: ColorScheme,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    onToggleStar: (() -> Unit)? = null
 ) {
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
@@ -498,6 +585,14 @@ fun ArtistListRow(
                     color = colorScheme.onSurface.copy(alpha = 0.62f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            if (onToggleStar != null) {
+                StarToggleButton(
+                    isStarred = artist.starred != null,
+                    colorScheme = colorScheme,
+                    onClick = onToggleStar
                 )
             }
 
@@ -619,6 +714,34 @@ private fun MusicArtwork(
                 initials!!,
                 fontSize = (size.value * 0.38f).sp,
                 color = accentColor.copy(alpha = 0.68f),
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+fun StarToggleButton(
+    isStarred: Boolean,
+    colorScheme: ColorScheme,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val label = if (isStarred) "★" else "☆"
+    val color = if (isStarred) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.44f)
+    Surface(
+        color = if (isStarred) colorScheme.primary.copy(alpha = 0.14f) else colorScheme.surface.copy(alpha = 0.5f),
+        contentColor = color,
+        shape = RoundedCornerShape(999.dp),
+        modifier = modifier
+            .size(28.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                label,
+                fontSize = 15.sp,
+                color = color,
                 fontWeight = FontWeight.Bold
             )
         }

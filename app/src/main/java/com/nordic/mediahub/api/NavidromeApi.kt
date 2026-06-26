@@ -26,6 +26,7 @@ data class SubsonicData(
     val searchResult3: SearchResult3? = null,
     val lyrics: NavidromePlainLyrics? = null,
     val lyricsList: NavidromeLyricsList? = null,
+    val starred2: Starred2? = null,
     val error: SubsonicError? = null,
 )
 
@@ -83,7 +84,8 @@ data class NavidromeAlbum(
     val artist: String? = null,
     val coverArt: String? = null,
     val songCount: Int = 0,
-    val year: Int? = null
+    val year: Int? = null,
+    val starred: String? = null
 )
 
 @Stable
@@ -133,7 +135,8 @@ data class NavidromeSong(
     val duration: Int = 0,
     val coverArt: String? = null,
     val streamUrl: String? = null,
-    val created: String? = null
+    val created: String? = null,
+    val starred: String? = null
 )
 
 @Stable
@@ -141,6 +144,7 @@ data class NavidromeArtist(
     val id: String,
     val name: String,
     val albumCount: Int = 0,
+    val starred: String? = null,
     @Transient val initials: String = ""
 )
 
@@ -169,6 +173,13 @@ data class NavidromeStructuredLyrics(
 data class NavidromeStructuredLyricLine(
     val start: Double? = null,
     val value: String = ""
+)
+
+@Stable
+data class Starred2(
+    val artist: List<NavidromeArtist> = emptyList(),
+    val album: List<NavidromeAlbum> = emptyList(),
+    val song: List<NavidromeSong> = emptyList()
 )
 
 interface NavidromeApi {
@@ -286,5 +297,78 @@ interface NavidromeApi {
         @Query("artistCount") artistCount: Int = 10,
         @Query("albumCount") albumCount: Int = 10,
         @Query("songCount") songCount: Int = 20
+    ): Response<SubsonicResponse>
+
+    @GET("rest/star2.view")
+    suspend fun star2(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("f") format: String = "json",
+        @Query("id") id: String? = null,
+        @Query("albumId") albumId: String? = null,
+        @Query("artistId") artistId: String? = null
+    ): Response<SubsonicResponse>
+
+    @GET("rest/unstar2.view")
+    suspend fun unstar2(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("f") format: String = "json",
+        @Query("id") id: String? = null,
+        @Query("albumId") albumId: String? = null,
+        @Query("artistId") artistId: String? = null
+    ): Response<SubsonicResponse>
+
+    @GET("rest/getStarred2.view")
+    suspend fun getStarred2(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("f") format: String = "json"
+    ): Response<SubsonicResponse>
+
+    @GET("rest/createPlaylist.view")
+    suspend fun createPlaylist(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("f") format: String = "json",
+        @Query("name") name: String,
+        @Query("songId") songId: List<String>? = null
+    ): Response<SubsonicResponse>
+
+    @GET("rest/updatePlaylist.view")
+    suspend fun updatePlaylist(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("f") format: String = "json",
+        @Query("playlistId") playlistId: String,
+        @Query("name") name: String? = null,
+        @Query("songIdToAdd") songIdToAdd: List<String>? = null,
+        @Query("songIndexToRemove") songIndexToRemove: List<Int>? = null
+    ): Response<SubsonicResponse>
+
+    @GET("rest/deletePlaylist.view")
+    suspend fun deletePlaylist(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("f") format: String = "json",
+        @Query("id") playlistId: String
     ): Response<SubsonicResponse>
 }

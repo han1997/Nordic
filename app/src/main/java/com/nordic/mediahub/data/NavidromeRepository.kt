@@ -8,6 +8,7 @@ import com.nordic.mediahub.api.NavidromeArtist
 import com.nordic.mediahub.api.NavidromePlaylist
 import com.nordic.mediahub.api.NavidromeSong
 import com.nordic.mediahub.api.NavidromeStructuredLyrics
+import com.nordic.mediahub.api.Starred2
 import com.nordic.mediahub.api.SubsonicData
 import com.nordic.mediahub.api.SubsonicResponse
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -446,7 +447,124 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
             throw Exception("获取歌手专辑失败: ${e.message}")
         }
     }
+
+    suspend fun star(id: String? = null, albumId: String? = null, artistId: String? = null) = try {
+        val auth = config.authParams()
+        api.star2(config.username, auth.token, auth.salt, id = id, albumId = albumId, artistId = artistId)
+            .requireResponse()
+    } catch (e: NavidromeApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("收藏失败: ${e.message}")
+    }
+
+    suspend fun unstar(id: String? = null, albumId: String? = null, artistId: String? = null) = try {
+        val auth = config.authParams()
+        api.unstar2(config.username, auth.token, auth.salt, id = id, albumId = albumId, artistId = artistId)
+            .requireResponse()
+    } catch (e: NavidromeApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("取消收藏失败: ${e.message}")
+    }
+
+    suspend fun getStarred2(): StarredContent = try {
+        val auth = config.authParams()
+        val starred = api.getStarred2(config.username, auth.token, auth.salt)
+            .requireResponse().starred2
+            ?: Starred2()
+        StarredContent(
+            artists = starred.artist.map { it.withInitials() },
+            albums = starred.album.map { it.withCoverArtUrl() },
+            songs = starred.song.map { it.withCoverArtUrl() }
+        )
+    } catch (e: NavidromeApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("获取收藏失败: ${e.message}")
+    }
+
+    suspend fun createPlaylist(name: String, songIds: List<String> = emptyList()): NavidromePlaylist = try {
+        val auth = config.authParams()
+        val subsonic = api.createPlaylist(
+            config.username, auth.token, auth.salt,
+            name = name,
+            songId = songIds.ifEmpty { null }
+        ).requireResponse()
+        val detail = subsonic.playlist
+            ?: throw NavidromeApiException("创建歌单返回为空", NavidromeApiException.Kind.SUBSONIC)
+        NavidromePlaylist(
+            id = detail.id,
+            name = detail.name,
+            comment = detail.comment,
+            owner = detail.owner,
+            isPublic = detail.isPublic,
+            songCount = detail.songCount,
+            duration = detail.duration,
+            coverArt = detail.coverArt?.let { ca -> buildCoverArtUrl(ca) }
+        )
+    } catch (e: NavidromeApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("创建歌单失败: ${e.message}")
+    }
+
+    suspend fun addToPlaylist(playlistId: String, songId: String) = try {
+        val auth = config.authParams()
+        api.updatePlaylist(
+            config.username, auth.token, auth.salt,
+            playlistId = playlistId,
+            songIdToAdd = listOf(songId)
+        ).requireResponse()
+    } catch (e: NavidromeApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("添加到歌单失败: ${e.message}")
+    }
+
+    suspend fun removeFromPlaylist(playlistId: String, songIndex: Int) = try {
+        val auth = config.authParams()
+        api.updatePlaylist(
+            config.username, auth.token, auth.salt,
+            playlistId = playlistId,
+            songIndexToRemove = listOf(songIndex)
+        ).requireResponse()
+    } catch (e: NavidromeApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("从歌单移除失败: ${e.message}")
+    }
+
+    suspend fun deletePlaylist(playlistId: String) = try {
+        val auth = config.authParams()
+        api.deletePlaylist(config.username, auth.token, auth.salt, playlistId = playlistId)
+            .requireResponse()
+    } catch (e: NavidromeApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("删除歌单失败: ${e.message}")
+    }
+
+    suspend fun renamePlaylist(playlistId: String, newName: String) = try {
+        val auth = config.authParams()
+        api.updatePlaylist(
+            config.username, auth.token, auth.salt,
+            playlistId = playlistId,
+            name = newName
+        ).requireResponse()
+    } catch (e: NavidromeApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("重命名歌单失败: ${e.message}")
+    }
 }
+
+@Stable
+data class StarredContent(
+    val artists: List<NavidromeArtist> = emptyList(),
+    val albums: List<NavidromeAlbum> = emptyList(),
+    val songs: List<NavidromeSong> = emptyList()
+)
 
 @Stable
 data class SearchMusicResult(

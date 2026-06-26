@@ -60,12 +60,14 @@ fun MusicPlayerScreen(
     isLyricsLoading: Boolean,
     lyricsError: String?,
     repeatMode: Int = Player.REPEAT_MODE_OFF,
+    shuffleModeEnabled: Boolean = false,
     onSeek: (Int) -> Unit,
     onPlayPause: () -> Unit,
     onClose: () -> Unit,
     onSeekToNext: () -> Unit = {},
     onSeekToPrevious: () -> Unit = {},
     onToggleRepeat: () -> Unit = {},
+    onToggleShuffle: () -> Unit = {},
     onOpenQueue: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -178,9 +180,11 @@ fun MusicPlayerScreen(
                 },
                 onPlayPause = onPlayPause,
                 repeatMode = repeatMode,
+                shuffleModeEnabled = shuffleModeEnabled,
                 onSeekToNext = onSeekToNext,
                 onSeekToPrevious = onSeekToPrevious,
                 onToggleRepeat = onToggleRepeat,
+                onToggleShuffle = onToggleShuffle,
                 onOpenQueue = onOpenQueue
             )
         }
@@ -486,9 +490,11 @@ private fun PlayerConsole(
     onPositionChangeFinished: () -> Unit,
     onPlayPause: () -> Unit,
     repeatMode: Int = Player.REPEAT_MODE_OFF,
+    shuffleModeEnabled: Boolean = false,
     onSeekToNext: () -> Unit = {},
     onSeekToPrevious: () -> Unit = {},
     onToggleRepeat: () -> Unit = {},
+    onToggleShuffle: () -> Unit = {},
     onOpenQueue: () -> Unit = {}
 ) {
     Surface(
@@ -559,6 +565,8 @@ private fun PlayerConsole(
                 }
                 val repeatActive = repeatMode != Player.REPEAT_MODE_OFF
                 PlayerControlButton(repeatLabel, colorScheme, size = if (compact) 38 else 42, enabled = hasSong, active = repeatActive, onClick = onToggleRepeat)
+                val shuffleLabel = if (shuffleModeEnabled) "⇄" else "⇄"
+                PlayerControlButton(shuffleLabel, colorScheme, size = if (compact) 38 else 42, enabled = hasSong, active = shuffleModeEnabled, onClick = onToggleShuffle)
                 PlayerControlButton("‹", colorScheme, size = if (compact) 46 else 50, enabled = hasSong, onClick = onSeekToPrevious)
                 PlayerControlButton(
                     label = if (isPlaying) "Ⅱ" else "▶",
