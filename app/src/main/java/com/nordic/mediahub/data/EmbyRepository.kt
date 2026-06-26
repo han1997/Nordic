@@ -38,6 +38,18 @@ data class VideoItem(
 )
 
 @Stable
+data class VideoPlaybackInfo(
+    val itemId: String,
+    val title: String,
+    val streamUrl: String,
+    val mediaSourceId: String,
+    val playSessionId: String,
+    val overview: String = "",
+    val durationSeconds: Int = 0,
+    val imageUrl: String? = null
+)
+
+@Stable
 data class VideoCatalog(
     val libraries: List<VideoLibrary>,
     val selectedLibraryId: String?,
@@ -89,6 +101,40 @@ class EmbyRepository(private val config: VideoServerConfig) {
         throw e
     } catch (e: Exception) {
         throw Exception("加载视频列表失败: ${e.message}")
+    }
+
+    suspend fun getPlaybackInfo(item: VideoItem): VideoPlaybackInfo = try {
+        val session = session()
+        val playbackInfo = api.getPlaybackInfo(
+            itemId = item.id,
+            token = session.token,
+            userId = session.userId
+        ).requireBody("获取 Emby 播放信息失败")
+        val mediaSource = playbackInfo.mediaSources.firstOrNull { source ->
+            source.id?.isNotBlank() == true && source.supportsDirectStream != false
+        } ?: throw EmbyApiException("获取 Emby 播放信息失败: 没有可直接播放的媒体源", EmbyApiException.Kind.API)
+        val mediaSourceId = mediaSource.id.orEmpty()
+        val playSessionId = playbackInfo.playSessionId.orEmpty()
+        if (playSessionId.isBlank()) {
+            throw EmbyApiException("获取 Emby 播放信息失败: 缺少播放会话", EmbyApiException.Kind.API)
+        }
+
+        VideoPlaybackInfo(
+            itemId = item.id,
+            title = item.title,
+            streamUrl = directStreamUrl(item.id, mediaSourceId, playSessionId, session.token),
+            mediaSourceId = mediaSourceId,
+            playSessionId = playSessionId,
+            overview = item.overview,
+            durationSeconds = (mediaSource.runTimeTicks ?: item.durationSeconds.toLong() * EMBY_TICKS_PER_SECOND)
+                .toDurationSeconds()
+                .takeIf { it > 0 } ?: item.durationSeconds,
+            imageUrl = item.imageUrl
+        )
+    } catch (e: EmbyApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("启动 Emby 播放失败: ${e.message}")
     }
 
     private suspend fun session(): EmbySession {
@@ -171,6 +217,25 @@ class EmbyRepository(private val config: VideoServerConfig) {
             .addQueryParameter("maxWidth", "640")
             .addQueryParameter("quality", "90")
             .addQueryParameter("tag", primaryTag)
+            .addQueryParameter("api_key", token)
+            .build()
+            .toString()
+    }
+
+    private fun directStreamUrl(
+        itemId: String,
+        mediaSourceId: String,
+        playSessionId: String,
+        token: String
+    ): String {
+        return baseUrl.toHttpUrl()
+            .newBuilder()
+            .addPathSegment("Videos")
+            .addPathSegment(itemId)
+            .addPathSegment("stream")
+            .addQueryParameter("static", "true")
+            .addQueryParameter("MediaSourceId", mediaSourceId)
+            .addQueryParameter("PlaySessionId", playSessionId)
             .addQueryParameter("api_key", token)
             .build()
             .toString()

@@ -161,6 +161,120 @@ class EmbyRepositoryTest {
         assertTrue(error.message.orEmpty().contains("HTTP 500"))
     }
 
+    @Test
+    fun getPlaybackInfo_mapsDirectStreamUrlFromPlaybackInfo() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "PlaySessionId": "play-session-1",
+                  "MediaSources": [
+                    {
+                      "Id": "source-1",
+                      "Name": "1080p",
+                      "Container": "mp4",
+                      "RunTimeTicks": 72000000000,
+                      "SupportsDirectStream": true
+                    }
+                  ]
+                }
+            """.trimIndent()
+        )
+
+        val playbackInfo = repository(apiKey = "api-key").getPlaybackInfo(sampleVideoItem())
+
+        assertEquals("movie-1", playbackInfo.itemId)
+        assertEquals("Arrival", playbackInfo.title)
+        assertEquals("source-1", playbackInfo.mediaSourceId)
+        assertEquals("play-session-1", playbackInfo.playSessionId)
+        assertEquals(7200, playbackInfo.durationSeconds)
+        assertTrue(playbackInfo.streamUrl.contains("/Videos/movie-1/stream"))
+        assertTrue(playbackInfo.streamUrl.contains("static=true"))
+        assertTrue(playbackInfo.streamUrl.contains("MediaSourceId=source-1"))
+        assertTrue(playbackInfo.streamUrl.contains("PlaySessionId=play-session-1"))
+        assertTrue(playbackInfo.streamUrl.contains("api_key=api-key"))
+
+        server.takeRequest()
+        val playbackRequest = server.takeRequest()
+        assertTrue(playbackRequest.path.orEmpty().startsWith("/Items/movie-1/PlaybackInfo?"))
+        assertTrue(playbackRequest.path.orEmpty().contains("UserId=u1"))
+        assertEquals("api-key", playbackRequest.getHeader("X-Emby-Token"))
+    }
+
+    @Test
+    fun getPlaybackInfo_throwsTypedApiErrorWhenNoDirectSourceExists() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "PlaySessionId": "play-session-1",
+                  "MediaSources": [
+                    {
+                      "Id": "source-1",
+                      "SupportsDirectStream": false
+                    }
+                  ]
+                }
+            """.trimIndent()
+        )
+
+        val error = try {
+            repository(apiKey = "api-key").getPlaybackInfo(sampleVideoItem())
+            null
+        } catch (error: EmbyApiException) {
+            error
+        }
+
+        requireNotNull(error)
+        assertEquals(EmbyApiException.Kind.API, error.kind)
+    }
+
+    @Test
+    fun getPlaybackInfo_throwsTypedHttpErrorForNon2xx() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueue(MockResponse().setResponseCode(500))
+
+        val error = try {
+            repository(apiKey = "api-key").getPlaybackInfo(sampleVideoItem())
+            null
+        } catch (error: EmbyApiException) {
+            error
+        }
+
+        requireNotNull(error)
+        assertEquals(EmbyApiException.Kind.HTTP, error.kind)
+        assertTrue(error.message.orEmpty().contains("HTTP 500"))
+    }
+
+    @Test
+    fun getPlaybackInfo_throwsTypedApiErrorWhenPlaySessionIdIsMissing() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "PlaySessionId": "",
+                  "MediaSources": [
+                    {
+                      "Id": "source-1",
+                      "SupportsDirectStream": true
+                    }
+                  ]
+                }
+            """.trimIndent()
+        )
+
+        val error = try {
+            repository(apiKey = "api-key").getPlaybackInfo(sampleVideoItem())
+            null
+        } catch (error: EmbyApiException) {
+            error
+        }
+
+        requireNotNull(error)
+        assertEquals(EmbyApiException.Kind.API, error.kind)
+        assertTrue(error.message.orEmpty().contains("播放会话"))
+    }
+
     private fun repository(apiKey: String = "api-key"): EmbyRepository {
         return EmbyRepository(
             VideoServerConfig(
@@ -169,6 +283,19 @@ class EmbyRepositoryTest {
                 password = "secret",
                 apiKey = apiKey
             )
+        )
+    }
+
+    private fun sampleVideoItem(): VideoItem {
+        return VideoItem(
+            id = "movie-1",
+            libraryId = "lib-movie",
+            title = "Arrival",
+            type = "Movie",
+            overview = "First contact story.",
+            year = 2016,
+            durationSeconds = 6960,
+            imageUrl = server.url("/Items/movie-1/Images/Primary").toString()
         )
     }
 }

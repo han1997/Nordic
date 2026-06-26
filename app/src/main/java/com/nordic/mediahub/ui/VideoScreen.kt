@@ -55,12 +55,18 @@ import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.EmbyRepository
 import com.nordic.mediahub.data.VideoItem
 import com.nordic.mediahub.data.VideoLibrary
+import com.nordic.mediahub.data.VideoPlaybackInfo
 import com.nordic.mediahub.data.VideoServerConfig
 import com.nordic.mediahub.data.isReadyForVideoSync
 import kotlinx.coroutines.launch
 
 @Composable
-fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
+fun VideoScreen(
+    colorScheme: ColorScheme,
+    isDark: Boolean,
+    onThemeToggle: (Boolean) -> Unit,
+    onPlayVideo: (VideoPlaybackInfo) -> Unit = {}
+) {
     val context = LocalContext.current
     val configRepository = remember { ConfigRepository(context) }
     val savedConfig by configRepository.videoConfig.collectAsStateWithLifecycle(VideoServerConfig())
@@ -141,7 +147,7 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
                     Text(
                         when {
                             isLoading && videos.isNotEmpty() -> "正在刷新，先显示当前 Emby 内容"
-                            selectedLibraryId != null -> "共 ${videos.size} 个条目，播放功能将在下一阶段接入"
+                            selectedLibraryId != null -> "共 ${videos.size} 个条目，点击视频即可播放"
                             savedConfig.isReadyForVideoSync() -> "已连接 Emby，选择媒体库浏览内容"
                             else -> "连接 Emby 后显示真实媒体库、海报和视频信息"
                         },
@@ -197,7 +203,6 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
                 VideoMessageCard(
                     title = "Emby 连接错误",
                     subtitle = errorMessage.orEmpty(),
-                    colorScheme = colorScheme,
                     isError = true
                 )
             }
@@ -242,9 +247,7 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
                 item {
                     VideoMessageCard(
                         title = "先接入你的 Emby 服务器",
-                        subtitle = "填写服务器地址，并使用 API Key 或用户名密码登录。这里会显示真实媒体库和视频缩略图。",
-                        colorScheme = colorScheme
-                    )
+                        subtitle = "填写服务器地址，并使用 API Key 或用户名密码登录。这里会显示真实媒体库和视频缩略图。")
                 }
             }
 
@@ -252,9 +255,7 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
                 item {
                     VideoMessageCard(
                         title = "没有可用视频媒体库",
-                        subtitle = "Emby 已连接，但当前用户没有可浏览的电影、剧集或家庭视频媒体库。",
-                        colorScheme = colorScheme
-                    )
+                        subtitle = "Emby 已连接，但当前用户没有可浏览的电影、剧集或家庭视频媒体库。")
                 }
             }
 
@@ -262,15 +263,33 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
                 item {
                     VideoMessageCard(
                         title = "这个媒体库暂时没有内容",
-                        subtitle = "切换其他媒体库，或回到 Emby 服务端检查扫描结果和用户权限。",
-                        colorScheme = colorScheme
-                    )
+                        subtitle = "切换其他媒体库，或回到 Emby 服务端检查扫描结果和用户权限。")
                 }
             }
 
             else -> {
                 items(videos, key = { it.id }, contentType = { "video-card" }) { video ->
-                    VideoCard(video = video, colorScheme = colorScheme)
+                    VideoCard(
+                        video = video,
+                        colorScheme = colorScheme,
+                        onClick = {
+                            val repo = embyRepository
+                            if (repo != null) {
+                                scope.launch {
+                                    isLoading = true
+                                    errorMessage = null
+                                    runCatching {
+                                        repo.getPlaybackInfo(video)
+                                    }.onSuccess { playbackInfo ->
+                                        onPlayVideo(playbackInfo)
+                                    }.onFailure { error ->
+                                        errorMessage = error.message ?: "启动 Emby 播放失败"
+                                    }
+                                    isLoading = false
+                                }
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -311,7 +330,11 @@ private fun VideoLibrarySelector(
 }
 
 @Composable
-private fun VideoCard(video: VideoItem, colorScheme: ColorScheme) {
+private fun VideoCard(
+    video: VideoItem,
+    colorScheme: ColorScheme,
+    onClick: () -> Unit
+) {
     val interactionSource = remember { MutableInteractionSource() }
     val scale = rememberPressScale(interactionSource)
 
@@ -325,7 +348,7 @@ private fun VideoCard(video: VideoItem, colorScheme: ColorScheme) {
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = {}
+                onClick = onClick
             )
     ) {
         Column {
@@ -420,7 +443,6 @@ private fun VideoThumbnail(
 private fun VideoMessageCard(
     title: String,
     subtitle: String,
-    colorScheme: ColorScheme,
     isError: Boolean = false
 ) {
     MediaStateCard(

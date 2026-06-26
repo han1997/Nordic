@@ -58,6 +58,28 @@ data class EmbyItemDto(
     val imageTags: Map<String, String> = emptyMap()
 )
 
+data class EmbyPlaybackInfoResponse(
+    @SerializedName("MediaSources")
+    val mediaSources: List<EmbyMediaSourceDto> = emptyList(),
+    @SerializedName("PlaySessionId")
+    val playSessionId: String? = null
+)
+
+data class EmbyMediaSourceDto(
+    @SerializedName("Id")
+    val id: String? = null,
+    @SerializedName("Name")
+    val name: String? = null,
+    @SerializedName("Container")
+    val container: String? = null,
+    @SerializedName("RunTimeTicks")
+    val runTimeTicks: Long? = null,
+    @SerializedName("SupportsDirectPlay")
+    val supportsDirectPlay: Boolean? = null,
+    @SerializedName("SupportsDirectStream")
+    val supportsDirectStream: Boolean? = null
+)
+
 interface EmbyApi {
     @POST("Users/AuthenticateByName")
     suspend fun authenticateByName(
@@ -88,6 +110,13 @@ interface EmbyApi {
         @Query("SortOrder") sortOrder: String = "Descending",
         @Query("Limit") limit: Int = 50
     ): Response<EmbyItemsResponse>
+
+    @GET("Items/{itemId}/PlaybackInfo")
+    suspend fun getPlaybackInfo(
+        @Path("itemId") itemId: String,
+        @Header("X-Emby-Token") token: String,
+        @Query("UserId") userId: String
+    ): Response<EmbyPlaybackInfoResponse>
 }
 
 private const val EMBY_CLIENT_AUTHORIZATION =

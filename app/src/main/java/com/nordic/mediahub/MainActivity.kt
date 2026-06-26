@@ -27,10 +27,12 @@ import com.nordic.mediahub.data.AudiobookShelfRepository
 import com.nordic.mediahub.data.MusicLyrics
 import com.nordic.mediahub.data.NavidromeConfig
 import com.nordic.mediahub.data.NavidromeRepository
+import com.nordic.mediahub.data.VideoPlaybackInfo
 import com.nordic.mediahub.data.isReadyForAudiobookSync
 import com.nordic.mediahub.data.isReadyForMusicSync
 import com.nordic.mediahub.playback.AudiobookPlaybackEngine
 import com.nordic.mediahub.playback.MusicPlaybackEngine
+import com.nordic.mediahub.playback.VideoPlaybackEngine
 import com.nordic.mediahub.playback.resolveAudiobookSyncDeltaSeconds
 import com.nordic.mediahub.playback.resolveInitialAudiobookSyncPositionSeconds
 import com.nordic.mediahub.ui.*
@@ -169,9 +171,11 @@ private fun TabContent(
     audiobookPlaybackEngine: AudiobookPlaybackEngine,
     playbackEngine: MusicPlaybackEngine,
     scope: CoroutineScope,
+    onVideoSelected: (VideoPlaybackInfo) -> Unit,
     onAudiobookPlaybackError: (String?) -> Unit,
     onShowAudiobookPlayer: () -> Unit,
-    onHidePlayer: () -> Unit
+    onHidePlayer: () -> Unit,
+    onHideVideoPlayer: () -> Unit
 ) {
     when (tab) {
         0 -> MusicScreenV2(
@@ -195,6 +199,7 @@ private fun TabContent(
                             ?: error("未配置 AudiobookShelf")
                     }.onSuccess { session ->
                         playbackEngine.stop()
+                        onHideVideoPlayer()
                         audiobookPlaybackEngine.play(session)
                         onShowAudiobookPlayer()
                         onHidePlayer()
@@ -204,7 +209,7 @@ private fun TabContent(
                 }
             }
         )
-        2 -> VideoScreen(colorScheme, isDark, onThemeToggle)
+        2 -> VideoScreen(colorScheme, isDark, onThemeToggle, onPlayVideo = onVideoSelected)
     }
 }
 @Composable
@@ -212,11 +217,13 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     var selectedTab by remember { mutableStateOf(0) }
     var showPlayer by remember { mutableStateOf(false) }
     var showAudiobookPlayer by remember { mutableStateOf(false) }
+    var showVideoPlayer by remember { mutableStateOf(false) }
     var showQueueSheet by remember { mutableStateOf(false) }
     var audiobookPlaybackError by remember { mutableStateOf<String?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val playbackEngine = remember { MusicPlaybackEngine(context) }
     val audiobookPlaybackEngine = remember { AudiobookPlaybackEngine(context) }
+    val videoPlaybackEngine = remember { VideoPlaybackEngine(context) }
     val configRepository = remember { ConfigRepository(context) }
     val navidromeConfig by configRepository.navidromeConfig.collectAsStateWithLifecycle(NavidromeConfig())
     val audiobookConfig by configRepository.audiobookConfig.collectAsStateWithLifecycle(AudiobookShelfConfig())
@@ -240,8 +247,12 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     DisposableEffect(audiobookPlaybackEngine) {
         onDispose { audiobookPlaybackEngine.release() }
     }
+    DisposableEffect(videoPlaybackEngine) {
+        onDispose { videoPlaybackEngine.release() }
+    }
     val playbackState by playbackEngine.state.collectAsStateWithLifecycle()
     val audiobookPlaybackState by audiobookPlaybackEngine.state.collectAsStateWithLifecycle()
+    val videoPlaybackState by videoPlaybackEngine.state.collectAsStateWithLifecycle()
     // Dock-only derived state: skips recomposition when only positionSeconds changes
     val currentSong by remember { derivedStateOf { playbackState.currentSong } }
     val isPlaying by remember { derivedStateOf { playbackState.isPlaying } }
@@ -277,7 +288,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     }
 
     fun hideBottomDockForScroll(scheduleReveal: Boolean) {
-        if (showPlayer || showAudiobookPlayer) return
+        if (showPlayer || showAudiobookPlayer || showVideoPlayer) return
         if (bottomDockVisible) {
             bottomDockVisible = false
         }
@@ -288,7 +299,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         }
     }
 
-    val bottomDockScrollConnection = remember(showPlayer, showAudiobookPlayer) {
+    val bottomDockScrollConnection = remember(showPlayer, showAudiobookPlayer, showVideoPlayer) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (available.y != 0f) {
@@ -324,7 +335,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         }
     }
 
-    LaunchedEffect(selectedTab, showPlayer, showAudiobookPlayer) {
+    LaunchedEffect(selectedTab, showPlayer, showAudiobookPlayer, showVideoPlayer) {
         bottomDockRevealController.revealJob?.cancel()
         bottomDockVisible = true
     }
@@ -428,7 +439,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         containerColor = colorScheme.background,
         bottomBar = {
             AnimatedBottomDock(
-                visible = !showPlayer && !showAudiobookPlayer && bottomDockVisible
+                visible = !showPlayer && !showAudiobookPlayer && !showVideoPlayer && bottomDockVisible
             ) {
                 PolishedPlaybackDock(
                     selected = selectedTab,
@@ -449,13 +460,30 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                 .nestedScroll(bottomDockScrollConnection)
         ) {
             AnimatedContent(
-                targetState = showPlayer,
+                targetState = when {
+                    showVideoPlayer -> "video"
+                    showPlayer -> "music"
+                    else -> "tabs"
+                },
                 transitionSpec = {
                     fadeIn(tween(300, easing = FastOutSlowInEasing)) togetherWith
                         fadeOut(tween(200))
                 }
-            ) { playerVisible ->
-                if (playerVisible) {
+            ) { playerSurface ->
+                if (playerSurface == "video") {
+                    VideoPlayerScreen(
+                        state = videoPlaybackState,
+                        player = videoPlaybackEngine.player,
+                        colorScheme = colorScheme,
+                        onSeek = videoPlaybackEngine::seekTo,
+                        onPlayPause = videoPlaybackEngine::togglePlayPause,
+                        onClose = {
+                            showVideoPlayer = false
+                            videoPlaybackEngine.stop()
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else if (playerSurface == "music") {
                     MusicPlayerScreen(
                         song = currentSong,
                         colorScheme = colorScheme,
@@ -493,6 +521,8 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                 colorScheme = colorScheme,
                                 onSongSelected = { songs, index ->
                                     closeAudiobookPlayback()
+                                    videoPlaybackEngine.stop()
+                                    showVideoPlayer = false
                                     playbackEngine.playQueue(songs, index)
                                     showPlayer = true
                                 },
@@ -501,11 +531,23 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                 audiobookPlaybackEngine = audiobookPlaybackEngine,
                                 playbackEngine = playbackEngine,
                                 scope = scope,
+                                onVideoSelected = { playbackInfo ->
+                                    closeAudiobookPlayback()
+                                    playbackEngine.stop()
+                                    videoPlaybackEngine.play(playbackInfo)
+                                    showVideoPlayer = true
+                                    showPlayer = false
+                                    showAudiobookPlayer = false
+                                },
                                 onAudiobookPlaybackError = { error ->
                                     audiobookPlaybackError = error
                                 },
                                 onShowAudiobookPlayer = { showAudiobookPlayer = true },
-                                onHidePlayer = { showPlayer = false }
+                                onHidePlayer = { showPlayer = false },
+                                onHideVideoPlayer = {
+                                    showVideoPlayer = false
+                                    videoPlaybackEngine.stop()
+                                }
                             )
                         }
                     }
