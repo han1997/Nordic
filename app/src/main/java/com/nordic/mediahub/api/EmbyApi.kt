@@ -59,7 +59,7 @@ data class EmbyItemDto(
     @SerializedName("ParentIndexNumber")
     val parentIndexNumber: Int? = null,
     @SerializedName("ImageTags")
-    val imageTags: Map<String, String> = emptyMap()
+    val imageTags: Map<String, String>? = emptyMap()
 )
 
 data class EmbyPlaybackInfoResponse(
@@ -184,6 +184,7 @@ interface EmbyApi {
         @Path("userId") userId: String,
         @Header("X-Emby-Token") token: String,
         @Query("ParentId") parentId: String,
+        @Query("Recursive") recursive: Boolean = true,
         @Query("IncludeItemTypes") includeItemTypes: String = "Season",
         @Query("SortBy") sortBy: String = "SortName",
         @Query("SortOrder") sortOrder: String = "Ascending"
@@ -194,6 +195,7 @@ interface EmbyApi {
         @Path("userId") userId: String,
         @Header("X-Emby-Token") token: String,
         @Query("ParentId") parentId: String,
+        @Query("Recursive") recursive: Boolean = true,
         @Query("IncludeItemTypes") includeItemTypes: String = "Episode",
         @Query("SortBy") sortBy: String = "SortName",
         @Query("SortOrder") sortOrder: String = "Ascending"

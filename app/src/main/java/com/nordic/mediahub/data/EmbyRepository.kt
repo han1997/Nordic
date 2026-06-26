@@ -176,7 +176,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
                     positionTicks = positionSeconds.toLong() * EMBY_TICKS_PER_SECOND
                 ),
                 token = session.token
-            )
+            ).requireSuccess("上报播放开始失败")
         } catch (e: EmbyApiException) {
             throw e
         } catch (e: Exception) {
@@ -200,7 +200,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
                     positionTicks = positionSeconds.toLong() * EMBY_TICKS_PER_SECOND
                 ),
                 token = session.token
-            )
+            ).requireSuccess("上报播放进度失败")
         } catch (e: EmbyApiException) {
             throw e
         } catch (e: Exception) {
@@ -224,7 +224,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
                     positionTicks = positionSeconds.toLong() * EMBY_TICKS_PER_SECOND
                 ),
                 token = session.token
-            )
+            ).requireSuccess("上报播放停止失败")
         } catch (e: EmbyApiException) {
             throw e
         } catch (e: Exception) {
@@ -326,7 +326,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
             overview = overview.orEmpty(),
             year = productionYear,
             durationSeconds = runTimeTicks.toDurationSeconds(),
-            imageUrl = primaryImageUrl(id, token, imageTags["Primary"])
+            imageUrl = primaryImageUrl(id, token, imageTags?.get("Primary"))
         )
     }
 
@@ -336,7 +336,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
             name = name,
             indexNumber = indexNumber ?: 0,
             episodeCount = childCount ?: 0,
-            imageUrl = primaryImageUrl(id, token, imageTags["Primary"])
+            imageUrl = primaryImageUrl(id, token, imageTags?.get("Primary"))
         )
     }
 
@@ -348,7 +348,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
             episodeNumber = indexNumber ?: 0,
             overview = overview.orEmpty(),
             durationSeconds = runTimeTicks.toDurationSeconds(),
-            imageUrl = primaryImageUrl(id, token, imageTags["Primary"])
+            imageUrl = primaryImageUrl(id, token, imageTags?.get("Primary"))
         )
     }
 
@@ -398,6 +398,12 @@ class EmbyRepository(private val config: VideoServerConfig) {
         }
 
         return body() ?: throw EmbyApiException("$action: 响应为空", EmbyApiException.Kind.API)
+    }
+
+    private fun Response<Unit>.requireSuccess(action: String) {
+        if (!isSuccessful) {
+            throw EmbyApiException("$action: HTTP ${code()}", EmbyApiException.Kind.HTTP)
+        }
     }
 
     private data class EmbySession(

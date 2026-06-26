@@ -55,7 +55,6 @@ import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.EmbyRepository
 import com.nordic.mediahub.data.VideoItem
 import com.nordic.mediahub.data.VideoLibrary
-import com.nordic.mediahub.data.VideoPlaybackInfo
 import com.nordic.mediahub.data.VideoServerConfig
 import com.nordic.mediahub.data.isReadyForVideoSync
 import kotlinx.coroutines.launch
@@ -65,7 +64,6 @@ fun VideoScreen(
     colorScheme: ColorScheme,
     isDark: Boolean,
     onThemeToggle: (Boolean) -> Unit,
-    onPlayVideo: (VideoPlaybackInfo) -> Unit = {},
     onShowVideoDetail: (VideoItem) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -491,15 +489,4 @@ private fun VideoItem.metaText(): String {
         year?.let { add(it.toString()) }
         if (durationSeconds > 0) add(formatVideoDuration(durationSeconds))
     }.joinToString("  /  ")
-}
-
-private fun formatVideoDuration(durationSeconds: Int): String {
-    val safeSeconds = durationSeconds.coerceAtLeast(0)
-    val hours = safeSeconds / 3600
-    val minutes = (safeSeconds % 3600) / 60
-    return if (hours > 0) {
-        "${hours}h ${minutes}m"
-    } else {
-        "${minutes}m"
-    }
 }

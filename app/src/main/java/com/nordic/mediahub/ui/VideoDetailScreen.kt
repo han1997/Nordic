@@ -365,7 +365,7 @@ private fun VideoDetailMetaChips(
     val chips = buildList {
         videoItem.type.takeIf { it.isNotBlank() }?.let { add(it) }
         videoItem.year?.let { add(it.toString()) }
-        if (videoItem.durationSeconds > 0) add(formatVideoDetailDuration(videoItem.durationSeconds))
+        if (videoItem.durationSeconds > 0) add(formatVideoDuration(videoItem.durationSeconds))
     }
     if (chips.isEmpty()) return
 
@@ -475,7 +475,7 @@ private fun VideoEpisodeCard(
                         append("S${episode.seasonNumber}E${episode.episodeNumber}")
                         if (episode.durationSeconds > 0) {
                             append("  ")
-                            append(formatVideoDetailDuration(episode.durationSeconds))
+                            append(formatVideoDuration(episode.durationSeconds))
                         }
                     },
                     fontSize = 12.sp,
@@ -495,16 +495,5 @@ private fun VideoEpisodeCard(
                 }
             }
         }
-    }
-}
-
-private fun formatVideoDetailDuration(durationSeconds: Int): String {
-    val safeSeconds = durationSeconds.coerceAtLeast(0)
-    val hours = safeSeconds / 3600
-    val minutes = (safeSeconds % 3600) / 60
-    return if (hours > 0) {
-        "${hours}h ${minutes}m"
-    } else {
-        "${minutes}m"
     }
 }

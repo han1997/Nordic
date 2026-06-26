@@ -349,6 +349,7 @@ class AudiobookPlaybackEngine(context: Context) {
                     (activeController.duration.takeIf { value -> value != C.TIME_UNSET }?.div(1000L)?.toInt()) ?: 0
                 ),
                 chapters = session.chapters,
+                currentChapterIndex = resolveCurrentChapterIndex(session.chapters, currentAbsolutePosition),
                 errorMessage = when (activeController.playbackState) {
                     Player.STATE_READY, Player.STATE_ENDED -> null
                     else -> it.errorMessage

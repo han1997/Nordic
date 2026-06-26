@@ -29,7 +29,6 @@ import com.nordic.mediahub.data.NavidromeConfig
 import com.nordic.mediahub.data.NavidromeRepository
 import com.nordic.mediahub.data.EmbyRepository
 import com.nordic.mediahub.data.VideoItem
-import com.nordic.mediahub.data.VideoPlaybackInfo
 import com.nordic.mediahub.data.VideoServerConfig
 import com.nordic.mediahub.data.isReadyForVideoSync
 import com.nordic.mediahub.data.isReadyForAudiobookSync
@@ -175,7 +174,6 @@ private fun TabContent(
     audiobookPlaybackEngine: AudiobookPlaybackEngine,
     playbackEngine: MusicPlaybackEngine,
     scope: CoroutineScope,
-    onVideoSelected: (VideoPlaybackInfo) -> Unit,
     onAudiobookPlaybackError: (String?) -> Unit,
     onShowAudiobookPlayer: () -> Unit,
     onHidePlayer: () -> Unit,
@@ -216,7 +214,7 @@ private fun TabContent(
             },
             onSeekToChapter = onAudiobookSeekToChapter
         )
-        2 -> VideoScreen(colorScheme, isDark, onThemeToggle, onPlayVideo = onVideoSelected, onShowVideoDetail = onShowVideoDetail)
+        2 -> VideoScreen(colorScheme, isDark, onThemeToggle, onShowVideoDetail = onShowVideoDetail)
     }
 }
 @Composable
@@ -559,14 +557,6 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                 audiobookPlaybackEngine = audiobookPlaybackEngine,
                                 playbackEngine = playbackEngine,
                                 scope = scope,
-                                onVideoSelected = { playbackInfo ->
-                                    closeAudiobookPlayback()
-                                    playbackEngine.stop()
-                                    videoPlaybackEngine.play(playbackInfo)
-                                    showVideoPlayer = true
-                                    showPlayer = false
-                                    showAudiobookPlayer = false
-                                },
                                 onAudiobookPlaybackError = { error ->
                                     audiobookPlaybackError = error
                                 },

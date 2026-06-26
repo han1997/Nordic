@@ -90,7 +90,7 @@ class VideoPlaybackEngine(
         exoPlayer.play()
         publishPlayerState()
         val info = playbackInfo
-        scope.launch { onPlaybackStart?.invoke(info.itemId, info.mediaSourceId, info.playSessionId, 0) }
+        scope.launch { runCatching { onPlaybackStart?.invoke(info.itemId, info.mediaSourceId, info.playSessionId, 0) } }
         startProgressReporting()
     }
 
@@ -130,7 +130,7 @@ class VideoPlaybackEngine(
         exoPlayer.stop()
         exoPlayer.clearMediaItems()
         if (info != null) {
-            scope.launch { onPlaybackStopped?.invoke(info.itemId, info.mediaSourceId, info.playSessionId, position) }
+            scope.launch { runCatching { onPlaybackStopped?.invoke(info.itemId, info.mediaSourceId, info.playSessionId, position) } }
         }
         _state.value = VideoPlaybackState()
     }
@@ -141,7 +141,7 @@ class VideoPlaybackEngine(
         val info = _state.value.playbackInfo
         val position = _state.value.positionSeconds
         if (info != null) {
-            scope.launch { onPlaybackStopped?.invoke(info.itemId, info.mediaSourceId, info.playSessionId, position) }
+            scope.launch { runCatching { onPlaybackStopped?.invoke(info.itemId, info.mediaSourceId, info.playSessionId, position) } }
         }
         scope.cancel()
         exoPlayer.removeListener(playerListener)
@@ -165,15 +165,17 @@ class VideoPlaybackEngine(
 
     private fun startProgressReporting() {
         stopProgressReporting()
-        val info = _state.value.playbackInfo ?: return
+        if (_state.value.playbackInfo == null) return
         progressReportJob = scope.launch {
             while (isActive) {
                 delay(10_000)
                 val currentInfo = _state.value.playbackInfo ?: break
-                onPlaybackProgress?.invoke(
-                    currentInfo.itemId, currentInfo.mediaSourceId, currentInfo.playSessionId,
-                    _state.value.positionSeconds
-                )
+                runCatching {
+                    onPlaybackProgress?.invoke(
+                        currentInfo.itemId, currentInfo.mediaSourceId, currentInfo.playSessionId,
+                        _state.value.positionSeconds
+                    )
+                }
             }
         }
     }
