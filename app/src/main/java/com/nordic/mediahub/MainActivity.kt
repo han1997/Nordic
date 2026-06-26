@@ -175,7 +175,8 @@ private fun TabContent(
     onAudiobookPlaybackError: (String?) -> Unit,
     onShowAudiobookPlayer: () -> Unit,
     onHidePlayer: () -> Unit,
-    onHideVideoPlayer: () -> Unit
+    onHideVideoPlayer: () -> Unit,
+    onAudiobookSeekToChapter: (Int) -> Unit = {}
 ) {
     when (tab) {
         0 -> MusicScreenV2(
@@ -207,7 +208,8 @@ private fun TabContent(
                         onAudiobookPlaybackError(error.message ?: "启动有声书播放失败")
                     }
                 }
-            }
+            },
+            onSeekToChapter = onAudiobookSeekToChapter
         )
         2 -> VideoScreen(colorScheme, isDark, onThemeToggle, onPlayVideo = onVideoSelected)
     }
@@ -549,7 +551,8 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                 onHideVideoPlayer = {
                                     showVideoPlayer = false
                                     videoPlaybackEngine.stop()
-                                }
+                                },
+                                onAudiobookSeekToChapter = audiobookPlaybackEngine::seekTo
                             )
                         }
                     }
@@ -563,9 +566,20 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             state = audiobookPlaybackState,
             colorScheme = colorScheme,
             externalError = audiobookPlaybackError,
+            speed = audiobookPlaybackState.speed,
+            currentChapterIndex = audiobookPlaybackState.currentChapterIndex,
+            sleepTimerRemainingSeconds = audiobookPlaybackState.sleepTimerRemainingSeconds,
             onSeek = audiobookPlaybackEngine::seekTo,
             onPlayPause = audiobookPlaybackEngine::togglePlayPause,
-            onClose = { closeAudiobookPlayback() }
+            onClose = { closeAudiobookPlayback() },
+            onSpeedChange = audiobookPlaybackEngine::setSpeed,
+            onSkipForward = { audiobookPlaybackEngine.skipForward(30) },
+            onSkipBackward = { audiobookPlaybackEngine.skipBackward(10) },
+            onPreviousChapter = audiobookPlaybackEngine::jumpToPreviousChapter,
+            onNextChapter = audiobookPlaybackEngine::jumpToNextChapter,
+            onStartSleepTimer = audiobookPlaybackEngine::startSleepTimer,
+            onStartSleepTimerEndOfChapter = audiobookPlaybackEngine::startSleepTimerEndOfChapter,
+            onCancelSleepTimer = audiobookPlaybackEngine::cancelSleepTimer
         )
     }
 

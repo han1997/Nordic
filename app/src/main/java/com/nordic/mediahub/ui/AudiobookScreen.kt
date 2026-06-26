@@ -45,7 +45,8 @@ fun AudiobookScreen(
     colorScheme: ColorScheme,
     isDark: Boolean,
     onThemeToggle: (Boolean) -> Unit,
-    onPlayAudiobook: (AudiobookItemSummary) -> Unit = {}
+    onPlayAudiobook: (AudiobookItemSummary) -> Unit = {},
+    onSeekToChapter: (Int) -> Unit = {}
 ) {
     val context = LocalContext.current
     val repository = remember { ConfigRepository(context) }
@@ -330,7 +331,7 @@ fun AudiobookScreen(
                             )
                         }
                         items(item.chapters, key = { it.id }, contentType = { "audiobook-chapter-row" }) { chapter ->
-                            AudiobookChapterRow(chapter, colorScheme)
+                            AudiobookChapterRow(chapter, colorScheme, onClick = { onSeekToChapter(chapter.startSeconds) })
                         }
                     }
                 }
@@ -538,12 +539,12 @@ private fun AudiobookDetailHeader(
 }
 
 @Composable
-private fun AudiobookChapterRow(chapter: AudiobookChapter, colorScheme: ColorScheme) {
+private fun AudiobookChapterRow(chapter: AudiobookChapter, colorScheme: ColorScheme, onClick: () -> Unit = {}) {
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),

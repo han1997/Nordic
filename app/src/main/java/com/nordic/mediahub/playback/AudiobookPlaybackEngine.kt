@@ -8,6 +8,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
@@ -36,6 +37,9 @@ data class AudiobookPlaybackState(
     val positionSeconds: Int = 0,
     val durationSeconds: Int = 0,
     val chapters: List<AudiobookChapter> = emptyList(),
+    val currentChapterIndex: Int = -1,
+    val speed: Float = 1.0f,
+    val sleepTimerRemainingSeconds: Int? = null,
     val errorMessage: String? = null
 )
 
@@ -57,6 +61,14 @@ internal fun resolveAudiobookSyncDeltaSeconds(
     return (currentPositionSeconds - lastSyncedPositionSeconds).coerceAtLeast(0)
 }
 
+internal fun resolveCurrentChapterIndex(
+    chapters: List<AudiobookChapter>,
+    positionSeconds: Int
+): Int {
+    if (chapters.isEmpty()) return -1
+    return chapters.indexOfLast { it.startSeconds <= positionSeconds }.coerceAtLeast(0)
+}
+
 @androidx.annotation.OptIn(UnstableApi::class)
 class AudiobookPlaybackEngine(context: Context) {
     private val appContext = context.applicationContext
@@ -69,9 +81,15 @@ class AudiobookPlaybackEngine(context: Context) {
     private var controller: MediaController? = null
     private var pendingSession: AudiobookPlaybackSession? = null
     private var positionUpdateJob: Job? = null
+    private var sleepTimerJob: Job? = null
+    private var sleepTimerEndOfChapterJob: Job? = null
+    private var lastChapterIndexBeforeChapterMonitor: Int = -1
 
     private val _state = MutableStateFlow(AudiobookPlaybackState())
     val state: StateFlow<AudiobookPlaybackState> = _state.asStateFlow()
+
+    private val _speed = MutableStateFlow(1.0f)
+    val speed: StateFlow<Float> = _speed.asStateFlow()
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -180,8 +198,105 @@ class AudiobookPlaybackEngine(context: Context) {
         publishPlayerState()
     }
 
+    fun setSpeed(speed: Float) {
+        val activeController = controller ?: return
+        val safeSpeed = speed.coerceIn(0.25f, 5f)
+        activeController.playbackParameters = PlaybackParameters(safeSpeed)
+        _speed.value = safeSpeed
+        _state.update { it.copy(speed = safeSpeed) }
+    }
+
+    fun skipForward(seconds: Int) {
+        val activeController = controller ?: return
+        val targetMs = activeController.currentPosition + seconds * 1000L
+        activeController.seekTo(targetMs)
+        publishPlayerState()
+    }
+
+    fun skipBackward(seconds: Int) {
+        val activeController = controller ?: return
+        val targetMs = (activeController.currentPosition - seconds * 1000L).coerceAtLeast(0L)
+        activeController.seekTo(targetMs)
+        publishPlayerState()
+    }
+
+    fun jumpToNextChapter() {
+        val chapters = _state.value.chapters
+        val currentIndex = _state.value.currentChapterIndex
+        if (chapters.isEmpty() || currentIndex < 0) return
+        val nextIndex = (currentIndex + 1).coerceAtMost(chapters.size - 1)
+        seekTo(chapters[nextIndex].startSeconds)
+    }
+
+    fun jumpToPreviousChapter() {
+        val chapters = _state.value.chapters
+        val currentIndex = _state.value.currentChapterIndex
+        if (chapters.isEmpty() || currentIndex < 0) return
+        val prevIndex = (currentIndex - 1).coerceAtLeast(0)
+        seekTo(chapters[prevIndex].startSeconds)
+    }
+
+    fun jumpToChapter(chapterIndex: Int) {
+        val chapters = _state.value.chapters
+        if (chapterIndex !in chapters.indices) return
+        seekTo(chapters[chapterIndex].startSeconds)
+    }
+
+    fun startSleepTimer(durationMinutes: Int) {
+        cancelSleepTimer()
+        val durationSeconds = durationMinutes * 60
+        var remaining = durationSeconds
+        _state.update { it.copy(sleepTimerRemainingSeconds = remaining) }
+        sleepTimerJob = scope.launch {
+            while (isActive && remaining > 0) {
+                delay(1000L)
+                remaining -= 1
+                _state.update { it.copy(sleepTimerRemainingSeconds = remaining) }
+            }
+            if (remaining <= 0) {
+                controller?.pause()
+                cancelSleepTimer()
+                publishPlayerState()
+            }
+        }
+    }
+
+    fun startSleepTimerEndOfChapter() {
+        cancelSleepTimer()
+        val chapters = _state.value.chapters
+        val currentIndex = _state.value.currentChapterIndex
+        if (chapters.isEmpty() || currentIndex < 0 || currentIndex >= chapters.size - 1) {
+            return
+        }
+        lastChapterIndexBeforeChapterMonitor = currentIndex
+        _state.update { it.copy(sleepTimerRemainingSeconds = -1) }
+        sleepTimerEndOfChapterJob = scope.launch {
+            while (isActive) {
+                delay(1000L)
+                val currentChapterIdx = _state.value.currentChapterIndex
+                if (currentChapterIdx > lastChapterIndexBeforeChapterMonitor && currentChapterIdx >= 0) {
+                    controller?.pause()
+                    cancelSleepTimer()
+                    publishPlayerState()
+                    break
+                }
+                lastChapterIndexBeforeChapterMonitor = currentChapterIdx
+            }
+        }
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        sleepTimerEndOfChapterJob?.cancel()
+        sleepTimerEndOfChapterJob = null
+        lastChapterIndexBeforeChapterMonitor = -1
+        _state.update { it.copy(sleepTimerRemainingSeconds = null) }
+    }
+
     fun stop() {
         stopPositionUpdates()
+        cancelSleepTimer()
         controller?.run {
             pause()
             stop()
@@ -189,6 +304,7 @@ class AudiobookPlaybackEngine(context: Context) {
         }
         pendingSession = null
         _state.value = AudiobookPlaybackState()
+        _speed.value = 1.0f
     }
 
     fun release() {
