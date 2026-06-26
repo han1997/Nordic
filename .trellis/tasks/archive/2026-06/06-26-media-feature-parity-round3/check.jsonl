@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend spec index — project conventions overview"}
+{"file": ".trellis/spec/backend/navidrome-integration.md", "reason": "Navidrome integration spec — verify new endpoints match existing Subsonic patterns"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Error handling conventions — verify error handling for new API calls"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Quality guidelines — test, lint, type-check, shared component verification"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Persistence guidelines — verify DataStore patterns for play history/downloads"}
