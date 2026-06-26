@@ -557,6 +557,38 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
     } catch (e: Exception) {
         throw Exception("重命名歌单失败: ${e.message}")
     }
+
+    suspend fun getSimilarSongs(songId: String): List<NavidromeSong> = try {
+        val auth = config.authParams()
+        val subsonic = api.getSimilarSongs(config.username, auth.token, auth.salt, id = songId, count = 50)
+            .requireResponse()
+        subsonic.similarSongs?.song?.map { it.withCoverArtUrl() } ?: emptyList()
+    } catch (e: NavidromeApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("获取相似歌曲失败: ${e.message}")
+    }
+
+    suspend fun getRandomSongs(count: Int = 20): List<NavidromeSong> = try {
+        val auth = config.authParams()
+        val subsonic = api.getRandomSongs(config.username, auth.token, auth.salt, size = count)
+            .requireResponse()
+        subsonic.randomSongs?.song?.map { it.withCoverArtUrl() } ?: emptyList()
+    } catch (e: NavidromeApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("获取随机歌曲失败: ${e.message}")
+    }
+
+    suspend fun scrobble(songId: String, submission: Boolean) = try {
+        val auth = config.authParams()
+        api.scrobble(config.username, auth.token, auth.salt, id = songId, submission = submission)
+            .requireResponse()
+    } catch (e: NavidromeApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("记录播放失败: ${e.message}")
+    }
 }
 
 @Stable

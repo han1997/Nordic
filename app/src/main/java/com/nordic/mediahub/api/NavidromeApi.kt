@@ -24,6 +24,7 @@ data class SubsonicData(
     val playlists: NavidromePlaylistList? = null,
     val playlist: NavidromePlaylistDetail? = null,
     val randomSongs: SongList? = null,
+    val similarSongs: SongList? = null,
     val searchResult3: SearchResult3? = null,
     val lyrics: NavidromePlainLyrics? = null,
     val lyricsList: NavidromeLyricsList? = null,
@@ -240,6 +241,30 @@ interface NavidromeApi {
         @Query("c") client: String = "Nordic",
         @Query("f") format: String = "json",
         @Query("size") size: Int = 20
+    ): Response<SubsonicResponse>
+
+    @GET("rest/getSimilarSongs.view")
+    suspend fun getSimilarSongs(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("f") format: String = "json",
+        @Query("id") id: String,
+        @Query("count") count: Int = 50
+    ): Response<SubsonicResponse>
+
+    @GET("rest/scrobble.view")
+    suspend fun scrobble(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("f") format: String = "json",
+        @Query("id") id: String,
+        @Query("submission") submission: Boolean
     ): Response<SubsonicResponse>
 
     @GET("rest/getPlaylists.view")

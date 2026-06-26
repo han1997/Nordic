@@ -69,6 +69,8 @@ fun MusicPlayerScreen(
     onToggleRepeat: () -> Unit = {},
     onToggleShuffle: () -> Unit = {},
     onOpenQueue: () -> Unit = {},
+    onOpenEqualizer: () -> Unit = {},
+    onSmartRadio: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val resolvedDurationSeconds = maxOf(durationSeconds, song?.duration ?: 0, 1)
@@ -185,7 +187,9 @@ fun MusicPlayerScreen(
                 onSeekToPrevious = onSeekToPrevious,
                 onToggleRepeat = onToggleRepeat,
                 onToggleShuffle = onToggleShuffle,
-                onOpenQueue = onOpenQueue
+                onOpenQueue = onOpenQueue,
+                onOpenEqualizer = onOpenEqualizer,
+                onSmartRadio = onSmartRadio
             )
         }
     }
@@ -495,7 +499,9 @@ private fun PlayerConsole(
     onSeekToPrevious: () -> Unit = {},
     onToggleRepeat: () -> Unit = {},
     onToggleShuffle: () -> Unit = {},
-    onOpenQueue: () -> Unit = {}
+    onOpenQueue: () -> Unit = {},
+    onOpenEqualizer: () -> Unit = {},
+    onSmartRadio: () -> Unit = {}
 ) {
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
@@ -567,6 +573,7 @@ private fun PlayerConsole(
                 PlayerControlButton(repeatLabel, colorScheme, size = if (compact) 38 else 42, enabled = hasSong, active = repeatActive, onClick = onToggleRepeat)
                 val shuffleLabel = if (shuffleModeEnabled) "⇄" else "⇄"
                 PlayerControlButton(shuffleLabel, colorScheme, size = if (compact) 38 else 42, enabled = hasSong, active = shuffleModeEnabled, onClick = onToggleShuffle)
+                PlayerControlButton("EQ", colorScheme, size = if (compact) 38 else 42, enabled = hasSong, onClick = onOpenEqualizer)
                 PlayerControlButton("‹", colorScheme, size = if (compact) 46 else 50, enabled = hasSong, onClick = onSeekToPrevious)
                 PlayerControlButton(
                     label = if (isPlaying) "Ⅱ" else "▶",
@@ -578,6 +585,7 @@ private fun PlayerConsole(
                 )
                 PlayerControlButton("›", colorScheme, size = if (compact) 46 else 50, enabled = hasSong, onClick = onSeekToNext)
                 PlayerControlButton("≡", colorScheme, size = if (compact) 38 else 42, enabled = hasSong, onClick = onOpenQueue)
+                PlayerControlButton("∞", colorScheme, size = if (compact) 38 else 42, enabled = hasSong, onClick = onSmartRadio)
             }
         }
     }

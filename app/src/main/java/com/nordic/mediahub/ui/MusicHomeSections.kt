@@ -457,6 +457,7 @@ fun SongListRow(
     onClick: () -> Unit = {},
     onToggleStar: (() -> Unit)? = null,
     onAddToPlaylist: (() -> Unit)? = null,
+    onAddToQueue: (() -> Unit)? = null,
     downloadState: DownloadState = DownloadState.NOT_DOWNLOADED,
     downloadProgress: Float = 0f,
     onToggleDownload: (() -> Unit)? = null
@@ -536,6 +537,25 @@ fun SongListRow(
                         colorScheme = colorScheme,
                         onClick = onToggleStar
                     )
+                }
+                if (onAddToQueue != null) {
+                    Surface(
+                        color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        contentColor = colorScheme.onSurface,
+                        shape = RoundedCornerShape(999.dp),
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clickable(onClick = onAddToQueue)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                "Q",
+                                fontSize = 12.sp,
+                                color = colorScheme.primary.copy(alpha = 0.72f),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
                 if (onAddToPlaylist != null) {
                     Surface(

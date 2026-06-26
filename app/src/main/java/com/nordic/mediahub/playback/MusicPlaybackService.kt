@@ -28,6 +28,12 @@ class MusicPlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private var cache: SimpleCache? = null
 
+    companion object {
+        @Volatile
+        var audioSessionId: Int = 0
+            private set
+    }
+
     override fun onCreate() {
         super.onCreate()
 
@@ -98,6 +104,8 @@ class MusicPlaybackService : MediaSessionService() {
             .setId("NordicMusicSession")
             .setSessionActivity(createSessionActivity())
             .build()
+
+        audioSessionId = player.audioSessionId
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {

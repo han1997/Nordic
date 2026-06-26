@@ -176,6 +176,81 @@ class NavidromeRepositoryTest {
         assertTrue(request.contains("id=playlist-1"))
     }
 
+    @Test
+    fun getSimilarSongs_callsEndpointAndMapsSongs() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "similarSongs": {
+                  "song": [
+                    {"id": "sim-1", "title": "Similar One", "artist": "Artist A"},
+                    {"id": "sim-2", "title": "Similar Two", "artist": "Artist B"}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val songs = repository().getSimilarSongs("song-1")
+
+        assertEquals(listOf("Similar One", "Similar Two"), songs.map { it.title })
+        assertTrue(songs[0].streamUrl.orEmpty().contains("/rest/stream.view?id=sim-1"))
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/getSimilarSongs.view?"))
+        assertTrue(request.contains("id=song-1"))
+        assertTrue(request.contains("count=50"))
+    }
+
+    @Test
+    fun getRandomSongs_callsEndpointAndMapsSongs() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "randomSongs": {
+                  "song": [
+                    {"id": "rand-1", "title": "Random One", "artist": "Artist X"},
+                    {"id": "rand-2", "title": "Random Two", "artist": "Artist Y"}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val songs = repository().getRandomSongs(10)
+
+        assertEquals(listOf("Random One", "Random Two"), songs.map { it.title })
+        assertTrue(songs[0].streamUrl.orEmpty().contains("/rest/stream.view?id=rand-1"))
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/getRandomSongs.view?"))
+        assertTrue(request.contains("size=10"))
+    }
+
+    @Test
+    fun scrobble_callsEndpointWithSubmissionTrue() = runTest {
+        server.enqueueJson(subsonicResponse("\"scrobble\": true"))
+
+        repository().scrobble("song-1", submission = true)
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/scrobble.view?"))
+        assertTrue(request.contains("id=song-1"))
+        assertTrue(request.contains("submission=true"))
+    }
+
+    @Test
+    fun scrobble_callsEndpointWithSubmissionFalse() = runTest {
+        server.enqueueJson(subsonicResponse("\"scrobble\": true"))
+
+        repository().scrobble("song-2", submission = false)
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/scrobble.view?"))
+        assertTrue(request.contains("id=song-2"))
+        assertTrue(request.contains("submission=false"))
+    }
+
     private fun repository(): NavidromeRepository {
         return NavidromeRepository(
             NavidromeConfig(
