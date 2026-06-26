@@ -31,6 +31,8 @@ import com.nordic.mediahub.data.isReadyForAudiobookSync
 import com.nordic.mediahub.data.isReadyForMusicSync
 import com.nordic.mediahub.playback.AudiobookPlaybackEngine
 import com.nordic.mediahub.playback.MusicPlaybackEngine
+import com.nordic.mediahub.playback.resolveAudiobookSyncDeltaSeconds
+import com.nordic.mediahub.playback.resolveInitialAudiobookSyncPositionSeconds
 import com.nordic.mediahub.ui.*
 import com.nordic.mediahub.ui.theme.*
 import coil.Coil
@@ -337,18 +339,23 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         val session = audiobookPlaybackEngine.state.value.session
         val positionSeconds = audiobookPlaybackEngine.state.value.positionSeconds
         val repo = audiobookRepository
-        showAudiobookPlayer = false
         audiobookPlaybackError = null
-        audiobookPlaybackEngine.stop()
 
-        if (session != null && repo != null) {
-            scope.launch {
-                runCatching {
-                    repo.syncAndCloseSession(session, positionSeconds)
-                }.onFailure { error ->
-                    audiobookPlaybackError = error.message ?: "关闭有声书播放会话失败"
-                    showAudiobookPlayer = true
-                }
+        if (session == null || repo == null) {
+            showAudiobookPlayer = false
+            audiobookPlaybackEngine.stop()
+            return
+        }
+
+        showAudiobookPlayer = false
+        scope.launch {
+            runCatching {
+                repo.syncAndCloseSession(session, positionSeconds)
+            }.onSuccess {
+                audiobookPlaybackEngine.stop()
+            }.onFailure { error ->
+                audiobookPlaybackError = error.message ?: "关闭有声书播放会话失败"
+                showAudiobookPlayer = true
             }
         }
     }
@@ -390,7 +397,10 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     ) {
         val initialSession = audiobookPlaybackState.session ?: return@LaunchedEffect
         val repo = audiobookRepository ?: return@LaunchedEffect
-        var lastSyncedPosition = audiobookPlaybackState.positionSeconds
+        var lastSyncedPosition = resolveInitialAudiobookSyncPositionSeconds(
+            session = initialSession,
+            statePositionSeconds = audiobookPlaybackEngine.state.value.positionSeconds
+        )
 
         while (true) {
             delay(30_000)
@@ -401,7 +411,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             }
 
             val currentPosition = currentState.positionSeconds
-            val deltaSeconds = (currentPosition - lastSyncedPosition).coerceAtLeast(0)
+            val deltaSeconds = resolveAudiobookSyncDeltaSeconds(lastSyncedPosition, currentPosition)
             runCatching {
                 repo.syncProgress(currentSession, currentPosition, deltaSeconds)
             }.onSuccess {

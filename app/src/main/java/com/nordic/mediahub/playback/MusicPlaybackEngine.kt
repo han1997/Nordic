@@ -56,6 +56,22 @@ internal fun <T> List<T>.moveItemToIndex(fromIndex: Int, targetIndex: Int): List
     return mutable
 }
 
+internal fun resolveQueueIndexAfterMove(fromIndex: Int, targetIndex: Int, currentIndex: Int, itemCount: Int): Int {
+    if (itemCount <= 0 || currentIndex !in 0 until itemCount || fromIndex !in 0 until itemCount) {
+        return currentIndex
+    }
+
+    val insertionIndex = targetIndex.coerceIn(0, itemCount - 1)
+    if (fromIndex == currentIndex) return insertionIndex
+
+    val currentAfterRemoval = if (fromIndex < currentIndex) currentIndex - 1 else currentIndex
+    return if (insertionIndex <= currentAfterRemoval) {
+        currentAfterRemoval + 1
+    } else {
+        currentAfterRemoval
+    }.coerceIn(0, itemCount - 1)
+}
+
 @androidx.annotation.OptIn(UnstableApi::class)
 class MusicPlaybackEngine(context: Context) {
     private val appContext = context.applicationContext
@@ -422,9 +438,12 @@ class MusicPlaybackEngine(context: Context) {
         val targetIndex = resolvePlayNextTargetIndex(index, currentIndex, queue.size) ?: return
         val nextQueue = queue.moveItemToIndex(index, targetIndex)
         pendingQueue = nextQueue
-        val nextIndex = nextQueue.indexOfFirst { song -> song.id == _state.value.currentSong?.id }
-            .takeIf { queueIndex -> queueIndex >= 0 }
-            ?: currentIndex.coerceIn(nextQueue.indices)
+        val nextIndex = resolveQueueIndexAfterMove(
+            fromIndex = index,
+            targetIndex = targetIndex,
+            currentIndex = currentIndex,
+            itemCount = queue.size
+        )
         pendingQueueStartIndex = nextIndex
         _state.update {
             it.copy(

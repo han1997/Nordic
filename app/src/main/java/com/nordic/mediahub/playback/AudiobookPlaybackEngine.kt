@@ -39,6 +39,24 @@ data class AudiobookPlaybackState(
     val errorMessage: String? = null
 )
 
+internal fun resolveInitialAudiobookSyncPositionSeconds(
+    session: AudiobookPlaybackSession,
+    statePositionSeconds: Int
+): Int {
+    return maxOf(
+        statePositionSeconds,
+        session.currentTimeSeconds,
+        session.startTimeSeconds
+    ).coerceAtLeast(0)
+}
+
+internal fun resolveAudiobookSyncDeltaSeconds(
+    lastSyncedPositionSeconds: Int,
+    currentPositionSeconds: Int
+): Int {
+    return (currentPositionSeconds - lastSyncedPositionSeconds).coerceAtLeast(0)
+}
+
 @androidx.annotation.OptIn(UnstableApi::class)
 class AudiobookPlaybackEngine(context: Context) {
     private val appContext = context.applicationContext
