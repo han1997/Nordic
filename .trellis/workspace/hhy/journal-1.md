@@ -622,3 +622,37 @@ Added 11 features across three batches: music (star/favorite, shuffle, playlist 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 19: Music feature parity round 3
+
+**Date**: 2026-06-26
+**Task**: Music feature parity round 3
+**Branch**: `main`
+
+### Summary
+
+Completed music parity round 3: smart radio and scrobble APIs, queue actions with drag reorder, equalizer controls, local play history, and updated Navidrome spec. Verified compile, unit tests, lint, and diff check.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fed50a6` | (see git log) |
+| `132d629` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
