@@ -203,3 +203,77 @@ val streamUrl = baseUrl.toHttpUrl().newBuilder()
     .build().toString()
 ```
 `static=true` requests the original file bytes; the session and source IDs let Emby track and serve the correct media.
+
+---
+
+## Scenario: Video Progress Reporting & Season/Episode Browsing
+
+### 1. Scope / Trigger
+- Trigger: User plays a video item (progress reporting) or browses a Series item (season/episode drill-down).
+- Scope: `POST Sessions/Playing`, `POST Sessions/Playing/Progress`, `POST Sessions/Playing/Stopped`; `GET` seasons and episodes via `getItems` with `ParentId` and `IncludeItemTypes` filters; domain models `VideoSeason` and `VideoEpisode`.
+- Out of scope: Now-playing session management UI, transcoding URL construction.
+
+### 2. Signatures
+- Progress reporting endpoints:
+```kotlin
+@POST("Sessions/Playing")
+suspend fun reportPlaybackStart(@Body body: EmbyPlaybackReportBody, @Header("X-Emby-Token") token: String): Response<Unit>
+
+@POST("Sessions/Playing/Progress")
+suspend fun reportPlaybackProgress(@Body body: EmbyPlaybackReportBody, @Header("X-Emby-Token") token: String): Response<Unit>
+
+@POST("Sessions/Playing/Stopped")
+suspend fun reportPlaybackStopped(@Body body: EmbyPlaybackReportBody, @Header("X-Emby-Token") token: String): Response<Unit>
+```
+- Report body: `EmbyPlaybackReportBody(itemId, sessionId, mediaSourceId, isPaused, positionTicks)`
+- Repository:
+```kotlin
+suspend fun reportPlaybackStart(itemId: String, mediaSourceId: String, playSessionId: String)
+suspend fun reportPlaybackProgress(itemId: String, mediaSourceId: String, playSessionId: String, positionSeconds: Int)
+suspend fun reportPlaybackStopped(itemId: String, mediaSourceId: String, playSessionId: String, positionSeconds: Int)
+suspend fun getSeasons(seriesId: String): List<VideoSeason>
+suspend fun getEpisodes(seasonId: String): List<VideoEpisode>
+```
+- Domain models:
+```kotlin
+@Stable data class VideoSeason(val id: String, val name: String, val indexNumber: Int, val episodeCount: Int, val imageUrl: String? = null)
+@Stable data class VideoEpisode(val id: String, val name: String, val seasonNumber: Int, val episodeNumber: Int, val overview: String, val durationSeconds: Int, val imageUrl: String? = null)
+```
+
+### 3. Contracts
+- Progress reporting: `positionTicks = positionSeconds * 10_000_000L`. Reports at play start, every 10 seconds during playback, and on stop/release.
+- Seasons: fetched via `getItems(parentId=seriesId, includeItemTypes=Season)`.
+- Episodes: fetched via `getItems(parentId=seasonId, includeItemTypes=Episode)`.
+- `VideoPlaybackEngine` calls progress callbacks from coroutine scope; callbacks are `suspend` functions.
+- Video detail screen intercepts card taps to show metadata before playback; Series items show season chips and episode lists.
+
+### 4. Validation & Error Matrix
+- Non-2xx from reporting endpoints → fire-and-forget (wrapped in `runCatching` in engine callbacks, does not block playback)
+- Non-2xx from seasons/episodes → `EmbyApiException(kind = HTTP)` per existing pattern
+- Empty seasons list → UI shows "暂无季信息"
+- Episode without `RunTimeTicks` → `durationSeconds` falls back to 0
+
+### 5. Good/Base/Bad Cases
+- Good: Series has 3 seasons, each with 8 episodes; tapping a season loads episodes; tapping an episode plays it.
+- Base: Movie item shows detail page with play button; no season/episode data loaded.
+- Bad: Emby returns 500 for seasons; error surfaced in UI; play button still works for the series itself.
+
+### 6. Tests Required
+- `reportPlaybackStart_sendsCorrectBodyWithTicks`: verify positionTicks=0 and correct itemId/mediaSourceId/playSessionId
+- `getSeasons_mapsDtoToVideoSeason`: verify season name, indexNumber, episodeCount, image URL
+- `getEpisodes_mapsDtoToVideoEpisode`: verify episode name, season/episode numbers, duration from ticks
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```kotlin
+// Not reporting progress means Emby server has no idea where you stopped
+// Tapping a Series card immediately plays it (no detail screen)
+```
+
+#### Correct
+```kotlin
+// VideoPlaybackEngine reports start/progress/stop via suspend callbacks
+// Card tap → detail screen → play button → playback
+scope.launch { onPlaybackStart?.invoke(info.itemId, info.mediaSourceId, info.playSessionId, 0) }
+```

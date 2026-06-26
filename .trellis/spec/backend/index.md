@@ -16,7 +16,8 @@ This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. 
 | [Quality Guidelines](./quality-guidelines.md) | Reviewing shared components, cache semantics, test coverage, and known anti-patterns |
 | [Logging Guidelines](./logging-guidelines.md) | Adding or changing `Log.*` calls or OkHttp logging interceptors |
 | [AudiobookShelf Integration Contract](./audiobookshelf-integration.md) | Changing audiobook auth, library browsing, playback sessions, progress sync, or Media3 audiobook state |
-| [Emby Integration Contract](./emby-integration.md) | Changing Emby auth, library/item mapping, thumbnail URLs, or video catalog repository behavior |
+| [Emby Integration Contract](./emby-integration.md) | Changing Emby auth, library/item mapping, video playback, progress reporting, or season/episode browsing |
+| [Navidrome Integration Contract](./navidrome-integration.md) | Changing star/favorite toggles, playlist CRUD, or Subsonic API star/unstar/getStarred2 endpoints |
 
 ## Pre-Development Checklist
 
@@ -25,7 +26,7 @@ This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. 
 - Read [Error Handling](./error-handling.md) before adding repository methods or changing exception behavior.
 - Read [Quality Guidelines](./quality-guidelines.md) before modifying shared UI state components, music library navigation, or cache contracts.
 - Read [Logging Guidelines](./logging-guidelines.md) before adding diagnostics.
-- Read the service-specific contract when touching AudiobookShelf or Emby behavior.
+- Read the service-specific contract when touching Navidrome, AudiobookShelf, or Emby behavior.
 
 ## Verification
 
