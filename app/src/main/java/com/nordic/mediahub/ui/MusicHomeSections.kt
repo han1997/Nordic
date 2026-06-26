@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -40,6 +41,8 @@ import coil.compose.AsyncImage
 import com.nordic.mediahub.api.NavidromeAlbum
 import com.nordic.mediahub.api.NavidromeArtist
 import com.nordic.mediahub.api.NavidromeSong
+import com.nordic.mediahub.data.DownloadState
+import com.nordic.mediahub.data.DownloadStateEntry
 
 @Composable
 fun MusicHeroBanner(
@@ -371,7 +374,10 @@ fun SongShelfCard(
     colorScheme: ColorScheme,
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
-    onToggleStar: (() -> Unit)? = null
+    onToggleStar: (() -> Unit)? = null,
+    downloadState: DownloadState = DownloadState.NOT_DOWNLOADED,
+    downloadProgress: Float = 0f,
+    onToggleDownload: (() -> Unit)? = null
 ) {
     Box {
         CompactMusicShelfItem(
@@ -384,15 +390,27 @@ fun SongShelfCard(
             modifier = modifier,
             onClick = onClick
         )
-        if (onToggleStar != null) {
-            StarToggleButton(
-                isStarred = song.starred != null,
-                colorScheme = colorScheme,
-                onClick = onToggleStar,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .offset(x = 4.dp, y = (-4).dp)
-            )
+        Row(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = 4.dp, y = (-4).dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            if (onToggleDownload != null) {
+                DownloadToggleButton(
+                    downloadState = downloadState,
+                    progress = downloadProgress,
+                    colorScheme = colorScheme,
+                    onClick = onToggleDownload
+                )
+            }
+            if (onToggleStar != null) {
+                StarToggleButton(
+                    isStarred = song.starred != null,
+                    colorScheme = colorScheme,
+                    onClick = onToggleStar
+                )
+            }
         }
     }
 }
@@ -438,7 +456,10 @@ fun SongListRow(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
     onToggleStar: (() -> Unit)? = null,
-    onAddToPlaylist: (() -> Unit)? = null
+    onAddToPlaylist: (() -> Unit)? = null,
+    downloadState: DownloadState = DownloadState.NOT_DOWNLOADED,
+    downloadProgress: Float = 0f,
+    onToggleDownload: (() -> Unit)? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val scale = rememberPressScale(
@@ -501,6 +522,14 @@ fun SongListRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (onToggleDownload != null) {
+                    DownloadToggleButton(
+                        downloadState = downloadState,
+                        progress = downloadProgress,
+                        colorScheme = colorScheme,
+                        onClick = onToggleDownload
+                    )
+                }
                 if (onToggleStar != null) {
                     StarToggleButton(
                         isStarred = song.starred != null,
@@ -765,5 +794,53 @@ internal fun MusicMetaChip(
             color = colorScheme.onSurface.copy(alpha = 0.72f),
             fontWeight = FontWeight.Medium
         )
+    }
+}
+
+@Composable
+fun DownloadToggleButton(
+    downloadState: DownloadState,
+    progress: Float,
+    colorScheme: ColorScheme,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = when (downloadState) {
+            DownloadState.DOWNLOADED -> colorScheme.primary.copy(alpha = 0.14f)
+            DownloadState.DOWNLOADING -> colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            DownloadState.NOT_DOWNLOADED -> colorScheme.surface.copy(alpha = 0.5f)
+        },
+        contentColor = when (downloadState) {
+            DownloadState.DOWNLOADED -> colorScheme.primary
+            else -> colorScheme.onSurface.copy(alpha = 0.44f)
+        },
+        shape = RoundedCornerShape(999.dp),
+        modifier = modifier
+            .size(28.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            when (downloadState) {
+                DownloadState.NOT_DOWNLOADED -> Text(
+                    "⌃",
+                    fontSize = 18.sp,
+                    color = colorScheme.onSurface.copy(alpha = 0.44f),
+                    fontWeight = FontWeight.Bold
+                )
+                DownloadState.DOWNLOADING -> CircularProgressIndicator(
+                    progress = progress.coerceIn(0f, 1f),
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp,
+                    color = colorScheme.primary
+                )
+                DownloadState.DOWNLOADED -> Text(
+                    "✓",
+                    fontSize = 14.sp,
+                    color = colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
     }
 }

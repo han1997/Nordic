@@ -18,12 +18,14 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Velocity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nordic.mediahub.api.NavidromeSong
 import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.AudiobookShelfConfig
 import com.nordic.mediahub.data.AudiobookShelfRepository
+import com.nordic.mediahub.data.MusicDownloadManager
 import com.nordic.mediahub.data.MusicLyrics
 import com.nordic.mediahub.data.NavidromeConfig
 import com.nordic.mediahub.data.NavidromeRepository
@@ -179,13 +181,15 @@ private fun TabContent(
     onHidePlayer: () -> Unit,
     onHideVideoPlayer: () -> Unit,
     onAudiobookSeekToChapter: (Int) -> Unit = {},
-    onShowVideoDetail: (VideoItem) -> Unit = {}
+    onShowVideoDetail: (VideoItem) -> Unit = {},
+    downloadManager: MusicDownloadManager = MusicDownloadManager(LocalContext.current)
 ) {
     when (tab) {
         0 -> MusicScreenV2(
             isDark = isDark,
             onThemeToggle = onThemeToggle,
-            onSongSelected = onSongSelected
+            onSongSelected = onSongSelected,
+            downloadManager = downloadManager
         )
         1 -> AudiobookScreen(
             colorScheme = colorScheme,
@@ -232,7 +236,8 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     val embyRepository = remember(videoConfig) {
         if (videoConfig.isReadyForVideoSync()) EmbyRepository(videoConfig) else null
     }
-    val playbackEngine = remember { MusicPlaybackEngine(context) }
+    val musicDownloadManager = remember { MusicDownloadManager(context) }
+    val playbackEngine = remember { MusicPlaybackEngine(context, musicDownloadManager) }
     val audiobookPlaybackEngine = remember { AudiobookPlaybackEngine(context) }
     val videoPlaybackEngine = remember {
         VideoPlaybackEngine(
@@ -557,6 +562,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                 audiobookPlaybackEngine = audiobookPlaybackEngine,
                                 playbackEngine = playbackEngine,
                                 scope = scope,
+                                downloadManager = musicDownloadManager,
                                 onAudiobookPlaybackError = { error ->
                                     audiobookPlaybackError = error
                                 },

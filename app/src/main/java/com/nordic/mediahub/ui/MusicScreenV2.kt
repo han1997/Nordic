@@ -72,6 +72,9 @@ import com.nordic.mediahub.api.NavidromeArtist
 import com.nordic.mediahub.api.NavidromePlaylist
 import com.nordic.mediahub.api.NavidromeSong
 import com.nordic.mediahub.data.ConfigRepository
+import com.nordic.mediahub.data.DownloadState
+import com.nordic.mediahub.data.DownloadStateEntry
+import com.nordic.mediahub.data.MusicDownloadManager
 import com.nordic.mediahub.data.NavidromeAlbumSort
 import com.nordic.mediahub.data.NavidromeConfig
 import com.nordic.mediahub.data.NavidromeMusicCacheRepository
@@ -110,12 +113,14 @@ private enum class MusicSongSort {
 fun MusicScreenV2(
     isDark: Boolean,
     onThemeToggle: (Boolean) -> Unit,
-    onSongSelected: (List<NavidromeSong>, Int) -> Unit = { _, _ -> }
+    onSongSelected: (List<NavidromeSong>, Int) -> Unit = { _, _ -> },
+    downloadManager: MusicDownloadManager = MusicDownloadManager(LocalContext.current)
 ) {
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
     val repository = remember { ConfigRepository(context) }
     val cacheRepository = remember { NavidromeMusicCacheRepository(context) }
+    val downloadStatesMap by downloadManager.downloadStates.collectAsStateWithLifecycle(emptyMap())
     val savedConfig by repository.navidromeConfig.collectAsStateWithLifecycle(NavidromeConfig())
     val navidromeRepository = remember(savedConfig) {
         if (savedConfig.isReadyForMusicSync()) NavidromeRepository(savedConfig) else null
@@ -364,6 +369,16 @@ fun MusicScreenV2(
         }
     }
 
+    fun toggleSongDownload(song: NavidromeSong) {
+        if (downloadManager.isDownloaded(song.id)) {
+            downloadManager.deleteDownload(song.id)
+        } else {
+            if (savedConfig.isReadyForMusicSync()) {
+                downloadManager.downloadSong(song, savedConfig)
+            }
+        }
+    }
+
     fun openSearch() {
         searchJob.get()?.cancel()
         searchQuery = ""
@@ -485,6 +500,14 @@ fun MusicScreenV2(
         }
     }
 
+    LaunchedEffect(Unit) {
+        downloadManager.restoreDownloadState()
+    }
+
+    LaunchedEffect(songs, recentlyAddedSongs) {
+        downloadManager.updateSongMetadata(songs + recentlyAddedSongs)
+    }
+
     val hasContent = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty() || playlists.isNotEmpty()
     val visibleSongs = remember(songs, songSort) {
         sortMusicSongs(songs, songSort)
@@ -492,6 +515,9 @@ fun MusicScreenV2(
     val homeSongs = remember(recentlyAddedSongs) { recentlyAddedSongs.take(12) }
     val homeAlbums = remember(albums) { albums.take(10) }
     val homeArtists = remember(artists) { artists.take(10) }
+    val downloadedSongs = remember(downloadStatesMap, songs, recentlyAddedSongs) {
+        downloadManager.getDownloadedSongs()
+    }
     val cacheAgeLabel = remember(cacheUpdatedAtMillis) { formatCacheAge(cacheUpdatedAtMillis) }
     val headerActions = remember(config.isReadyForMusicSync(), isLoading, isDark) {
         buildList {
@@ -753,6 +779,38 @@ fun MusicScreenV2(
                     }
                 }
 
+                // Downloaded section
+                if (downloadedSongs.isNotEmpty()) {
+                    item {
+                        MusicSectionHeader(
+                            title = "已下载",
+                            subtitle = "离线可播放的歌曲",
+                            colorScheme = colorScheme
+                        )
+                    }
+                    item {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            itemsIndexed(
+                                items = downloadedSongs,
+                                key = { _, song -> "downloaded-song-${song.id}" },
+                                contentType = { _, _ -> "downloaded-song-card" }
+                            ) { index, song ->
+                                SongShelfCard(
+                                    song = song,
+                                    colorScheme = colorScheme,
+                                    onClick = {
+                                        onSongSelected(downloadedSongs, index)
+                                    },
+                                    onToggleStar = { toggleSongStar(song) },
+                                    downloadState = downloadStatesMap[song.id]?.state ?: DownloadState.NOT_DOWNLOADED,
+                                    downloadProgress = downloadStatesMap[song.id]?.progress ?: 0f,
+                                    onToggleDownload = { toggleSongDownload(song) }
+                                )
+                            }
+                        }
+                    }
+                }
+
                 if (recentlyAddedSongs.isNotEmpty()) {
                     item {
                         MusicSectionHeader(
@@ -779,7 +837,10 @@ fun MusicScreenV2(
                                     onClick = {
                                         onSongSelected(homeSongs, index)
                                     },
-                                    onToggleStar = { toggleSongStar(song) }
+                                    onToggleStar = { toggleSongStar(song) },
+                                    downloadState = downloadStatesMap[song.id]?.state ?: DownloadState.NOT_DOWNLOADED,
+                                    downloadProgress = downloadStatesMap[song.id]?.progress ?: 0f,
+                                    onToggleDownload = { toggleSongDownload(song) }
                                 )
                             }
                         }
@@ -911,7 +972,10 @@ fun MusicScreenV2(
                             onAddToPlaylist = {
                                 addToPlaylistSongId = song.id
                                 showAddToPlaylistDialog = true
-                            }
+                            },
+                            downloadState = downloadStatesMap[song.id]?.state ?: DownloadState.NOT_DOWNLOADED,
+                            downloadProgress = downloadStatesMap[song.id]?.progress ?: 0f,
+                            onToggleDownload = { toggleSongDownload(song) }
                         )
                     }
                 }
@@ -1066,7 +1130,10 @@ fun MusicScreenV2(
                             onAddToPlaylist = {
                                 addToPlaylistSongId = song.id
                                 showAddToPlaylistDialog = true
-                            }
+                            },
+                            downloadState = downloadStatesMap[song.id]?.state ?: DownloadState.NOT_DOWNLOADED,
+                            downloadProgress = downloadStatesMap[song.id]?.progress ?: 0f,
+                            onToggleDownload = { toggleSongDownload(song) }
                         )
                     }
                 }
@@ -1133,7 +1200,9 @@ fun MusicScreenV2(
                                     onSongSelected(source, index)
                                 }
                             },
-                            onArtistClick = { artist -> openArtistDetail(artist) }
+                            onArtistClick = { artist -> openArtistDetail(artist) },
+                            downloadStatesMap = downloadStatesMap,
+                            onToggleDownload = { song -> toggleSongDownload(song) }
                         )
                     }
                 }
@@ -1220,7 +1289,10 @@ fun MusicScreenV2(
                                 onAddToPlaylist = {
                                     addToPlaylistSongId = song.id
                                     showAddToPlaylistDialog = true
-                                }
+                                },
+                                downloadState = downloadStatesMap[song.id]?.state ?: DownloadState.NOT_DOWNLOADED,
+                                downloadProgress = downloadStatesMap[song.id]?.progress ?: 0f,
+                                onToggleDownload = { toggleSongDownload(song) }
                             )
                         }
                     }
@@ -1359,7 +1431,10 @@ fun MusicScreenV2(
                                 onAddToPlaylist = {
                                     addToPlaylistSongId = song.id
                                     showAddToPlaylistDialog = true
-                                }
+                                },
+                                downloadState = downloadStatesMap[song.id]?.state ?: DownloadState.NOT_DOWNLOADED,
+                                downloadProgress = downloadStatesMap[song.id]?.progress ?: 0f,
+                                onToggleDownload = { toggleSongDownload(song) }
                             )
                         }
                     }
@@ -1584,7 +1659,9 @@ private fun MusicSearchLanding(
     colorScheme: ColorScheme,
     onAlbumClick: (NavidromeAlbum) -> Unit,
     onSongClick: (NavidromeSong) -> Unit,
-    onArtistClick: (NavidromeArtist) -> Unit
+    onArtistClick: (NavidromeArtist) -> Unit,
+    downloadStatesMap: Map<String, DownloadStateEntry> = emptyMap(),
+    onToggleDownload: ((NavidromeSong) -> Unit)? = null
 ) {
     val hasSuggestions = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty()
     val suggestedAlbums = remember(albums) { albums.take(8) }
@@ -1643,7 +1720,10 @@ private fun MusicSearchLanding(
                     SongShelfCard(
                         song = song,
                         colorScheme = colorScheme,
-                        onClick = { onSongClick(song) }
+                        onClick = { onSongClick(song) },
+                        downloadState = downloadStatesMap[song.id]?.state ?: DownloadState.NOT_DOWNLOADED,
+                        downloadProgress = downloadStatesMap[song.id]?.progress ?: 0f,
+                        onToggleDownload = if (onToggleDownload != null) {{ onToggleDownload(song) }} else null
                     )
                 }
             }

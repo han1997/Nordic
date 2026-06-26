@@ -2,6 +2,7 @@ package com.nordic.mediahub.api
 
 import androidx.compose.runtime.Stable
 import com.google.gson.annotations.SerializedName
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -360,6 +361,17 @@ interface NavidromeApi {
         @Query("songIdToAdd") songIdToAdd: List<String>? = null,
         @Query("songIndexToRemove") songIndexToRemove: List<Int>? = null
     ): Response<SubsonicResponse>
+
+    @Streaming
+    @GET("rest/download.view")
+    suspend fun download(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("id") songId: String
+    ): Response<ResponseBody>
 
     @GET("rest/deletePlaylist.view")
     suspend fun deletePlaylist(

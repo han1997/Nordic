@@ -11,6 +11,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.nordic.mediahub.api.NavidromeSong
+import com.nordic.mediahub.data.MusicDownloadManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -74,7 +75,7 @@ internal fun resolveQueueIndexAfterMove(fromIndex: Int, targetIndex: Int, curren
 }
 
 @androidx.annotation.OptIn(UnstableApi::class)
-class MusicPlaybackEngine(context: Context) {
+class MusicPlaybackEngine(context: Context, private val downloadManager: MusicDownloadManager? = null) {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val sessionToken = SessionToken(
@@ -175,7 +176,8 @@ class MusicPlaybackEngine(context: Context) {
     }
 
     fun play(song: NavidromeSong) {
-        if (song.streamUrl.isNullOrBlank()) {
+        val localPath = downloadManager?.getLocalFilePath(song.id)
+        if (localPath == null && song.streamUrl.isNullOrBlank()) {
             _state.value = MusicPlaybackState(
                 currentSong = song,
                 durationSeconds = song.duration,
@@ -201,7 +203,7 @@ class MusicPlaybackEngine(context: Context) {
                 durationSeconds = song.duration,
                 isBuffering = true
             )
-            activeController.setMediaItem(song.toMediaItem())
+            activeController.setMediaItem(song.toMediaItem(localFilePath = localPath))
             activeController.prepare()
         } else {
             _state.update { it.copy(errorMessage = null) }
@@ -236,7 +238,10 @@ class MusicPlaybackEngine(context: Context) {
             return
         }
 
-        val mediaItems = songs.map { it.toMediaItem() }
+        val mediaItems = songs.map { song ->
+            val localPath = downloadManager?.getLocalFilePath(song.id)
+            song.toMediaItem(localFilePath = localPath)
+        }
         val safeStartIndex = startIndex.coerceIn(0, songs.lastIndex)
         activeController.setMediaItems(mediaItems, safeStartIndex, 0L)
         activeController.prepare()
