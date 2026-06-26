@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend spec index — project conventions and layer overview"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Emby integration spec — direct target of this task's API/repository changes"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Quality guidelines — test, lint, type-check standards for implementation"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Error handling conventions — playback error surfacing must follow these"}
+{"file": ".trellis/spec/backend/audiobookshelf-integration.md", "reason": "AudiobookShelf spec — reference for playback ownership patterns to match"}
+{"file": ".trellis/tasks/06-26-media-feature-parity-enhancements/research/emby-playback-api.md", "reason": "Emby playback API research — PlaybackInfo endpoint and direct stream URL construction"}
+{"file": ".trellis/tasks/06-26-media-feature-parity-enhancements/research/video-emby-yamby-reference.md", "reason": "Video Emby/Yamby feature parity research — defines the MVP playback scope"}
