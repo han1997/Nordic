@@ -517,3 +517,37 @@ Optimized Compose UI recomposition and playback smoothness paths, fixed search d
 ### Next Steps
 
 - None - task complete
+
+
+## Session 16: Comprehensive playback review fixes
+
+**Date**: 2026-06-26
+**Task**: Comprehensive playback review fixes
+**Branch**: `main`
+
+### Summary
+
+Fixed audiobook close/sync edge cases and pending music queue index preservation, added playback regression tests, and captured the resulting playback contracts in specs.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `017f2a7` | (see git log) |
+| `9b28cd3` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
