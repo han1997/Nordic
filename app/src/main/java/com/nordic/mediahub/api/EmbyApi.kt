@@ -54,6 +54,10 @@ data class EmbyItemDto(
     val runTimeTicks: Long? = null,
     @SerializedName("ChildCount")
     val childCount: Int? = null,
+    @SerializedName("IndexNumber")
+    val indexNumber: Int? = null,
+    @SerializedName("ParentIndexNumber")
+    val parentIndexNumber: Int? = null,
     @SerializedName("ImageTags")
     val imageTags: Map<String, String> = emptyMap()
 )
@@ -78,6 +82,45 @@ data class EmbyMediaSourceDto(
     val supportsDirectPlay: Boolean? = null,
     @SerializedName("SupportsDirectStream")
     val supportsDirectStream: Boolean? = null
+)
+
+data class EmbyPlaybackStartRequest(
+    @SerializedName("ItemId")
+    val itemId: String,
+    @SerializedName("SessionId")
+    val sessionId: String,
+    @SerializedName("MediaSourceId")
+    val mediaSourceId: String,
+    @SerializedName("IsPaused")
+    val isPaused: Boolean = false,
+    @SerializedName("IsMuted")
+    val isMuted: Boolean = false,
+    @SerializedName("PositionTicks")
+    val positionTicks: Long = 0L
+)
+
+data class EmbyPlaybackProgressRequest(
+    @SerializedName("ItemId")
+    val itemId: String,
+    @SerializedName("SessionId")
+    val sessionId: String,
+    @SerializedName("MediaSourceId")
+    val mediaSourceId: String,
+    @SerializedName("IsPaused")
+    val isPaused: Boolean = false,
+    @SerializedName("PositionTicks")
+    val positionTicks: Long = 0L
+)
+
+data class EmbyPlaybackStopRequest(
+    @SerializedName("ItemId")
+    val itemId: String,
+    @SerializedName("SessionId")
+    val sessionId: String,
+    @SerializedName("MediaSourceId")
+    val mediaSourceId: String,
+    @SerializedName("PositionTicks")
+    val positionTicks: Long = 0L
 )
 
 interface EmbyApi {
@@ -117,6 +160,44 @@ interface EmbyApi {
         @Header("X-Emby-Token") token: String,
         @Query("UserId") userId: String
     ): Response<EmbyPlaybackInfoResponse>
+
+    @POST("Sessions/Playing")
+    suspend fun reportPlaybackStart(
+        @Body request: EmbyPlaybackStartRequest,
+        @Header("X-Emby-Token") token: String
+    ): Response<Unit>
+
+    @POST("Sessions/Playing/Progress")
+    suspend fun reportPlaybackProgress(
+        @Body request: EmbyPlaybackProgressRequest,
+        @Header("X-Emby-Token") token: String
+    ): Response<Unit>
+
+    @POST("Sessions/Playing/Stopped")
+    suspend fun reportPlaybackStopped(
+        @Body request: EmbyPlaybackStopRequest,
+        @Header("X-Emby-Token") token: String
+    ): Response<Unit>
+
+    @GET("Users/{userId}/Items")
+    suspend fun getSeasons(
+        @Path("userId") userId: String,
+        @Header("X-Emby-Token") token: String,
+        @Query("ParentId") parentId: String,
+        @Query("IncludeItemTypes") includeItemTypes: String = "Season",
+        @Query("SortBy") sortBy: String = "SortName",
+        @Query("SortOrder") sortOrder: String = "Ascending"
+    ): Response<EmbyItemsResponse>
+
+    @GET("Users/{userId}/Items")
+    suspend fun getEpisodes(
+        @Path("userId") userId: String,
+        @Header("X-Emby-Token") token: String,
+        @Query("ParentId") parentId: String,
+        @Query("IncludeItemTypes") includeItemTypes: String = "Episode",
+        @Query("SortBy") sortBy: String = "SortName",
+        @Query("SortOrder") sortOrder: String = "Ascending"
+    ): Response<EmbyItemsResponse>
 }
 
 private const val EMBY_CLIENT_AUTHORIZATION =

@@ -6,6 +6,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.nordic.mediahub.data.VideoPlaybackInfo
@@ -29,14 +30,21 @@ data class VideoPlaybackState(
     val isBuffering: Boolean = false,
     val positionSeconds: Int = 0,
     val durationSeconds: Int = 0,
+    val speed: Float = 1.0f,
     val errorMessage: String? = null
 )
 
-class VideoPlaybackEngine(context: Context) {
+class VideoPlaybackEngine(
+    context: Context,
+    private val onPlaybackStart: (suspend (itemId: String, mediaSourceId: String, playSessionId: String, positionSeconds: Int) -> Unit)? = null,
+    private val onPlaybackProgress: (suspend (itemId: String, mediaSourceId: String, playSessionId: String, positionSeconds: Int) -> Unit)? = null,
+    private val onPlaybackStopped: (suspend (itemId: String, mediaSourceId: String, playSessionId: String, positionSeconds: Int) -> Unit)? = null
+) {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val exoPlayer = ExoPlayer.Builder(appContext).build()
     private var positionUpdateJob: Job? = null
+    private var progressReportJob: Job? = null
 
     private val _state = MutableStateFlow(VideoPlaybackState())
     val state: StateFlow<VideoPlaybackState> = _state.asStateFlow()
@@ -81,6 +89,9 @@ class VideoPlaybackEngine(context: Context) {
         exoPlayer.prepare()
         exoPlayer.play()
         publishPlayerState()
+        val info = playbackInfo
+        scope.launch { onPlaybackStart?.invoke(info.itemId, info.mediaSourceId, info.playSessionId, 0) }
+        startProgressReporting()
     }
 
     fun togglePlayPause() {
@@ -105,16 +116,33 @@ class VideoPlaybackEngine(context: Context) {
         publishPlayerState()
     }
 
+    fun setSpeed(speed: Float) {
+        exoPlayer.playbackParameters = PlaybackParameters(speed)
+        publishPlayerState()
+    }
+
     fun stop() {
         stopPositionUpdates()
+        stopProgressReporting()
+        val info = _state.value.playbackInfo
+        val position = _state.value.positionSeconds
         exoPlayer.pause()
         exoPlayer.stop()
         exoPlayer.clearMediaItems()
+        if (info != null) {
+            scope.launch { onPlaybackStopped?.invoke(info.itemId, info.mediaSourceId, info.playSessionId, position) }
+        }
         _state.value = VideoPlaybackState()
     }
 
     fun release() {
         stopPositionUpdates()
+        stopProgressReporting()
+        val info = _state.value.playbackInfo
+        val position = _state.value.positionSeconds
+        if (info != null) {
+            scope.launch { onPlaybackStopped?.invoke(info.itemId, info.mediaSourceId, info.playSessionId, position) }
+        }
         scope.cancel()
         exoPlayer.removeListener(playerListener)
         exoPlayer.release()
@@ -135,6 +163,26 @@ class VideoPlaybackEngine(context: Context) {
         positionUpdateJob = null
     }
 
+    private fun startProgressReporting() {
+        stopProgressReporting()
+        val info = _state.value.playbackInfo ?: return
+        progressReportJob = scope.launch {
+            while (isActive) {
+                delay(10_000)
+                val currentInfo = _state.value.playbackInfo ?: break
+                onPlaybackProgress?.invoke(
+                    currentInfo.itemId, currentInfo.mediaSourceId, currentInfo.playSessionId,
+                    _state.value.positionSeconds
+                )
+            }
+        }
+    }
+
+    private fun stopProgressReporting() {
+        progressReportJob?.cancel()
+        progressReportJob = null
+    }
+
     private fun publishPlayerState() {
         val playbackInfo = _state.value.playbackInfo ?: return
         val playerDuration = exoPlayer.duration
@@ -151,6 +199,7 @@ class VideoPlaybackEngine(context: Context) {
                 isBuffering = exoPlayer.playbackState == Player.STATE_BUFFERING,
                 positionSeconds = (exoPlayer.currentPosition.coerceAtLeast(0L) / 1000L).toInt(),
                 durationSeconds = (playerDuration ?: fallbackDuration).coerceAtLeast(fallbackDuration),
+                speed = exoPlayer.playbackParameters.speed,
                 errorMessage = when (exoPlayer.playbackState) {
                     Player.STATE_READY, Player.STATE_ENDED -> null
                     else -> it.errorMessage

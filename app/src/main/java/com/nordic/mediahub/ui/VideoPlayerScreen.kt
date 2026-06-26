@@ -43,6 +43,7 @@ fun VideoPlayerScreen(
     onSeek: (Int) -> Unit,
     onPlayPause: () -> Unit,
     onClose: () -> Unit,
+    onSpeedChange: (Float) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val playbackInfo = state.playbackInfo
@@ -122,7 +123,9 @@ fun VideoPlayerScreen(
                     onSeek(target.toInt())
                     scrubPosition = null
                 },
-                onPlayPause = onPlayPause
+                onPlayPause = onPlayPause,
+                speed = state.speed,
+                onSpeedChange = onSpeedChange
             )
         }
     }
@@ -187,10 +190,12 @@ private fun VideoPlayerControls(
     isPlaying: Boolean,
     position: Float,
     duration: Int,
+    speed: Float,
     colorScheme: ColorScheme,
     onPositionChange: (Float) -> Unit,
     onPositionChangeFinished: () -> Unit,
-    onPlayPause: () -> Unit
+    onPlayPause: () -> Unit,
+    onSpeedChange: (Float) -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -254,6 +259,28 @@ private fun VideoPlayerControls(
                 color = Color.White.copy(alpha = 0.64f),
                 fontSize = 12.sp
             )
+        }
+        val speedOptions = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            speedOptions.forEach { spd ->
+                val active = speed == spd
+                Surface(
+                    color = if (active) colorScheme.primary else Color.White.copy(alpha = 0.12f),
+                    contentColor = if (active) colorScheme.onPrimary else Color.White.copy(alpha = 0.7f),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+                    onClick = { onSpeedChange(spd) }
+                ) {
+                    Text(
+                        if (spd == spd.toInt().toFloat()) "${spd.toInt()}x" else "${spd}x",
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        fontSize = 12.sp,
+                        fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium
+                    )
+                }
+            }
         }
     }
 }

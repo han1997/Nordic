@@ -65,7 +65,8 @@ fun VideoScreen(
     colorScheme: ColorScheme,
     isDark: Boolean,
     onThemeToggle: (Boolean) -> Unit,
-    onPlayVideo: (VideoPlaybackInfo) -> Unit = {}
+    onPlayVideo: (VideoPlaybackInfo) -> Unit = {},
+    onShowVideoDetail: (VideoItem) -> Unit = {}
 ) {
     val context = LocalContext.current
     val configRepository = remember { ConfigRepository(context) }
@@ -272,23 +273,7 @@ fun VideoScreen(
                     VideoCard(
                         video = video,
                         colorScheme = colorScheme,
-                        onClick = {
-                            val repo = embyRepository
-                            if (repo != null) {
-                                scope.launch {
-                                    isLoading = true
-                                    errorMessage = null
-                                    runCatching {
-                                        repo.getPlaybackInfo(video)
-                                    }.onSuccess { playbackInfo ->
-                                        onPlayVideo(playbackInfo)
-                                    }.onFailure { error ->
-                                        errorMessage = error.message ?: "启动 Emby 播放失败"
-                                    }
-                                    isLoading = false
-                                }
-                            }
-                        }
+                        onClick = { onShowVideoDetail(video) }
                     )
                 }
             }

@@ -27,7 +27,11 @@ import com.nordic.mediahub.data.AudiobookShelfRepository
 import com.nordic.mediahub.data.MusicLyrics
 import com.nordic.mediahub.data.NavidromeConfig
 import com.nordic.mediahub.data.NavidromeRepository
+import com.nordic.mediahub.data.EmbyRepository
+import com.nordic.mediahub.data.VideoItem
 import com.nordic.mediahub.data.VideoPlaybackInfo
+import com.nordic.mediahub.data.VideoServerConfig
+import com.nordic.mediahub.data.isReadyForVideoSync
 import com.nordic.mediahub.data.isReadyForAudiobookSync
 import com.nordic.mediahub.data.isReadyForMusicSync
 import com.nordic.mediahub.playback.AudiobookPlaybackEngine
@@ -176,7 +180,8 @@ private fun TabContent(
     onShowAudiobookPlayer: () -> Unit,
     onHidePlayer: () -> Unit,
     onHideVideoPlayer: () -> Unit,
-    onAudiobookSeekToChapter: (Int) -> Unit = {}
+    onAudiobookSeekToChapter: (Int) -> Unit = {},
+    onShowVideoDetail: (VideoItem) -> Unit = {}
 ) {
     when (tab) {
         0 -> MusicScreenV2(
@@ -211,7 +216,7 @@ private fun TabContent(
             },
             onSeekToChapter = onAudiobookSeekToChapter
         )
-        2 -> VideoScreen(colorScheme, isDark, onThemeToggle, onPlayVideo = onVideoSelected)
+        2 -> VideoScreen(colorScheme, isDark, onThemeToggle, onPlayVideo = onVideoSelected, onShowVideoDetail = onShowVideoDetail)
     }
 }
 @Composable
@@ -220,13 +225,31 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     var showPlayer by remember { mutableStateOf(false) }
     var showAudiobookPlayer by remember { mutableStateOf(false) }
     var showVideoPlayer by remember { mutableStateOf(false) }
+    var videoDetailItem by remember { mutableStateOf<VideoItem?>(null) }
     var showQueueSheet by remember { mutableStateOf(false) }
     var audiobookPlaybackError by remember { mutableStateOf<String?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
+    val configRepository = remember { ConfigRepository(context) }
+    val videoConfig by configRepository.videoConfig.collectAsStateWithLifecycle(VideoServerConfig())
+    val embyRepository = remember(videoConfig) {
+        if (videoConfig.isReadyForVideoSync()) EmbyRepository(videoConfig) else null
+    }
     val playbackEngine = remember { MusicPlaybackEngine(context) }
     val audiobookPlaybackEngine = remember { AudiobookPlaybackEngine(context) }
-    val videoPlaybackEngine = remember { VideoPlaybackEngine(context) }
-    val configRepository = remember { ConfigRepository(context) }
+    val videoPlaybackEngine = remember {
+        VideoPlaybackEngine(
+            context,
+            onPlaybackStart = { itemId, mediaSourceId, playSessionId, _ ->
+                embyRepository?.reportPlaybackStart(itemId, mediaSourceId, playSessionId)
+            },
+            onPlaybackProgress = { itemId, mediaSourceId, playSessionId, posSec ->
+                embyRepository?.reportPlaybackProgress(itemId, mediaSourceId, playSessionId, posSec)
+            },
+            onPlaybackStopped = { itemId, mediaSourceId, playSessionId, posSec ->
+                embyRepository?.reportPlaybackStopped(itemId, mediaSourceId, playSessionId, posSec)
+            }
+        )
+    }
     val navidromeConfig by configRepository.navidromeConfig.collectAsStateWithLifecycle(NavidromeConfig())
     val audiobookConfig by configRepository.audiobookConfig.collectAsStateWithLifecycle(AudiobookShelfConfig())
     val navidromeRepository = remember(navidromeConfig) {
@@ -479,6 +502,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                         colorScheme = colorScheme,
                         onSeek = videoPlaybackEngine::seekTo,
                         onPlayPause = videoPlaybackEngine::togglePlayPause,
+                        onSpeedChange = videoPlaybackEngine::setSpeed,
                         onClose = {
                             showVideoPlayer = false
                             videoPlaybackEngine.stop()
@@ -552,7 +576,10 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                     showVideoPlayer = false
                                     videoPlaybackEngine.stop()
                                 },
-                                onAudiobookSeekToChapter = audiobookPlaybackEngine::seekTo
+                                onAudiobookSeekToChapter = audiobookPlaybackEngine::seekTo,
+                                onShowVideoDetail = { videoItem ->
+                                    videoDetailItem = videoItem
+                                }
                             )
                         }
                     }
@@ -581,6 +608,30 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             onStartSleepTimerEndOfChapter = audiobookPlaybackEngine::startSleepTimerEndOfChapter,
             onCancelSleepTimer = audiobookPlaybackEngine::cancelSleepTimer
         )
+    }
+
+    videoDetailItem?.let { detailItem ->
+        AnimatedVisibility(
+            visible = true,
+            enter = fadeIn(tween(300)) + expandVertically(tween(300)),
+            exit = fadeOut(tween(200)) + shrinkVertically(tween(200))
+        ) {
+            VideoDetailScreen(
+                videoItem = detailItem,
+                colorScheme = colorScheme,
+                onPlay = { playbackInfo ->
+                    closeAudiobookPlayback()
+                    playbackEngine.stop()
+                    videoPlaybackEngine.play(playbackInfo)
+                    showVideoPlayer = true
+                    showPlayer = false
+                    showAudiobookPlayer = false
+                    videoDetailItem = null
+                },
+                onBack = { videoDetailItem = null },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
     }
 
     if (showQueueSheet) {

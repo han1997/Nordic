@@ -6,6 +6,9 @@ import android.util.Log
 import com.nordic.mediahub.api.EmbyApi
 import com.nordic.mediahub.api.EmbyAuthenticateRequest
 import com.nordic.mediahub.api.EmbyItemDto
+import com.nordic.mediahub.api.EmbyPlaybackStartRequest
+import com.nordic.mediahub.api.EmbyPlaybackProgressRequest
+import com.nordic.mediahub.api.EmbyPlaybackStopRequest
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -54,6 +57,26 @@ data class VideoCatalog(
     val libraries: List<VideoLibrary>,
     val selectedLibraryId: String?,
     val items: List<VideoItem>
+)
+
+@Stable
+data class VideoSeason(
+    val id: String,
+    val name: String,
+    val indexNumber: Int,
+    val episodeCount: Int,
+    val imageUrl: String? = null
+)
+
+@Stable
+data class VideoEpisode(
+    val id: String,
+    val name: String,
+    val seasonNumber: Int,
+    val episodeNumber: Int,
+    val overview: String,
+    val durationSeconds: Int,
+    val imageUrl: String? = null
 )
 
 class EmbyRepository(private val config: VideoServerConfig) {
@@ -137,6 +160,108 @@ class EmbyRepository(private val config: VideoServerConfig) {
         throw Exception("启动 Emby 播放失败: ${e.message}")
     }
 
+    suspend fun reportPlaybackStart(
+        itemId: String,
+        mediaSourceId: String,
+        playSessionId: String,
+        positionSeconds: Int = 0
+    ) {
+        try {
+            val session = session()
+            api.reportPlaybackStart(
+                request = EmbyPlaybackStartRequest(
+                    itemId = itemId,
+                    sessionId = playSessionId,
+                    mediaSourceId = mediaSourceId,
+                    positionTicks = positionSeconds.toLong() * EMBY_TICKS_PER_SECOND
+                ),
+                token = session.token
+            )
+        } catch (e: EmbyApiException) {
+            throw e
+        } catch (e: Exception) {
+            throw Exception("上报播放开始失败: ${e.message}")
+        }
+    }
+
+    suspend fun reportPlaybackProgress(
+        itemId: String,
+        mediaSourceId: String,
+        playSessionId: String,
+        positionSeconds: Int
+    ) {
+        try {
+            val session = session()
+            api.reportPlaybackProgress(
+                request = EmbyPlaybackProgressRequest(
+                    itemId = itemId,
+                    sessionId = playSessionId,
+                    mediaSourceId = mediaSourceId,
+                    positionTicks = positionSeconds.toLong() * EMBY_TICKS_PER_SECOND
+                ),
+                token = session.token
+            )
+        } catch (e: EmbyApiException) {
+            throw e
+        } catch (e: Exception) {
+            throw Exception("上报播放进度失败: ${e.message}")
+        }
+    }
+
+    suspend fun reportPlaybackStopped(
+        itemId: String,
+        mediaSourceId: String,
+        playSessionId: String,
+        positionSeconds: Int
+    ) {
+        try {
+            val session = session()
+            api.reportPlaybackStopped(
+                request = EmbyPlaybackStopRequest(
+                    itemId = itemId,
+                    sessionId = playSessionId,
+                    mediaSourceId = mediaSourceId,
+                    positionTicks = positionSeconds.toLong() * EMBY_TICKS_PER_SECOND
+                ),
+                token = session.token
+            )
+        } catch (e: EmbyApiException) {
+            throw e
+        } catch (e: Exception) {
+            throw Exception("上报播放停止失败: ${e.message}")
+        }
+    }
+
+    suspend fun getSeasons(seriesId: String): List<VideoSeason> = try {
+        val session = session()
+        api.getSeasons(
+            userId = session.userId,
+            token = session.token,
+            parentId = seriesId
+        ).requireBody("获取季列表失败")
+            .items
+            .map { dto -> dto.toVideoSeason(session.token) }
+    } catch (e: EmbyApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("获取季列表失败: ${e.message}")
+    }
+
+    suspend fun getEpisodes(seasonId: String): List<VideoEpisode> = try {
+        val session = session()
+        api.getEpisodes(
+            userId = session.userId,
+            token = session.token,
+            parentId = seasonId
+        ).requireBody("获取集列表失败")
+            .items
+            .map { dto -> dto.toVideoEpisode(session.token) }
+    } catch (e: EmbyApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("获取集列表失败: ${e.message}")
+    }
+
     private suspend fun session(): EmbySession {
         cachedSession?.let { return it }
 
@@ -200,6 +325,28 @@ class EmbyRepository(private val config: VideoServerConfig) {
             type = type.orEmpty(),
             overview = overview.orEmpty(),
             year = productionYear,
+            durationSeconds = runTimeTicks.toDurationSeconds(),
+            imageUrl = primaryImageUrl(id, token, imageTags["Primary"])
+        )
+    }
+
+    private fun EmbyItemDto.toVideoSeason(token: String): VideoSeason {
+        return VideoSeason(
+            id = id,
+            name = name,
+            indexNumber = indexNumber ?: 0,
+            episodeCount = childCount ?: 0,
+            imageUrl = primaryImageUrl(id, token, imageTags["Primary"])
+        )
+    }
+
+    private fun EmbyItemDto.toVideoEpisode(token: String): VideoEpisode {
+        return VideoEpisode(
+            id = id,
+            name = name,
+            seasonNumber = parentIndexNumber ?: 0,
+            episodeNumber = indexNumber ?: 0,
+            overview = overview.orEmpty(),
             durationSeconds = runTimeTicks.toDurationSeconds(),
             imageUrl = primaryImageUrl(id, token, imageTags["Primary"])
         )
