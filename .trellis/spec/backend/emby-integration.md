@@ -5,7 +5,8 @@
 ### 1. Scope / Trigger
 - Trigger: The Android app now exposes Emby as the first real video provider instead of placeholder cards.
 - Scope: Authentication, user media-library discovery, video item listing, thumbnail URL generation, typed errors, and repository tests.
-- Out of scope: Video playback, Plex, WebDAV browsing, persistent Emby token storage, and provider-wide account management.
+- Out of scope for the browsing MVP: Plex, WebDAV browsing, persistent Emby token storage, and provider-wide account management.
+- Video playback is covered by the later "Direct Video Playback MVP" scenario below.
 
 ### 2. Signatures
 - Config readiness:
@@ -110,3 +111,95 @@ val libraries = response.items.filter { item ->
 ```
 
 This keeps video-first behavior while retaining a compatibility fallback for older or incomplete Emby responses.
+
+---
+
+## Scenario: Direct Video Playback MVP
+
+### 1. Scope / Trigger
+- Trigger: User taps a playable Emby video item; the app must launch a Media3 video playback surface.
+- Scope: `GET /Items/{Id}/PlaybackInfo`, direct/static stream URL construction, domain playback model, ExoPlayer wrapper, video player screen.
+- Out of scope: HLS/transcoding fallback, subtitles, PIP, gesture controls, Live TV.
+
+### 2. Signatures
+- API endpoint:
+```kotlin
+@GET("Items/{itemId}/PlaybackInfo")
+suspend fun getPlaybackInfo(
+    @Path("itemId") itemId: String,
+    @Header("X-Emby-Token") token: String,
+    @Query("UserId") userId: String
+): Response<EmbyPlaybackInfoResponse>
+```
+- Repository:
+```kotlin
+suspend fun getPlaybackInfo(item: VideoItem): VideoPlaybackInfo
+```
+- Domain model:
+```kotlin
+@Stable data class VideoPlaybackInfo(
+    val itemId: String, val title: String, val streamUrl: String,
+    val mediaSourceId: String, val playSessionId: String,
+    val overview: String = "", val durationSeconds: Int = 0, val imageUrl: String? = null
+)
+```
+- Playback engine:
+```kotlin
+class VideoPlaybackEngine(context: Context) {
+    val state: StateFlow<VideoPlaybackState>
+    val player: Player
+    fun play(playbackInfo: VideoPlaybackInfo)
+    fun togglePlayPause()
+    fun seekTo(positionSeconds: Int)
+    fun stop()
+    fun release()
+}
+```
+
+### 3. Contracts
+- `GET /Items/{itemId}/PlaybackInfo` requires `X-Emby-Token` header and `UserId` query parameter.
+- Response `EmbyPlaybackInfoResponse` contains `MediaSources` list and `PlaySessionId`.
+- Media source selection: first source where `id` is not blank and `supportsDirectStream` is not `false`.
+- Direct stream URL pattern: `/Videos/{itemId}/stream?static=true&MediaSourceId={id}&PlaySessionId={sid}&api_key={token}`
+- Duration fallback: use `mediaSource.runTimeTicks` first, then fall back to `item.durationSeconds`.
+- `VideoPlaybackEngine` owns the ExoPlayer instance; UI reads `VideoPlaybackState` and sends commands (`play`, `togglePlayPause`, `seekTo`, `stop`).
+- On player error, `VideoPlaybackState.errorMessage` is populated and surfaced in the UI; the app never silently ignores playback failures.
+
+### 4. Validation & Error Matrix
+- Non-2xx from PlaybackInfo -> `EmbyApiException(kind = HTTP, message contains "HTTP <code>")`
+- No direct-playable media source -> `EmbyApiException(kind = API, message mentions "没有可直接播放的媒体源")`
+- Blank `PlaySessionId` -> `EmbyApiException(kind = API, message mentions "缺少播放会话")`
+- Generic exception during playback-info fetch -> wrap with context: `"启动 Emby 播放失败: ..."`
+- ExoPlayer `onPlayerError` -> `VideoPlaybackState.errorMessage = "视频播放失败: ..."`
+
+### 5. Good/Base/Bad Cases
+- Good: PlaybackInfo returns a direct-stream source and play session; stream URL plays in ExoPlayer.
+- Base: Item with no `RunTimeTicks` falls back to `VideoItem.durationSeconds`.
+- Bad: PlaybackInfo returns no `SupportsDirectStream != false` source; `EmbyApiException.Kind.API` thrown, UI shows error card.
+- Bad: Emby returns HTTP 500 for PlaybackInfo; `EmbyApiException.Kind.HTTP` thrown.
+
+### 6. Tests Required
+- `getPlaybackInfo_mapsDirectStreamUrlFromPlaybackInfo`: asserts `PlaybackInfo` endpoint called with correct path/header/query, stream URL contains `static=true`, `MediaSourceId`, `PlaySessionId`, `api_key`, and duration mapped from ticks.
+- `getPlaybackInfo_throwsTypedApiErrorWhenNoDirectSourceExists`: asserts `EmbyApiException.Kind.API` when all sources have `SupportsDirectStream = false`.
+- `getPlaybackInfo_throwsTypedHttpErrorForNon2xx`: asserts `EmbyApiException.Kind.HTTP` with "HTTP 500" on server error.
+- `getPlaybackInfo_throwsTypedApiErrorWhenPlaySessionIdIsMissing`: asserts `EmbyApiException.Kind.API` mentioning "播放会话" when `PlaySessionId` is blank.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```kotlin
+val streamUrl = "$baseUrl/Videos/${itemId}/stream?api_key=$token"
+```
+Omitting `static=true`, `MediaSourceId`, and `PlaySessionId` causes Emby to return a transcode playlist or reject the request.
+
+#### Correct
+```kotlin
+val streamUrl = baseUrl.toHttpUrl().newBuilder()
+    .addPathSegment("Videos").addPathSegment(itemId).addPathSegment("stream")
+    .addQueryParameter("static", "true")
+    .addQueryParameter("MediaSourceId", mediaSourceId)
+    .addQueryParameter("PlaySessionId", playSessionId)
+    .addQueryParameter("api_key", token)
+    .build().toString()
+```
+`static=true` requests the original file bytes; the session and source IDs let Emby track and serve the correct media.
