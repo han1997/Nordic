@@ -892,3 +892,36 @@ Added Emby global video search, server-side sort/filter controls, Next Up shelf,
 ### Next Steps
 
 - None - task complete
+
+
+## Session 27: Emby series library grouping
+
+**Date**: 2026-06-27
+**Task**: Emby series library grouping
+**Branch**: `main`
+
+### Summary
+
+Changed Emby library browsing to request and render TV shows at Series level instead of flattening Episode cards, while preserving episode results for search, continue watching, Next Up, and season drill-down; updated repository tests and Emby integration contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2fa7ffe` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
