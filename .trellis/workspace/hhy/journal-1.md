@@ -859,3 +859,36 @@ Added episode-level watch progress: VideoEpisode.progress field, UserData Fields
 ### Next Steps
 
 - None - task complete
+
+
+## Session 26: Emby video parity controls
+
+**Date**: 2026-06-27
+**Task**: Emby video parity controls
+**Branch**: `main`
+
+### Summary
+
+Added Emby global video search, server-side sort/filter controls, Next Up shelf, favorite and watched toggles, repository tests, and Emby integration spec coverage.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ebbc501` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
