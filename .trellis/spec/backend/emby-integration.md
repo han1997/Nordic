@@ -278,6 +278,108 @@ suspend fun getEpisodes(seasonId: String): List<VideoEpisode>
 scope.launch { onPlaybackStart?.invoke(info.itemId, info.mediaSourceId, info.playSessionId, 0) }
 ```
 
+## Scenario: Video Continue Watching
+
+### 1. Scope / Trigger
+
+- Trigger: Any change to Emby continue-watching shelves, `GET /Users/{userId}/Items/Resume`, `VideoProgress`, or resume-position playback.
+- This is cross-layer work: Emby user progress fields are mapped in the repository, rendered in `VideoScreen`, carried through `VideoPlaybackInfo`, and consumed by `VideoPlaybackEngine`.
+
+### 2. Signatures
+
+- API:
+```kotlin
+@GET("Users/{userId}/Items/Resume")
+suspend fun getResumeItems(
+    @Path("userId") userId: String,
+    @Header("X-Emby-Token") token: String,
+    @Query("MediaTypes") mediaTypes: String = "Video",
+    @Query("IncludeItemTypes") includeItemTypes: String = "Movie,Episode,Video",
+    @Query("Fields") fields: String = "Overview,ProductionYear,RunTimeTicks,ChildCount,ImageTags",
+    @Query("Limit") limit: Int = 12
+): Response<EmbyItemsResponse>
+```
+- DTO/domain:
+```kotlin
+data class EmbyItemDto(..., val parentId: String? = null, val userData: EmbyUserDataDto? = null)
+data class EmbyUserDataDto(
+    val playedPercentage: Double? = null,
+    val playbackPositionTicks: Long? = null,
+    val played: Boolean = false,
+    val lastPlayedDate: String? = null
+)
+
+@Stable data class VideoProgress(
+    val currentTimeSeconds: Int = 0,
+    val playedPercentage: Float = 0f,
+    val isPlayed: Boolean = false,
+    val lastPlayedDate: String? = null
+)
+@Stable data class VideoItem(..., val progress: VideoProgress? = null)
+@Stable data class VideoCatalog(..., val resumeItems: List<VideoItem> = emptyList())
+@Stable data class VideoPlaybackInfo(..., val resumePositionSeconds: Int = 0)
+```
+- Repository/playback:
+```kotlin
+suspend fun EmbyRepository.getResumeItems(): List<VideoItem>
+fun VideoPlaybackEngine.play(playbackInfo: VideoPlaybackInfo)
+```
+
+### 3. Contracts
+
+- `getCatalog()` fetches resume items with the same authenticated session as libraries/items and stores them in `VideoCatalog.resumeItems`.
+- Resume requests use `GET /Users/{userId}/Items/Resume` with `MediaTypes=Video` and `IncludeItemTypes=Movie,Episode,Video`.
+- `UserData.PlaybackPositionTicks` maps to `VideoProgress.currentTimeSeconds` using `10_000_000` ticks per second.
+- `UserData.PlayedPercentage` maps to `VideoProgress.playedPercentage` and is clamped to `0f..100f`.
+- Continue-watching shelves include only items where `currentTimeSeconds > 0` and `isPlayed == false`.
+- `EmbyRepository.getPlaybackInfo(item)` copies `item.progress.currentTimeSeconds` into `VideoPlaybackInfo.resumePositionSeconds`, clamped to the item duration when known.
+- `VideoPlaybackEngine.play()` seeks to `resumePositionSeconds` before playback starts and reports playback start at that same position.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+|---|---|
+| Resume endpoint returns no items | `VideoCatalog.resumeItems` is empty and the shelf is hidden |
+| Resume item has missing `UserData` | Exclude it from continue watching |
+| `PlaybackPositionTicks <= 0` | Exclude it from continue watching |
+| `Played == true` | Exclude it from continue watching |
+| `PlayedPercentage` is out of range | Clamp to `0f..100f` |
+| Resume position exceeds known duration | Clamp playback start to duration |
+| Resume endpoint returns non-2xx | Throw `EmbyApiException.Kind.HTTP` through the repository pattern |
+
+### 5. Good/Base/Bad Cases
+
+- Good: Emby returns an unfinished movie with `PlaybackPositionTicks`; Video home shows it in "继续观看", and playback starts at that position.
+- Base: Emby returns an empty resume list; normal library browsing and playback remain unchanged.
+- Bad: UI derives continue watching by scanning only the current library list and misses resumable items from other video libraries.
+
+### 6. Tests Required
+
+- Repository test asserting `getResumeItems()` requests `/Users/{userId}/Items/Resume`, passes token, `MediaTypes=Video`, and `IncludeItemTypes=Movie,Episode,Video`.
+- Repository test asserting `UserData.PlaybackPositionTicks`, `PlayedPercentage`, `Played`, and `LastPlayedDate` map to `VideoProgress`.
+- Repository test asserting played or zero-position items are filtered out.
+- Repository test asserting `getPlaybackInfo()` carries `VideoItem.progress.currentTimeSeconds` into `VideoPlaybackInfo.resumePositionSeconds`.
+- Compile/lint checks for `VideoScreen` shelf rendering and `VideoPlaybackEngine.play()` callback wiring.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```kotlin
+// Wrong: this only sees the currently selected library and does not use Emby's resume contract.
+val resumeItems = currentLibraryItems.filter { it.progress?.currentTimeSeconds ?: 0 > 0 }
+```
+
+#### Correct
+```kotlin
+// Correct: ask Emby for the user's cross-library resumable video items.
+val resumeItems = api.getResumeItems(
+    userId = session.userId,
+    token = session.token,
+    mediaTypes = "Video",
+    includeItemTypes = "Movie,Episode,Video"
+)
+```
+
 ## Scenario: PlaybackInfo Media Streams and Player Track Controls
 
 ### 1. Scope / Trigger
