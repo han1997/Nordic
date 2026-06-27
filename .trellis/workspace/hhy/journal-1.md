@@ -690,3 +690,38 @@ Implemented round-four media polish across music local filtering and lyrics cont
 ### Next Steps
 
 - None - task complete
+
+
+## Session 21: Media feature parity round five
+
+**Date**: 2026-06-27
+**Task**: Media feature parity round five
+**Branch**: `main`
+
+### Summary
+
+Implemented round-five media polish: persisted Navidrome downloaded song metadata for offline restore, removed inactive Emby subtitle-offset controls, and documented the download metadata and subtitle-control contracts.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b5e6bf0` | (see git log) |
+| `e768235` | (see git log) |
+| `fa653ab` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
