@@ -793,3 +793,36 @@ Added Emby server-backed continue watching with resume API mapping, video home s
 ### Next Steps
 
 - None - task complete
+
+
+## Session 24: Media feature parity round 8
+
+**Date**: 2026-06-27
+**Task**: Media feature parity round 8
+**Branch**: `main`
+
+### Summary
+
+Added synced lyric tap-to-seek in the music player, covered visible lyric timing behavior with JVM tests, and passed compile, unit test, and lint gates.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `3a65380` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
