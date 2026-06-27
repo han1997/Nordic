@@ -37,7 +37,6 @@ data class VideoPlaybackState(
     val selectedAudioTrackIndex: Int? = null,
     val selectedSubtitleTrackIndex: Int? = null,
     val subtitleScale: Float = 1.0f,
-    val subtitleOffsetSeconds: Int = 0,
     val errorMessage: String? = null
 )
 
@@ -150,12 +149,6 @@ class VideoPlaybackEngine(
 
     fun setSubtitleScale(scale: Float) {
         _state.update { it.copy(subtitleScale = scale.coerceIn(0.75f, 1.75f)) }
-    }
-
-    fun adjustSubtitleOffset(deltaSeconds: Int) {
-        _state.update {
-            it.copy(subtitleOffsetSeconds = (it.subtitleOffsetSeconds + deltaSeconds).coerceIn(-30, 30))
-        }
     }
 
     fun stop() {

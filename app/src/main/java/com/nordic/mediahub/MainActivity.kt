@@ -573,7 +573,6 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                         onSelectAudioTrack = videoPlaybackEngine::selectAudioTrack,
                         onSelectSubtitleTrack = videoPlaybackEngine::selectSubtitleTrack,
                         onSubtitleScaleChange = videoPlaybackEngine::setSubtitleScale,
-                        onSubtitleOffsetChange = videoPlaybackEngine::adjustSubtitleOffset,
                         onClose = {
                             showVideoPlayer = false
                             videoPlaybackEngine.stop()

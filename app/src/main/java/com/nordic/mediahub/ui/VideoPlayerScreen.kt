@@ -57,7 +57,6 @@ fun VideoPlayerScreen(
     onSelectAudioTrack: (Int?) -> Unit = {},
     onSelectSubtitleTrack: (Int?) -> Unit = {},
     onSubtitleScaleChange: (Float) -> Unit = {},
-    onSubtitleOffsetChange: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -176,11 +175,9 @@ fun VideoPlayerScreen(
                 selectedAudioTrackIndex = state.selectedAudioTrackIndex,
                 selectedSubtitleTrackIndex = state.selectedSubtitleTrackIndex,
                 subtitleScale = state.subtitleScale,
-                subtitleOffsetSeconds = state.subtitleOffsetSeconds,
                 onSelectAudioTrack = onSelectAudioTrack,
                 onSelectSubtitleTrack = onSelectSubtitleTrack,
-                onSubtitleScaleChange = onSubtitleScaleChange,
-                onSubtitleOffsetChange = onSubtitleOffsetChange
+                onSubtitleScaleChange = onSubtitleScaleChange
             )
         }
     }
@@ -251,7 +248,6 @@ private fun VideoPlayerControls(
     selectedAudioTrackIndex: Int?,
     selectedSubtitleTrackIndex: Int?,
     subtitleScale: Float,
-    subtitleOffsetSeconds: Int,
     colorScheme: ColorScheme,
     onPositionChange: (Float) -> Unit,
     onPositionChangeFinished: () -> Unit,
@@ -259,8 +255,7 @@ private fun VideoPlayerControls(
     onSpeedChange: (Float) -> Unit,
     onSelectAudioTrack: (Int?) -> Unit,
     onSelectSubtitleTrack: (Int?) -> Unit,
-    onSubtitleScaleChange: (Float) -> Unit,
-    onSubtitleOffsetChange: (Int) -> Unit
+    onSubtitleScaleChange: (Float) -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -373,9 +368,6 @@ private fun VideoPlayerControls(
             VideoControlChip("A+", active = false, colorScheme = colorScheme) {
                 onSubtitleScaleChange((subtitleScale + 0.1f).coerceIn(0.75f, 1.75f))
             }
-            VideoControlChip("${subtitleOffsetSeconds}s", active = subtitleOffsetSeconds != 0, colorScheme = colorScheme)
-            VideoControlChip("-1s", active = false, colorScheme = colorScheme) { onSubtitleOffsetChange(-1) }
-            VideoControlChip("+1s", active = false, colorScheme = colorScheme) { onSubtitleOffsetChange(1) }
         }
     }
 }
