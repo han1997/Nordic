@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Surface
@@ -46,12 +47,14 @@ import coil.compose.AsyncImage
 import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.EmbyRepository
 import com.nordic.mediahub.data.VideoEpisode
+import com.nordic.mediahub.data.VideoEpisodeQueue
 import com.nordic.mediahub.data.VideoItem
 import com.nordic.mediahub.data.VideoPlaybackInfo
 import com.nordic.mediahub.data.VideoProgress
 import com.nordic.mediahub.data.VideoSeason
 import com.nordic.mediahub.data.VideoServerConfig
 import com.nordic.mediahub.data.isReadyForVideoSync
+import com.nordic.mediahub.data.toPlaybackVideoItem
 import kotlinx.coroutines.launch
 
 @Composable
@@ -59,6 +62,7 @@ fun VideoDetailScreen(
     videoItem: VideoItem,
     colorScheme: ColorScheme,
     onPlay: (VideoPlaybackInfo) -> Unit,
+    onPlayEpisode: (VideoPlaybackInfo, VideoEpisodeQueue) -> Unit = { playbackInfo, _ -> onPlay(playbackInfo) },
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -298,21 +302,21 @@ fun VideoDetailScreen(
             }
 
             if (episodes.isNotEmpty()) {
-                items(episodes, key = { it.id }, contentType = { "episode-card" }) { episode ->
+                itemsIndexed(
+                    items = episodes,
+                    key = { _, episode -> episode.id },
+                    contentType = { _, _ -> "episode-card" }
+                ) { episodeIndex, episode ->
                     VideoEpisodeCard(
                         episode = episode,
                         colorScheme = colorScheme,
                         onClick = {
                             val repo = embyRepository ?: return@VideoEpisodeCard
-                            val episodeVideoItem = VideoItem(
-                                id = episode.id,
+                            val episodeVideoItem = episode.toPlaybackVideoItem(videoItem.libraryId)
+                            val episodeQueue = VideoEpisodeQueue(
                                 libraryId = videoItem.libraryId,
-                                title = "S${episode.seasonNumber}E${episode.episodeNumber} ${episode.name}",
-                                type = "Episode",
-                                overview = episode.overview,
-                                durationSeconds = episode.durationSeconds,
-                                imageUrl = episode.imageUrl,
-                                progress = episode.progress
+                                episodes = episodes,
+                                currentIndex = episodeIndex
                             )
                             scope.launch {
                                 isLoadingPlayback = true
@@ -320,7 +324,7 @@ fun VideoDetailScreen(
                                 runCatching {
                                     repo.getPlaybackInfo(episodeVideoItem)
                                 }.onSuccess { info ->
-                                    onPlay(info)
+                                    onPlayEpisode(info, episodeQueue)
                                 }.onFailure { error ->
                                     playbackError = error.message ?: "启动 Emby 播放失败"
                                 }

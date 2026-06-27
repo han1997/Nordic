@@ -36,9 +36,11 @@ import com.nordic.mediahub.data.NavidromeRepository
 import com.nordic.mediahub.data.PlayHistoryEntry
 import com.nordic.mediahub.data.PlayHistoryRepository
 import com.nordic.mediahub.data.EmbyRepository
+import com.nordic.mediahub.data.VideoEpisodeQueue
 import com.nordic.mediahub.data.VideoItem
 import com.nordic.mediahub.data.VideoServerConfig
 import com.nordic.mediahub.data.isReadyForVideoSync
+import com.nordic.mediahub.data.toPlaybackVideoItem
 import com.nordic.mediahub.data.isReadyForAudiobookSync
 import com.nordic.mediahub.data.isReadyForMusicSync
 import com.nordic.mediahub.playback.AudiobookPlaybackEngine
@@ -305,6 +307,9 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     val playbackState by playbackEngine.state.collectAsStateWithLifecycle()
     val audiobookPlaybackState by audiobookPlaybackEngine.state.collectAsStateWithLifecycle()
     val videoPlaybackState by videoPlaybackEngine.state.collectAsStateWithLifecycle()
+    var videoEpisodeQueue by remember { mutableStateOf<VideoEpisodeQueue?>(null) }
+    var isLoadingNextVideoEpisode by remember { mutableStateOf(false) }
+    var videoPlaybackError by remember { mutableStateOf<String?>(null) }
     // Dock-only derived state: skips recomposition when only positionSeconds changes
     val currentSong by remember { derivedStateOf { playbackState.currentSong } }
     val isPlaying by remember { derivedStateOf { playbackState.isPlaying } }
@@ -433,6 +438,31 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                 audiobookPlaybackError = error.message ?: "关闭有声书播放会话失败"
                 showAudiobookPlayer = true
             }
+        }
+    }
+
+    fun playNextVideoEpisode() {
+        val queue = videoEpisodeQueue ?: return
+        val nextQueue = queue.advanceToNext() ?: return
+        val nextEpisode = nextQueue.episodes.getOrNull(nextQueue.currentIndex) ?: return
+        val repo = embyRepository ?: return
+
+        scope.launch {
+            isLoadingNextVideoEpisode = true
+            videoPlaybackError = null
+            runCatching {
+                repo.getPlaybackInfo(nextEpisode.toPlaybackVideoItem(nextQueue.libraryId))
+            }.onSuccess { playbackInfo ->
+                videoPlaybackEngine.stop()
+                videoPlaybackEngine.play(playbackInfo)
+                videoEpisodeQueue = nextQueue
+                showVideoPlayer = true
+                showPlayer = false
+                showAudiobookPlayer = false
+            }.onFailure { error ->
+                videoPlaybackError = error.message ?: "加载下一集失败"
+            }
+            isLoadingNextVideoEpisode = false
         }
     }
 
@@ -611,8 +641,14 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                         onSelectAudioTrack = videoPlaybackEngine::selectAudioTrack,
                         onSelectSubtitleTrack = videoPlaybackEngine::selectSubtitleTrack,
                         onSubtitleScaleChange = videoPlaybackEngine::setSubtitleScale,
+                        hasNextEpisode = videoEpisodeQueue?.hasNext == true,
+                        isLoadingNextEpisode = isLoadingNextVideoEpisode,
+                        externalError = videoPlaybackError,
+                        onPlayNextEpisode = ::playNextVideoEpisode,
                         onClose = {
                             showVideoPlayer = false
+                            videoEpisodeQueue = null
+                            videoPlaybackError = null
                             videoPlaybackEngine.stop()
                         },
                         modifier = Modifier.fillMaxSize()
@@ -685,6 +721,8 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                 onSongSelected = { songs, index ->
                                     closeAudiobookPlayback()
                                     videoPlaybackEngine.stop()
+                                    videoEpisodeQueue = null
+                                    videoPlaybackError = null
                                     showVideoPlayer = false
                                     playbackEngine.playQueue(songs, index)
                                     showPlayer = true
@@ -702,6 +740,8 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                 onHidePlayer = { showPlayer = false },
                                 onHideVideoPlayer = {
                                     showVideoPlayer = false
+                                    videoEpisodeQueue = null
+                                    videoPlaybackError = null
                                     videoPlaybackEngine.stop()
                                 },
                                 onAudiobookSeekToChapter = audiobookPlaybackEngine::seekTo,
@@ -764,6 +804,21 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                 onPlay = { playbackInfo ->
                     closeAudiobookPlayback()
                     playbackEngine.stop()
+                    videoEpisodeQueue = null
+                    videoPlaybackError = null
+                    videoPlaybackEngine.stop()
+                    videoPlaybackEngine.play(playbackInfo)
+                    showVideoPlayer = true
+                    showPlayer = false
+                    showAudiobookPlayer = false
+                    videoDetailItem = null
+                },
+                onPlayEpisode = { playbackInfo, episodeQueue ->
+                    closeAudiobookPlayback()
+                    playbackEngine.stop()
+                    videoEpisodeQueue = episodeQueue
+                    videoPlaybackError = null
+                    videoPlaybackEngine.stop()
                     videoPlaybackEngine.play(playbackInfo)
                     showVideoPlayer = true
                     showPlayer = false

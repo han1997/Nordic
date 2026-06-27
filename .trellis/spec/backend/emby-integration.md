@@ -531,6 +531,101 @@ VideoPlaybackInfo(
 )
 ```
 
+## Scenario: Manual Next Episode Playback
+
+### 1. Scope / Trigger
+
+- Trigger: Any change to video player next-episode controls, `VideoEpisodeQueue`, episode playback from `VideoDetailScreen`, or Activity-level video playback state.
+- This is UI/playback orchestration over existing Emby APIs: do not introduce a new Retrofit endpoint when the current season's episode list already contains the ordering needed for a same-season next button.
+
+### 2. Signatures
+
+```kotlin
+@Stable data class VideoEpisodeQueue(
+    val libraryId: String,
+    val episodes: List<VideoEpisode>,
+    val currentIndex: Int
+)
+
+fun resolveNextVideoEpisodeIndex(currentIndex: Int, itemCount: Int): Int?
+fun VideoEpisode.toPlaybackVideoItem(libraryId: String): VideoItem
+
+fun VideoPlayerScreen(
+    ..., hasNextEpisode: Boolean = false,
+    isLoadingNextEpisode: Boolean = false,
+    externalError: String? = null,
+    onPlayNextEpisode: () -> Unit = {}
+)
+```
+
+### 3. Contracts
+
+- Only episode playback launched from a Series detail season list should create a `VideoEpisodeQueue`.
+- Queue context is same-season only; `currentIndex` refers to the loaded `episodes` list from `VideoDetailScreen`.
+- `resolveNextVideoEpisodeIndex(...)` returns `currentIndex + 1` only when `currentIndex >= 0` and there is an item after it; otherwise it returns `null`.
+- `VideoEpisode.toPlaybackVideoItem(...)` must preserve episode id, title, overview, duration, image URL, and `progress` so resume playback still works.
+- `VideoPlayerScreen` must render the next-episode action as disabled or absent when `hasNextEpisode == false`.
+- Clicking Next Episode loads `EmbyRepository.getPlaybackInfo(nextEpisode.toPlaybackVideoItem(...))`, then calls `VideoPlaybackEngine.play(...)` and advances the queue only after success.
+- Loading the next episode must not stop or clear the current video on failure; surface the failure through `externalError`.
+- Movie playback, standalone video playback, search-result episode playback, Continue Watching, and Next Up entries do not get queue context unless they are routed through the Series detail episode list.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+|---|---|
+| Queue is null | Next action disabled/absent; click is a no-op |
+| Current episode is last in queue | Next action disabled/absent |
+| `currentIndex` is invalid | `resolveNextVideoEpisodeIndex(...) == null` |
+| Next episode PlaybackInfo succeeds | Start next episode and advance `VideoEpisodeQueue.currentIndex` |
+| Next episode PlaybackInfo fails | Keep current playback, preserve queue index, and show `externalError` |
+| User closes video player | Clear queue context and transient next-episode error |
+
+### 5. Good/Base/Bad Cases
+
+- Good: User opens a Series, plays S1E2, then taps Next and S1E3 starts without returning to the detail screen.
+- Base: User plays the last episode in a season; the player remains usable but Next is disabled.
+- Bad: User plays a movie after watching an episode and still sees a stale Next button from the previous episode queue.
+- Bad: Next PlaybackInfo fails and the app stops the current episode, losing the user's current playback surface.
+
+### 6. Tests Required
+
+- Pure helper test for `resolveNextVideoEpisodeIndex(...)` covering normal, last-item, empty, and invalid-index cases.
+- Pure helper/queue test asserting `VideoEpisodeQueue.advanceToNext()` moves one item at a time and stops at the end.
+- Pure helper test asserting `VideoEpisode.toPlaybackVideoItem(...)` preserves `VideoProgress`.
+- Compile/lint checks for `VideoDetailScreen`, `VideoPlayerScreen`, and `MainActivity` callback wiring.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```kotlin
+// Wrong: stale queue remains active for non-episode playback.
+videoPlaybackEngine.play(moviePlaybackInfo)
+showVideoPlayer = true
+```
+
+#### Correct
+```kotlin
+videoEpisodeQueue = null
+videoPlaybackError = null
+videoPlaybackEngine.play(moviePlaybackInfo)
+showVideoPlayer = true
+```
+
+#### Wrong
+```kotlin
+// Wrong: advancing before PlaybackInfo succeeds loses the current queue position.
+videoEpisodeQueue = videoEpisodeQueue?.advanceToNext()
+repo.getPlaybackInfo(nextEpisode.toPlaybackVideoItem(libraryId))
+```
+
+#### Correct
+```kotlin
+val nextQueue = queue.advanceToNext() ?: return
+val info = repo.getPlaybackInfo(nextEpisode.toPlaybackVideoItem(nextQueue.libraryId))
+videoPlaybackEngine.play(info)
+videoEpisodeQueue = nextQueue
+```
+
 ## Scenario: Video Search, Discovery Controls, and User Item State
 
 ### 1. Scope / Trigger

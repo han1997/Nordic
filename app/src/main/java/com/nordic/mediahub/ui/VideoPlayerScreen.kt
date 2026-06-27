@@ -57,6 +57,10 @@ fun VideoPlayerScreen(
     onSelectAudioTrack: (Int?) -> Unit = {},
     onSelectSubtitleTrack: (Int?) -> Unit = {},
     onSubtitleScaleChange: (Float) -> Unit = {},
+    hasNextEpisode: Boolean = false,
+    isLoadingNextEpisode: Boolean = false,
+    externalError: String? = null,
+    onPlayNextEpisode: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -65,6 +69,7 @@ fun VideoPlayerScreen(
     var scrubPosition by remember(playbackInfo?.itemId) { mutableStateOf<Float?>(null) }
     val visiblePosition = scrubPosition ?: state.positionSeconds.toFloat()
     val statusText = when {
+        externalError != null -> externalError
         state.errorMessage != null -> state.errorMessage
         state.isBuffering -> "正在缓冲"
         state.isPlaying -> "正在播放"
@@ -149,7 +154,7 @@ fun VideoPlayerScreen(
             VideoPlayerTopBar(
                 title = playbackInfo?.title ?: "视频播放",
                 statusText = statusText,
-                isError = state.errorMessage != null,
+                isError = externalError != null || state.errorMessage != null,
                 colorScheme = colorScheme,
                 onClose = onClose
             )
@@ -177,7 +182,10 @@ fun VideoPlayerScreen(
                 subtitleScale = state.subtitleScale,
                 onSelectAudioTrack = onSelectAudioTrack,
                 onSelectSubtitleTrack = onSelectSubtitleTrack,
-                onSubtitleScaleChange = onSubtitleScaleChange
+                onSubtitleScaleChange = onSubtitleScaleChange,
+                hasNextEpisode = hasNextEpisode,
+                isLoadingNextEpisode = isLoadingNextEpisode,
+                onPlayNextEpisode = onPlayNextEpisode
             )
         }
     }
@@ -255,7 +263,10 @@ private fun VideoPlayerControls(
     onSpeedChange: (Float) -> Unit,
     onSelectAudioTrack: (Int?) -> Unit,
     onSelectSubtitleTrack: (Int?) -> Unit,
-    onSubtitleScaleChange: (Float) -> Unit
+    onSubtitleScaleChange: (Float) -> Unit,
+    hasNextEpisode: Boolean,
+    isLoadingNextEpisode: Boolean,
+    onPlayNextEpisode: () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -314,6 +325,13 @@ private fun VideoPlayerControls(
                     fontWeight = FontWeight.SemiBold
                 )
             }
+            VideoControlChip(
+                text = if (isLoadingNextEpisode) "加载中" else "下一集",
+                active = hasNextEpisode,
+                enabled = hasNextEpisode && !isLoadingNextEpisode,
+                colorScheme = colorScheme,
+                onClick = onPlayNextEpisode
+            )
             Text(
                 formatDuration(duration),
                 color = Color.White.copy(alpha = 0.64f),
@@ -403,13 +421,23 @@ private fun VideoTrackControls(
 private fun VideoControlChip(
     text: String,
     active: Boolean,
+    enabled: Boolean = true,
     colorScheme: ColorScheme,
     onClick: () -> Unit = {}
 ) {
     Surface(
-        color = if (active) colorScheme.primary else Color.White.copy(alpha = 0.12f),
-        contentColor = if (active) colorScheme.onPrimary else Color.White.copy(alpha = 0.72f),
+        color = when {
+            active -> colorScheme.primary
+            enabled -> Color.White.copy(alpha = 0.12f)
+            else -> Color.White.copy(alpha = 0.06f)
+        },
+        contentColor = when {
+            active -> colorScheme.onPrimary
+            enabled -> Color.White.copy(alpha = 0.72f)
+            else -> Color.White.copy(alpha = 0.36f)
+        },
         shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+        enabled = enabled,
         onClick = onClick
     ) {
         Text(
