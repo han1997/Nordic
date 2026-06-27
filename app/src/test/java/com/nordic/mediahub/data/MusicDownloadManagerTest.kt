@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.nio.file.Files
 
 class MusicDownloadManagerStateTest {
     @Test
@@ -51,17 +52,49 @@ class MusicDownloadManagerStateTest {
         assertEquals("flac", extensionFromContentType("AUDIO/FLAC"))
         assertEquals("ogg", extensionFromContentType("Audio/Ogg"))
     }
-}
 
-internal fun extensionFromContentType(contentType: String): String {
-    return when {
-        contentType.contains("ogg", ignoreCase = true) -> "ogg"
-        contentType.contains("flac", ignoreCase = true) -> "flac"
-        contentType.contains("wav", ignoreCase = true) -> "wav"
-        contentType.contains("aac", ignoreCase = true) -> "aac"
-        contentType.contains("m4a", ignoreCase = true) -> "m4a"
-        contentType.contains("opus", ignoreCase = true) -> "opus"
-        contentType.contains("wma", ignoreCase = true) -> "wma"
-        else -> "mp3"
+    @Test
+    fun musicDownloadMetadataFileName_usesStableSidecarName() {
+        assertEquals("song-1.metadata.json", musicDownloadMetadataFileName("song-1"))
+    }
+
+    @Test
+    fun isDownloadedMusicFile_excludesTempAndMetadataSidecarFiles() {
+        assertTrue(isDownloadedMusicFile("song-1.mp3"))
+        assertTrue(isDownloadedMusicFile("song-1.flac"))
+        assertFalse(isDownloadedMusicFile("song-1.mp3.tmp"))
+        assertFalse(isDownloadedMusicFile("song-1.metadata.json"))
+    }
+
+    @Test
+    fun downloadedSongMetadata_roundTripsNavidromeSong() {
+        val dir = Files.createTempDirectory("music-download-metadata").toFile()
+        val file = dir.resolve(musicDownloadMetadataFileName("song-1"))
+        val song = NavidromeSong(
+            id = "song-1",
+            title = "Downloaded Song",
+            artist = "Artist",
+            album = "Album",
+            duration = 245,
+            coverArt = "cover-1",
+            streamUrl = "https://example.test/stream",
+            created = "2026-06-27T00:00:00Z",
+            starred = "2026-06-27T00:01:00Z"
+        )
+
+        saveDownloadedSongMetadata(file, song)
+
+        val restored = loadDownloadedSongMetadata(file)
+        assertEquals(song, restored)
+    }
+
+    @Test
+    fun loadDownloadedSongMetadata_returnsNullForMissingOrMalformedFile() {
+        val dir = Files.createTempDirectory("music-download-invalid-metadata").toFile()
+        val missing = dir.resolve("missing.metadata.json")
+        val malformed = dir.resolve("bad.metadata.json").apply { writeText("{not-json", Charsets.UTF_8) }
+
+        assertEquals(null, loadDownloadedSongMetadata(missing))
+        assertEquals(null, loadDownloadedSongMetadata(malformed))
     }
 }

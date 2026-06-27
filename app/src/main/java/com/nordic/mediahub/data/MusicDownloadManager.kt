@@ -2,6 +2,7 @@ package com.nordic.mediahub.data
 
 import android.content.Context
 import android.os.Environment
+import com.google.gson.Gson
 import com.nordic.mediahub.api.NavidromeSong
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +18,9 @@ import okhttp3.Request
 import okhttp3.logging.HttpLoggingInterceptor
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+
+private const val MUSIC_DOWNLOAD_METADATA_SUFFIX = ".metadata.json"
+private val musicDownloadMetadataGson = Gson()
 
 enum class DownloadState {
     NOT_DOWNLOADED,
@@ -125,6 +129,7 @@ class MusicDownloadManager(private val context: Context) {
                     if (targetFile.exists()) targetFile.delete()
                     tempFile.renameTo(targetFile)
                 }
+                saveDownloadedSongMetadata(metadataFile(song.id), song)
 
                 updateState(song.id, DownloadStateEntry(state = DownloadState.DOWNLOADED, progress = 1f, song = song))
             } catch (_: Exception) {
@@ -139,9 +144,10 @@ class MusicDownloadManager(private val context: Context) {
         val entry = states[songId]
         if (entry?.state == DownloadState.DOWNLOADING) return
 
-        val extension = guessExtensionForSong(songId)
-        val file = File(downloadDir, "$songId.$extension")
-        if (file.exists()) file.delete()
+        downloadDir.listFiles()
+            ?.filter { file -> isDownloadedMusicFile(file.name) && file.name.substringBeforeLast(".") == songId }
+            ?.forEach { file -> file.delete() }
+        metadataFile(songId).delete()
         removeState(songId)
     }
 
@@ -153,8 +159,7 @@ class MusicDownloadManager(private val context: Context) {
     fun getLocalFilePath(songId: String): String? {
         val entry = states[songId]
         if (entry?.state != DownloadState.DOWNLOADED) return null
-        val extension = guessExtensionForSong(songId)
-        val file = File(downloadDir, "$songId.$extension")
+        val file = downloadedAudioFile(songId)
         return if (file.exists()) file.absolutePath else null
     }
 
@@ -166,11 +171,15 @@ class MusicDownloadManager(private val context: Context) {
         val dir = downloadDir
         if (!dir.exists()) return
 
-        val existingFiles = dir.listFiles()?.filter { it.isFile && !it.name.endsWith(".tmp") } ?: emptyList()
+        val existingFiles = dir.listFiles()?.filter { file -> isDownloadedMusicFile(file.name) } ?: emptyList()
         for (file in existingFiles) {
             val songId = file.name.substringBeforeLast(".")
             if (states[songId]?.state == DownloadState.DOWNLOADED) continue
-            states[songId] = DownloadStateEntry(state = DownloadState.DOWNLOADED, progress = 1f, song = null)
+            states[songId] = DownloadStateEntry(
+                state = DownloadState.DOWNLOADED,
+                progress = 1f,
+                song = loadDownloadedSongMetadata(metadataFile(songId))
+            )
         }
         _downloadStates.value = states.toMap()
     }
@@ -180,7 +189,13 @@ class MusicDownloadManager(private val context: Context) {
         var changed = false
         for ((id, entry) in states) {
             val song = songMap[id]
-            if (song != null && entry.song == null) {
+            if (song != null && entry.state == DownloadState.DOWNLOADED) {
+                if (entry.song == null) {
+                    states[id] = entry.copy(song = song)
+                    changed = true
+                }
+                saveDownloadedSongMetadata(metadataFile(id), song)
+            } else if (song != null && entry.song == null) {
                 states[id] = entry.copy(song = song)
                 changed = true
             }
@@ -190,26 +205,48 @@ class MusicDownloadManager(private val context: Context) {
         }
     }
 
-    private fun guessExtensionForSong(songId: String): String {
-        val existingFile = downloadDir.listFiles()?.find {
-            it.isFile && !it.name.endsWith(".tmp") && it.name.startsWith("$songId.")
-        }
-        if (existingFile != null) {
-            return existingFile.name.substringAfterLast(".")
-        }
-        return "mp3"
+    private fun downloadedAudioFile(songId: String): File {
+        return downloadDir.listFiles()?.firstOrNull { file ->
+            isDownloadedMusicFile(file.name) && file.name.substringBeforeLast(".") == songId
+        } ?: File(downloadDir, "$songId.mp3")
     }
 
-    private fun extensionFromContentType(contentType: String): String {
-        return when {
-            contentType.contains("ogg", ignoreCase = true) -> "ogg"
-            contentType.contains("flac", ignoreCase = true) -> "flac"
-            contentType.contains("wav", ignoreCase = true) -> "wav"
-            contentType.contains("aac", ignoreCase = true) -> "aac"
-            contentType.contains("m4a", ignoreCase = true) -> "m4a"
-            contentType.contains("opus", ignoreCase = true) -> "opus"
-            contentType.contains("wma", ignoreCase = true) -> "wma"
-            else -> "mp3"
-        }
+    private fun metadataFile(songId: String): File {
+        return File(downloadDir, musicDownloadMetadataFileName(songId))
     }
+}
+
+internal fun extensionFromContentType(contentType: String): String {
+    return when {
+        contentType.contains("ogg", ignoreCase = true) -> "ogg"
+        contentType.contains("flac", ignoreCase = true) -> "flac"
+        contentType.contains("wav", ignoreCase = true) -> "wav"
+        contentType.contains("aac", ignoreCase = true) -> "aac"
+        contentType.contains("m4a", ignoreCase = true) -> "m4a"
+        contentType.contains("opus", ignoreCase = true) -> "opus"
+        contentType.contains("wma", ignoreCase = true) -> "wma"
+        else -> "mp3"
+    }
+}
+
+internal fun musicDownloadMetadataFileName(songId: String): String {
+    return "$songId$MUSIC_DOWNLOAD_METADATA_SUFFIX"
+}
+
+internal fun isDownloadedMusicFile(fileName: String): Boolean {
+    return !fileName.endsWith(".tmp") && !fileName.endsWith(MUSIC_DOWNLOAD_METADATA_SUFFIX)
+}
+
+internal fun saveDownloadedSongMetadata(file: File, song: NavidromeSong) {
+    runCatching {
+        file.parentFile?.mkdirs()
+        file.writeText(musicDownloadMetadataGson.toJson(song), Charsets.UTF_8)
+    }
+}
+
+internal fun loadDownloadedSongMetadata(file: File): NavidromeSong? {
+    return runCatching {
+        if (!file.exists()) return null
+        musicDownloadMetadataGson.fromJson(file.readText(Charsets.UTF_8), NavidromeSong::class.java)
+    }.getOrNull()
 }
