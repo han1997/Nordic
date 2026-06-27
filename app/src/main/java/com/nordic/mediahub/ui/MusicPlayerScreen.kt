@@ -76,6 +76,9 @@ fun MusicPlayerScreen(
     val resolvedDurationSeconds = maxOf(durationSeconds, song?.duration ?: 0, 1)
     var scrubPosition by remember(song?.id) { mutableStateOf<Float?>(null) }
     var showLyrics by rememberSaveable(song?.id) { mutableStateOf(false) }
+    var lyricMode by rememberSaveable(song?.id) { mutableStateOf("synced") }
+    var lyricOffsetSeconds by rememberSaveable(song?.id) { mutableStateOf(0) }
+    var largeLyrics by rememberSaveable(song?.id) { mutableStateOf(false) }
     val hasSong = song?.streamUrl?.isNotBlank() == true
     val visiblePosition = scrubPosition ?: positionSeconds.toFloat()
     val playbackStatusIsError = playbackError != null || (song != null && !hasSong)
@@ -160,9 +163,15 @@ fun MusicPlayerScreen(
                 lyricsError = lyricsError,
                 positionSeconds = visiblePosition.toInt(),
                 showLyrics = showLyrics,
+                lyricMode = lyricMode,
+                lyricOffsetSeconds = lyricOffsetSeconds,
+                largeLyrics = largeLyrics,
                 colorScheme = colorScheme,
                 compact = compact,
                 onToggleDisplay = { showLyrics = !showLyrics },
+                onLyricModeChange = { lyricMode = it },
+                onLyricOffsetChange = { lyricOffsetSeconds = (lyricOffsetSeconds + it).coerceIn(-30, 30) },
+                onToggleLargeLyrics = { largeLyrics = !largeLyrics },
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
@@ -302,9 +311,15 @@ private fun PlayerPrimaryDisplay(
     lyricsError: String?,
     positionSeconds: Int,
     showLyrics: Boolean,
+    lyricMode: String,
+    lyricOffsetSeconds: Int,
+    largeLyrics: Boolean,
     colorScheme: ColorScheme,
     compact: Boolean,
     onToggleDisplay: () -> Unit,
+    onLyricModeChange: (String) -> Unit,
+    onLyricOffsetChange: (Int) -> Unit,
+    onToggleLargeLyrics: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.clickable(onClick = onToggleDisplay)) {
@@ -314,8 +329,14 @@ private fun PlayerPrimaryDisplay(
                 isLoading = isLyricsLoading,
                 error = lyricsError,
                 positionSeconds = positionSeconds,
+                lyricMode = lyricMode,
+                lyricOffsetSeconds = lyricOffsetSeconds,
+                largeLyrics = largeLyrics,
                 colorScheme = colorScheme,
                 compact = compact,
+                onLyricModeChange = onLyricModeChange,
+                onLyricOffsetChange = onLyricOffsetChange,
+                onToggleLargeLyrics = onToggleLargeLyrics,
                 modifier = Modifier.fillMaxSize()
             )
         } else {
@@ -391,24 +412,41 @@ private fun PlayerLyricsDisplay(
     isLoading: Boolean,
     error: String?,
     positionSeconds: Int,
+    lyricMode: String,
+    lyricOffsetSeconds: Int,
+    largeLyrics: Boolean,
     colorScheme: ColorScheme,
     compact: Boolean,
+    onLyricModeChange: (String) -> Unit,
+    onLyricOffsetChange: (Int) -> Unit,
+    onToggleLargeLyrics: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val lineCount = if (compact) 5 else 7
+    val displaySynced = lyricMode != "plain" && lyrics?.hasSynced == true
+    val displayLyrics = remember(lyrics, displaySynced) {
+        lyrics?.let { source ->
+            when {
+                displaySynced && source.syncedLines.isNotEmpty() -> source.copy(lines = source.syncedLines, synced = true)
+                source.plainLines.isNotEmpty() -> source.copy(lines = source.plainLines, synced = false)
+                else -> source
+            }
+        }
+    }
+    val effectivePositionSeconds = (positionSeconds + lyricOffsetSeconds).coerceAtLeast(0)
     // Only recompute when the active lyric line changes, not every second
-    val activeLyricIndex = remember(lyrics, positionSeconds) {
-        val lines = lyrics?.lines?.filter { it.text.isNotBlank() }.orEmpty()
-        if (lyrics?.synced != true || lines.isEmpty()) -1
+    val activeLyricIndex = remember(displayLyrics, effectivePositionSeconds) {
+        val lines = displayLyrics?.lines?.filter { it.text.isNotBlank() }.orEmpty()
+        if (displayLyrics?.synced != true || lines.isEmpty()) -1
         else {
-            val positionMillis = positionSeconds.coerceAtLeast(0) * 1000
+            val positionMillis = effectivePositionSeconds * 1000
             lines.indexOfLast { line ->
                 line.startMillis != null && line.startMillis <= positionMillis
             }.coerceAtLeast(0)
         }
     }
-    val visibleLines = remember(lyrics, activeLyricIndex, lineCount) {
-        selectVisibleLyricLines(lyrics, positionSeconds, lineCount)
+    val visibleLines = remember(displayLyrics, activeLyricIndex, lineCount) {
+        selectVisibleLyricLines(displayLyrics, effectivePositionSeconds, lineCount)
     }
 
     Box(
@@ -436,18 +474,28 @@ private fun PlayerLyricsDisplay(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 11.dp)
                 ) {
+                    PlayerLyricsControls(
+                        lyrics = lyrics,
+                        lyricMode = lyricMode,
+                        lyricOffsetSeconds = lyricOffsetSeconds,
+                        largeLyrics = largeLyrics,
+                        colorScheme = colorScheme,
+                        onLyricModeChange = onLyricModeChange,
+                        onLyricOffsetChange = onLyricOffsetChange,
+                        onToggleLargeLyrics = onToggleLargeLyrics
+                    )
                     visibleLines.forEach { line ->
                         Text(
                             line.text,
                             fontSize = if (line.active) {
-                                if (compact) 19.sp else 22.sp
+                                if (largeLyrics) 25.sp else if (compact) 19.sp else 22.sp
                             } else {
-                                if (compact) 14.sp else 16.sp
+                                if (largeLyrics) 19.sp else if (compact) 14.sp else 16.sp
                             },
                             lineHeight = if (line.active) {
-                                if (compact) 23.sp else 27.sp
+                                if (largeLyrics) 30.sp else if (compact) 23.sp else 27.sp
                             } else {
-                                if (compact) 18.sp else 20.sp
+                                if (largeLyrics) 23.sp else if (compact) 18.sp else 20.sp
                             },
                             color = if (line.active) {
                                 colorScheme.onSurface
@@ -463,6 +511,75 @@ private fun PlayerLyricsDisplay(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun PlayerLyricsControls(
+    lyrics: MusicLyrics?,
+    lyricMode: String,
+    lyricOffsetSeconds: Int,
+    largeLyrics: Boolean,
+    colorScheme: ColorScheme,
+    onLyricModeChange: (String) -> Unit,
+    onLyricOffsetChange: (Int) -> Unit,
+    onToggleLargeLyrics: () -> Unit
+) {
+    val canChooseMode = lyrics?.hasSynced == true && lyrics.hasPlain
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (canChooseMode) {
+            PlayerLyricsChip(
+                text = "逐字",
+                active = lyricMode != "plain",
+                colorScheme = colorScheme,
+                onClick = { onLyricModeChange("synced") }
+            )
+            PlayerLyricsChip(
+                text = "纯文本",
+                active = lyricMode == "plain",
+                colorScheme = colorScheme,
+                onClick = { onLyricModeChange("plain") }
+            )
+        }
+        if (lyrics?.hasSynced == true) {
+            PlayerLyricsChip("-1s", active = false, colorScheme = colorScheme, onClick = { onLyricOffsetChange(-1) })
+            PlayerLyricsChip("${lyricOffsetSeconds}s", active = lyricOffsetSeconds != 0, colorScheme = colorScheme)
+            PlayerLyricsChip("+1s", active = false, colorScheme = colorScheme, onClick = { onLyricOffsetChange(1) })
+        }
+        PlayerLyricsChip(
+            text = "大字",
+            active = largeLyrics,
+            colorScheme = colorScheme,
+            onClick = onToggleLargeLyrics
+        )
+    }
+}
+
+@Composable
+private fun PlayerLyricsChip(
+    text: String,
+    active: Boolean,
+    colorScheme: ColorScheme,
+    onClick: () -> Unit = {}
+) {
+    Surface(
+        color = if (active) colorScheme.primary.copy(alpha = 0.18f) else colorScheme.surface.copy(alpha = 0.54f),
+        contentColor = if (active) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.62f),
+        shape = RoundedCornerShape(999.dp),
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Text(
+            text,
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

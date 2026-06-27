@@ -81,7 +81,32 @@ data class EmbyMediaSourceDto(
     @SerializedName("SupportsDirectPlay")
     val supportsDirectPlay: Boolean? = null,
     @SerializedName("SupportsDirectStream")
-    val supportsDirectStream: Boolean? = null
+    val supportsDirectStream: Boolean? = null,
+    @SerializedName("MediaStreams")
+    val mediaStreams: List<EmbyMediaStreamDto> = emptyList()
+)
+
+data class EmbyMediaStreamDto(
+    @SerializedName("Index")
+    val index: Int = -1,
+    @SerializedName("Type")
+    val type: String? = null,
+    @SerializedName("Codec")
+    val codec: String? = null,
+    @SerializedName("Language")
+    val language: String? = null,
+    @SerializedName("DisplayTitle")
+    val displayTitle: String? = null,
+    @SerializedName("Title")
+    val title: String? = null,
+    @SerializedName("IsDefault")
+    val isDefault: Boolean = false,
+    @SerializedName("IsForced")
+    val isForced: Boolean = false,
+    @SerializedName("IsExternal")
+    val isExternal: Boolean = false,
+    @SerializedName("DeliveryUrl")
+    val deliveryUrl: String? = null
 )
 
 data class EmbyPlaybackStartRequest(

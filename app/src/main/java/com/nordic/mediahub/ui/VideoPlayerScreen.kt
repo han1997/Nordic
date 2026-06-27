@@ -1,6 +1,10 @@
 package com.nordic.mediahub.ui
 
+import android.app.Activity
+import android.content.Context
+import android.media.AudioManager
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,15 +30,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
+import com.nordic.mediahub.data.VideoMediaTrack
 import com.nordic.mediahub.playback.VideoPlaybackState
+import kotlin.math.abs
 
+@androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 fun VideoPlayerScreen(
     state: VideoPlaybackState,
@@ -44,8 +54,13 @@ fun VideoPlayerScreen(
     onPlayPause: () -> Unit,
     onClose: () -> Unit,
     onSpeedChange: (Float) -> Unit = {},
+    onSelectAudioTrack: (Int?) -> Unit = {},
+    onSelectSubtitleTrack: (Int?) -> Unit = {},
+    onSubtitleScaleChange: (Float) -> Unit = {},
+    onSubtitleOffsetChange: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val playbackInfo = state.playbackInfo
     val duration = maxOf(state.durationSeconds, playbackInfo?.durationSeconds ?: 0, 1)
     var scrubPosition by remember(playbackInfo?.itemId) { mutableStateOf<Float?>(null) }
@@ -62,6 +77,35 @@ fun VideoPlayerScreen(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
+            .pointerInput(playbackInfo?.itemId, state.positionSeconds, duration) {
+                var dragStartX = 0f
+                var totalDragX = 0f
+                var totalDragY = 0f
+                detectDragGestures(
+                    onDragStart = { offset ->
+                        dragStartX = offset.x
+                        totalDragX = 0f
+                        totalDragY = 0f
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        totalDragX += dragAmount.x
+                        totalDragY += dragAmount.y
+                    },
+                    onDragEnd = {
+                        if (abs(totalDragX) > abs(totalDragY) && abs(totalDragX) > 48f) {
+                            val deltaSeconds = (totalDragX / 8f).toInt()
+                            onSeek((state.positionSeconds + deltaSeconds).coerceIn(0, duration))
+                        } else if (abs(totalDragY) > 48f) {
+                            if (dragStartX > size.width / 2f) {
+                                adjustVideoVolume(context, -totalDragY)
+                            } else {
+                                adjustWindowBrightness(context, -totalDragY / size.height.coerceAtLeast(1))
+                            }
+                        }
+                    }
+                )
+            }
     ) {
         AndroidView(
             factory = { context ->
@@ -72,6 +116,7 @@ fun VideoPlayerScreen(
             },
             update = { view ->
                 view.player = player
+                view.subtitleView?.setFractionalTextSize(0.0533f * state.subtitleScale)
             },
             modifier = Modifier.fillMaxSize()
         )
@@ -113,6 +158,8 @@ fun VideoPlayerScreen(
             VideoPlayerControls(
                 title = playbackInfo?.title ?: "等待播放",
                 overview = playbackInfo?.overview.orEmpty(),
+                audioTracks = playbackInfo?.audioTracks.orEmpty(),
+                subtitleTracks = playbackInfo?.subtitleTracks.orEmpty(),
                 isPlaying = state.isPlaying,
                 position = visiblePosition.coerceIn(0f, duration.toFloat()),
                 duration = duration,
@@ -125,7 +172,15 @@ fun VideoPlayerScreen(
                 },
                 onPlayPause = onPlayPause,
                 speed = state.speed,
-                onSpeedChange = onSpeedChange
+                onSpeedChange = onSpeedChange,
+                selectedAudioTrackIndex = state.selectedAudioTrackIndex,
+                selectedSubtitleTrackIndex = state.selectedSubtitleTrackIndex,
+                subtitleScale = state.subtitleScale,
+                subtitleOffsetSeconds = state.subtitleOffsetSeconds,
+                onSelectAudioTrack = onSelectAudioTrack,
+                onSelectSubtitleTrack = onSelectSubtitleTrack,
+                onSubtitleScaleChange = onSubtitleScaleChange,
+                onSubtitleOffsetChange = onSubtitleOffsetChange
             )
         }
     }
@@ -187,15 +242,25 @@ private fun VideoPlayerTopBar(
 private fun VideoPlayerControls(
     title: String,
     overview: String,
+    audioTracks: List<VideoMediaTrack>,
+    subtitleTracks: List<VideoMediaTrack>,
     isPlaying: Boolean,
     position: Float,
     duration: Int,
     speed: Float,
+    selectedAudioTrackIndex: Int?,
+    selectedSubtitleTrackIndex: Int?,
+    subtitleScale: Float,
+    subtitleOffsetSeconds: Int,
     colorScheme: ColorScheme,
     onPositionChange: (Float) -> Unit,
     onPositionChangeFinished: () -> Unit,
     onPlayPause: () -> Unit,
-    onSpeedChange: (Float) -> Unit
+    onSpeedChange: (Float) -> Unit,
+    onSelectAudioTrack: (Int?) -> Unit,
+    onSelectSubtitleTrack: (Int?) -> Unit,
+    onSubtitleScaleChange: (Float) -> Unit,
+    onSubtitleOffsetChange: (Int) -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -282,5 +347,103 @@ private fun VideoPlayerControls(
                 }
             }
         }
+        VideoTrackControls(
+            title = "音轨",
+            options = listOf(null to "自动") + audioTracks.map { it.index to it.label },
+            selectedIndex = selectedAudioTrackIndex,
+            colorScheme = colorScheme,
+            onSelect = onSelectAudioTrack
+        )
+        VideoTrackControls(
+            title = "字幕",
+            options = listOf(null to "关闭") + subtitleTracks.map { it.index to it.label },
+            selectedIndex = selectedSubtitleTrackIndex,
+            colorScheme = colorScheme,
+            onSelect = onSelectSubtitleTrack
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            VideoControlChip("A-", active = false, colorScheme = colorScheme) {
+                onSubtitleScaleChange((subtitleScale - 0.1f).coerceIn(0.75f, 1.75f))
+            }
+            VideoControlChip("${(subtitleScale * 100).toInt()}%", active = subtitleScale != 1f, colorScheme = colorScheme)
+            VideoControlChip("A+", active = false, colorScheme = colorScheme) {
+                onSubtitleScaleChange((subtitleScale + 0.1f).coerceIn(0.75f, 1.75f))
+            }
+            VideoControlChip("${subtitleOffsetSeconds}s", active = subtitleOffsetSeconds != 0, colorScheme = colorScheme)
+            VideoControlChip("-1s", active = false, colorScheme = colorScheme) { onSubtitleOffsetChange(-1) }
+            VideoControlChip("+1s", active = false, colorScheme = colorScheme) { onSubtitleOffsetChange(1) }
+        }
     }
+}
+
+@Composable
+private fun VideoTrackControls(
+    title: String,
+    options: List<Pair<Int?, String>>,
+    selectedIndex: Int?,
+    colorScheme: ColorScheme,
+    onSelect: (Int?) -> Unit
+) {
+    if (options.size <= 1) return
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(title, color = Color.White.copy(alpha = 0.62f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            options.take(4).forEach { (index, label) ->
+                VideoControlChip(
+                    text = label,
+                    active = selectedIndex == index,
+                    colorScheme = colorScheme,
+                    onClick = { onSelect(index) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VideoControlChip(
+    text: String,
+    active: Boolean,
+    colorScheme: ColorScheme,
+    onClick: () -> Unit = {}
+) {
+    Surface(
+        color = if (active) colorScheme.primary else Color.White.copy(alpha = 0.12f),
+        contentColor = if (active) colorScheme.onPrimary else Color.White.copy(alpha = 0.72f),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+        onClick = onClick
+    ) {
+        Text(
+            text,
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
+            fontSize = 12.sp,
+            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+private fun adjustVideoVolume(context: Context, delta: Float) {
+    val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+    val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+    val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+    val nextVolume = (currentVolume + (delta / 80f).toInt()).coerceIn(0, maxVolume)
+    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, nextVolume, 0)
+}
+
+private fun adjustWindowBrightness(context: Context, deltaFraction: Float) {
+    val activity = context as? Activity ?: return
+    val window = activity.window ?: return
+    val params = window.attributes
+    val current = params.screenBrightness.takeIf { it >= 0f } ?: 0.5f
+    params.screenBrightness = (current + deltaFraction).coerceIn(0.05f, 1f)
+    window.attributes = params
 }

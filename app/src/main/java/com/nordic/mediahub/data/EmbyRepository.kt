@@ -6,6 +6,7 @@ import android.util.Log
 import com.nordic.mediahub.api.EmbyApi
 import com.nordic.mediahub.api.EmbyAuthenticateRequest
 import com.nordic.mediahub.api.EmbyItemDto
+import com.nordic.mediahub.api.EmbyMediaStreamDto
 import com.nordic.mediahub.api.EmbyPlaybackStartRequest
 import com.nordic.mediahub.api.EmbyPlaybackProgressRequest
 import com.nordic.mediahub.api.EmbyPlaybackStopRequest
@@ -49,7 +50,21 @@ data class VideoPlaybackInfo(
     val playSessionId: String,
     val overview: String = "",
     val durationSeconds: Int = 0,
-    val imageUrl: String? = null
+    val imageUrl: String? = null,
+    val audioTracks: List<VideoMediaTrack> = emptyList(),
+    val subtitleTracks: List<VideoMediaTrack> = emptyList()
+)
+
+@Stable
+data class VideoMediaTrack(
+    val index: Int,
+    val label: String,
+    val language: String? = null,
+    val codec: String? = null,
+    val isDefault: Boolean = false,
+    val isForced: Boolean = false,
+    val isExternal: Boolean = false,
+    val deliveryUrl: String? = null
 )
 
 @Stable
@@ -152,7 +167,13 @@ class EmbyRepository(private val config: VideoServerConfig) {
             durationSeconds = (mediaSource.runTimeTicks ?: item.durationSeconds.toLong() * EMBY_TICKS_PER_SECOND)
                 .toDurationSeconds()
                 .takeIf { it > 0 } ?: item.durationSeconds,
-            imageUrl = item.imageUrl
+            imageUrl = item.imageUrl,
+            audioTracks = mediaSource.mediaStreams
+                .filter { stream -> stream.type.equals("Audio", ignoreCase = true) }
+                .map { stream -> stream.toVideoMediaTrack("Audio", session.token) },
+            subtitleTracks = mediaSource.mediaStreams
+                .filter { stream -> stream.type.equals("Subtitle", ignoreCase = true) }
+                .map { stream -> stream.toVideoMediaTrack("Subtitle", session.token) }
         )
     } catch (e: EmbyApiException) {
         throw e
@@ -350,6 +371,31 @@ class EmbyRepository(private val config: VideoServerConfig) {
             durationSeconds = runTimeTicks.toDurationSeconds(),
             imageUrl = primaryImageUrl(id, token, imageTags?.get("Primary"))
         )
+    }
+
+    private fun EmbyMediaStreamDto.toVideoMediaTrack(kind: String, token: String): VideoMediaTrack {
+        val resolvedLabel = displayTitle
+            ?: title
+            ?: listOfNotNull(language?.uppercase(), codec?.uppercase()).joinToString(" ")
+                .takeIf { it.isNotBlank() }
+            ?: "$kind $index"
+        return VideoMediaTrack(
+            index = index,
+            label = resolvedLabel,
+            language = language?.takeIf { it.isNotBlank() },
+            codec = codec?.takeIf { it.isNotBlank() },
+            isDefault = isDefault,
+            isForced = isForced,
+            isExternal = isExternal,
+            deliveryUrl = deliveryUrl?.toAbsoluteStreamUrl(token)
+        )
+    }
+
+    private fun String.toAbsoluteStreamUrl(token: String): String {
+        val absolute = if (startsWith("http://") || startsWith("https://")) this else "$baseUrl$this"
+        if (absolute.contains("api_key=") || token.isBlank()) return absolute
+        val separator = if (absolute.contains("?")) "&" else "?"
+        return "$absolute${separator}api_key=$token"
     }
 
     private fun primaryImageUrl(itemId: String, token: String, primaryTag: String?): String? {

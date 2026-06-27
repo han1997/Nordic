@@ -19,6 +19,7 @@ class ConfigRepository(private val context: Context) {
     private val AUDIOBOOK_URL = stringPreferencesKey("audiobook_url")
     private val AUDIOBOOK_USER = stringPreferencesKey("audiobook_user")
     private val AUDIOBOOK_PASS = stringPreferencesKey("audiobook_pass")
+    private val AUDIOBOOK_LAST_ITEM_ID = stringPreferencesKey("audiobook_last_item_id")
 
     private val VIDEO_TYPE = stringPreferencesKey("video_type")
     private val VIDEO_URL = stringPreferencesKey("video_url")
@@ -40,6 +41,10 @@ class ConfigRepository(private val context: Context) {
             username = it[AUDIOBOOK_USER] ?: "",
             password = it[AUDIOBOOK_PASS] ?: ""
         )
+    }
+
+    val lastAudiobookItemId: Flow<String?> = context.dataStore.data.map {
+        it[AUDIOBOOK_LAST_ITEM_ID]?.takeIf { itemId -> itemId.isNotBlank() }
     }
 
     val videoConfig: Flow<VideoServerConfig> = context.dataStore.data.map {
@@ -65,6 +70,12 @@ class ConfigRepository(private val context: Context) {
             it[AUDIOBOOK_URL] = config.serverUrl
             it[AUDIOBOOK_USER] = config.username
             it[AUDIOBOOK_PASS] = config.password
+        }
+    }
+
+    suspend fun saveLastAudiobookItemId(itemId: String) {
+        context.dataStore.edit {
+            it[AUDIOBOOK_LAST_ITEM_ID] = itemId
         }
     }
 

@@ -48,6 +48,55 @@ class AudiobookShelfRepositoryTest {
     }
 
     @Test
+    fun getLibraryItems_requestsProgressAndMapsContinueListeningFields() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(
+            """
+                {
+                  "results": [
+                    {
+                      "id": "book-1",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "updatedAt": 1234,
+                      "media": {
+                        "id": "media-1",
+                        "metadata": {"title": "Book One", "authorName": "Author"},
+                        "duration": 300.0,
+                        "numChapters": 12
+                      },
+                      "userMediaProgress": {
+                        "id": "progress-1",
+                        "libraryItemId": "book-1",
+                        "duration": 300.0,
+                        "currentTime": 90.0,
+                        "progress": 0.3,
+                        "isFinished": false,
+                        "lastUpdate": 9999
+                      }
+                    }
+                  ],
+                  "total": 1
+                }
+            """.trimIndent()
+        )
+
+        val items = repository().getLibraryItems("lib-1")
+
+        assertEquals(1, items.size)
+        val progress = requireNotNull(items.single().progress)
+        assertEquals(90, progress.currentTimeSeconds)
+        assertEquals(300, progress.durationSeconds)
+        assertEquals(0.3f, progress.progressFraction)
+        assertEquals(9999L, progress.lastUpdateMillis)
+
+        server.takeRequest()
+        val listRequest = server.takeRequest()
+        assertTrue(listRequest.path.orEmpty().contains("/api/libraries/lib-1/items"))
+        assertTrue(listRequest.path.orEmpty().contains("include=progress"))
+    }
+
+    @Test
     fun syncAndCloseSession_sendsProgressSyncAndCloseRequests() = runTest {
         server.enqueueJson("""{"user":{"id":"u1","username":"demo","accessToken":"access-123"}}""")
         server.enqueue(MockResponse().setResponseCode(204))

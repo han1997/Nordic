@@ -175,7 +175,26 @@ class EmbyRepositoryTest {
                       "Name": "1080p",
                       "Container": "mp4",
                       "RunTimeTicks": 72000000000,
-                      "SupportsDirectStream": true
+                      "SupportsDirectStream": true,
+                      "MediaStreams": [
+                        {
+                          "Index": 1,
+                          "Type": "Audio",
+                          "Codec": "aac",
+                          "Language": "eng",
+                          "DisplayTitle": "English AAC",
+                          "IsDefault": true
+                        },
+                        {
+                          "Index": 2,
+                          "Type": "Subtitle",
+                          "Codec": "srt",
+                          "Language": "zho",
+                          "DisplayTitle": "Chinese SRT",
+                          "IsExternal": true,
+                          "DeliveryUrl": "/Videos/movie-1/source-1/Subtitles/2/Stream.srt"
+                        }
+                      ]
                     }
                   ]
                 }
@@ -194,6 +213,16 @@ class EmbyRepositoryTest {
         assertTrue(playbackInfo.streamUrl.contains("MediaSourceId=source-1"))
         assertTrue(playbackInfo.streamUrl.contains("PlaySessionId=play-session-1"))
         assertTrue(playbackInfo.streamUrl.contains("api_key=api-key"))
+        assertEquals(1, playbackInfo.audioTracks.size)
+        assertEquals(1, playbackInfo.audioTracks.single().index)
+        assertEquals("English AAC", playbackInfo.audioTracks.single().label)
+        assertEquals("eng", playbackInfo.audioTracks.single().language)
+        assertTrue(playbackInfo.audioTracks.single().isDefault)
+        assertEquals(1, playbackInfo.subtitleTracks.size)
+        assertEquals(2, playbackInfo.subtitleTracks.single().index)
+        assertEquals("Chinese SRT", playbackInfo.subtitleTracks.single().label)
+        assertTrue(playbackInfo.subtitleTracks.single().isExternal)
+        assertTrue(playbackInfo.subtitleTracks.single().deliveryUrl.orEmpty().contains("api_key=api-key"))
 
         server.takeRequest()
         val playbackRequest = server.takeRequest()

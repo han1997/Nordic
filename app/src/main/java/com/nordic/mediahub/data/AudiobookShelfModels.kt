@@ -20,7 +20,8 @@ data class AudiobookItemSummary(
     val coverUrl: String?,
     val durationSeconds: Int,
     val chapterCount: Int,
-    val updatedAtMillis: Long
+    val updatedAtMillis: Long,
+    val progress: AudiobookProgress? = null
 )
 
 @Stable

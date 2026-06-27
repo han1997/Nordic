@@ -338,13 +338,27 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
     }
 
     private fun SubsonicData.toMusicLyrics(song: NavidromeSong): MusicLyrics? {
-        val structured = lyricsList?.structuredLyrics
+        val structuredLyrics = lyricsList?.structuredLyrics
             ?.filter { lyrics -> lyrics.line.any { it.value.isNotBlank() } }
-            ?.sortedByDescending { it.synced }
-            ?.firstOrNull()
-            ?.toMusicLyrics(song)
+            ?.mapNotNull { it.toMusicLyrics(song) }
+            .orEmpty()
 
-        if (structured != null) return structured
+        val syncedLyrics = structuredLyrics.firstOrNull { it.synced }
+        val plainLyrics = structuredLyrics.firstOrNull { !it.synced }
+            ?: lyrics?.value
+                ?.takeIf { it.isNotBlank() }
+                ?.parsePlainLyrics()
+                ?.takeIf { !it.synced }
+
+        if (syncedLyrics != null || plainLyrics != null) {
+            val preferred = syncedLyrics ?: plainLyrics
+            return MusicLyrics(
+                lines = preferred?.lines.orEmpty(),
+                synced = preferred?.synced == true,
+                syncedLines = syncedLyrics?.lines.orEmpty(),
+                plainLines = plainLyrics?.lines.orEmpty()
+            )
+        }
 
         return lyrics?.value
             ?.takeIf { it.isNotBlank() }

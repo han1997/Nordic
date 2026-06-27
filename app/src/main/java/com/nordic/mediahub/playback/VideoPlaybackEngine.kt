@@ -1,14 +1,17 @@
 package com.nordic.mediahub.playback
 
+import android.net.Uri
 import android.content.Context
 import androidx.compose.runtime.Stable
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.nordic.mediahub.data.VideoMediaTrack
 import com.nordic.mediahub.data.VideoPlaybackInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +34,10 @@ data class VideoPlaybackState(
     val positionSeconds: Int = 0,
     val durationSeconds: Int = 0,
     val speed: Float = 1.0f,
+    val selectedAudioTrackIndex: Int? = null,
+    val selectedSubtitleTrackIndex: Int? = null,
+    val subtitleScale: Float = 1.0f,
+    val subtitleOffsetSeconds: Int = 0,
     val errorMessage: String? = null
 )
 
@@ -80,13 +87,19 @@ class VideoPlaybackEngine(
     }
 
     fun play(playbackInfo: VideoPlaybackInfo) {
+        val defaultAudioTrack = playbackInfo.audioTracks.firstOrNull { it.isDefault }
+            ?: playbackInfo.audioTracks.firstOrNull()
+        val defaultSubtitleTrack = playbackInfo.subtitleTracks.firstOrNull { it.isDefault || it.isForced }
         _state.value = VideoPlaybackState(
             playbackInfo = playbackInfo,
             isBuffering = true,
-            durationSeconds = playbackInfo.durationSeconds
+            durationSeconds = playbackInfo.durationSeconds,
+            selectedAudioTrackIndex = defaultAudioTrack?.index,
+            selectedSubtitleTrackIndex = defaultSubtitleTrack?.index
         )
         exoPlayer.setMediaItem(playbackInfo.toMediaItem())
         exoPlayer.prepare()
+        applyTrackSelection(defaultAudioTrack, defaultSubtitleTrack)
         exoPlayer.play()
         publishPlayerState()
         val info = playbackInfo
@@ -119,6 +132,30 @@ class VideoPlaybackEngine(
     fun setSpeed(speed: Float) {
         exoPlayer.playbackParameters = PlaybackParameters(speed)
         publishPlayerState()
+    }
+
+    fun selectAudioTrack(trackIndex: Int?) {
+        val info = _state.value.playbackInfo ?: return
+        val track = trackIndex?.let { index -> info.audioTracks.firstOrNull { it.index == index } }
+        applyTrackSelection(track, info.subtitleTracks.firstOrNull { it.index == _state.value.selectedSubtitleTrackIndex })
+        _state.update { it.copy(selectedAudioTrackIndex = track?.index) }
+    }
+
+    fun selectSubtitleTrack(trackIndex: Int?) {
+        val info = _state.value.playbackInfo ?: return
+        val track = trackIndex?.let { index -> info.subtitleTracks.firstOrNull { it.index == index } }
+        applyTrackSelection(info.audioTracks.firstOrNull { it.index == _state.value.selectedAudioTrackIndex }, track)
+        _state.update { it.copy(selectedSubtitleTrackIndex = track?.index) }
+    }
+
+    fun setSubtitleScale(scale: Float) {
+        _state.update { it.copy(subtitleScale = scale.coerceIn(0.75f, 1.75f)) }
+    }
+
+    fun adjustSubtitleOffset(deltaSeconds: Int) {
+        _state.update {
+            it.copy(subtitleOffsetSeconds = (it.subtitleOffsetSeconds + deltaSeconds).coerceIn(-30, 30))
+        }
     }
 
     fun stop() {
@@ -214,6 +251,7 @@ class VideoPlaybackEngine(
         return MediaItem.Builder()
             .setUri(streamUrl)
             .setMediaId(itemId)
+            .setSubtitleConfigurations(subtitleTracks.mapNotNull { it.toSubtitleConfiguration() })
             .setMediaMetadata(
                 MediaMetadata.Builder()
                     .setTitle(title)
@@ -221,5 +259,34 @@ class VideoPlaybackEngine(
                     .build()
             )
             .build()
+    }
+
+    private fun VideoMediaTrack.toSubtitleConfiguration(): MediaItem.SubtitleConfiguration? {
+        val url = deliveryUrl ?: return null
+        return MediaItem.SubtitleConfiguration.Builder(Uri.parse(url))
+            .setMimeType(resolveSubtitleMimeType(codec))
+            .setLanguage(language)
+            .setSelectionFlags(if (isDefault || isForced) C.SELECTION_FLAG_DEFAULT else 0)
+            .build()
+    }
+
+    private fun applyTrackSelection(audioTrack: VideoMediaTrack?, subtitleTrack: VideoMediaTrack?) {
+        val params = exoPlayer.trackSelectionParameters
+            .buildUpon()
+            .setPreferredAudioLanguage(audioTrack?.language)
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, subtitleTrack == null)
+            .setPreferredTextLanguage(subtitleTrack?.language)
+            .build()
+        exoPlayer.trackSelectionParameters = params
+    }
+
+    private fun resolveSubtitleMimeType(codec: String?): String {
+        return when (codec?.lowercase()) {
+            "ass", "ssa" -> MimeTypes.TEXT_SSA
+            "vtt", "webvtt" -> MimeTypes.TEXT_VTT
+            "pgs" -> MimeTypes.APPLICATION_PGS
+            "subrip", "srt" -> MimeTypes.APPLICATION_SUBRIP
+            else -> MimeTypes.APPLICATION_SUBRIP
+        }
     }
 }

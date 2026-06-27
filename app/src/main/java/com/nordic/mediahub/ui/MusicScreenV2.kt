@@ -141,6 +141,11 @@ fun MusicScreenV2(
     var sortedAlbums by remember { mutableStateOf(emptyList<NavidromeAlbum>()) }
     var albumSort by remember { mutableStateOf(NavidromeAlbumSort.RecentlyAdded) }
     var songSort by remember { mutableStateOf(MusicSongSort.Default) }
+    var albumFilterQuery by remember { mutableStateOf("") }
+    var songFilterQuery by remember { mutableStateOf("") }
+    var artistFilterQuery by remember { mutableStateOf("") }
+    var playlistFilterQuery by remember { mutableStateOf("") }
+    var playlistSongFilterQuery by remember { mutableStateOf("") }
     var songs by remember { mutableStateOf(emptyList<NavidromeSong>()) }
     var recentlyAddedSongs by remember { mutableStateOf(emptyList<NavidromeSong>()) }
     var artists by remember { mutableStateOf(emptyList<NavidromeArtist>()) }
@@ -454,6 +459,7 @@ fun MusicScreenV2(
 
     fun openPlaylistDetail(playlist: NavidromePlaylist) {
         selectedPlaylist = playlist
+        playlistSongFilterQuery = ""
         playlistSongs = emptyList()
         isLoadingPlaylistDetail = true
         errorMsg = null
@@ -467,6 +473,17 @@ fun MusicScreenV2(
                 errorMsg = "获取歌单曲目失败: ${e.message}"
             } finally {
                 isLoadingPlaylistDetail = false
+            }
+        }
+    }
+
+    fun refreshPlaylistOnly() {
+        scope.launch {
+            val activePlaylist = selectedPlaylist
+            val loaded = loadPlaylists()
+            if (loaded && libraryPage == MusicLibraryPage.PlaylistDetail && activePlaylist != null) {
+                val refreshedPlaylist = playlists.firstOrNull { it.id == activePlaylist.id } ?: activePlaylist
+                openPlaylistDetail(refreshedPlaylist)
             }
         }
     }
@@ -519,6 +536,21 @@ fun MusicScreenV2(
     val hasContent = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty() || playlists.isNotEmpty()
     val visibleSongs = remember(songs, songSort) {
         sortMusicSongs(songs, songSort)
+    }
+    val filteredAlbums = remember(sortedAlbums, albumFilterQuery) {
+        sortedAlbums.filterAlbums(albumFilterQuery)
+    }
+    val filteredSongs = remember(visibleSongs, songFilterQuery) {
+        visibleSongs.filterSongs(songFilterQuery)
+    }
+    val filteredArtists = remember(artists, artistFilterQuery) {
+        artists.filterArtists(artistFilterQuery)
+    }
+    val filteredPlaylists = remember(playlists, playlistFilterQuery) {
+        playlists.filterPlaylists(playlistFilterQuery)
+    }
+    val filteredPlaylistSongs = remember(playlistSongs, playlistSongFilterQuery) {
+        playlistSongs.filterSongs(playlistSongFilterQuery)
     }
     val homeSongs = remember(recentlyAddedSongs) { recentlyAddedSongs.take(12) }
     val homeAlbums = remember(albums) { albums.take(10) }
@@ -973,6 +1005,16 @@ fun MusicScreenV2(
                         }
                     )
                 }
+                if (sortedAlbums.isNotEmpty()) {
+                    item {
+                        MusicLocalFilterField(
+                            value = albumFilterQuery,
+                            onValueChange = { albumFilterQuery = it },
+                            placeholder = "筛选专辑、歌手或年份",
+                            colorScheme = colorScheme
+                        )
+                    }
+                }
 
                 if (isLoadingAlbumList) {
                     item {
@@ -993,8 +1035,16 @@ fun MusicScreenV2(
                             colorScheme = colorScheme
                         )
                     }
+                } else if (filteredAlbums.isEmpty()) {
+                    item {
+                        MusicDetailEmptyState(
+                            title = "没有匹配的专辑",
+                            subtitle = "换个关键词筛选当前列表。",
+                            colorScheme = colorScheme
+                        )
+                    }
                 } else {
-                    items(sortedAlbums, key = { it.id }, contentType = { "album-row" }) { album ->
+                    items(filteredAlbums, key = { it.id }, contentType = { "album-row" }) { album ->
                         AlbumListRow(
                             album = album,
                             colorScheme = colorScheme,
@@ -1022,13 +1072,30 @@ fun MusicScreenV2(
                             onSortSelected = { songSort = it }
                         )
                     }
-                    items(visibleSongs, key = { it.id }, contentType = { "song-row" }) { song ->
+                    item {
+                        MusicLocalFilterField(
+                            value = songFilterQuery,
+                            onValueChange = { songFilterQuery = it },
+                            placeholder = "筛选歌曲、歌手或专辑",
+                            colorScheme = colorScheme
+                        )
+                    }
+                    if (filteredSongs.isEmpty()) {
+                        item {
+                            MusicDetailEmptyState(
+                                title = "没有匹配的歌曲",
+                                subtitle = "换个关键词筛选当前列表。",
+                                colorScheme = colorScheme
+                            )
+                        }
+                    }
+                    items(filteredSongs, key = { it.id }, contentType = { "song-row" }) { song ->
                         SongListRow(
                             song = song,
                             colorScheme = colorScheme,
                             onClick = {
-                                val index = visibleSongs.indexOf(song)
-                                onSongSelected(visibleSongs, index)
+                                val index = filteredSongs.indexOf(song)
+                                onSongSelected(filteredSongs, index)
                             },
                             onToggleStar = { toggleSongStar(song) },
                             onAddToPlaylist = {
@@ -1054,7 +1121,24 @@ fun MusicScreenV2(
                         )
                     }
                 } else {
-                    items(artists, key = { it.id }, contentType = { "artist-row" }) { artist ->
+                    item {
+                        MusicLocalFilterField(
+                            value = artistFilterQuery,
+                            onValueChange = { artistFilterQuery = it },
+                            placeholder = "筛选歌手",
+                            colorScheme = colorScheme
+                        )
+                    }
+                    if (filteredArtists.isEmpty()) {
+                        item {
+                            MusicDetailEmptyState(
+                                title = "没有匹配的歌手",
+                                subtitle = "换个关键词筛选当前列表。",
+                                colorScheme = colorScheme
+                            )
+                        }
+                    }
+                    items(filteredArtists, key = { it.id }, contentType = { "artist-row" }) { artist ->
                         ArtistListRow(
                             artist = artist,
                             colorScheme = colorScheme,
@@ -1378,8 +1462,27 @@ fun MusicScreenV2(
                     item {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End
+                            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)
                         ) {
+                            Surface(
+                                color = colorScheme.surfaceVariant.copy(alpha = 0.64f),
+                                contentColor = colorScheme.onSurface,
+                                shape = RoundedCornerShape(999.dp),
+                                modifier = Modifier
+                                    .height(34.dp)
+                                    .clickable { refreshPlaylistOnly() }
+                            ) {
+                                Box(
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "刷新歌单",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
                             Surface(
                                 color = colorScheme.primary,
                                 contentColor = colorScheme.onPrimary,
@@ -1422,7 +1525,24 @@ fun MusicScreenV2(
                         )
                     }
                 } else {
-                    items(playlists, key = { it.id }, contentType = { "playlist-row" }) { playlist ->
+                    item {
+                        MusicLocalFilterField(
+                            value = playlistFilterQuery,
+                            onValueChange = { playlistFilterQuery = it },
+                            placeholder = "筛选歌单、所有者或描述",
+                            colorScheme = colorScheme
+                        )
+                    }
+                    if (filteredPlaylists.isEmpty()) {
+                        item {
+                            MusicDetailEmptyState(
+                                title = "没有匹配的歌单",
+                                subtitle = "换个关键词筛选当前列表。",
+                                colorScheme = colorScheme
+                            )
+                        }
+                    }
+                    items(filteredPlaylists, key = { it.id }, contentType = { "playlist-row" }) { playlist ->
                         PlaylistListRow(
                             playlist = playlist,
                             colorScheme = colorScheme,
@@ -1466,11 +1586,11 @@ fun MusicScreenV2(
                     item {
                         PlaylistDetailHeader(
                             playlist = playlist,
-                            songCount = playlistSongs.size,
+                            songCount = filteredPlaylistSongs.size,
                             colorScheme = colorScheme,
                             onPlayAll = {
-                                if (playlistSongs.isNotEmpty()) {
-                                    onSongSelected(playlistSongs, 0)
+                                if (filteredPlaylistSongs.isNotEmpty()) {
+                                    onSongSelected(filteredPlaylistSongs, 0)
                                 }
                             }
                         )
@@ -1484,14 +1604,31 @@ fun MusicScreenV2(
                             )
                         }
                     } else {
-                        items(playlistSongs, key = { it.id }, contentType = { "playlist-song-row" }) { song ->
+                        item {
+                            MusicLocalFilterField(
+                                value = playlistSongFilterQuery,
+                                onValueChange = { playlistSongFilterQuery = it },
+                                placeholder = "筛选歌单内歌曲",
+                                colorScheme = colorScheme
+                            )
+                        }
+                        if (filteredPlaylistSongs.isEmpty()) {
+                            item {
+                                MusicDetailEmptyState(
+                                    title = "没有匹配的歌曲",
+                                    subtitle = "换个关键词筛选当前歌单。",
+                                    colorScheme = colorScheme
+                                )
+                            }
+                        }
+                        items(filteredPlaylistSongs, key = { it.id }, contentType = { "playlist-song-row" }) { song ->
                             SongListRow(
-                                song = song,
-                                colorScheme = colorScheme,
-                                onClick = {
-                                    val index = playlistSongs.indexOf(song)
-                                    onSongSelected(playlistSongs, index)
-                                },
+                            song = song,
+                            colorScheme = colorScheme,
+                            onClick = {
+                                    val index = filteredPlaylistSongs.indexOf(song)
+                                    onSongSelected(filteredPlaylistSongs, index)
+                            },
                                 onToggleStar = { toggleSongStar(song) },
                                 onAddToPlaylist = {
                                     addToPlaylistSongId = song.id
@@ -2204,6 +2341,66 @@ private fun sortMusicSongs(
                 .thenBy(String.CASE_INSENSITIVE_ORDER) { it.title }
         )
     }
+}
+
+private fun List<NavidromeSong>.filterSongs(query: String): List<NavidromeSong> {
+    val normalized = query.trim()
+    if (normalized.isBlank()) return this
+    return filter { song ->
+        song.title.contains(normalized, ignoreCase = true) ||
+            song.artist.orEmpty().contains(normalized, ignoreCase = true) ||
+            song.album.orEmpty().contains(normalized, ignoreCase = true)
+    }
+}
+
+private fun List<NavidromeAlbum>.filterAlbums(query: String): List<NavidromeAlbum> {
+    val normalized = query.trim()
+    if (normalized.isBlank()) return this
+    return filter { album ->
+        album.name.contains(normalized, ignoreCase = true) ||
+            album.artist.orEmpty().contains(normalized, ignoreCase = true) ||
+            album.year?.toString().orEmpty().contains(normalized, ignoreCase = true)
+    }
+}
+
+private fun List<NavidromeArtist>.filterArtists(query: String): List<NavidromeArtist> {
+    val normalized = query.trim()
+    if (normalized.isBlank()) return this
+    return filter { artist ->
+        artist.name.contains(normalized, ignoreCase = true)
+    }
+}
+
+private fun List<NavidromePlaylist>.filterPlaylists(query: String): List<NavidromePlaylist> {
+    val normalized = query.trim()
+    if (normalized.isBlank()) return this
+    return filter { playlist ->
+        playlist.name.contains(normalized, ignoreCase = true) ||
+            playlist.owner.orEmpty().contains(normalized, ignoreCase = true) ||
+            playlist.comment.orEmpty().contains(normalized, ignoreCase = true)
+    }
+}
+
+@Composable
+private fun MusicLocalFilterField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    colorScheme: ColorScheme
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = { Text(placeholder, color = colorScheme.onSurface.copy(alpha = 0.4f)) },
+        singleLine = true,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = colorScheme.primary,
+            unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.16f)
+        ),
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+    )
 }
 
 @Composable

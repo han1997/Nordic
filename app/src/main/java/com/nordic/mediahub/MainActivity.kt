@@ -194,6 +194,8 @@ private fun TabContent(
     onOpenPlayer: (() -> Unit)? = null,
     playHistoryEntries: List<PlayHistoryEntry> = emptyList()
 ) {
+    val tabContext = LocalContext.current
+    val tabConfigRepository = remember(tabContext) { ConfigRepository(tabContext) }
     when (tab) {
         0 -> MusicScreenV2(
             isDark = isDark,
@@ -223,6 +225,7 @@ private fun TabContent(
                         audiobookRepository?.startPlayback(item.id)
                             ?: error("未配置 AudiobookShelf")
                     }.onSuccess { session ->
+                        scope.launch { tabConfigRepository.saveLastAudiobookItemId(item.id) }
                         playbackEngine.stop()
                         onHideVideoPlayer()
                         audiobookPlaybackEngine.play(session)
@@ -567,6 +570,10 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                         onSeek = videoPlaybackEngine::seekTo,
                         onPlayPause = videoPlaybackEngine::togglePlayPause,
                         onSpeedChange = videoPlaybackEngine::setSpeed,
+                        onSelectAudioTrack = videoPlaybackEngine::selectAudioTrack,
+                        onSelectSubtitleTrack = videoPlaybackEngine::selectSubtitleTrack,
+                        onSubtitleScaleChange = videoPlaybackEngine::setSubtitleScale,
+                        onSubtitleOffsetChange = videoPlaybackEngine::adjustSubtitleOffset,
                         onClose = {
                             showVideoPlayer = false
                             videoPlaybackEngine.stop()
