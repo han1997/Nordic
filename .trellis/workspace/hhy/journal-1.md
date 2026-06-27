@@ -725,3 +725,37 @@ Implemented round-five media polish: persisted Navidrome downloaded song metadat
 ### Next Steps
 
 - None - task complete
+
+
+## Session 22: Media feature parity round 6
+
+**Date**: 2026-06-27
+**Task**: Media feature parity round 6
+**Branch**: `main`
+
+### Summary
+
+Added local-first AudiobookShelf playback bookmarks with DataStore persistence, player UI controls, focused tests, verification gates, and a backend persistence contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `134c7e8` | (see git log) |
+| `ea0c410` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
