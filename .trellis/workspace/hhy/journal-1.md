@@ -826,3 +826,36 @@ Added synced lyric tap-to-seek in the music player, covered visible lyric timing
 ### Next Steps
 
 - None - task complete
+
+
+## Session 25: Episode watch progress on series detail page
+
+**Date**: 2026-06-27
+**Task**: Episode watch progress on series detail page
+**Branch**: `main`
+
+### Summary
+
+Added episode-level watch progress: VideoEpisode.progress field, UserData Fields query in getEpisodes, episode card watched/resume state display, resume-position passthrough to playback, repository tests, and Emby integration spec update.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `42cfef0` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

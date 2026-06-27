@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 24
+- **Total Sessions**: 25
 - **Last Active**: 2026-06-27
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~828 | Active |
+| `journal-1.md` | ~861 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 25 | 2026-06-27 | Episode watch progress on series detail page | `42cfef0` | `main` |
 | 24 | 2026-06-27 | Media feature parity round 8 | `3a65380` | `main` |
 | 23 | 2026-06-27 | Media feature parity round 7 | `083bac8`, `6d4ae11` | `main` |
 | 22 | 2026-06-27 | Media feature parity round 6 | `134c7e8`, `ea0c410` | `main` |
