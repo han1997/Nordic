@@ -40,6 +40,82 @@ Rules:
 - Bump `MUSIC_CACHE_SCHEMA_VERSION` when adding persisted DTO fields required by UI behavior, such as `NavidromeSong.created` for added-time sorting.
 - Include config identity in cache keys via `NavidromeConfig.cacheKey()` so one server/user cache is not shown for another.
 
+## Scenario: Navidrome Downloaded Song Metadata Sidecars
+
+### 1. Scope / Trigger
+
+- Trigger: Any change to `MusicDownloadManager`, downloaded-song restore behavior, downloaded-song deletion, or the Music home downloaded section.
+- This is a local persistence boundary: media files are stored in the app external music directory, while song metadata is stored as a JSON sidecar next to the media file.
+
+### 2. Signatures
+
+```kotlin
+class MusicDownloadManager(private val context: Context) {
+    fun downloadSong(song: NavidromeSong, config: NavidromeConfig)
+    fun restoreDownloadState()
+    fun updateSongMetadata(songs: List<NavidromeSong>)
+    fun deleteDownload(songId: String)
+    fun getDownloadedSongs(): List<NavidromeSong>
+    fun getLocalFilePath(songId: String): String?
+}
+
+internal fun musicDownloadMetadataFileName(songId: String): String
+internal fun isDownloadedMusicFile(fileName: String): Boolean
+internal fun saveDownloadedSongMetadata(file: File, song: NavidromeSong)
+internal fun loadDownloadedSongMetadata(file: File): NavidromeSong?
+```
+
+### 3. Contracts
+
+- Downloaded audio file name remains `<songId>.<extension>`, where the extension is derived from the response content type.
+- Downloaded metadata sidecar name is `<songId>.metadata.json`.
+- A successful `downloadSong(...)` must write the audio file and then write the metadata sidecar for the same `NavidromeSong`.
+- `restoreDownloadState()` must ignore `*.tmp` and `*.metadata.json` files when scanning for downloaded media.
+- If a sidecar exists, `restoreDownloadState()` restores `DownloadStateEntry.song` from the sidecar so the Downloaded section can render before a network/library refresh.
+- If an older download has no sidecar, restore it as downloaded with `song = null`; `updateSongMetadata(...)` may later repair the entry and write the sidecar.
+- `deleteDownload(songId)` must remove both matching media files and the metadata sidecar.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+|---|---|
+| Metadata sidecar is missing | Restore file state as downloaded with `song = null` |
+| Metadata sidecar is malformed | Ignore metadata and keep restore stable |
+| Download fails before final rename | Delete temp file and leave state as not downloaded |
+| Delete is requested while item is downloading | No-op to avoid racing an in-flight write |
+| Audio file exists but sidecar is absent | Keep backwards compatibility with pre-sidecar downloads |
+
+### 5. Good/Base/Bad Cases
+
+- Good: User downloads a song, restarts offline, and the Downloaded section can render the song from the sidecar metadata.
+- Base: User has old downloaded files without sidecars; files still restore as downloaded and metadata is repaired after the library loads.
+- Bad: Restore treats `<songId>.metadata.json` as an audio file, creating a fake downloaded item id like `<songId>.metadata`.
+
+### 6. Tests Required
+
+- Unit test `musicDownloadMetadataFileName_usesStableSidecarName`.
+- Unit test `isDownloadedMusicFile_excludesTempAndMetadataSidecarFiles`.
+- Unit test that `saveDownloadedSongMetadata` and `loadDownloadedSongMetadata` round-trip a `NavidromeSong`.
+- Unit test that missing/malformed metadata returns `null` without throwing.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```kotlin
+val existingFiles = dir.listFiles()?.filter { it.isFile && !it.name.endsWith(".tmp") }
+```
+
+This includes metadata sidecars as if they were playable media files.
+
+#### Correct
+
+```kotlin
+val existingFiles = dir.listFiles()?.filter { file -> isDownloadedMusicFile(file.name) }
+```
+
+This preserves backwards-compatible audio restore while excluding temp and sidecar files.
+
 ## Scenario: Navidrome Config-Scoped Music Refresh
 
 ### 1. Scope / Trigger

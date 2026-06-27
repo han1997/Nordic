@@ -327,7 +327,6 @@ data class VideoMediaTrack(
 fun VideoPlaybackEngine.selectAudioTrack(trackIndex: Int?)
 fun VideoPlaybackEngine.selectSubtitleTrack(trackIndex: Int?)
 fun VideoPlaybackEngine.setSubtitleScale(scale: Float)
-fun VideoPlaybackEngine.adjustSubtitleOffset(deltaSeconds: Int)
 ```
 
 ### 3. Contracts
@@ -338,7 +337,8 @@ fun VideoPlaybackEngine.adjustSubtitleOffset(deltaSeconds: Int)
 - External subtitle `DeliveryUrl` values must be converted to absolute URLs and include `api_key=<session token>` unless the URL already contains an API key.
 - `VideoPlaybackEngine.play()` selects the default audio track when present, otherwise the first audio track. It selects a default or forced subtitle when present.
 - Embedded Media3 subtitle/audio selection may be language-based when the API does not expose a stable renderer-track id. UI state must still reflect the user's selected Emby stream index.
-- Subtitle scale is applied to `PlayerView.subtitleView`. Subtitle offset may be carried as UI/playback state, but must only be presented as an effective playback adjustment when the underlying Media3 path applies it.
+- Subtitle scale is applied to `PlayerView.subtitleView`.
+- Do not expose subtitle offset controls unless the implementation actually retimes subtitle cues in the current Media3 playback path. A state-only offset is misleading and must be removed or disabled.
 
 ### 4. Validation & Error Matrix
 
@@ -349,7 +349,7 @@ fun VideoPlaybackEngine.adjustSubtitleOffset(deltaSeconds: Int)
 | External subtitle URL is relative | Resolve against the normalized Emby base URL and append `api_key` |
 | User selects `null` subtitle track | Disable text track selection and update state to no selected subtitle |
 | User selects unknown track index | Ignore the unavailable track and keep playback stable |
-| Media3 cannot apply a subtitle timing offset | Keep the state bounded, but do not claim server-side or player-side retiming occurred |
+| Media3 cannot apply a subtitle timing offset | Do not show active offset controls |
 
 ### 5. Good/Base/Bad Cases
 
