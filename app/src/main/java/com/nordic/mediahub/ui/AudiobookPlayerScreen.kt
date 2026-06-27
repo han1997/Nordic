@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.ColorScheme
@@ -44,6 +46,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.nordic.mediahub.data.AudiobookBookmark
 import com.nordic.mediahub.playback.AudiobookPlaybackState
 
 private val SPEED_OPTIONS = floatArrayOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f)
@@ -66,7 +69,11 @@ fun AudiobookPlayerScreen(
     onNextChapter: () -> Unit = {},
     onStartSleepTimer: (Int) -> Unit = {},
     onStartSleepTimerEndOfChapter: () -> Unit = {},
-    onCancelSleepTimer: () -> Unit = {}
+    onCancelSleepTimer: () -> Unit = {},
+    bookmarks: List<AudiobookBookmark> = emptyList(),
+    onAddBookmark: () -> Unit = {},
+    onSelectBookmark: (AudiobookBookmark) -> Unit = {},
+    onDeleteBookmark: (AudiobookBookmark) -> Unit = {}
 ) {
     val session = state.session
     val duration = state.durationSeconds.coerceAtLeast(1)
@@ -284,8 +291,125 @@ fun AudiobookPlayerScreen(
                             }
                         }
                     }
+                    AudiobookBookmarkSection(
+                        bookmarks = bookmarks,
+                        currentPositionSeconds = visiblePosition.toInt(),
+                        colorScheme = colorScheme,
+                        enabled = session != null,
+                        onAddBookmark = onAddBookmark,
+                        onSelectBookmark = onSelectBookmark,
+                        onDeleteBookmark = onDeleteBookmark
+                    )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AudiobookBookmarkSection(
+    bookmarks: List<AudiobookBookmark>,
+    currentPositionSeconds: Int,
+    colorScheme: ColorScheme,
+    enabled: Boolean,
+    onAddBookmark: () -> Unit,
+    onSelectBookmark: (AudiobookBookmark) -> Unit,
+    onDeleteBookmark: (AudiobookBookmark) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "书签",
+                fontSize = 12.sp,
+                color = colorScheme.onSurface.copy(alpha = 0.62f),
+                fontWeight = FontWeight.SemiBold
+            )
+            Surface(
+                color = if (enabled) colorScheme.primary.copy(alpha = 0.14f) else colorScheme.surface.copy(alpha = 0.3f),
+                contentColor = if (enabled) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.32f),
+                shape = RoundedCornerShape(999.dp),
+                modifier = Modifier.clickable(enabled = enabled, onClick = onAddBookmark)
+            ) {
+                Text(
+                    "+ ${formatDuration(currentPositionSeconds)}",
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                    fontSize = 11.sp,
+                    color = if (enabled) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.32f),
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+        if (bookmarks.isEmpty()) {
+            Text(
+                "暂无书签",
+                fontSize = 12.sp,
+                color = colorScheme.onSurface.copy(alpha = 0.42f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        } else {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(
+                    items = bookmarks,
+                    key = { bookmark -> bookmark.id },
+                    contentType = { "audiobook-bookmark" }
+                ) { bookmark ->
+                    AudiobookBookmarkChip(
+                        bookmark = bookmark,
+                        colorScheme = colorScheme,
+                        onSelect = { onSelectBookmark(bookmark) },
+                        onDelete = { onDeleteBookmark(bookmark) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AudiobookBookmarkChip(
+    bookmark: AudiobookBookmark,
+    colorScheme: ColorScheme,
+    onSelect: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Surface(
+        color = colorScheme.surface.copy(alpha = 0.64f),
+        contentColor = colorScheme.onSurface,
+        shape = RoundedCornerShape(999.dp),
+        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f))
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 10.dp, top = 5.dp, end = 6.dp, bottom = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(7.dp)
+        ) {
+            Text(
+                bookmark.label.ifBlank { formatDuration(bookmark.positionSeconds) },
+                modifier = Modifier.clickable(onClick = onSelect),
+                fontSize = 11.sp,
+                color = colorScheme.onSurface.copy(alpha = 0.74f),
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                "x",
+                modifier = Modifier.clickable(onClick = onDelete),
+                fontSize = 12.sp,
+                color = colorScheme.onSurface.copy(alpha = 0.46f),
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nordic.mediahub.api.NavidromeSong
+import com.nordic.mediahub.data.AudiobookBookmark
+import com.nordic.mediahub.data.AudiobookBookmarkRepository
 import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.AudiobookShelfConfig
 import com.nordic.mediahub.data.AudiobookShelfRepository
@@ -314,6 +316,8 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
 
     val playHistoryRepository = remember { PlayHistoryRepository(context) }
     var playHistoryEntries by remember { mutableStateOf(emptyList<PlayHistoryEntry>()) }
+    val audiobookBookmarkRepository = remember { AudiobookBookmarkRepository(context) }
+    var audiobookBookmarks by remember { mutableStateOf(emptyList<AudiobookBookmark>()) }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -527,6 +531,40 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         }
     }
 
+    LaunchedEffect(audiobookPlaybackState.session?.libraryItemId) {
+        val libraryItemId = audiobookPlaybackState.session?.libraryItemId
+        audiobookBookmarks = if (libraryItemId == null) {
+            emptyList()
+        } else {
+            runCatching {
+                audiobookBookmarkRepository.loadForItem(libraryItemId)
+            }.getOrDefault(emptyList())
+        }
+    }
+
+    fun addCurrentAudiobookBookmark() {
+        val libraryItemId = audiobookPlaybackState.session?.libraryItemId ?: return
+        val positionSeconds = audiobookPlaybackState.positionSeconds
+        scope.launch {
+            audiobookBookmarks = runCatching {
+                audiobookBookmarkRepository.addBookmark(
+                    libraryItemId = libraryItemId,
+                    positionSeconds = positionSeconds
+                )
+            }.getOrDefault(audiobookBookmarks)
+        }
+    }
+
+    fun deleteAudiobookBookmark(bookmark: AudiobookBookmark) {
+        val libraryItemId = audiobookPlaybackState.session?.libraryItemId ?: return
+        scope.launch {
+            audiobookBookmarks = runCatching {
+                audiobookBookmarkRepository.deleteBookmark(bookmark.id)
+                audiobookBookmarkRepository.loadForItem(libraryItemId)
+            }.getOrDefault(audiobookBookmarks)
+        }
+    }
+
     Scaffold(
         containerColor = colorScheme.background,
         bottomBar = {
@@ -702,7 +740,15 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             onNextChapter = audiobookPlaybackEngine::jumpToNextChapter,
             onStartSleepTimer = audiobookPlaybackEngine::startSleepTimer,
             onStartSleepTimerEndOfChapter = audiobookPlaybackEngine::startSleepTimerEndOfChapter,
-            onCancelSleepTimer = audiobookPlaybackEngine::cancelSleepTimer
+            onCancelSleepTimer = audiobookPlaybackEngine::cancelSleepTimer,
+            bookmarks = audiobookBookmarks,
+            onAddBookmark = { addCurrentAudiobookBookmark() },
+            onSelectBookmark = { bookmark ->
+                audiobookPlaybackEngine.seekTo(bookmark.positionSeconds)
+            },
+            onDeleteBookmark = { bookmark ->
+                deleteAudiobookBookmark(bookmark)
+            }
         )
     }
 
