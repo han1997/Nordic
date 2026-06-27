@@ -19,6 +19,8 @@ import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
+private const val LIBRARY_BROWSE_ITEM_TYPES = "Movie,Series,Video"
+
 class EmbyApiException(message: String, val kind: Kind) : Exception(message) {
     enum class Kind { HTTP, AUTH, API }
 }
@@ -449,11 +451,13 @@ class EmbyRepository(private val config: VideoServerConfig) {
             userId = session.userId,
             token = session.token,
             parentId = libraryId,
+            includeItemTypes = LIBRARY_BROWSE_ITEM_TYPES,
             sortBy = query.sort.apiSortBy,
             sortOrder = query.sort.apiSortOrder,
             filters = query.filter.apiFilter
         ).requireBody("获取 Emby 视频失败")
             .items
+            .filter { item -> !item.type.equals("Episode", ignoreCase = true) }
             .map { item -> item.toVideoItem(libraryId, session.token) }
     }
 

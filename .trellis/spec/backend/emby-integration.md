@@ -53,7 +53,8 @@ GET Users/{userId}/Items
   - Do not include known non-video collections such as `music`
 - Item listing:
   - `GET Users/{userId}/Items`
-  - query includes `ParentId`, `Recursive=true`, `IncludeItemTypes=Movie,Series,Episode,Video`
+  - query includes `ParentId`, `Recursive=true`, `IncludeItemTypes=Movie,Series,Video`
+  - Main library browsing excludes `Episode`; episode rows stay available through search, continue-watching, Next Up, and Series detail season/episode drill-down.
   - map `RunTimeTicks` to seconds using `10_000_000` ticks per second
 - Thumbnail URL:
   - Build `/Items/{itemId}/Images/Primary`
@@ -73,6 +74,7 @@ GET Users/{userId}/Items
 - Base: Username/password login, one video library, empty item list, UI shows an empty media-library state.
 - Bad: Emby returns HTTP 500 for views, repository throws `EmbyApiException.Kind.HTTP` and UI shows the error card.
 - Bad: Server has music and movie collections, repository filters out music by `CollectionType`.
+- Bad: TV library browsing requests or renders `Episode` items, flattening a show into individual episode cards instead of Series cards.
 
 ### 6. Tests Required
 - Readiness:
@@ -88,6 +90,7 @@ GET Users/{userId}/Items
   - asserts later requests use `AccessToken`
 - Mapping:
   - asserts non-video libraries are filtered
+  - asserts main library browsing excludes `Episode` item types
   - asserts duration ticks become seconds
   - asserts thumbnail URL contains item path, primary tag, and token query
 - Error:
@@ -111,6 +114,25 @@ val libraries = response.items.filter { item ->
 ```
 
 This keeps video-first behavior while retaining a compatibility fallback for older or incomplete Emby responses.
+
+#### Wrong
+```kotlin
+api.getItems(userId, token, parentId = libraryId)
+```
+
+Using the `getItems` broad default can include `Episode` and make TV libraries render as a flat episode list.
+
+#### Correct
+```kotlin
+api.getItems(
+    userId = userId,
+    token = token,
+    parentId = libraryId,
+    includeItemTypes = "Movie,Series,Video"
+)
+```
+
+Main library browsing should request series-level TV entries. Keep `Episode` only in search, resume, Next Up, and season drill-down requests.
 
 ---
 

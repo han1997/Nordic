@@ -283,7 +283,17 @@ class EmbyRepositoryTest {
     @Test
     fun getLibraryItems_sendsSortAndFilterParameters() = runTest {
         server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
-        server.enqueueJson("""{"Items":[],"TotalRecordCount":0}""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"series-1","Name":"The Expanse","Type":"Series","ChildCount":62},
+                    {"Id":"episode-1","Name":"Episode 1","Type":"Episode","ParentId":"series-1"}
+                  ],
+                  "TotalRecordCount": 2
+                }
+            """.trimIndent()
+        )
 
         val items = repository(apiKey = "api-key").getLibraryItems(
             libraryId = "lib-movie",
@@ -293,11 +303,15 @@ class EmbyRepositoryTest {
             )
         )
 
-        assertTrue(items.isEmpty())
+        assertEquals(1, items.size)
+        assertEquals("series-1", items.single().id)
+        assertEquals("Series", items.single().type)
         server.takeRequest()
         val request = server.takeRequest()
         assertTrue(request.path.orEmpty().startsWith("/Users/u1/Items?"))
         assertTrue(request.path.orEmpty().contains("ParentId=lib-movie"))
+        assertTrue(request.path.orEmpty().contains("IncludeItemTypes=Movie%2CSeries%2CVideo"))
+        assertFalse(request.path.orEmpty().contains("IncludeItemTypes=Movie%2CSeries%2CEpisode%2CVideo"))
         assertTrue(request.path.orEmpty().contains("SortBy=SortName"))
         assertTrue(request.path.orEmpty().contains("SortOrder=Ascending"))
         assertTrue(request.path.orEmpty().contains("Filters=IsFavorite"))
