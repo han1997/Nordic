@@ -925,3 +925,36 @@ Changed Emby library browsing to request and render TV shows at Series level ins
 ### Next Steps
 
 - None - task complete
+
+
+## Session 28: Next episode control in video player
+
+**Date**: 2026-06-27
+**Task**: Next episode control in video player
+**Branch**: `main`
+
+### Summary
+
+Added manual Next Episode button to video player: VideoEpisodeQueue model for same-season navigation, queue wiring from VideoDetailScreen through MainActivity, disabled state when no queue, error-safe next-episode loading, unit tests for boundary cases, and Emby integration spec update.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e9dce40` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
