@@ -210,7 +210,7 @@ val streamUrl = baseUrl.toHttpUrl().newBuilder()
 
 ### 1. Scope / Trigger
 - Trigger: User plays a video item (progress reporting) or browses a Series item (season/episode drill-down).
-- Scope: `POST Sessions/Playing`, `POST Sessions/Playing/Progress`, `POST Sessions/Playing/Stopped`; `GET` seasons and episodes via `getItems` with `ParentId` and `IncludeItemTypes` filters; domain models `VideoSeason` and `VideoEpisode`.
+- Scope: `POST Sessions/Playing`, `POST Sessions/Playing/Progress`, `POST Sessions/Playing/Stopped`; `GET` seasons and episodes via `getItems` with `ParentId`, `IncludeItemTypes`, and episode `UserData` fields; domain models `VideoSeason` and `VideoEpisode`.
 - Out of scope: Now-playing session management UI, transcoding URL construction.
 
 ### 2. Signatures
@@ -237,13 +237,24 @@ suspend fun getEpisodes(seasonId: String): List<VideoEpisode>
 - Domain models:
 ```kotlin
 @Stable data class VideoSeason(val id: String, val name: String, val indexNumber: Int, val episodeCount: Int, val imageUrl: String? = null)
-@Stable data class VideoEpisode(val id: String, val name: String, val seasonNumber: Int, val episodeNumber: Int, val overview: String, val durationSeconds: Int, val imageUrl: String? = null)
+@Stable data class VideoEpisode(
+    val id: String,
+    val name: String,
+    val seasonNumber: Int,
+    val episodeNumber: Int,
+    val overview: String,
+    val durationSeconds: Int,
+    val imageUrl: String? = null,
+    val progress: VideoProgress? = null
+)
 ```
 
 ### 3. Contracts
 - Progress reporting: `positionTicks = positionSeconds * 10_000_000L`. Reports at play start, every 10 seconds during playback, and on stop/release.
 - Seasons: fetched via `getItems(parentId=seriesId, includeItemTypes=Season)`.
-- Episodes: fetched via `getItems(parentId=seasonId, includeItemTypes=Episode)`.
+- Episodes: fetched via `getItems(parentId=seasonId, includeItemTypes=Episode)` with fields including `Overview,ProductionYear,RunTimeTicks,ChildCount,ImageTags,UserData`.
+- Episode `UserData.PlaybackPositionTicks`, `PlayedPercentage`, `Played`, and `LastPlayedDate` map through the same `VideoProgress` contract used by resume items.
+- Series detail episode cards should render watched/resume state from `VideoEpisode.progress`. When starting an episode from the card, copy `episode.progress` into the temporary `VideoItem` passed to `getPlaybackInfo(...)` so playback resumes from the episode-specific position.
 - `VideoPlaybackEngine` calls progress callbacks from coroutine scope; callbacks are `suspend` functions.
 - Video detail screen intercepts card taps to show metadata before playback; Series items show season chips and episode lists.
 
@@ -252,16 +263,21 @@ suspend fun getEpisodes(seasonId: String): List<VideoEpisode>
 - Non-2xx from seasons/episodes → `EmbyApiException(kind = HTTP)` per existing pattern
 - Empty seasons list → UI shows "暂无季信息"
 - Episode without `RunTimeTicks` → `durationSeconds` falls back to 0
+- Episode without `UserData` → `VideoEpisode.progress == null`; card renders the existing simple metadata.
+- Episode with `Played == true` → card may show watched state, but continue-watching behavior should not override playback start with an arbitrary nonzero progress unless `getPlaybackInfo(...)` receives that progress explicitly.
 
 ### 5. Good/Base/Bad Cases
 - Good: Series has 3 seasons, each with 8 episodes; tapping a season loads episodes; tapping an episode plays it.
+- Good: Episode includes `UserData.PlaybackPositionTicks`; series detail shows resume state and playback starts from that position.
 - Base: Movie item shows detail page with play button; no season/episode data loaded.
+- Base: Episode has no `UserData`; card remains simple and playback starts from 0.
 - Bad: Emby returns 500 for seasons; error surfaced in UI; play button still works for the series itself.
+- Bad: Repository maps episode overview/duration but drops `UserData`, so playback from a season list restarts from 0 even though Emby knows the position.
 
 ### 6. Tests Required
 - `reportPlaybackStart_sendsCorrectBodyWithTicks`: verify positionTicks=0 and correct itemId/mediaSourceId/playSessionId
 - `getSeasons_mapsDtoToVideoSeason`: verify season name, indexNumber, episodeCount, image URL
-- `getEpisodes_mapsDtoToVideoEpisode`: verify episode name, season/episode numbers, duration from ticks
+- `getEpisodes_mapsDtoToVideoEpisode`: verify episode name, season/episode numbers, duration from ticks, image URL, episode `VideoProgress`, and request fields include `UserData`
 
 ### 7. Wrong vs Correct
 
@@ -269,6 +285,7 @@ suspend fun getEpisodes(seasonId: String): List<VideoEpisode>
 ```kotlin
 // Not reporting progress means Emby server has no idea where you stopped
 // Tapping a Series card immediately plays it (no detail screen)
+// Constructing an episode VideoItem without episode.progress loses resume position.
 ```
 
 #### Correct
@@ -276,6 +293,15 @@ suspend fun getEpisodes(seasonId: String): List<VideoEpisode>
 // VideoPlaybackEngine reports start/progress/stop via suspend callbacks
 // Card tap → detail screen → play button → playback
 scope.launch { onPlaybackStart?.invoke(info.itemId, info.mediaSourceId, info.playSessionId, 0) }
+
+val episodeVideoItem = VideoItem(
+    id = episode.id,
+    libraryId = series.libraryId,
+    title = episode.name,
+    type = "Episode",
+    durationSeconds = episode.durationSeconds,
+    progress = episode.progress
+)
 ```
 
 ## Scenario: Video Continue Watching

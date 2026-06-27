@@ -483,8 +483,36 @@ class EmbyRepositoryTest {
             """
                 {
                   "Items": [
-                    {"Id":"ep-1","Name":"Pilot","Type":"Episode","IndexNumber":1,"ParentIndexNumber":1,"Overview":"First episode","RunTimeTicks":25800000000,"ImageTags":{"Primary":"ep1-tag"}},
-                    {"Id":"ep-2","Name":"Fallout","Type":"Episode","IndexNumber":2,"ParentIndexNumber":1,"Overview":"Second episode","RunTimeTicks":26400000000}
+                    {
+                      "Id":"ep-1",
+                      "Name":"Pilot",
+                      "Type":"Episode",
+                      "IndexNumber":1,
+                      "ParentIndexNumber":1,
+                      "Overview":"First episode",
+                      "RunTimeTicks":25800000000,
+                      "ImageTags":{"Primary":"ep1-tag"},
+                      "UserData":{
+                        "PlaybackPositionTicks":6000000000,
+                        "PlayedPercentage":23.5,
+                        "Played":false,
+                        "LastPlayedDate":"2026-06-27T11:00:00Z"
+                      }
+                    },
+                    {
+                      "Id":"ep-2",
+                      "Name":"Fallout",
+                      "Type":"Episode",
+                      "IndexNumber":2,
+                      "ParentIndexNumber":1,
+                      "Overview":"Second episode",
+                      "RunTimeTicks":26400000000,
+                      "UserData":{
+                        "PlaybackPositionTicks":26400000000,
+                        "PlayedPercentage":100.0,
+                        "Played":true
+                      }
+                    }
                   ],
                   "TotalRecordCount": 2
                 }
@@ -494,13 +522,25 @@ class EmbyRepositoryTest {
         val episodes = repository(apiKey = "api-key").getEpisodes("season-1")
 
         assertEquals(2, episodes.size)
+        // ep-1: has progress, not played, has image
         assertEquals("Pilot", episodes[0].name)
         assertEquals(1, episodes[0].seasonNumber)
         assertEquals(1, episodes[0].episodeNumber)
         assertEquals("First episode", episodes[0].overview)
         assertEquals(2580, episodes[0].durationSeconds)
         assertTrue(episodes[0].imageUrl.orEmpty().contains("/Items/ep-1/Images/Primary"))
-        assertNull(episodes[1].imageUrl) // no ImageTags.Primary
+        assertEquals(600, episodes[0].progress?.currentTimeSeconds)
+        assertEquals(23.5f, episodes[0].progress?.playedPercentage ?: 0f, 0.001f)
+        assertEquals(false, episodes[0].progress?.isPlayed)
+        assertEquals("2026-06-27T11:00:00Z", episodes[0].progress?.lastPlayedDate)
+        // ep-2: fully played, no image, no lastPlayedDate
+        assertEquals("Fallout", episodes[1].name)
+        assertEquals(2, episodes[1].episodeNumber)
+        assertNull(episodes[1].imageUrl)
+        assertEquals(2640, episodes[1].progress?.currentTimeSeconds)
+        assertEquals(100f, episodes[1].progress?.playedPercentage ?: 0f, 0.001f)
+        assertEquals(true, episodes[1].progress?.isPlayed)
+        assertNull(episodes[1].progress?.lastPlayedDate)
 
         server.takeRequest() // auth
         val episodesRequest = server.takeRequest()
@@ -508,6 +548,7 @@ class EmbyRepositoryTest {
         assertTrue(episodesRequest.path.orEmpty().contains("ParentId=season-1"))
         assertTrue(episodesRequest.path.orEmpty().contains("Recursive=true"))
         assertTrue(episodesRequest.path.orEmpty().contains("IncludeItemTypes=Episode"))
+        assertTrue(episodesRequest.path.orEmpty().contains("Fields=Overview%2CProductionYear%2CRunTimeTicks%2CChildCount%2CImageTags%2CUserData"))
     }
 
     @Test

@@ -247,6 +247,7 @@ interface EmbyApi {
         @Query("ParentId") parentId: String,
         @Query("Recursive") recursive: Boolean = true,
         @Query("IncludeItemTypes") includeItemTypes: String = "Episode",
+        @Query("Fields") fields: String = "Overview,ProductionYear,RunTimeTicks,ChildCount,ImageTags,UserData",
         @Query("SortBy") sortBy: String = "SortName",
         @Query("SortOrder") sortOrder: String = "Ascending"
     ): Response<EmbyItemsResponse>

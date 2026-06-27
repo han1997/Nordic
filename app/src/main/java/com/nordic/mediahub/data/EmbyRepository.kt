@@ -103,7 +103,8 @@ data class VideoEpisode(
     val episodeNumber: Int,
     val overview: String,
     val durationSeconds: Int,
-    val imageUrl: String? = null
+    val imageUrl: String? = null,
+    val progress: VideoProgress? = null
 )
 
 class EmbyRepository(private val config: VideoServerConfig) {
@@ -416,7 +417,8 @@ class EmbyRepository(private val config: VideoServerConfig) {
             episodeNumber = indexNumber ?: 0,
             overview = overview.orEmpty(),
             durationSeconds = runTimeTicks.toDurationSeconds(),
-            imageUrl = primaryImageUrl(id, token, imageTags?.get("Primary"))
+            imageUrl = primaryImageUrl(id, token, imageTags?.get("Primary")),
+            progress = userData?.toVideoProgress()
         )
     }
 

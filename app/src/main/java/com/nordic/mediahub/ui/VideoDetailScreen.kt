@@ -48,6 +48,7 @@ import com.nordic.mediahub.data.EmbyRepository
 import com.nordic.mediahub.data.VideoEpisode
 import com.nordic.mediahub.data.VideoItem
 import com.nordic.mediahub.data.VideoPlaybackInfo
+import com.nordic.mediahub.data.VideoProgress
 import com.nordic.mediahub.data.VideoSeason
 import com.nordic.mediahub.data.VideoServerConfig
 import com.nordic.mediahub.data.isReadyForVideoSync
@@ -274,7 +275,8 @@ fun VideoDetailScreen(
                                 type = "Episode",
                                 overview = episode.overview,
                                 durationSeconds = episode.durationSeconds,
-                                imageUrl = episode.imageUrl
+                                imageUrl = episode.imageUrl,
+                                progress = episode.progress
                             )
                             scope.launch {
                                 isLoadingPlayback = true
@@ -483,6 +485,21 @@ private fun VideoEpisodeCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                val progress = episode.progress
+                progress?.toEpisodeProgressLabel()?.let { progressLabel ->
+                    Text(
+                        progressLabel,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (progress.isPlayed) {
+                            colorScheme.primary
+                        } else {
+                            colorScheme.onSurface.copy(alpha = 0.62f)
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 if (episode.overview.isNotBlank()) {
                     Text(
                         episode.overview,
@@ -495,5 +512,19 @@ private fun VideoEpisodeCard(
                 }
             }
         }
+    }
+}
+
+private fun VideoProgress.toEpisodeProgressLabel(): String? {
+    return when {
+        isPlayed -> "已看完"
+        currentTimeSeconds > 0 -> {
+            val progressText = playedPercentage
+                .takeIf { it > 0f }
+                ?.let { " ${(it).toInt()}%" }
+                .orEmpty()
+            "继续观看 ${formatVideoDuration(currentTimeSeconds)}$progressText"
+        }
+        else -> null
     }
 }
