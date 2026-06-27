@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Primary spec for Emby API contracts — check episode progress mapping, Fields query consistency, and UserData handling"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Quality gate conventions for lint, type-check, and test verification"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Error handling patterns to verify against"}

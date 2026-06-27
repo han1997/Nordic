@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Primary spec for Emby API contracts, episode progress mapping, and field requirements"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Code quality checks, lint/type-check/test conventions"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Error handling patterns for API and repository layers"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "File organization and naming conventions"}
