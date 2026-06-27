@@ -3,6 +3,7 @@ package com.nordic.mediahub.api
 import com.google.gson.annotations.SerializedName
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
@@ -66,6 +67,44 @@ data class EmbyItemDto(
     val userData: EmbyUserDataDto? = null
 )
 
+data class EmbySearchHintsResponse(
+    @SerializedName("SearchHints")
+    val searchHints: List<EmbySearchHintDto> = emptyList(),
+    @SerializedName("TotalRecordCount")
+    val totalRecordCount: Int = 0
+)
+
+data class EmbySearchHintDto(
+    @SerializedName("ItemId")
+    val itemId: String? = null,
+    @SerializedName("Id")
+    val id: String? = null,
+    @SerializedName("Name")
+    val name: String? = null,
+    @SerializedName("ParentId")
+    val parentId: String? = null,
+    @SerializedName("Type")
+    val type: String? = null,
+    @SerializedName("MediaType")
+    val mediaType: String? = null,
+    @SerializedName("Overview")
+    val overview: String? = null,
+    @SerializedName("ProductionYear")
+    val productionYear: Int? = null,
+    @SerializedName("RunTimeTicks")
+    val runTimeTicks: Long? = null,
+    @SerializedName("IndexNumber")
+    val indexNumber: Int? = null,
+    @SerializedName("ParentIndexNumber")
+    val parentIndexNumber: Int? = null,
+    @SerializedName("PrimaryImageTag")
+    val primaryImageTag: String? = null,
+    @SerializedName("ImageTags")
+    val imageTags: Map<String, String>? = emptyMap(),
+    @SerializedName("UserData")
+    val userData: EmbyUserDataDto? = null
+)
+
 data class EmbyUserDataDto(
     @SerializedName("PlayedPercentage")
     val playedPercentage: Double? = null,
@@ -73,6 +112,8 @@ data class EmbyUserDataDto(
     val playbackPositionTicks: Long? = null,
     @SerializedName("Played")
     val played: Boolean = false,
+    @SerializedName("IsFavorite")
+    val isFavorite: Boolean = false,
     @SerializedName("LastPlayedDate")
     val lastPlayedDate: String? = null
 )
@@ -188,9 +229,12 @@ interface EmbyApi {
         @Query("ParentId") parentId: String,
         @Query("Recursive") recursive: Boolean = true,
         @Query("IncludeItemTypes") includeItemTypes: String = "Movie,Series,Episode,Video",
-        @Query("Fields") fields: String = "Overview,ProductionYear,RunTimeTicks,ChildCount,ImageTags",
+        @Query("Fields") fields: String = "Overview,ProductionYear,RunTimeTicks,ChildCount,ImageTags,UserData",
         @Query("SortBy") sortBy: String = "DateCreated",
         @Query("SortOrder") sortOrder: String = "Descending",
+        @Query("Filters") filters: String? = null,
+        @Query("Genres") genres: String? = null,
+        @Query("Years") years: String? = null,
         @Query("Limit") limit: Int = 50
     ): Response<EmbyItemsResponse>
 
@@ -203,6 +247,25 @@ interface EmbyApi {
         @Query("Fields") fields: String = "Overview,ProductionYear,RunTimeTicks,ChildCount,ImageTags",
         @Query("Limit") limit: Int = 12
     ): Response<EmbyItemsResponse>
+
+    @GET("Shows/NextUp")
+    suspend fun getNextUp(
+        @Header("X-Emby-Token") token: String,
+        @Query("UserId") userId: String,
+        @Query("Fields") fields: String = "Overview,ProductionYear,RunTimeTicks,ChildCount,ImageTags,UserData",
+        @Query("Limit") limit: Int = 12
+    ): Response<EmbyItemsResponse>
+
+    @GET("Search/Hints")
+    suspend fun searchHints(
+        @Header("X-Emby-Token") token: String,
+        @Query("UserId") userId: String,
+        @Query("SearchTerm") searchTerm: String,
+        @Query("MediaTypes") mediaTypes: String = "Video",
+        @Query("IncludeItemTypes") includeItemTypes: String = "Movie,Series,Episode,Video",
+        @Query("Fields") fields: String = "Overview,ProductionYear,RunTimeTicks,ChildCount,ImageTags,UserData",
+        @Query("Limit") limit: Int = 20
+    ): Response<EmbySearchHintsResponse>
 
     @GET("Items/{itemId}/PlaybackInfo")
     suspend fun getPlaybackInfo(
@@ -226,6 +289,34 @@ interface EmbyApi {
     @POST("Sessions/Playing/Stopped")
     suspend fun reportPlaybackStopped(
         @Body request: EmbyPlaybackStopRequest,
+        @Header("X-Emby-Token") token: String
+    ): Response<Unit>
+
+    @POST("Users/{userId}/PlayedItems/{itemId}")
+    suspend fun markPlayed(
+        @Path("userId") userId: String,
+        @Path("itemId") itemId: String,
+        @Header("X-Emby-Token") token: String
+    ): Response<Unit>
+
+    @DELETE("Users/{userId}/PlayedItems/{itemId}")
+    suspend fun markUnplayed(
+        @Path("userId") userId: String,
+        @Path("itemId") itemId: String,
+        @Header("X-Emby-Token") token: String
+    ): Response<Unit>
+
+    @POST("Users/{userId}/FavoriteItems/{itemId}")
+    suspend fun markFavorite(
+        @Path("userId") userId: String,
+        @Path("itemId") itemId: String,
+        @Header("X-Emby-Token") token: String
+    ): Response<Unit>
+
+    @DELETE("Users/{userId}/FavoriteItems/{itemId}")
+    suspend fun markUnfavorite(
+        @Path("userId") userId: String,
+        @Path("itemId") itemId: String,
         @Header("X-Emby-Token") token: String
     ): Response<Unit>
 

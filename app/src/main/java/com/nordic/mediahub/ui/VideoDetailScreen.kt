@@ -78,8 +78,9 @@ fun VideoDetailScreen(
     var seasonsError by remember { mutableStateOf<String?>(null) }
     var episodesError by remember { mutableStateOf<String?>(null) }
     var overviewExpanded by remember { mutableStateOf(false) }
+    var itemState by remember(videoItem.id) { mutableStateOf(videoItem) }
 
-    val isSeries = videoItem.type.equals("Series", ignoreCase = true)
+    val isSeries = itemState.type.equals("Series", ignoreCase = true)
 
     LaunchedEffect(videoItem.id, embyRepository) {
         if (isSeries && embyRepository != null) {
@@ -115,8 +116,8 @@ fun VideoDetailScreen(
     ) {
         item {
             VideoDetailThumbnail(
-                imageUrl = videoItem.imageUrl,
-                title = videoItem.title,
+                imageUrl = itemState.imageUrl,
+                title = itemState.title,
                 colorScheme = colorScheme,
                 onBack = onBack,
                 modifier = Modifier
@@ -133,7 +134,7 @@ fun VideoDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    videoItem.title,
+                    itemState.title,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = colorScheme.onBackground,
@@ -142,20 +143,55 @@ fun VideoDetailScreen(
                 )
 
                 VideoDetailMetaChips(
-                    videoItem = videoItem,
+                    videoItem = itemState,
                     colorScheme = colorScheme
                 )
 
-                if (videoItem.overview.isNotBlank()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    VideoDetailActionChip(
+                        text = if (itemState.isFavorite) "Favorited" else "Favorite",
+                        selected = itemState.isFavorite,
+                        colorScheme = colorScheme,
+                        onClick = {
+                            val repo = embyRepository ?: return@VideoDetailActionChip
+                            val nextFavorite = !itemState.isFavorite
+                            scope.launch {
+                                runCatching { repo.setItemFavorite(itemState.id, nextFavorite) }
+                                    .onSuccess { itemState = itemState.copy(isFavorite = nextFavorite) }
+                                    .onFailure { error ->
+                                        playbackError = error.message ?: "Update favorite failed"
+                                    }
+                            }
+                        }
+                    )
+                    VideoDetailActionChip(
+                        text = if (itemState.progress?.isPlayed == true) "Watched" else "Unwatched",
+                        selected = itemState.progress?.isPlayed == true,
+                        colorScheme = colorScheme,
+                        onClick = {
+                            val repo = embyRepository ?: return@VideoDetailActionChip
+                            val nextPlayed = itemState.progress?.isPlayed != true
+                            scope.launch {
+                                runCatching { repo.setItemPlayed(itemState.id, nextPlayed) }
+                                    .onSuccess { itemState = itemState.withPlayed(nextPlayed) }
+                                    .onFailure { error ->
+                                        playbackError = error.message ?: "Update watched state failed"
+                                    }
+                            }
+                        }
+                    )
+                }
+
+                if (itemState.overview.isNotBlank()) {
                     Text(
-                        videoItem.overview,
+                        itemState.overview,
                         fontSize = 14.sp,
                         lineHeight = 20.sp,
                         color = colorScheme.onSurface.copy(alpha = 0.72f),
                         maxLines = if (overviewExpanded) Int.MAX_VALUE else 3,
                         overflow = TextOverflow.Ellipsis
                     )
-                    if (videoItem.overview.length > 120 || videoItem.overview.count { it == '\n' } >= 3) {
+                    if (itemState.overview.length > 120 || itemState.overview.count { it == '\n' } >= 3) {
                         Text(
                             if (overviewExpanded) "收起" else "展开",
                             fontSize = 13.sp,
@@ -186,7 +222,7 @@ fun VideoDetailScreen(
                         playbackError = null
                         scope.launch {
                             runCatching {
-                                repo.getPlaybackInfo(videoItem)
+                                repo.getPlaybackInfo(itemState)
                             }.onSuccess { info ->
                                 onPlay(info)
                             }.onFailure { error ->
@@ -295,6 +331,31 @@ fun VideoDetailScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun VideoDetailActionChip(
+    text: String,
+    selected: Boolean,
+    colorScheme: ColorScheme,
+    onClick: () -> Unit
+) {
+    Surface(
+        color = if (selected) colorScheme.primary.copy(alpha = 0.16f) else colorScheme.surfaceVariant.copy(alpha = 0.56f),
+        contentColor = if (selected) colorScheme.primary else colorScheme.onSurface,
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Text(
+            text,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -527,4 +588,13 @@ private fun VideoProgress.toEpisodeProgressLabel(): String? {
         }
         else -> null
     }
+}
+
+private fun VideoItem.withPlayed(played: Boolean): VideoItem {
+    val nextProgress = (progress ?: VideoProgress()).copy(
+        currentTimeSeconds = if (played) durationSeconds else 0,
+        playedPercentage = if (played) 100f else 0f,
+        isPlayed = played
+    )
+    return copy(progress = nextProgress)
 }

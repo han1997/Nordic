@@ -508,3 +508,97 @@ VideoPlaybackInfo(
     subtitleTracks = mediaSource.mediaStreams.filterSubtitleTracks()
 )
 ```
+
+## Scenario: Video Search, Discovery Controls, and User Item State
+
+### 1. Scope / Trigger
+
+- Trigger: Any change to global Emby video search, library sort/filter controls, Next Up shelves, favorite toggles, or watched/unwatched toggles.
+- This is cross-layer work: Emby endpoint payloads are declared in `api/`, mapped to `VideoItem` and `VideoCatalog` in `EmbyRepository`, rendered in `VideoScreen` / `VideoDetailScreen`, and verified with `MockWebServer` request assertions.
+
+### 2. Signatures
+
+- API:
+```kotlin
+@GET("Search/Hints")
+suspend fun searchHints(..., @Query("SearchTerm") searchTerm: String): Response<EmbySearchHintsResponse>
+
+@GET("Shows/NextUp")
+suspend fun getNextUp(@Query("UserId") userId: String, ...): Response<EmbyItemsResponse>
+
+@GET("Users/{userId}/Items")
+suspend fun getItems(..., @Query("SortBy") sortBy: String, @Query("SortOrder") sortOrder: String, @Query("Filters") filters: String?): Response<EmbyItemsResponse>
+
+@POST("Users/{userId}/PlayedItems/{itemId}") suspend fun markPlayed(...)
+@DELETE("Users/{userId}/PlayedItems/{itemId}") suspend fun markUnplayed(...)
+@POST("Users/{userId}/FavoriteItems/{itemId}") suspend fun markFavorite(...)
+@DELETE("Users/{userId}/FavoriteItems/{itemId}") suspend fun markUnfavorite(...)
+```
+- Domain/repository:
+```kotlin
+data class VideoItem(..., val progress: VideoProgress? = null, val isFavorite: Boolean = false)
+data class VideoCatalog(..., val resumeItems: List<VideoItem> = emptyList(), val nextUpItems: List<VideoItem> = emptyList())
+data class VideoItemQuery(val sort: VideoSortOption = DateAdded, val filter: VideoItemFilter = All)
+
+suspend fun EmbyRepository.searchVideos(searchTerm: String, limit: Int = 20): List<VideoItem>
+suspend fun EmbyRepository.getNextUpItems(): List<VideoItem>
+suspend fun EmbyRepository.setItemPlayed(itemId: String, played: Boolean)
+suspend fun EmbyRepository.setItemFavorite(itemId: String, favorite: Boolean)
+```
+
+### 3. Contracts
+
+- Library list requests include `Fields=Overview,ProductionYear,RunTimeTicks,ChildCount,ImageTags,UserData` so watched and favorite state can be rendered without extra per-item calls.
+- `VideoSortOption` maps UI choices to server-side `SortBy` / `SortOrder`; do not locally sort a truncated Emby page and call it server sort parity.
+- `VideoItemFilter.Favorite`, `Played`, and `Unplayed` map to Emby `Filters=IsFavorite`, `IsPlayed`, and `IsUnplayed`.
+- `searchVideos()` calls `Search/Hints` with `MediaTypes=Video` and `IncludeItemTypes=Movie,Series,Episode,Video`; repository maps hints into normal `VideoItem` instances.
+- Search hint identity prefers `ItemId`, then `Id`; hints with no resolved id are ignored.
+- Next Up uses `Shows/NextUp?UserId=<userId>` and maps returned episodes into `VideoItem`; `VideoCatalog.nextUpItems` is loaded alongside libraries, current-library items, and resume items.
+- Favorite state maps from `UserData.IsFavorite` into `VideoItem.isFavorite`.
+- Watched state maps from `UserData.Played` through `VideoProgress.isPlayed`; manual toggles update Emby through the PlayedItems endpoints and update local UI state after success.
+- UI must call repository methods only. Compose must not call Retrofit APIs or inspect Emby DTOs directly.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+|---|---|
+| Blank search term | Return an empty search result list without an API request |
+| Search hint has no `ItemId` or `Id` | Drop that hint |
+| Search/NextUp/library query returns non-2xx | Throw `EmbyApiException.Kind.HTTP` through `requireBody()` |
+| Mutation endpoint returns non-2xx | Throw `EmbyApiException.Kind.HTTP` through `requireSuccess()` |
+| Favorite/watched mutation succeeds | Update local `VideoItem` state in visible lists/detail surfaces |
+| Favorite/watched mutation fails | Preserve local state and surface an error message |
+
+### 5. Good/Base/Bad Cases
+
+- Good: Search for a title returns movies, series, and episodes grouped by type; cards reuse `VideoItem` rendering and detail navigation.
+- Good: Favorites filter sends `Filters=IsFavorite`; item cards and detail chips toggle `FavoriteItems` endpoints.
+- Good: Marking a resume item watched removes it from the continue-watching shelf after the server call succeeds.
+- Base: Search returns no hints; UI shows an empty search state while library browsing remains usable.
+- Bad: UI filters favorites locally after fetching only the first page of non-favorite items, missing server-side matches.
+- Bad: UI flips favorite/watched state before the mutation succeeds and leaves stale state after a server error.
+
+### 6. Tests Required
+
+- Repository test asserting `getLibraryItems(..., VideoItemQuery)` sends `SortBy`, `SortOrder`, `Filters`, and `Fields` including `UserData`.
+- Repository test asserting `searchVideos()` requests `/Search/Hints`, sends `SearchTerm`, `MediaTypes=Video`, item types, token, and maps `PrimaryImageTag`, `UserData.IsFavorite`, and `UserData.Played`.
+- Repository test asserting `getNextUpItems()` requests `/Shows/NextUp?UserId=<userId>` with token and maps returned episodes.
+- Repository test asserting `setItemPlayed()` calls POST/DELETE `PlayedItems`, and `setItemFavorite()` calls POST/DELETE `FavoriteItems`.
+- Compile/lint checks for `VideoScreen` and `VideoDetailScreen` state wiring.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```kotlin
+// Wrong: local-only filtering can miss favorites outside the current page.
+val favorites = repo.getLibraryItems(libraryId).filter { it.isFavorite }
+```
+
+#### Correct
+```kotlin
+// Correct: ask Emby for the requested server-side filter.
+val favorites = repo.getLibraryItems(
+    libraryId,
+    VideoItemQuery(filter = VideoItemFilter.Favorite)
+)
+```

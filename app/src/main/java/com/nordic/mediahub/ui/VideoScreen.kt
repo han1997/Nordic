@@ -28,7 +28,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,9 +54,14 @@ import coil.compose.AsyncImage
 import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.EmbyRepository
 import com.nordic.mediahub.data.VideoItem
+import com.nordic.mediahub.data.VideoItemFilter
+import com.nordic.mediahub.data.VideoItemQuery
 import com.nordic.mediahub.data.VideoLibrary
+import com.nordic.mediahub.data.VideoProgress
 import com.nordic.mediahub.data.VideoServerConfig
+import com.nordic.mediahub.data.VideoSortOption
 import com.nordic.mediahub.data.isReadyForVideoSync
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -75,8 +80,14 @@ fun VideoScreen(
     var selectedLibraryId by remember { mutableStateOf<String?>(null) }
     var videos by remember { mutableStateOf(emptyList<VideoItem>()) }
     var resumeItems by remember { mutableStateOf(emptyList<VideoItem>()) }
+    var nextUpItems by remember { mutableStateOf(emptyList<VideoItem>()) }
+    var itemQuery by remember { mutableStateOf(VideoItemQuery()) }
+    var searchTerm by remember { mutableStateOf("") }
+    var searchResults by remember { mutableStateOf(emptyList<VideoItem>()) }
+    var isSearching by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var searchError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val loadingCardIndexes = remember { List(3) { it } }
 
@@ -84,9 +95,44 @@ fun VideoScreen(
         if (savedConfig.isReadyForVideoSync()) EmbyRepository(savedConfig) else null
     }
 
+    fun updateItemEverywhere(itemId: String, transform: (VideoItem) -> VideoItem) {
+        videos = videos.map { item -> if (item.id == itemId) transform(item) else item }
+        resumeItems = resumeItems.map { item -> if (item.id == itemId) transform(item) else item }
+        nextUpItems = nextUpItems.map { item -> if (item.id == itemId) transform(item) else item }
+        searchResults = searchResults.map { item -> if (item.id == itemId) transform(item) else item }
+    }
+
+    fun toggleFavorite(item: VideoItem) {
+        val repo = embyRepository ?: return
+        val nextFavorite = !item.isFavorite
+        scope.launch {
+            runCatching { repo.setItemFavorite(item.id, nextFavorite) }
+                .onSuccess {
+                    updateItemEverywhere(item.id) { current -> current.copy(isFavorite = nextFavorite) }
+                }
+                .onFailure { error -> errorMessage = error.message ?: "Update favorite failed" }
+        }
+    }
+
+    fun togglePlayed(item: VideoItem) {
+        val repo = embyRepository ?: return
+        val nextPlayed = item.progress?.isPlayed != true
+        scope.launch {
+            runCatching { repo.setItemPlayed(item.id, nextPlayed) }
+                .onSuccess {
+                    updateItemEverywhere(item.id) { current -> current.withPlayed(nextPlayed) }
+                    if (nextPlayed) {
+                        resumeItems = resumeItems.filterNot { it.id == item.id }
+                    }
+                }
+                .onFailure { error -> errorMessage = error.message ?: "Update watched state failed" }
+        }
+    }
+
     suspend fun refreshVideo(
         targetConfig: VideoServerConfig = savedConfig,
-        targetLibraryId: String? = selectedLibraryId
+        targetLibraryId: String? = selectedLibraryId,
+        targetQuery: VideoItemQuery = itemQuery
     ) {
         if (!targetConfig.isReadyForVideoSync() || isLoading) return
 
@@ -98,29 +144,69 @@ fun VideoScreen(
             } else {
                 EmbyRepository(targetConfig)
             }
-            val catalog = repo.getCatalog(targetLibraryId)
+            val catalog = repo.getCatalog(targetLibraryId, targetQuery)
             libraries = catalog.libraries
             selectedLibraryId = catalog.selectedLibraryId
             videos = catalog.items
             resumeItems = catalog.resumeItems
+            nextUpItems = catalog.nextUpItems
         } catch (e: Exception) {
-            errorMessage = e.message ?: "连接 Emby 失败"
+            errorMessage = e.message ?: "Connect to Emby failed"
         } finally {
             isLoading = false
+        }
+    }
+
+    fun loadLibrary(libraryId: String, query: VideoItemQuery = itemQuery) {
+        val repo = embyRepository ?: return
+        selectedLibraryId = libraryId
+        scope.launch {
+            isLoading = true
+            errorMessage = null
+            try {
+                videos = repo.getLibraryItems(libraryId, query)
+            } catch (e: Exception) {
+                errorMessage = e.message ?: "Load video list failed"
+            } finally {
+                isLoading = false
+            }
         }
     }
 
     LaunchedEffect(savedConfig) {
         config = savedConfig
         if (savedConfig.isReadyForVideoSync()) {
-            refreshVideo(savedConfig, selectedLibraryId)
+            refreshVideo(savedConfig, selectedLibraryId, itemQuery)
         } else {
             libraries = emptyList()
             selectedLibraryId = null
             videos = emptyList()
             resumeItems = emptyList()
+            nextUpItems = emptyList()
+            searchResults = emptyList()
             errorMessage = null
+            searchError = null
         }
+    }
+
+    LaunchedEffect(searchTerm, embyRepository) {
+        val term = searchTerm.trim()
+        searchError = null
+        if (term.isBlank() || embyRepository == null) {
+            searchResults = emptyList()
+            isSearching = false
+            return@LaunchedEffect
+        }
+
+        delay(350)
+        isSearching = true
+        runCatching { embyRepository?.searchVideos(term).orEmpty() }
+            .onSuccess { results -> searchResults = results }
+            .onFailure { error ->
+                searchResults = emptyList()
+                searchError = error.message ?: "Search failed"
+            }
+        isSearching = false
     }
 
     LazyColumn(
@@ -139,7 +225,7 @@ fun VideoScreen(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        "视频",
+                        "Video",
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Bold,
                         color = colorScheme.onBackground,
@@ -148,10 +234,10 @@ fun VideoScreen(
                     )
                     Text(
                         when {
-                            isLoading && videos.isNotEmpty() -> "正在刷新，先显示当前 Emby 内容"
-                            selectedLibraryId != null -> "共 ${videos.size} 个条目，点击视频即可播放"
-                            savedConfig.isReadyForVideoSync() -> "已连接 Emby，选择媒体库浏览内容"
-                            else -> "连接 Emby 后显示真实媒体库、海报和视频信息"
+                            isLoading && videos.isNotEmpty() -> "Refreshing Emby while keeping the current list visible"
+                            selectedLibraryId != null -> "${videos.size} items in this library"
+                            savedConfig.isReadyForVideoSync() -> "Connected to Emby"
+                            else -> "Connect Emby to browse real video libraries"
                         },
                         fontSize = 14.sp,
                         color = colorScheme.onSurface.copy(alpha = 0.62f),
@@ -164,14 +250,14 @@ fun VideoScreen(
                         if (savedConfig.isReadyForVideoSync()) {
                             add(
                                 HeaderAction(
-                                    icon = if (isLoading) "…" else "↻",
+                                    icon = if (isLoading) "..." else "R",
                                     enabled = !isLoading,
                                     onClick = { scope.launch { refreshVideo() } }
                                 )
                             )
                         }
-                        add(HeaderAction(if (isDark) "☀" else "☾") { onThemeToggle(!isDark) })
-                        add(HeaderAction("⚙") { showConfig = !showConfig })
+                        add(HeaderAction(if (isDark) "L" else "D") { onThemeToggle(!isDark) })
+                        add(HeaderAction("Cfg") { showConfig = !showConfig })
                     }
                 )
             }
@@ -190,7 +276,7 @@ fun VideoScreen(
                     onSave = {
                         scope.launch {
                             configRepository.saveVideoConfig(config)
-                            refreshVideo(config, selectedLibraryId)
+                            refreshVideo(config, selectedLibraryId, itemQuery)
                             if (errorMessage == null && config.isReadyForVideoSync()) {
                                 showConfig = false
                             }
@@ -203,9 +289,39 @@ fun VideoScreen(
         if (errorMessage != null) {
             item {
                 VideoMessageCard(
-                    title = "Emby 连接错误",
+                    title = "Emby error",
                     subtitle = errorMessage.orEmpty(),
                     isError = true
+                )
+            }
+        }
+
+        if (savedConfig.isReadyForVideoSync()) {
+            item {
+                VideoSearchBar(
+                    searchTerm = searchTerm,
+                    isSearching = isSearching,
+                    colorScheme = colorScheme,
+                    onSearchTermChange = { searchTerm = it },
+                    onClear = {
+                        searchTerm = ""
+                        searchResults = emptyList()
+                        searchError = null
+                    }
+                )
+            }
+        }
+
+        if (searchTerm.isNotBlank()) {
+            item {
+                VideoSearchResultsSection(
+                    items = searchResults,
+                    isSearching = isSearching,
+                    errorMessage = searchError,
+                    colorScheme = colorScheme,
+                    onItemClick = onShowVideoDetail,
+                    onToggleFavorite = ::toggleFavorite,
+                    onTogglePlayed = ::togglePlayed
                 )
             }
         }
@@ -216,20 +332,16 @@ fun VideoScreen(
                     libraries = libraries,
                     selectedLibraryId = selectedLibraryId,
                     colorScheme = colorScheme,
-                    onSelect = { libraryId ->
-                        selectedLibraryId = libraryId
-                        val repo = embyRepository ?: return@VideoLibrarySelector
-                        scope.launch {
-                            isLoading = true
-                            errorMessage = null
-                            try {
-                                videos = repo.getLibraryItems(libraryId)
-                            } catch (e: Exception) {
-                                errorMessage = e.message ?: "加载视频列表失败"
-                            } finally {
-                                isLoading = false
-                            }
-                        }
+                    onSelect = { libraryId -> loadLibrary(libraryId, itemQuery) }
+                )
+            }
+            item {
+                VideoLibraryControls(
+                    query = itemQuery,
+                    colorScheme = colorScheme,
+                    onQueryChange = { nextQuery ->
+                        itemQuery = nextQuery
+                        selectedLibraryId?.let { libraryId -> loadLibrary(libraryId, nextQuery) }
                     }
                 )
             }
@@ -237,8 +349,22 @@ fun VideoScreen(
 
         if (resumeItems.isNotEmpty()) {
             item {
-                VideoContinueWatchingSection(
+                VideoShelfSection(
+                    title = "Continue Watching",
+                    subtitle = "${resumeItems.size} unfinished",
                     items = resumeItems,
+                    colorScheme = colorScheme,
+                    onItemClick = onShowVideoDetail
+                )
+            }
+        }
+
+        if (nextUpItems.isNotEmpty()) {
+            item {
+                VideoShelfSection(
+                    title = "Next Up",
+                    subtitle = "${nextUpItems.size} episodes",
+                    items = nextUpItems,
                     colorScheme = colorScheme,
                     onItemClick = onShowVideoDetail
                 )
@@ -258,24 +384,27 @@ fun VideoScreen(
             !savedConfig.isReadyForVideoSync() -> {
                 item {
                     VideoMessageCard(
-                        title = "先接入你的 Emby 服务器",
-                        subtitle = "填写服务器地址，并使用 API Key 或用户名密码登录。这里会显示真实媒体库和视频缩略图。")
+                        title = "Connect your Emby server",
+                        subtitle = "Add a server URL and API key or username/password to browse video libraries."
+                    )
                 }
             }
 
             libraries.isEmpty() && !isLoading -> {
                 item {
                     VideoMessageCard(
-                        title = "没有可用视频媒体库",
-                        subtitle = "Emby 已连接，但当前用户没有可浏览的电影、剧集或家庭视频媒体库。")
+                        title = "No video libraries",
+                        subtitle = "Emby is connected, but this user has no browsable video libraries."
+                    )
                 }
             }
 
             videos.isEmpty() && !isLoading -> {
                 item {
                     VideoMessageCard(
-                        title = "这个媒体库暂时没有内容",
-                        subtitle = "切换其他媒体库，或回到 Emby 服务端检查扫描结果和用户权限。")
+                        title = "No items here",
+                        subtitle = "Try another library, sort mode, or filter."
+                    )
                 }
             }
 
@@ -284,7 +413,9 @@ fun VideoScreen(
                     VideoCard(
                         video = video,
                         colorScheme = colorScheme,
-                        onClick = { onShowVideoDetail(video) }
+                        onClick = { onShowVideoDetail(video) },
+                        onToggleFavorite = { toggleFavorite(video) },
+                        onTogglePlayed = { togglePlayed(video) }
                     )
                 }
             }
@@ -293,7 +424,119 @@ fun VideoScreen(
 }
 
 @Composable
-private fun VideoContinueWatchingSection(
+private fun VideoSearchBar(
+    searchTerm: String,
+    isSearching: Boolean,
+    colorScheme: ColorScheme,
+    onSearchTermChange: (String) -> Unit,
+    onClear: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        OutlinedTextField(
+            value = searchTerm,
+            onValueChange = onSearchTermChange,
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text(if (isSearching) "Searching..." else "Search movies, shows, episodes") },
+            singleLine = true
+        )
+        if (searchTerm.isNotBlank()) {
+            VideoActionChip(
+                text = "Clear search",
+                selected = false,
+                colorScheme = colorScheme,
+                onClick = onClear
+            )
+        }
+    }
+}
+
+@Composable
+private fun VideoSearchResultsSection(
+    items: List<VideoItem>,
+    isSearching: Boolean,
+    errorMessage: String?,
+    colorScheme: ColorScheme,
+    onItemClick: (VideoItem) -> Unit,
+    onToggleFavorite: (VideoItem) -> Unit,
+    onTogglePlayed: (VideoItem) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            "Search Results",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = colorScheme.onBackground
+        )
+        when {
+            errorMessage != null -> VideoMessageCard("Search failed", errorMessage, isError = true)
+            isSearching -> VideoLoadingCard(index = 0, colorScheme = colorScheme)
+            items.isEmpty() -> VideoMessageCard("No search results", "Try a different title or episode name.")
+            else -> {
+                items.groupBy { item -> item.type.ifBlank { "Video" } }.forEach { (type, groupItems) ->
+                    Text(
+                        type,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colorScheme.onSurface.copy(alpha = 0.62f)
+                    )
+                    groupItems.forEach { item ->
+                        VideoCard(
+                            video = item,
+                            colorScheme = colorScheme,
+                            onClick = { onItemClick(item) },
+                            onToggleFavorite = { onToggleFavorite(item) },
+                            onTogglePlayed = { onTogglePlayed(item) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VideoLibraryControls(
+    query: VideoItemQuery,
+    colorScheme: ColorScheme,
+    onQueryChange: (VideoItemQuery) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(VideoSortOption.values().toList(), key = { it.name }) { sort ->
+                VideoActionChip(
+                    text = sort.label(),
+                    selected = query.sort == sort,
+                    colorScheme = colorScheme,
+                    onClick = { onQueryChange(query.copy(sort = sort)) }
+                )
+            }
+        }
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(VideoItemFilter.values().toList(), key = { it.name }) { filter ->
+                VideoActionChip(
+                    text = filter.label(),
+                    selected = query.filter == filter,
+                    colorScheme = colorScheme,
+                    onClick = { onQueryChange(query.copy(filter = filter)) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VideoShelfSection(
+    title: String,
+    subtitle: String,
     items: List<VideoItem>,
     colorScheme: ColorScheme,
     onItemClick: (VideoItem) -> Unit
@@ -308,13 +551,13 @@ private fun VideoContinueWatchingSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "继续观看",
+                title,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = colorScheme.onBackground
             )
             Text(
-                "${items.size} 个未完成",
+                subtitle,
                 fontSize = 12.sp,
                 color = colorScheme.onSurface.copy(alpha = 0.52f)
             )
@@ -325,8 +568,8 @@ private fun VideoContinueWatchingSection(
         ) {
             items(
                 items = items,
-                key = { item -> "resume-${item.id}" },
-                contentType = { "video-resume-card" }
+                key = { item -> "$title-${item.id}" },
+                contentType = { "video-shelf-card" }
             ) { item ->
                 VideoResumeCard(
                     video = item,
@@ -372,19 +615,21 @@ private fun VideoResumeCard(
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f)
                 )
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .background(colorScheme.onSurface.copy(alpha = 0.18f))
-                ) {
+                if (progressFraction > 0f) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth(progressFraction)
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
                             .height(4.dp)
-                            .background(colorScheme.primary)
-                    )
+                            .background(colorScheme.onSurface.copy(alpha = 0.18f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(progressFraction)
+                                .height(4.dp)
+                                .background(colorScheme.primary)
+                        )
+                    }
                 }
             }
             Column(
@@ -400,14 +645,7 @@ private fun VideoResumeCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    buildString {
-                        append("续播 ")
-                        append(formatDuration(progress?.currentTimeSeconds ?: 0))
-                        if (video.durationSeconds > 0) {
-                            append(" / ")
-                            append(formatDuration(video.durationSeconds))
-                        }
-                    },
+                    video.progressLabel(progress),
                     fontSize = 12.sp,
                     color = colorScheme.onSurface.copy(alpha = 0.56f),
                     maxLines = 1,
@@ -455,10 +693,13 @@ private fun VideoLibrarySelector(
 private fun VideoCard(
     video: VideoItem,
     colorScheme: ColorScheme,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onTogglePlayed: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val scale = rememberPressScale(interactionSource)
+    val isPlayed = video.progress?.isPlayed == true
 
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
@@ -484,7 +725,7 @@ private fun VideoCard(
             )
             Column(
                 modifier = Modifier.padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     video.title,
@@ -514,8 +755,47 @@ private fun VideoCard(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    VideoActionChip(
+                        text = if (video.isFavorite) "Favorited" else "Favorite",
+                        selected = video.isFavorite,
+                        colorScheme = colorScheme,
+                        onClick = onToggleFavorite
+                    )
+                    VideoActionChip(
+                        text = if (isPlayed) "Watched" else "Unwatched",
+                        selected = isPlayed,
+                        colorScheme = colorScheme,
+                        onClick = onTogglePlayed
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun VideoActionChip(
+    text: String,
+    selected: Boolean,
+    colorScheme: ColorScheme,
+    onClick: () -> Unit
+) {
+    Surface(
+        color = if (selected) colorScheme.primary.copy(alpha = 0.16f) else colorScheme.surfaceVariant.copy(alpha = 0.6f),
+        contentColor = if (selected) colorScheme.primary else colorScheme.onSurface,
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -578,7 +858,7 @@ private fun VideoMessageCard(
 private fun VideoLoadingCard(index: Int, colorScheme: ColorScheme) {
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(index * 50L)
+        delay(index * 50L)
         visible = true
     }
 
@@ -622,11 +902,31 @@ private fun VideoLoadingCard(index: Int, colorScheme: ColorScheme) {
     }
 }
 
+private fun VideoSortOption.label(): String {
+    return when (this) {
+        VideoSortOption.DateAdded -> "Date Added"
+        VideoSortOption.Name -> "Name"
+        VideoSortOption.Year -> "Year"
+        VideoSortOption.LastPlayed -> "Last Played"
+    }
+}
+
+private fun VideoItemFilter.label(): String {
+    return when (this) {
+        VideoItemFilter.All -> "All"
+        VideoItemFilter.Unplayed -> "Unplayed"
+        VideoItemFilter.Played -> "Played"
+        VideoItemFilter.Favorite -> "Favorites"
+    }
+}
+
 private fun VideoItem.metaText(): String {
     return buildList {
         type.takeIf { it.isNotBlank() }?.let { add(it) }
         year?.let { add(it.toString()) }
         if (durationSeconds > 0) add(formatVideoDuration(durationSeconds))
+        if (isFavorite) add("Favorite")
+        if (progress?.isPlayed == true) add("Watched")
     }.joinToString("  /  ")
 }
 
@@ -639,4 +939,28 @@ private fun VideoItem.resumeProgressFraction(): Float {
         0f
     }
     return (percentFraction ?: durationFraction).coerceIn(0f, 1f)
+}
+
+private fun VideoItem.progressLabel(progress: VideoProgress?): String {
+    return when {
+        (progress?.currentTimeSeconds ?: 0) > 0 -> buildString {
+            append("Resume ")
+            append(formatDuration(progress?.currentTimeSeconds ?: 0))
+            if (durationSeconds > 0) {
+                append(" / ")
+                append(formatDuration(durationSeconds))
+            }
+        }
+        progress?.isPlayed == true -> "Watched"
+        else -> metaText().ifBlank { "Ready to play" }
+    }
+}
+
+private fun VideoItem.withPlayed(played: Boolean): VideoItem {
+    val nextProgress = (progress ?: VideoProgress()).copy(
+        currentTimeSeconds = if (played) durationSeconds else 0,
+        playedPercentage = if (played) 100f else 0f,
+        isPlayed = played
+    )
+    return copy(progress = nextProgress)
 }

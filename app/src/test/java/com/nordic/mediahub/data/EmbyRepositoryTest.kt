@@ -75,7 +75,8 @@ class EmbyRepositoryTest {
                       "Overview":"First contact story.",
                       "ProductionYear":2016,
                       "RunTimeTicks":69600000000,
-                      "ImageTags":{"Primary":"tag-1"}
+                      "ImageTags":{"Primary":"tag-1"},
+                      "UserData":{"IsFavorite":true,"Played":false}
                     }
                   ],
                   "TotalRecordCount": 1
@@ -105,6 +106,23 @@ class EmbyRepositoryTest {
                 }
             """.trimIndent()
         )
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {
+                      "Id":"next-1",
+                      "Name":"Next Episode",
+                      "ParentId":"series-1",
+                      "Type":"Episode",
+                      "RunTimeTicks":18000000000,
+                      "ImageTags":{"Primary":"next-tag"}
+                    }
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
 
         val catalog = repository(apiKey = "api-key").getCatalog()
 
@@ -115,6 +133,7 @@ class EmbyRepositoryTest {
         val item = catalog.items.single()
         assertEquals("Arrival", item.title)
         assertEquals(6960, item.durationSeconds)
+        assertTrue(item.isFavorite)
         assertTrue(item.imageUrl.orEmpty().contains("/Items/movie-1/Images/Primary"))
         assertTrue(item.imageUrl.orEmpty().contains("api_key=api-key"))
         assertTrue(item.imageUrl.orEmpty().contains("tag=tag-1"))
@@ -123,6 +142,8 @@ class EmbyRepositoryTest {
         assertEquals("resume-1", resumeItem.id)
         assertEquals(2400, resumeItem.progress?.currentTimeSeconds)
         assertEquals(40f, resumeItem.progress?.playedPercentage ?: 0f, 0.001f)
+        assertEquals(1, catalog.nextUpItems.size)
+        assertEquals("next-1", catalog.nextUpItems.single().id)
 
         val usersRequest = server.takeRequest()
         assertEquals("/Users", usersRequest.path)
@@ -142,6 +163,11 @@ class EmbyRepositoryTest {
         assertTrue(resumeRequest.path.orEmpty().contains("MediaTypes=Video"))
         assertTrue(resumeRequest.path.orEmpty().contains("IncludeItemTypes=Movie%2CEpisode%2CVideo"))
         assertEquals("api-key", resumeRequest.getHeader("X-Emby-Token"))
+
+        val nextUpRequest = server.takeRequest()
+        assertTrue(nextUpRequest.path.orEmpty().startsWith("/Shows/NextUp?"))
+        assertTrue(nextUpRequest.path.orEmpty().contains("UserId=u1"))
+        assertEquals("api-key", nextUpRequest.getHeader("X-Emby-Token"))
     }
 
     @Test
@@ -164,6 +190,7 @@ class EmbyRepositoryTest {
                 }
             """.trimIndent()
         )
+        server.enqueueJson("""{"Items":[],"TotalRecordCount":0}""")
         server.enqueueJson("""{"Items":[],"TotalRecordCount":0}""")
         server.enqueueJson("""{"Items":[],"TotalRecordCount":0}""")
 
@@ -251,6 +278,136 @@ class EmbyRepositoryTest {
         assertTrue(resumeRequest.path.orEmpty().contains("MediaTypes=Video"))
         assertTrue(resumeRequest.path.orEmpty().contains("IncludeItemTypes=Movie%2CEpisode%2CVideo"))
         assertEquals("api-key", resumeRequest.getHeader("X-Emby-Token"))
+    }
+
+    @Test
+    fun getLibraryItems_sendsSortAndFilterParameters() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson("""{"Items":[],"TotalRecordCount":0}""")
+
+        val items = repository(apiKey = "api-key").getLibraryItems(
+            libraryId = "lib-movie",
+            query = VideoItemQuery(
+                sort = VideoSortOption.Name,
+                filter = VideoItemFilter.Favorite
+            )
+        )
+
+        assertTrue(items.isEmpty())
+        server.takeRequest()
+        val request = server.takeRequest()
+        assertTrue(request.path.orEmpty().startsWith("/Users/u1/Items?"))
+        assertTrue(request.path.orEmpty().contains("ParentId=lib-movie"))
+        assertTrue(request.path.orEmpty().contains("SortBy=SortName"))
+        assertTrue(request.path.orEmpty().contains("SortOrder=Ascending"))
+        assertTrue(request.path.orEmpty().contains("Filters=IsFavorite"))
+        assertTrue(request.path.orEmpty().contains("Fields=Overview%2CProductionYear%2CRunTimeTicks%2CChildCount%2CImageTags%2CUserData"))
+        assertEquals("api-key", request.getHeader("X-Emby-Token"))
+    }
+
+    @Test
+    fun searchVideos_mapsSearchHints() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "SearchHints": [
+                    {
+                      "ItemId": "movie-1",
+                      "Name": "Arrival",
+                      "Type": "Movie",
+                      "ProductionYear": 2016,
+                      "RunTimeTicks": 69600000000,
+                      "PrimaryImageTag": "search-tag",
+                      "UserData": {"IsFavorite": true, "Played": true}
+                    }
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+
+        val results = repository(apiKey = "api-key").searchVideos("arr")
+
+        assertEquals(1, results.size)
+        val result = results.single()
+        assertEquals("movie-1", result.id)
+        assertEquals("Arrival", result.title)
+        assertEquals("Movie", result.type)
+        assertEquals(6960, result.durationSeconds)
+        assertTrue(result.isFavorite)
+        assertEquals(true, result.progress?.isPlayed)
+        assertTrue(result.imageUrl.orEmpty().contains("/Items/movie-1/Images/Primary"))
+        assertTrue(result.imageUrl.orEmpty().contains("tag=search-tag"))
+
+        server.takeRequest()
+        val request = server.takeRequest()
+        assertTrue(request.path.orEmpty().startsWith("/Search/Hints?"))
+        assertTrue(request.path.orEmpty().contains("UserId=u1"))
+        assertTrue(request.path.orEmpty().contains("SearchTerm=arr"))
+        assertTrue(request.path.orEmpty().contains("MediaTypes=Video"))
+        assertTrue(request.path.orEmpty().contains("IncludeItemTypes=Movie%2CSeries%2CEpisode%2CVideo"))
+        assertEquals("api-key", request.getHeader("X-Emby-Token"))
+    }
+
+    @Test
+    fun getNextUpItems_requestsShowsNextUp() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"ep-next","Name":"Episode 2","ParentId":"series-1","Type":"Episode","RunTimeTicks":24000000000}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+
+        val items = repository(apiKey = "api-key").getNextUpItems()
+
+        assertEquals(1, items.size)
+        assertEquals("ep-next", items.single().id)
+        assertEquals("series-1", items.single().libraryId)
+
+        server.takeRequest()
+        val request = server.takeRequest()
+        assertTrue(request.path.orEmpty().startsWith("/Shows/NextUp?"))
+        assertTrue(request.path.orEmpty().contains("UserId=u1"))
+        assertEquals("api-key", request.getHeader("X-Emby-Token"))
+    }
+
+    @Test
+    fun setItemPlayedAndFavorite_callEmbyMutationEndpoints() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueue(MockResponse().setResponseCode(204))
+        server.enqueue(MockResponse().setResponseCode(204))
+        server.enqueue(MockResponse().setResponseCode(204))
+        server.enqueue(MockResponse().setResponseCode(204))
+        val repo = repository(apiKey = "api-key")
+
+        repo.setItemPlayed("movie-1", true)
+        repo.setItemPlayed("movie-1", false)
+        repo.setItemFavorite("movie-1", true)
+        repo.setItemFavorite("movie-1", false)
+
+        server.takeRequest()
+        val markPlayed = server.takeRequest()
+        assertEquals("POST", markPlayed.method)
+        assertEquals("/Users/u1/PlayedItems/movie-1", markPlayed.path)
+        assertEquals("api-key", markPlayed.getHeader("X-Emby-Token"))
+
+        val markUnplayed = server.takeRequest()
+        assertEquals("DELETE", markUnplayed.method)
+        assertEquals("/Users/u1/PlayedItems/movie-1", markUnplayed.path)
+
+        val markFavorite = server.takeRequest()
+        assertEquals("POST", markFavorite.method)
+        assertEquals("/Users/u1/FavoriteItems/movie-1", markFavorite.path)
+
+        val markUnfavorite = server.takeRequest()
+        assertEquals("DELETE", markUnfavorite.method)
+        assertEquals("/Users/u1/FavoriteItems/movie-1", markUnfavorite.path)
     }
 
     @Test

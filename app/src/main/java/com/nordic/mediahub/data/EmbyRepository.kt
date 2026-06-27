@@ -10,6 +10,7 @@ import com.nordic.mediahub.api.EmbyMediaStreamDto
 import com.nordic.mediahub.api.EmbyPlaybackStartRequest
 import com.nordic.mediahub.api.EmbyPlaybackProgressRequest
 import com.nordic.mediahub.api.EmbyPlaybackStopRequest
+import com.nordic.mediahub.api.EmbySearchHintDto
 import com.nordic.mediahub.api.EmbyUserDataDto
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
@@ -40,7 +41,8 @@ data class VideoItem(
     val year: Int? = null,
     val durationSeconds: Int = 0,
     val imageUrl: String? = null,
-    val progress: VideoProgress? = null
+    val progress: VideoProgress? = null,
+    val isFavorite: Boolean = false
 )
 
 @Stable
@@ -83,7 +85,28 @@ data class VideoCatalog(
     val libraries: List<VideoLibrary>,
     val selectedLibraryId: String?,
     val items: List<VideoItem>,
-    val resumeItems: List<VideoItem> = emptyList()
+    val resumeItems: List<VideoItem> = emptyList(),
+    val nextUpItems: List<VideoItem> = emptyList()
+)
+
+enum class VideoSortOption(val apiSortBy: String, val apiSortOrder: String) {
+    DateAdded("DateCreated", "Descending"),
+    Name("SortName", "Ascending"),
+    Year("ProductionYear", "Descending"),
+    LastPlayed("DatePlayed", "Descending")
+}
+
+enum class VideoItemFilter(val apiFilter: String?) {
+    All(null),
+    Unplayed("IsUnplayed"),
+    Played("IsPlayed"),
+    Favorite("IsFavorite")
+}
+
+@Stable
+data class VideoItemQuery(
+    val sort: VideoSortOption = VideoSortOption.DateAdded,
+    val filter: VideoItemFilter = VideoItemFilter.All
 )
 
 @Stable
@@ -128,7 +151,10 @@ class EmbyRepository(private val config: VideoServerConfig) {
         .build()
         .create(EmbyApi::class.java)
 
-    suspend fun getCatalog(selectedLibraryId: String? = null): VideoCatalog = try {
+    suspend fun getCatalog(
+        selectedLibraryId: String? = null,
+        query: VideoItemQuery = VideoItemQuery()
+    ): VideoCatalog = try {
         val session = session()
         val libraries = getLibraries(session)
         val libraryId = selectedLibraryId?.takeIf { selectedId ->
@@ -138,8 +164,9 @@ class EmbyRepository(private val config: VideoServerConfig) {
         VideoCatalog(
             libraries = libraries,
             selectedLibraryId = libraryId,
-            items = libraryId?.let { getLibraryItems(session, it) }.orEmpty(),
-            resumeItems = getResumeItems(session)
+            items = libraryId?.let { getLibraryItems(session, it, query) }.orEmpty(),
+            resumeItems = getResumeItems(session),
+            nextUpItems = getNextUpItems(session)
         )
     } catch (e: EmbyApiException) {
         throw e
@@ -147,8 +174,11 @@ class EmbyRepository(private val config: VideoServerConfig) {
         throw Exception("连接 Emby 失败: ${e.message}")
     }
 
-    suspend fun getLibraryItems(libraryId: String): List<VideoItem> = try {
-        getLibraryItems(session(), libraryId)
+    suspend fun getLibraryItems(
+        libraryId: String,
+        query: VideoItemQuery = VideoItemQuery()
+    ): List<VideoItem> = try {
+        getLibraryItems(session(), libraryId, query)
     } catch (e: EmbyApiException) {
         throw e
     } catch (e: Exception) {
@@ -161,6 +191,63 @@ class EmbyRepository(private val config: VideoServerConfig) {
         throw e
     } catch (e: Exception) {
         throw Exception("鍔犺浇缁х画瑙傜湅澶辫触: ${e.message}")
+    }
+
+    suspend fun getNextUpItems(): List<VideoItem> = try {
+        getNextUpItems(session())
+    } catch (e: EmbyApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("Load Emby next up failed: ${e.message}")
+    }
+
+    suspend fun searchVideos(searchTerm: String, limit: Int = 20): List<VideoItem> = try {
+        val term = searchTerm.trim()
+        if (term.isBlank()) {
+            emptyList()
+        } else {
+            val session = session()
+            api.searchHints(
+                userId = session.userId,
+                token = session.token,
+                searchTerm = term,
+                limit = limit
+            ).requireBody("Search Emby videos failed")
+                .searchHints
+                .mapNotNull { hint -> hint.toVideoItem(session.token) }
+        }
+    } catch (e: EmbyApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("Search Emby videos failed: ${e.message}")
+    }
+
+    suspend fun setItemPlayed(itemId: String, played: Boolean) = try {
+        val session = session()
+        val response = if (played) {
+            api.markPlayed(session.userId, itemId, session.token)
+        } else {
+            api.markUnplayed(session.userId, itemId, session.token)
+        }
+        response.requireSuccess("Update Emby played state failed")
+    } catch (e: EmbyApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("Update Emby played state failed: ${e.message}")
+    }
+
+    suspend fun setItemFavorite(itemId: String, favorite: Boolean) = try {
+        val session = session()
+        val response = if (favorite) {
+            api.markFavorite(session.userId, itemId, session.token)
+        } else {
+            api.markUnfavorite(session.userId, itemId, session.token)
+        }
+        response.requireSuccess("Update Emby favorite state failed")
+    } catch (e: EmbyApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("Update Emby favorite state failed: ${e.message}")
     }
 
     suspend fun getPlaybackInfo(item: VideoItem): VideoPlaybackInfo = try {
@@ -353,11 +440,18 @@ class EmbyRepository(private val config: VideoServerConfig) {
             }
     }
 
-    private suspend fun getLibraryItems(session: EmbySession, libraryId: String): List<VideoItem> {
+    private suspend fun getLibraryItems(
+        session: EmbySession,
+        libraryId: String,
+        query: VideoItemQuery
+    ): List<VideoItem> {
         return api.getItems(
             userId = session.userId,
             token = session.token,
-            parentId = libraryId
+            parentId = libraryId,
+            sortBy = query.sort.apiSortBy,
+            sortOrder = query.sort.apiSortOrder,
+            filters = query.filter.apiFilter
         ).requireBody("获取 Emby 视频失败")
             .items
             .map { item -> item.toVideoItem(libraryId, session.token) }
@@ -376,6 +470,15 @@ class EmbyRepository(private val config: VideoServerConfig) {
             }
     }
 
+    private suspend fun getNextUpItems(session: EmbySession): List<VideoItem> {
+        return api.getNextUp(
+            userId = session.userId,
+            token = session.token
+        ).requireBody("Load Emby next up failed")
+            .items
+            .map { item -> item.toVideoItem(item.parentId.orEmpty(), session.token) }
+    }
+
     private fun EmbyItemDto.toVideoItem(libraryId: String, token: String): VideoItem {
         return VideoItem(
             id = id,
@@ -386,7 +489,30 @@ class EmbyRepository(private val config: VideoServerConfig) {
             year = productionYear,
             durationSeconds = runTimeTicks.toDurationSeconds(),
             imageUrl = primaryImageUrl(id, token, imageTags?.get("Primary")),
-            progress = userData?.toVideoProgress()
+            progress = userData?.toVideoProgress(),
+            isFavorite = userData?.isFavorite == true
+        )
+    }
+
+    private fun EmbySearchHintDto.toVideoItem(token: String): VideoItem? {
+        val resolvedId = itemId?.takeIf { it.isNotBlank() }
+            ?: id?.takeIf { it.isNotBlank() }
+            ?: return null
+        return VideoItem(
+            id = resolvedId,
+            libraryId = parentId.orEmpty(),
+            title = name.orEmpty(),
+            type = type ?: mediaType.orEmpty(),
+            overview = overview.orEmpty(),
+            year = productionYear,
+            durationSeconds = runTimeTicks.toDurationSeconds(),
+            imageUrl = primaryImageUrl(
+                itemId = resolvedId,
+                token = token,
+                primaryTag = primaryImageTag ?: imageTags?.get("Primary")
+            ),
+            progress = userData?.toVideoProgress(),
+            isFavorite = userData?.isFavorite == true
         )
     }
 
