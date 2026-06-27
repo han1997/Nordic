@@ -110,3 +110,86 @@ repository.syncProgress(session, currentTimeSeconds, deltaSeconds)
 repository.syncAndCloseSession(session, currentTimeSeconds)
 audiobookPlaybackEngine.stop()
 ```
+
+## Scenario: Continue Listening and Last Audiobook Resume
+
+### 1. Scope / Trigger
+
+- Trigger: Any change to AudiobookShelf library item listing, progress DTO mapping, home resume shelves, or the saved last-audiobook pointer.
+- This is cross-layer work: `GET /api/libraries/{id}/items`, repository summary mapping, DataStore config, and Compose home sections must agree on the progress contract.
+
+### 2. Signatures
+
+- API:
+```kotlin
+@GET("/api/libraries/{id}/items")
+suspend fun getLibraryItems(
+    @Header("Authorization") bearerToken: String,
+    @Path("id") libraryId: String,
+    @Query("minified") minified: Int = 1,
+    @Query("include") include: String = "progress",
+    @Query("limit") limit: Int = 50,
+    @Query("page") page: Int = 0
+): Response<AudiobookShelfLibraryItemsResponse>
+```
+- DTO/domain:
+```kotlin
+data class AudiobookShelfLibraryItemMinifiedDto(
+    ..., val userMediaProgress: AudiobookShelfMediaProgressDto? = null
+)
+
+data class AudiobookItemSummary(
+    ..., val progress: AudiobookProgress? = null
+)
+```
+- Persistence:
+```kotlin
+val ConfigRepository.lastAudiobookItemId: Flow<String?>
+suspend fun ConfigRepository.saveLastAudiobookItemId(itemId: String)
+```
+
+### 3. Contracts
+
+- Library item list requests must include `include=progress`; otherwise Continue Listening cannot be derived without fetching every detail page.
+- `AudiobookShelfRepository` maps `userMediaProgress` to `AudiobookItemSummary.progress` using the same `AudiobookProgress` domain model as expanded item detail.
+- Continue Listening includes only unfinished items with `currentTimeSeconds > 0` and sorts by `lastUpdateMillis` descending.
+- The app saves the last audiobook item id when playback starts successfully, not when the card is merely opened.
+- The last audiobook resume card may only be shown when the saved id exists in the currently loaded library item list. Do not synthesize partial book rows from the saved id alone.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+|---|---|
+| List item has no `userMediaProgress` | Render as a normal item; exclude from Continue Listening |
+| Progress is finished or current time is zero | Exclude from Continue Listening |
+| Saved last item id is blank or missing from loaded items | Hide the last-played card |
+| Library item list request fails | Surface the normal AudiobookShelf library error and keep player state unchanged |
+| Playback start fails | Do not overwrite `lastAudiobookItemId` |
+
+### 5. Good/Base/Bad Cases
+
+- Good: Library list returns progress for three unfinished books; home shows them newest-first and the last-played card points to the saved item when present.
+- Base: Server returns items without progress; library browsing still works and resume shelves are hidden.
+- Bad: UI calls item detail for every row just to discover progress, causing slow home loads and avoidable API traffic.
+
+### 6. Tests Required
+
+- Repository test asserting `getLibraryItems()` sends `include=progress`.
+- Repository test asserting `userMediaProgress.currentTime`, `duration`, `progress`, `isFinished`, and `lastUpdate` map to `AudiobookProgress`.
+- Persistence/helper test when resume selection logic becomes non-trivial: unfinished progress is included, finished/zero-progress items are excluded, and sorting uses `lastUpdateMillis`.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```kotlin
+// Fetch every item detail just to build the resume shelf.
+items.map { repository.getLibraryItem(it.id).progress }
+```
+
+#### Correct
+```kotlin
+// Request progress with the list payload and derive shelves locally.
+val continueItems = items.filter { item ->
+    item.progress?.let { !it.isFinished && it.currentTimeSeconds > 0 } == true
+}
+```

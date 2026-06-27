@@ -277,3 +277,106 @@ suspend fun getEpisodes(seasonId: String): List<VideoEpisode>
 // Card tap → detail screen → play button → playback
 scope.launch { onPlaybackStart?.invoke(info.itemId, info.mediaSourceId, info.playSessionId, 0) }
 ```
+
+## Scenario: PlaybackInfo Media Streams and Player Track Controls
+
+### 1. Scope / Trigger
+
+- Trigger: Any change to Emby `PlaybackInfo` stream DTOs, `VideoPlaybackInfo`, `VideoPlaybackEngine` track selection, or video player audio/subtitle controls.
+- This is cross-layer work: Emby media stream payloads are mapped in the repository, attached to Media3 items, selected by the playback engine, and exposed by Compose controls.
+
+### 2. Signatures
+
+- DTO/domain:
+```kotlin
+data class EmbyMediaSourceDto(
+    ..., val mediaStreams: List<EmbyMediaStreamDto> = emptyList()
+)
+
+data class EmbyMediaStreamDto(
+    val index: Int = -1,
+    val type: String? = null,
+    val codec: String? = null,
+    val language: String? = null,
+    val displayTitle: String? = null,
+    val title: String? = null,
+    val isDefault: Boolean = false,
+    val isForced: Boolean = false,
+    val isExternal: Boolean = false,
+    val deliveryUrl: String? = null
+)
+
+data class VideoPlaybackInfo(
+    ..., val audioTracks: List<VideoMediaTrack> = emptyList(),
+    val subtitleTracks: List<VideoMediaTrack> = emptyList()
+)
+
+data class VideoMediaTrack(
+    val index: Int,
+    val label: String,
+    val language: String? = null,
+    val codec: String? = null,
+    val isDefault: Boolean = false,
+    val isForced: Boolean = false,
+    val isExternal: Boolean = false,
+    val deliveryUrl: String? = null
+)
+```
+- Playback engine:
+```kotlin
+fun VideoPlaybackEngine.selectAudioTrack(trackIndex: Int?)
+fun VideoPlaybackEngine.selectSubtitleTrack(trackIndex: Int?)
+fun VideoPlaybackEngine.setSubtitleScale(scale: Float)
+fun VideoPlaybackEngine.adjustSubtitleOffset(deltaSeconds: Int)
+```
+
+### 3. Contracts
+
+- `EmbyRepository.getPlaybackInfo()` maps `MediaSources[].MediaStreams` into separate audio and subtitle track lists.
+- Audio tracks are streams where `Type == "Audio"` ignoring case; subtitle tracks are streams where `Type == "Subtitle"` ignoring case.
+- Track labels prefer `DisplayTitle`, then `Title`, then uppercased language/codec, then `"<kind> <index>"`.
+- External subtitle `DeliveryUrl` values must be converted to absolute URLs and include `api_key=<session token>` unless the URL already contains an API key.
+- `VideoPlaybackEngine.play()` selects the default audio track when present, otherwise the first audio track. It selects a default or forced subtitle when present.
+- Embedded Media3 subtitle/audio selection may be language-based when the API does not expose a stable renderer-track id. UI state must still reflect the user's selected Emby stream index.
+- Subtitle scale is applied to `PlayerView.subtitleView`. Subtitle offset may be carried as UI/playback state, but must only be presented as an effective playback adjustment when the underlying Media3 path applies it.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+|---|---|
+| PlaybackInfo has no media streams | Video playback still starts; track controls are hidden or disabled |
+| Track has blank display/title/language/codec | Use the fallback `Audio <index>` or `Subtitle <index>` label |
+| External subtitle URL is relative | Resolve against the normalized Emby base URL and append `api_key` |
+| User selects `null` subtitle track | Disable text track selection and update state to no selected subtitle |
+| User selects unknown track index | Ignore the unavailable track and keep playback stable |
+| Media3 cannot apply a subtitle timing offset | Keep the state bounded, but do not claim server-side or player-side retiming occurred |
+
+### 5. Good/Base/Bad Cases
+
+- Good: PlaybackInfo returns English AAC and Chinese SRT; UI shows both labels, default audio is selected, external subtitle URL includes the token, and scale changes affect rendered captions.
+- Base: Movie has one embedded audio track and no subtitles; controls stay minimal and playback works.
+- Bad: UI builds track labels from raw codec only, or repository exposes Emby DTOs directly to Compose.
+
+### 6. Tests Required
+
+- Repository test asserting audio/subtitle streams from `MediaStreams` map to `VideoMediaTrack` with index, label, language, default/forced/external flags.
+- Repository test asserting external subtitle `DeliveryUrl` is absolute and tokenized.
+- Compile/lint checks for Media3 subtitle configuration and player callback wiring.
+- Add pure helper tests if track selection grows beyond simple language/default preference.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```kotlin
+// UI reaches into Emby DTOs and tries to render raw stream payloads.
+playbackInfo.mediaSources.first().mediaStreams.filter { it.Type == "Audio" }
+```
+
+#### Correct
+```kotlin
+// Repository exposes app-facing tracks; playback/UI consume the domain model.
+VideoPlaybackInfo(
+    audioTracks = mediaSource.mediaStreams.filterAudioTracks(),
+    subtitleTracks = mediaSource.mediaStreams.filterSubtitleTracks()
+)
+```
