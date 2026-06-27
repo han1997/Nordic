@@ -759,3 +759,37 @@ Added local-first AudiobookShelf playback bookmarks with DataStore persistence, 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 23: Media feature parity round 7
+
+**Date**: 2026-06-27
+**Task**: Media feature parity round 7
+**Branch**: `main`
+
+### Summary
+
+Added Emby server-backed continue watching with resume API mapping, video home shelf, resume-position playback, repository tests, verification gates, and the Emby integration contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `083bac8` | (see git log) |
+| `6d4ae11` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

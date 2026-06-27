@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 22
+- **Total Sessions**: 23
 - **Last Active**: 2026-06-27
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~761 | Active |
+| `journal-1.md` | ~795 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 23 | 2026-06-27 | Media feature parity round 7 | `083bac8`, `6d4ae11` | `main` |
 | 22 | 2026-06-27 | Media feature parity round 6 | `134c7e8`, `ea0c410` | `main` |
 | 21 | 2026-06-27 | Media feature parity round five | `b5e6bf0`, `e768235`, `fa653ab` | `main` |
 | 20 | 2026-06-27 | Media feature parity round four | `8738be3`, `3bb3d71` | `main` |
