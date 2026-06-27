@@ -656,3 +656,37 @@ Completed music parity round 3: smart radio and scrobble APIs, queue actions wit
 ### Next Steps
 
 - None - task complete
+
+
+## Session 20: Media feature parity round four
+
+**Date**: 2026-06-27
+**Task**: Media feature parity round four
+**Branch**: `main`
+
+### Summary
+
+Implemented round-four media polish across music local filtering and lyrics controls, AudiobookShelf continue listening and last resume, and Emby media stream track/subtitle controls; recorded the new resume and track contracts in specs.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8738be3` | (see git log) |
+| `3bb3d71` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
