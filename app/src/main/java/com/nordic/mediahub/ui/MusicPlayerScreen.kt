@@ -172,6 +172,7 @@ fun MusicPlayerScreen(
                 onLyricModeChange = { lyricMode = it },
                 onLyricOffsetChange = { lyricOffsetSeconds = (lyricOffsetSeconds + it).coerceIn(-30, 30) },
                 onToggleLargeLyrics = { largeLyrics = !largeLyrics },
+                onLyricSeek = onSeek,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
@@ -320,6 +321,7 @@ private fun PlayerPrimaryDisplay(
     onLyricModeChange: (String) -> Unit,
     onLyricOffsetChange: (Int) -> Unit,
     onToggleLargeLyrics: () -> Unit,
+    onLyricSeek: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.clickable(onClick = onToggleDisplay)) {
@@ -337,6 +339,7 @@ private fun PlayerPrimaryDisplay(
                 onLyricModeChange = onLyricModeChange,
                 onLyricOffsetChange = onLyricOffsetChange,
                 onToggleLargeLyrics = onToggleLargeLyrics,
+                onLyricSeek = onLyricSeek,
                 modifier = Modifier.fillMaxSize()
             )
         } else {
@@ -420,6 +423,7 @@ private fun PlayerLyricsDisplay(
     onLyricModeChange: (String) -> Unit,
     onLyricOffsetChange: (Int) -> Unit,
     onToggleLargeLyrics: () -> Unit,
+    onLyricSeek: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val lineCount = if (compact) 5 else 7
@@ -485,8 +489,17 @@ private fun PlayerLyricsDisplay(
                         onToggleLargeLyrics = onToggleLargeLyrics
                     )
                     visibleLines.forEach { line ->
+                        val seekSeconds = line.startMillis?.div(1000)?.coerceAtLeast(0)
                         Text(
                             line.text,
+                            modifier = Modifier.clickable(
+                                enabled = seekSeconds != null,
+                                onClick = {
+                                    if (seekSeconds != null) {
+                                        onLyricSeek(seekSeconds)
+                                    }
+                                }
+                            ),
                             fontSize = if (line.active) {
                                 if (largeLyrics) 25.sp else if (compact) 19.sp else 22.sp
                             } else {
@@ -772,12 +785,13 @@ private fun PlayerControlButton(
     }
 }
 
-private data class VisibleLyricLine(
+internal data class VisibleLyricLine(
     val text: String,
-    val active: Boolean
+    val active: Boolean,
+    val startMillis: Int? = null
 )
 
-private fun selectVisibleLyricLines(
+internal fun selectVisibleLyricLines(
     lyrics: MusicLyrics?,
     positionSeconds: Int,
     maxLineCount: Int
@@ -786,7 +800,7 @@ private fun selectVisibleLyricLines(
     if (lines.isEmpty()) return emptyList()
 
     if (lyrics?.synced != true) {
-        return lines.take(maxLineCount).map { VisibleLyricLine(it.text, active = false) }
+        return lines.take(maxLineCount).map { VisibleLyricLine(it.text, active = false, startMillis = null) }
     }
 
     val positionMillis = positionSeconds.coerceAtLeast(0) * 1000
@@ -805,7 +819,8 @@ private fun selectVisibleLyricLines(
         .mapIndexed { index, line ->
             VisibleLyricLine(
                 text = line.text,
-                active = startIndex + index == activeIndex
+                active = startIndex + index == activeIndex,
+                startMillis = line.startMillis
             )
         }
 }
