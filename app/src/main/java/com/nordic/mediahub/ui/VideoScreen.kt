@@ -74,6 +74,7 @@ fun VideoScreen(
     var libraries by remember { mutableStateOf(emptyList<VideoLibrary>()) }
     var selectedLibraryId by remember { mutableStateOf<String?>(null) }
     var videos by remember { mutableStateOf(emptyList<VideoItem>()) }
+    var resumeItems by remember { mutableStateOf(emptyList<VideoItem>()) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -101,6 +102,7 @@ fun VideoScreen(
             libraries = catalog.libraries
             selectedLibraryId = catalog.selectedLibraryId
             videos = catalog.items
+            resumeItems = catalog.resumeItems
         } catch (e: Exception) {
             errorMessage = e.message ?: "连接 Emby 失败"
         } finally {
@@ -116,6 +118,7 @@ fun VideoScreen(
             libraries = emptyList()
             selectedLibraryId = null
             videos = emptyList()
+            resumeItems = emptyList()
             errorMessage = null
         }
     }
@@ -232,6 +235,16 @@ fun VideoScreen(
             }
         }
 
+        if (resumeItems.isNotEmpty()) {
+            item {
+                VideoContinueWatchingSection(
+                    items = resumeItems,
+                    colorScheme = colorScheme,
+                    onItemClick = onShowVideoDetail
+                )
+            }
+        }
+
         when {
             isLoading && videos.isEmpty() -> {
                 itemsIndexed(
@@ -274,6 +287,132 @@ fun VideoScreen(
                         onClick = { onShowVideoDetail(video) }
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VideoContinueWatchingSection(
+    items: List<VideoItem>,
+    colorScheme: ColorScheme,
+    onItemClick: (VideoItem) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "继续观看",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = colorScheme.onBackground
+            )
+            Text(
+                "${items.size} 个未完成",
+                fontSize = 12.sp,
+                color = colorScheme.onSurface.copy(alpha = 0.52f)
+            )
+        }
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(
+                items = items,
+                key = { item -> "resume-${item.id}" },
+                contentType = { "video-resume-card" }
+            ) { item ->
+                VideoResumeCard(
+                    video = item,
+                    colorScheme = colorScheme,
+                    onClick = { onItemClick(item) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VideoResumeCard(
+    video: VideoItem,
+    colorScheme: ColorScheme,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val scale = rememberPressScale(interactionSource)
+    val progress = video.progress
+    val progressFraction = video.resumeProgressFraction()
+
+    Surface(
+        color = colorScheme.surfaceVariant.copy(alpha = 0.46f),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
+        modifier = Modifier
+            .width(220.dp)
+            .scale(scale)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+    ) {
+        Column {
+            Box {
+                VideoThumbnail(
+                    imageUrl = video.imageUrl,
+                    title = video.title,
+                    colorScheme = colorScheme,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 9f)
+                )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .height(4.dp)
+                        .background(colorScheme.onSurface.copy(alpha = 0.18f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(progressFraction)
+                            .height(4.dp)
+                            .background(colorScheme.primary)
+                    )
+                }
+            }
+            Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                Text(
+                    video.title,
+                    fontSize = 14.sp,
+                    color = colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    buildString {
+                        append("续播 ")
+                        append(formatDuration(progress?.currentTimeSeconds ?: 0))
+                        if (video.durationSeconds > 0) {
+                            append(" / ")
+                            append(formatDuration(video.durationSeconds))
+                        }
+                    },
+                    fontSize = 12.sp,
+                    color = colorScheme.onSurface.copy(alpha = 0.56f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
@@ -489,4 +628,15 @@ private fun VideoItem.metaText(): String {
         year?.let { add(it.toString()) }
         if (durationSeconds > 0) add(formatVideoDuration(durationSeconds))
     }.joinToString("  /  ")
+}
+
+private fun VideoItem.resumeProgressFraction(): Float {
+    val progress = progress ?: return 0f
+    val percentFraction = (progress.playedPercentage / 100f).takeIf { it > 0f }
+    val durationFraction = if (durationSeconds > 0) {
+        progress.currentTimeSeconds.toFloat() / durationSeconds.toFloat()
+    } else {
+        0f
+    }
+    return (percentFraction ?: durationFraction).coerceIn(0f, 1f)
 }

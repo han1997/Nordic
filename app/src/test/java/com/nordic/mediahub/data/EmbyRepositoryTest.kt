@@ -82,6 +82,29 @@ class EmbyRepositoryTest {
                 }
             """.trimIndent()
         )
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {
+                      "Id":"resume-1",
+                      "Name":"Half Watched",
+                      "ParentId":"lib-movie",
+                      "Type":"Movie",
+                      "RunTimeTicks":60000000000,
+                      "ImageTags":{"Primary":"resume-tag"},
+                      "UserData":{
+                        "PlaybackPositionTicks":24000000000,
+                        "PlayedPercentage":40.0,
+                        "Played":false,
+                        "LastPlayedDate":"2026-06-27T10:00:00Z"
+                      }
+                    }
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
 
         val catalog = repository(apiKey = "api-key").getCatalog()
 
@@ -95,6 +118,11 @@ class EmbyRepositoryTest {
         assertTrue(item.imageUrl.orEmpty().contains("/Items/movie-1/Images/Primary"))
         assertTrue(item.imageUrl.orEmpty().contains("api_key=api-key"))
         assertTrue(item.imageUrl.orEmpty().contains("tag=tag-1"))
+        assertEquals(1, catalog.resumeItems.size)
+        val resumeItem = catalog.resumeItems.single()
+        assertEquals("resume-1", resumeItem.id)
+        assertEquals(2400, resumeItem.progress?.currentTimeSeconds)
+        assertEquals(40f, resumeItem.progress?.playedPercentage ?: 0f, 0.001f)
 
         val usersRequest = server.takeRequest()
         assertEquals("/Users", usersRequest.path)
@@ -108,6 +136,12 @@ class EmbyRepositoryTest {
         assertTrue(itemsRequest.path.orEmpty().startsWith("/Users/u1/Items?"))
         assertTrue(itemsRequest.path.orEmpty().contains("ParentId=lib-movie"))
         assertEquals("api-key", itemsRequest.getHeader("X-Emby-Token"))
+
+        val resumeRequest = server.takeRequest()
+        assertTrue(resumeRequest.path.orEmpty().startsWith("/Users/u1/Items/Resume?"))
+        assertTrue(resumeRequest.path.orEmpty().contains("MediaTypes=Video"))
+        assertTrue(resumeRequest.path.orEmpty().contains("IncludeItemTypes=Movie%2CEpisode%2CVideo"))
+        assertEquals("api-key", resumeRequest.getHeader("X-Emby-Token"))
     }
 
     @Test
@@ -131,6 +165,7 @@ class EmbyRepositoryTest {
             """.trimIndent()
         )
         server.enqueueJson("""{"Items":[],"TotalRecordCount":0}""")
+        server.enqueueJson("""{"Items":[],"TotalRecordCount":0}""")
 
         val catalog = repository(apiKey = "").getCatalog()
 
@@ -143,6 +178,79 @@ class EmbyRepositoryTest {
 
         val viewsRequest = server.takeRequest()
         assertEquals("token-123", viewsRequest.getHeader("X-Emby-Token"))
+    }
+
+    @Test
+    fun getResumeItems_mapsOnlyUnfinishedResumableItems() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {
+                      "Id":"movie-resume",
+                      "Name":"Resume Movie",
+                      "ParentId":"lib-movie",
+                      "Type":"Movie",
+                      "Overview":"Continue this.",
+                      "ProductionYear":2024,
+                      "RunTimeTicks":72000000000,
+                      "ImageTags":{"Primary":"resume-tag"},
+                      "UserData":{
+                        "PlaybackPositionTicks":18000000000,
+                        "PlayedPercentage":25.0,
+                        "Played":false,
+                        "LastPlayedDate":"2026-06-27T10:00:00Z"
+                      }
+                    },
+                    {
+                      "Id":"movie-played",
+                      "Name":"Already Played",
+                      "Type":"Movie",
+                      "RunTimeTicks":72000000000,
+                      "UserData":{
+                        "PlaybackPositionTicks":72000000000,
+                        "PlayedPercentage":100.0,
+                        "Played":true
+                      }
+                    },
+                    {
+                      "Id":"movie-zero",
+                      "Name":"No Progress",
+                      "Type":"Movie",
+                      "RunTimeTicks":72000000000,
+                      "UserData":{
+                        "PlaybackPositionTicks":0,
+                        "PlayedPercentage":0.0,
+                        "Played":false
+                      }
+                    }
+                  ],
+                  "TotalRecordCount": 3
+                }
+            """.trimIndent()
+        )
+
+        val resumeItems = repository(apiKey = "api-key").getResumeItems()
+
+        assertEquals(1, resumeItems.size)
+        val item = resumeItems.single()
+        assertEquals("movie-resume", item.id)
+        assertEquals("lib-movie", item.libraryId)
+        assertEquals("Resume Movie", item.title)
+        assertEquals(7200, item.durationSeconds)
+        assertEquals(1800, item.progress?.currentTimeSeconds)
+        assertEquals(25f, item.progress?.playedPercentage ?: 0f, 0.001f)
+        assertEquals(false, item.progress?.isPlayed)
+        assertEquals("2026-06-27T10:00:00Z", item.progress?.lastPlayedDate)
+        assertTrue(item.imageUrl.orEmpty().contains("/Items/movie-resume/Images/Primary"))
+
+        server.takeRequest()
+        val resumeRequest = server.takeRequest()
+        assertTrue(resumeRequest.path.orEmpty().startsWith("/Users/u1/Items/Resume?"))
+        assertTrue(resumeRequest.path.orEmpty().contains("MediaTypes=Video"))
+        assertTrue(resumeRequest.path.orEmpty().contains("IncludeItemTypes=Movie%2CEpisode%2CVideo"))
+        assertEquals("api-key", resumeRequest.getHeader("X-Emby-Token"))
     }
 
     @Test
@@ -208,6 +316,7 @@ class EmbyRepositoryTest {
         assertEquals("source-1", playbackInfo.mediaSourceId)
         assertEquals("play-session-1", playbackInfo.playSessionId)
         assertEquals(7200, playbackInfo.durationSeconds)
+        assertEquals(0, playbackInfo.resumePositionSeconds)
         assertTrue(playbackInfo.streamUrl.contains("/Videos/movie-1/stream"))
         assertTrue(playbackInfo.streamUrl.contains("static=true"))
         assertTrue(playbackInfo.streamUrl.contains("MediaSourceId=source-1"))
@@ -229,6 +338,36 @@ class EmbyRepositoryTest {
         assertTrue(playbackRequest.path.orEmpty().startsWith("/Items/movie-1/PlaybackInfo?"))
         assertTrue(playbackRequest.path.orEmpty().contains("UserId=u1"))
         assertEquals("api-key", playbackRequest.getHeader("X-Emby-Token"))
+    }
+
+    @Test
+    fun getPlaybackInfo_carriesResumePositionFromVideoItem() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "PlaySessionId": "play-session-1",
+                  "MediaSources": [
+                    {
+                      "Id": "source-1",
+                      "RunTimeTicks": 72000000000,
+                      "SupportsDirectStream": true
+                    }
+                  ]
+                }
+            """.trimIndent()
+        )
+        val item = sampleVideoItem().copy(
+            progress = VideoProgress(
+                currentTimeSeconds = 1800,
+                playedPercentage = 25f,
+                isPlayed = false
+            )
+        )
+
+        val playbackInfo = repository(apiKey = "api-key").getPlaybackInfo(item)
+
+        assertEquals(1800, playbackInfo.resumePositionSeconds)
     }
 
     @Test

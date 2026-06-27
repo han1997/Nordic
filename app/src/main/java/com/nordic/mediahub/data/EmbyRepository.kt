@@ -10,6 +10,7 @@ import com.nordic.mediahub.api.EmbyMediaStreamDto
 import com.nordic.mediahub.api.EmbyPlaybackStartRequest
 import com.nordic.mediahub.api.EmbyPlaybackProgressRequest
 import com.nordic.mediahub.api.EmbyPlaybackStopRequest
+import com.nordic.mediahub.api.EmbyUserDataDto
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -38,7 +39,16 @@ data class VideoItem(
     val overview: String = "",
     val year: Int? = null,
     val durationSeconds: Int = 0,
-    val imageUrl: String? = null
+    val imageUrl: String? = null,
+    val progress: VideoProgress? = null
+)
+
+@Stable
+data class VideoProgress(
+    val currentTimeSeconds: Int = 0,
+    val playedPercentage: Float = 0f,
+    val isPlayed: Boolean = false,
+    val lastPlayedDate: String? = null
 )
 
 @Stable
@@ -51,6 +61,7 @@ data class VideoPlaybackInfo(
     val overview: String = "",
     val durationSeconds: Int = 0,
     val imageUrl: String? = null,
+    val resumePositionSeconds: Int = 0,
     val audioTracks: List<VideoMediaTrack> = emptyList(),
     val subtitleTracks: List<VideoMediaTrack> = emptyList()
 )
@@ -71,7 +82,8 @@ data class VideoMediaTrack(
 data class VideoCatalog(
     val libraries: List<VideoLibrary>,
     val selectedLibraryId: String?,
-    val items: List<VideoItem>
+    val items: List<VideoItem>,
+    val resumeItems: List<VideoItem> = emptyList()
 )
 
 @Stable
@@ -125,7 +137,8 @@ class EmbyRepository(private val config: VideoServerConfig) {
         VideoCatalog(
             libraries = libraries,
             selectedLibraryId = libraryId,
-            items = libraryId?.let { getLibraryItems(session, it) }.orEmpty()
+            items = libraryId?.let { getLibraryItems(session, it) }.orEmpty(),
+            resumeItems = getResumeItems(session)
         )
     } catch (e: EmbyApiException) {
         throw e
@@ -139,6 +152,14 @@ class EmbyRepository(private val config: VideoServerConfig) {
         throw e
     } catch (e: Exception) {
         throw Exception("加载视频列表失败: ${e.message}")
+    }
+
+    suspend fun getResumeItems(): List<VideoItem> = try {
+        getResumeItems(session())
+    } catch (e: EmbyApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("鍔犺浇缁х画瑙傜湅澶辫触: ${e.message}")
     }
 
     suspend fun getPlaybackInfo(item: VideoItem): VideoPlaybackInfo = try {
@@ -168,6 +189,9 @@ class EmbyRepository(private val config: VideoServerConfig) {
                 .toDurationSeconds()
                 .takeIf { it > 0 } ?: item.durationSeconds,
             imageUrl = item.imageUrl,
+            resumePositionSeconds = item.progress?.currentTimeSeconds
+                ?.coerceIn(0, item.durationSeconds.takeIf { duration -> duration > 0 } ?: Int.MAX_VALUE)
+                ?: 0,
             audioTracks = mediaSource.mediaStreams
                 .filter { stream -> stream.type.equals("Audio", ignoreCase = true) }
                 .map { stream -> stream.toVideoMediaTrack("Audio", session.token) },
@@ -338,6 +362,19 @@ class EmbyRepository(private val config: VideoServerConfig) {
             .map { item -> item.toVideoItem(libraryId, session.token) }
     }
 
+    private suspend fun getResumeItems(session: EmbySession): List<VideoItem> {
+        return api.getResumeItems(
+            userId = session.userId,
+            token = session.token
+        ).requireBody("鑾峰彇缁х画瑙傜湅澶辫触")
+            .items
+            .map { item -> item.toVideoItem(item.parentId.orEmpty(), session.token) }
+            .filter { item ->
+                val progress = item.progress
+                progress != null && progress.currentTimeSeconds > 0 && !progress.isPlayed
+            }
+    }
+
     private fun EmbyItemDto.toVideoItem(libraryId: String, token: String): VideoItem {
         return VideoItem(
             id = id,
@@ -347,7 +384,17 @@ class EmbyRepository(private val config: VideoServerConfig) {
             overview = overview.orEmpty(),
             year = productionYear,
             durationSeconds = runTimeTicks.toDurationSeconds(),
-            imageUrl = primaryImageUrl(id, token, imageTags?.get("Primary"))
+            imageUrl = primaryImageUrl(id, token, imageTags?.get("Primary")),
+            progress = userData?.toVideoProgress()
+        )
+    }
+
+    private fun EmbyUserDataDto.toVideoProgress(): VideoProgress {
+        return VideoProgress(
+            currentTimeSeconds = playbackPositionTicks.toDurationSeconds(),
+            playedPercentage = (playedPercentage ?: 0.0).toFloat().coerceIn(0f, 100f),
+            isPlayed = played,
+            lastPlayedDate = lastPlayedDate?.takeIf { it.isNotBlank() }
         )
     }
 

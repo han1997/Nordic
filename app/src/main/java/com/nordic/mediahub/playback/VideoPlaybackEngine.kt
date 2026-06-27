@@ -89,20 +89,31 @@ class VideoPlaybackEngine(
         val defaultAudioTrack = playbackInfo.audioTracks.firstOrNull { it.isDefault }
             ?: playbackInfo.audioTracks.firstOrNull()
         val defaultSubtitleTrack = playbackInfo.subtitleTracks.firstOrNull { it.isDefault || it.isForced }
+        val startPositionSeconds = playbackInfo.resumePositionSeconds
+            .coerceAtLeast(0)
+            .coerceAtMost(playbackInfo.durationSeconds.takeIf { it > 0 } ?: Int.MAX_VALUE)
         _state.value = VideoPlaybackState(
             playbackInfo = playbackInfo,
             isBuffering = true,
             durationSeconds = playbackInfo.durationSeconds,
+            positionSeconds = startPositionSeconds,
             selectedAudioTrackIndex = defaultAudioTrack?.index,
             selectedSubtitleTrackIndex = defaultSubtitleTrack?.index
         )
         exoPlayer.setMediaItem(playbackInfo.toMediaItem())
         exoPlayer.prepare()
+        if (startPositionSeconds > 0) {
+            exoPlayer.seekTo(startPositionSeconds * 1000L)
+        }
         applyTrackSelection(defaultAudioTrack, defaultSubtitleTrack)
         exoPlayer.play()
         publishPlayerState()
         val info = playbackInfo
-        scope.launch { runCatching { onPlaybackStart?.invoke(info.itemId, info.mediaSourceId, info.playSessionId, 0) } }
+        scope.launch {
+            runCatching {
+                onPlaybackStart?.invoke(info.itemId, info.mediaSourceId, info.playSessionId, startPositionSeconds)
+            }
+        }
         startProgressReporting()
     }
 

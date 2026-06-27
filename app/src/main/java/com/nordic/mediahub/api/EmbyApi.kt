@@ -42,6 +42,8 @@ data class EmbyItemDto(
     val id: String,
     @SerializedName("Name")
     val name: String,
+    @SerializedName("ParentId")
+    val parentId: String? = null,
     @SerializedName("Type")
     val type: String? = null,
     @SerializedName("CollectionType")
@@ -59,7 +61,20 @@ data class EmbyItemDto(
     @SerializedName("ParentIndexNumber")
     val parentIndexNumber: Int? = null,
     @SerializedName("ImageTags")
-    val imageTags: Map<String, String>? = emptyMap()
+    val imageTags: Map<String, String>? = emptyMap(),
+    @SerializedName("UserData")
+    val userData: EmbyUserDataDto? = null
+)
+
+data class EmbyUserDataDto(
+    @SerializedName("PlayedPercentage")
+    val playedPercentage: Double? = null,
+    @SerializedName("PlaybackPositionTicks")
+    val playbackPositionTicks: Long? = null,
+    @SerializedName("Played")
+    val played: Boolean = false,
+    @SerializedName("LastPlayedDate")
+    val lastPlayedDate: String? = null
 )
 
 data class EmbyPlaybackInfoResponse(
@@ -177,6 +192,16 @@ interface EmbyApi {
         @Query("SortBy") sortBy: String = "DateCreated",
         @Query("SortOrder") sortOrder: String = "Descending",
         @Query("Limit") limit: Int = 50
+    ): Response<EmbyItemsResponse>
+
+    @GET("Users/{userId}/Items/Resume")
+    suspend fun getResumeItems(
+        @Path("userId") userId: String,
+        @Header("X-Emby-Token") token: String,
+        @Query("MediaTypes") mediaTypes: String = "Video",
+        @Query("IncludeItemTypes") includeItemTypes: String = "Movie,Episode,Video",
+        @Query("Fields") fields: String = "Overview,ProductionYear,RunTimeTicks,ChildCount,ImageTags",
+        @Query("Limit") limit: Int = 12
     ): Response<EmbyItemsResponse>
 
     @GET("Items/{itemId}/PlaybackInfo")
