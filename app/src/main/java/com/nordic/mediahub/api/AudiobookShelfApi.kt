@@ -32,9 +32,9 @@ data class AudiobookShelfLibrariesResponse(
 )
 
 data class AudiobookShelfLibraryDto(
-    val id: String,
-    val name: String,
-    val mediaType: String,
+    val id: String? = null,
+    val name: String? = null,
+    val mediaType: String? = null,
     val icon: String? = null
 )
 

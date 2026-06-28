@@ -109,11 +109,14 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
         }
 
         return body.libraries.orEmpty().mapNotNull { dto ->
-            if (!dto.mediaType.equals("book", ignoreCase = true)) return@mapNotNull null
+            val mediaType = dto.mediaType?.trim()?.takeIf { it.equals("book", ignoreCase = true) }
+                ?: return@mapNotNull null
+            val id = dto.id?.trim()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            val name = dto.name?.trim()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
             AudiobookLibrarySummary(
-                id = dto.id,
-                name = dto.name,
-                mediaType = dto.mediaType
+                id = id,
+                name = name,
+                mediaType = mediaType
             )
         }
     }

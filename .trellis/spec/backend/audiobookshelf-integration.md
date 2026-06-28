@@ -40,6 +40,9 @@
   - `internal fun resolveAudiobookLibraryPageAfterConfigChange(currentPage: AudiobookLibraryPage): AudiobookLibraryPage`
 - DTOs:
   - `AudiobookShelfLibrariesResponse.libraries: List<AudiobookShelfLibraryDto>?`
+  - `AudiobookShelfLibraryDto.id: String?`
+  - `AudiobookShelfLibraryDto.name: String?`
+  - `AudiobookShelfLibraryDto.mediaType: String?`
   - `AudiobookShelfLibraryItemsResponse.results: List<AudiobookShelfLibraryItemMinifiedDto>?`
 
 ### 3. Contracts
@@ -61,6 +64,8 @@
 - Library item page result arrays are optional wire fields. DTOs must model `results` as nullable, and `getLibraryItems()` must normalize it with `orEmpty()` before mapping summaries and evaluating pagination stop conditions.
 - Library discovery response arrays are optional wire fields. DTOs must model `libraries` as nullable, and `getLibraries()` must normalize it with `orEmpty()` before applying the audiobook media type filter.
 - Library discovery must include libraries whose `mediaType` equals `book` case-insensitively, and must continue excluding non-book media types such as podcasts.
+- Library discovery item fields are optional wire fields. DTOs must model `AudiobookShelfLibraryDto.id`, `name`, and `mediaType` as nullable strings. `getLibraries()` must skip rows whose trimmed `id` or `name` is blank, and must skip rows whose trimmed `mediaType` is blank or not `book` case-insensitively.
+- Returned `AudiobookLibrarySummary` values should use trimmed `id`, `name`, and `mediaType` values so UI state and follow-up item requests do not carry accidental surrounding whitespace.
 - Audiobook `coverPath` values map to nullable app artwork URLs: null, empty, and whitespace-only paths stay `null`; non-blank relative paths are normalized against the server base URL; absolute `http://` and `https://` cover URLs are preserved.
 - Expanded audiobook detail responses may omit `media.metadata.authors`, `media.metadata.narrators`, `media.metadata.series`, and `media.chapters`, or send them as null. DTOs must allow those fields to deserialize as nullable lists, and repository detail mapping must convert them to empty domain lists.
 - Playback-session responses may omit `chapters` and `audioTracks`, or send them as null. DTOs must allow those fields to deserialize as nullable lists, and `startPlayback()` must convert them to empty domain lists.
@@ -102,6 +107,8 @@
 | Library response omits `libraries` or sends it as null | Return an empty library list |
 | Library response has `mediaType` values such as `book`, `Book`, or `BOOK` | Include those libraries in `getLibraries()` |
 | Library response has non-book `mediaType` values | Exclude those libraries from `getLibraries()` |
+| Library row omits `id`, `name`, or `mediaType`, or sends any as null | Skip that row and continue mapping other libraries |
+| Library row has blank `id`, `name`, or `mediaType` | Skip that row and continue mapping other libraries |
 | Library items response omits `results` or sends it as null on the first page | Return an empty item list |
 | Summary/detail/session `coverPath` is null, empty, or whitespace-only | Map cover URL to `null` |
 | Summary/detail/session `coverPath` is relative or absolute | Normalize relative paths with the server base URL; preserve absolute HTTP(S) URLs |
@@ -146,6 +153,7 @@
 - Good: User opens an audiobook, `startPlayback()` returns a session, Media3 plays session tracks, progress sync runs periodically, and `syncAndCloseSession()` is called when leaving the player.
 - Good: AudiobookShelf-compatible servers return `Book` or `BOOK` media type casing, and the app still shows those audiobook libraries.
 - Good: AudiobookShelf-compatible servers omit `libraries` or return it as null, and the app treats discovery as an empty library list.
+- Good: AudiobookShelf-compatible servers include partial library rows, and the repository skips unusable rows while keeping valid book libraries.
 - Good: User taps the same audiobook while it is already active; the app reopens the current player without creating a duplicate AudiobookShelf session.
 - Good: User starts a different audiobook while one is active; the app syncs/closes the previous session in the background and starts the new `/play` session.
 - Good: User switches AudiobookShelf server/account, refreshes libraries, and the app requests items from a library id returned by that server instead of a stale id from the previous server/account.
@@ -168,6 +176,7 @@
 - Bad: Playback-session DTO list properties are non-null Kotlin lists and `startPlayback()` maps them directly, crashing before the no-playable-tracks state can be shown.
 - Bad: `getLibraries()` compares `mediaType == "book"` case-sensitively and drops valid audiobook libraries returned as `Book`.
 - Bad: `AudiobookShelfLibrariesResponse.libraries` is modeled as a non-null Kotlin list and repository mapping calls `.mapNotNull` directly.
+- Bad: `AudiobookShelfLibraryDto.id`, `name`, or `mediaType` is modeled as a non-null Kotlin string and mapped directly into `AudiobookLibrarySummary`.
 - Bad: Audio URL token detection uses `absolute.contains("token=")` and fails to append auth when that text appears in the path.
 - Bad: App extracts a stream URL and plays it without calling `/play`, `/sync`, or `/close`; AudiobookShelf resume state will drift.
 
@@ -184,6 +193,7 @@
   - missing/null/blank login token fields throw `AudiobookShelfApiException.Kind.AUTH`
   - missing and null library `libraries` arrays map to an empty library list
   - library filtering includes `book`, `Book`, and `BOOK` media type values and excludes non-book media types
+  - library rows with missing, null, empty, or blank `id`, `name`, or `mediaType` are skipped without dropping valid rows
   - missing and null library item `results` arrays map to an empty item list on the first page
   - missing or null library item `results` arrays on a later page stop pagination while preserving accumulated summaries
   - blank summary/detail/session `coverPath` values map to `null`
@@ -244,9 +254,43 @@ data class AudiobookShelfLibrariesResponse(
 )
 
 return body.libraries.orEmpty().mapNotNull { dto ->
-    if (!dto.mediaType.equals("book", ignoreCase = true)) return@mapNotNull null
-    AudiobookLibrarySummary(id = dto.id, name = dto.name, mediaType = dto.mediaType)
+    val mediaType = dto.mediaType?.trim()?.takeIf { it.equals("book", ignoreCase = true) }
+        ?: return@mapNotNull null
+    val id = dto.id?.trim()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+    val name = dto.name?.trim()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+    AudiobookLibrarySummary(id = id, name = name, mediaType = mediaType)
 }
+```
+
+#### Wrong
+
+```kotlin
+data class AudiobookShelfLibraryDto(
+    val id: String,
+    val name: String,
+    val mediaType: String
+)
+
+AudiobookLibrarySummary(id = dto.id, name = dto.name, mediaType = dto.mediaType)
+```
+
+Gson can set missing or null string fields to runtime null; direct mapping can crash or surface unusable library rows.
+
+#### Correct
+
+```kotlin
+data class AudiobookShelfLibraryDto(
+    val id: String? = null,
+    val name: String? = null,
+    val mediaType: String? = null
+)
+
+val mediaType = dto.mediaType?.trim()?.takeIf { it.equals("book", ignoreCase = true) }
+    ?: return@mapNotNull null
+val id = dto.id?.trim()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+val name = dto.name?.trim()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+
+AudiobookLibrarySummary(id = id, name = name, mediaType = mediaType)
 ```
 
 #### Wrong
@@ -328,7 +372,7 @@ This can hide valid audiobook libraries from compatible servers that vary `media
 #### Correct
 
 ```kotlin
-if (!dto.mediaType.equals("book", ignoreCase = true)) return@mapNotNull null
+if (!dto.mediaType.orEmpty().trim().equals("book", ignoreCase = true)) return@mapNotNull null
 ```
 
 #### Wrong

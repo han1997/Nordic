@@ -191,6 +191,35 @@ class AudiobookShelfRepositoryTest {
     }
 
     @Test
+    fun getLibraries_skipsRowsWithMissingNullOrBlankRequiredFields() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(
+            """
+                {
+                  "libraries": [
+                    {"name":"Missing Id","mediaType":"book"},
+                    {"id":null,"name":"Null Id","mediaType":"book"},
+                    {"id":"   ","name":"Blank Id","mediaType":"book"},
+                    {"id":"missing-name","mediaType":"book"},
+                    {"id":"null-name","name":null,"mediaType":"book"},
+                    {"id":"blank-name","name":"   ","mediaType":"book"},
+                    {"id":"missing-type","name":"Missing Type"},
+                    {"id":"null-type","name":"Null Type","mediaType":null},
+                    {"id":"blank-type","name":"Blank Type","mediaType":"   "},
+                    {"id":"valid-book","name":"Valid Books","mediaType":"Book"}
+                  ]
+                }
+            """.trimIndent()
+        )
+
+        val libraries = repository().getLibraries()
+
+        assertEquals(listOf("valid-book"), libraries.map { it.id })
+        assertEquals(listOf("Valid Books"), libraries.map { it.name })
+        assertEquals(listOf("Book"), libraries.map { it.mediaType })
+    }
+
+    @Test
     fun getLibraryItems_pagesUntilServerTotalIsLoaded() = runTest {
         server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
         server.enqueueJson(libraryItemsJson(itemRange = 1..50, total = 51))
