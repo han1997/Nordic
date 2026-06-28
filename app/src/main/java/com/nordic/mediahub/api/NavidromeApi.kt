@@ -53,7 +53,7 @@ data class SongList(
 )
 
 data class NavidromePlaylistList(
-    val playlist: List<NavidromePlaylist> = emptyList()
+    val playlist: List<NavidromePlaylist>? = null
 )
 
 data class ArtistsIndex(
@@ -106,7 +106,7 @@ data class NavidromePlaylistDetail(
     val songCount: Int = 0,
     val duration: Int = 0,
     val coverArt: String? = null,
-    val entry: List<NavidromeSong> = emptyList()
+    val entry: List<NavidromeSong>? = null
 )
 
 data class NavidromeSong(

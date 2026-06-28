@@ -246,6 +246,8 @@ val albums = repo.getAlbums(NavidromeAlbumSort.ReleaseYear)
 **Signatures**:
 - `SubsonicData.playlists: NavidromePlaylistList?`
 - `SubsonicData.playlist: NavidromePlaylistDetail?`
+- `NavidromePlaylistList.playlist: List<NavidromePlaylist>?`
+- `NavidromePlaylistDetail.entry: List<NavidromeSong>?`
 - `NavidromeApi.getPlaylists(...): Response<SubsonicResponse>`
 - `NavidromeApi.getPlaylist(..., playlistId: String): Response<SubsonicResponse>`
 - `suspend fun NavidromeRepository.getPlaylists(): List<NavidromePlaylist>`
@@ -255,6 +257,7 @@ val albums = repo.getAlbums(NavidromeAlbumSort.ReleaseYear)
 - Playlist browsing is read-only unless the PRD explicitly includes playlist mutation.
 - `getPlaylists()` calls Subsonic `getPlaylists.view` and maps `playlists.playlist`.
 - `getPlaylistSongs(playlistId)` calls `getPlaylist.view` with `id=<playlistId>` and maps `playlist.entry`.
+- Playlist summary/detail arrays are optional wire fields. DTOs must model `playlists.playlist` and `playlist.entry` as nullable, and repository mapping must normalize them with `orEmpty()` before producing app-facing lists.
 - Playlist and playlist-song cover art must be converted through `getCoverArt.view`; playlist detail cover art may be used as a fallback for entries with missing `coverArt`.
 - Playlist entries returned to UI must include playable `streamUrl` values built through `stream.view`.
 - Playlist data is view state, not part of `NavidromeMusicCacheRepository`, unless the cache schema is explicitly revised and version-bumped.
@@ -265,18 +268,42 @@ val albums = repo.getAlbums(NavidromeAlbumSort.ReleaseYear)
 - Unknown failure while loading playlists -> wrap as `"获取歌单失败: ..."` for UI context.
 - Unknown failure while loading playlist songs -> wrap as `"获取歌单曲目失败: ..."` for UI context.
 - Empty `playlists` or missing `playlist` detail -> return empty lists; do not fall back to albums, songs, or random songs.
+- Missing or null `playlists.playlist` -> return an empty playlist list.
+- Missing or null `playlist.entry` -> return an empty song list.
 
 **Good/Base/Bad Cases**:
 - Good: Playlist tab loads real Navidrome playlists, opens detail, and plays the detail song list through the existing `onSongSelected(list, index)` flow.
+- Good: A compatible server omits `playlists.playlist` or `playlist.entry`, and the repository returns a successful empty list instead of surfacing an error.
 - Base: Empty server playlist list shows a compact empty state.
+- Bad: Optional playlist arrays are modeled as non-null Kotlin lists and repository code assumes Gson defaults protect omitted fields.
 - Bad: Playlist tab remains a hard-coded placeholder after playlist APIs exist, or UI calls Retrofit directly instead of `NavidromeRepository`.
 
 **Tests Required**:
 - Repository unit test asserting `getPlaylists()` requests `/rest/getPlaylists.view` and maps playlist fields plus cover art URLs.
+- Repository unit test asserting missing and null `playlists.playlist` arrays map to an empty playlist list.
 - Repository unit test asserting `getPlaylistSongs(id)` requests `/rest/getPlaylist.view?id=<id>`, maps entries, applies fallback cover art, and builds stream URLs.
+- Repository unit test asserting missing and null `playlist.entry` arrays map to an empty song list.
 - Compile/lint checks for UI callback wiring.
 
 **Wrong vs Correct**:
+```kotlin
+// Wrong: optional wire arrays are modeled as non-null DTO fields.
+data class NavidromePlaylistDetail(
+    val entry: List<NavidromeSong> = emptyList()
+)
+```
+
+```kotlin
+// Correct: model optional arrays as nullable and normalize at the repository boundary.
+data class NavidromePlaylistDetail(
+    val entry: List<NavidromeSong>? = null
+)
+
+val songs = detail.entry.orEmpty().map { song ->
+    song.withCoverArtUrl(detail.coverArt)
+}
+```
+
 ```kotlin
 // Wrong: UI bypasses repository mapping and auth conventions.
 api.getPlaylist(username, token, salt, playlistId = id)

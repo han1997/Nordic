@@ -295,7 +295,7 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
         val subsonic = requestSubsonic {
             api.getPlaylists(config.username, auth.token, auth.salt)
         }
-        subsonic.playlists?.playlist?.map { it.withCoverArtUrl() } ?: emptyList()
+        subsonic.playlists?.playlist.orEmpty().map { it.withCoverArtUrl() }
     } catch (e: NavidromeApiException) {
         throw e
     } catch (e: Exception) {
@@ -307,8 +307,10 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
         val playlist = requestSubsonic {
             api.getPlaylist(config.username, auth.token, auth.salt, playlistId = playlistId)
         }.playlist
-        playlist?.entry?.map { song ->
-            song.withCoverArtUrl(playlist.coverArt)
+        playlist?.let { detail ->
+            detail.entry.orEmpty().map { song ->
+                song.withCoverArtUrl(detail.coverArt)
+            }
         } ?: emptyList()
     } catch (e: NavidromeApiException) {
         throw e

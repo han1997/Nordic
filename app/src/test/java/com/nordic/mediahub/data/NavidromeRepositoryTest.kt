@@ -1,6 +1,7 @@
 package com.nordic.mediahub.data
 
 import com.nordic.mediahub.api.NavidromeAlbum
+import com.nordic.mediahub.api.NavidromePlaylist
 import com.nordic.mediahub.api.NavidromeSong
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
@@ -246,6 +247,20 @@ class NavidromeRepositoryTest {
     }
 
     @Test
+    fun getPlaylists_mapsMissingAndNullPlaylistArraysToEmptyList() = runTest {
+        listOf(
+            """"playlists": {}""",
+            """"playlists": {"playlist": null}"""
+        ).forEach { playlistsField ->
+            server.enqueueJson(subsonicResponse(playlistsField))
+
+            val playlists = repository().getPlaylists()
+
+            assertEquals(emptyList<NavidromePlaylist>(), playlists)
+        }
+    }
+
+    @Test
     fun getPlaylists_throwsTypedApiExceptionForEmptyResponseBody() = runTest {
         server.enqueue(MockResponse().setResponseCode(200))
 
@@ -311,6 +326,33 @@ class NavidromeRepositoryTest {
         val request = server.takeRequest().path.orEmpty()
         assertTrue(request.startsWith("/rest/getPlaylist.view?"))
         assertTrue(request.contains("id=playlist-1"))
+    }
+
+    @Test
+    fun getPlaylistSongs_mapsMissingAndNullEntriesToEmptyList() = runTest {
+        listOf(
+            """
+            "playlist": {
+              "id": "playlist-1",
+              "name": "Road Mix",
+              "coverArt": "playlist-cover"
+            }
+            """.trimIndent(),
+            """
+            "playlist": {
+              "id": "playlist-1",
+              "name": "Road Mix",
+              "coverArt": "playlist-cover",
+              "entry": null
+            }
+            """.trimIndent()
+        ).forEach { playlistField ->
+            server.enqueueJson(subsonicResponse(playlistField))
+
+            val songs = repository().getPlaylistSongs("playlist-1")
+
+            assertEquals(emptyList<NavidromeSong>(), songs)
+        }
     }
 
     @Test
