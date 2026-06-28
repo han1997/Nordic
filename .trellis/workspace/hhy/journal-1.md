@@ -979,3 +979,36 @@ Changed the video scrubber to keep local drag state and seek only on release, ma
 ### Next Steps
 
 - None - task complete
+
+
+## Session 30: Fix music lyric active line selection
+
+**Date**: 2026-06-28
+**Task**: Fix music lyric active line selection
+**Branch**: `main`
+
+### Summary
+
+Fixed synced music lyric highlighting so no line is active before the first timed lyric starts; added focused unit coverage and verified compile, unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5ee6489` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
