@@ -401,3 +401,36 @@ Added Navidrome API empty-body classification, routed Subsonic calls through sha
 ### Next Steps
 
 - None - task complete
+
+
+## Session 72: Match Emby video libraries case-insensitively
+
+**Date**: 2026-06-29
+**Task**: Match Emby video libraries case-insensitively
+**Branch**: `main`
+
+### Summary
+
+Made Emby video library filtering case-insensitive for supported collection types and CollectionFolder fallback, preserved non-video filtering, added regression coverage, and updated the Emby integration spec.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1d483aa` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
