@@ -40,6 +40,7 @@
   - `internal fun resolveAudiobookLibraryPageAfterConfigChange(currentPage: AudiobookLibraryPage): AudiobookLibraryPage`
 - DTOs:
   - `AudiobookShelfLibrariesResponse.libraries: List<AudiobookShelfLibraryDto>?`
+  - `AudiobookShelfLibraryItemsResponse.results: List<AudiobookShelfLibraryItemMinifiedDto>?`
 
 ### 3. Contracts
 
@@ -57,6 +58,7 @@
   - `POST /api/session/{sessionId}/close`
 - Domain mapping must keep music and audiobook models separate. Do not map audiobook sessions into `NavidromeSong`.
 - Library item browsing must page `GET /api/libraries/{id}/items` with a fixed repository page size. Continue requesting `page + 1` until the response `total` count is loaded, or until the server returns an empty/short page.
+- Library item page result arrays are optional wire fields. DTOs must model `results` as nullable, and `getLibraryItems()` must normalize it with `orEmpty()` before mapping summaries and evaluating pagination stop conditions.
 - Library discovery response arrays are optional wire fields. DTOs must model `libraries` as nullable, and `getLibraries()` must normalize it with `orEmpty()` before applying the audiobook media type filter.
 - Library discovery must include libraries whose `mediaType` equals `book` case-insensitively, and must continue excluding non-book media types such as podcasts.
 - Audiobook `coverPath` values map to nullable app artwork URLs: null, empty, and whitespace-only paths stay `null`; non-blank relative paths are normalized against the server base URL; absolute `http://` and `https://` cover URLs are preserved.
@@ -100,9 +102,11 @@
 | Library response omits `libraries` or sends it as null | Return an empty library list |
 | Library response has `mediaType` values such as `book`, `Book`, or `BOOK` | Include those libraries in `getLibraries()` |
 | Library response has non-book `mediaType` values | Exclude those libraries from `getLibraries()` |
+| Library items response omits `results` or sends it as null on the first page | Return an empty item list |
 | Summary/detail/session `coverPath` is null, empty, or whitespace-only | Map cover URL to `null` |
 | Summary/detail/session `coverPath` is relative or absolute | Normalize relative paths with the server base URL; preserve absolute HTTP(S) URLs |
 | Library items response total is larger than the first page | Continue requesting subsequent pages and merge summaries before returning |
+| Library items response omits `results` or sends it as null on a later page | Stop pagination and return the items accumulated so far |
 | Expanded detail `metadata.authors`, `metadata.narrators`, `metadata.series`, or `chapters` is missing or null | Map the corresponding `AudiobookItemDetail` list to `emptyList()` |
 | Expanded detail authors, narrators, series sequence values, or chapters are present | Preserve mapped author/narrator names, `Series #sequence` labels, and chapter id/title/start/end values |
 | Playback session `chapters` or `audioTracks` is missing or null | Map the corresponding `AudiobookPlaybackSession` list to `emptyList()` |
@@ -146,6 +150,7 @@
 - Good: User starts a different audiobook while one is active; the app syncs/closes the previous session in the background and starts the new `/play` session.
 - Good: User switches AudiobookShelf server/account, refreshes libraries, and the app requests items from a library id returned by that server instead of a stale id from the previous server/account.
 - Good: User opens a large AudiobookShelf library and the app displays books from every paginated item response, not only page 0.
+- Good: An AudiobookShelf-compatible server omits `results` on an item page, and the repository treats that response as an empty page.
 - Good: An AudiobookShelf-compatible server omits expanded detail metadata arrays or chapters, and the detail mapper returns empty lists instead of crashing.
 - Good: Expanded detail authors, narrators, series sequence labels, and chapters still map when the arrays are present.
 - Good: An AudiobookShelf-compatible server omits playback-session chapters or audio tracks, and `startPlayback()` returns an empty domain list instead of crashing before playback error handling.
@@ -158,6 +163,7 @@
 - Good: User can jump to previous/next chapters from the player; absolute position updates continue to drive progress sync.
 - Base: User only browses libraries and details; no playback session is created and no progress endpoint is called.
 - Bad: `getLibraryItems()` requests only `page=0`, truncating any library with more books than the page size.
+- Bad: `AudiobookShelfLibraryItemsResponse.results` is modeled as a non-null Kotlin list and pagination calls `.map` or `.isEmpty()` on it directly.
 - Bad: Detail DTO list properties are non-null Kotlin lists and repository mapping calls `.map` directly, allowing Gson-omitted fields to become runtime nulls.
 - Bad: Playback-session DTO list properties are non-null Kotlin lists and `startPlayback()` maps them directly, crashing before the no-playable-tracks state can be shown.
 - Bad: `getLibraries()` compares `mediaType == "book"` case-sensitively and drops valid audiobook libraries returned as `Book`.
@@ -178,6 +184,8 @@
   - missing/null/blank login token fields throw `AudiobookShelfApiException.Kind.AUTH`
   - missing and null library `libraries` arrays map to an empty library list
   - library filtering includes `book`, `Book`, and `BOOK` media type values and excludes non-book media types
+  - missing and null library item `results` arrays map to an empty item list on the first page
+  - missing or null library item `results` arrays on a later page stop pagination while preserving accumulated summaries
   - blank summary/detail/session `coverPath` values map to `null`
   - non-blank relative and absolute cover paths map to expected app-facing cover URLs
   - missing and null expanded detail `metadata.authors`, `metadata.narrators`, `metadata.series`, and `chapters` map to empty domain lists
@@ -239,6 +247,30 @@ return body.libraries.orEmpty().mapNotNull { dto ->
     if (!dto.mediaType.equals("book", ignoreCase = true)) return@mapNotNull null
     AudiobookLibrarySummary(id = dto.id, name = dto.name, mediaType = dto.mediaType)
 }
+```
+
+#### Wrong
+
+```kotlin
+data class AudiobookShelfLibraryItemsResponse(
+    val results: List<AudiobookShelfLibraryItemMinifiedDto> = emptyList()
+)
+
+val pageItems = body.results
+items += pageItems.map { it.toSummary() }
+if (pageItems.isEmpty()) break
+```
+
+#### Correct
+
+```kotlin
+data class AudiobookShelfLibraryItemsResponse(
+    val results: List<AudiobookShelfLibraryItemMinifiedDto>? = null
+)
+
+val pageItems = body.results.orEmpty()
+items += pageItems.map { it.toSummary() }
+if (pageItems.isEmpty()) break
 ```
 
 #### Wrong

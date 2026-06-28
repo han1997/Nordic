@@ -216,6 +216,45 @@ class AudiobookShelfRepositoryTest {
     }
 
     @Test
+    fun getLibraryItems_mapsMissingAndNullResultArraysToEmptyList() = runTest {
+        listOf(
+            """{"total": 0, "limit": 50, "page": 0, "mediaType": "book", "minified": true}""",
+            """{"results": null, "total": 0, "limit": 50, "page": 0, "mediaType": "book", "minified": true}"""
+        ).forEach { itemsResponse ->
+            server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+            server.enqueueJson(itemsResponse)
+
+            val items = repository().getLibraryItems("lib-1")
+
+            assertEquals(emptyList<AudiobookItemSummary>(), items)
+            server.takeRequest()
+            val itemsRequest = server.takeRequest()
+            assertTrue(itemsRequest.path.orEmpty().contains("page=0"))
+        }
+    }
+
+    @Test
+    fun getLibraryItems_stopsOnNullLaterPageAndKeepsAccumulatedItems() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(libraryItemsJson(itemRange = 1..50, total = 51))
+        server.enqueueJson(
+            """{"results": null, "total": 51, "limit": 50, "page": 1, "mediaType": "book", "minified": true}"""
+        )
+
+        val items = repository().getLibraryItems("lib-1")
+
+        assertEquals(50, items.size)
+        assertEquals("Book 1", items.first().title)
+        assertEquals("Book 50", items.last().title)
+
+        server.takeRequest()
+        val firstPageRequest = server.takeRequest()
+        val secondPageRequest = server.takeRequest()
+        assertTrue(firstPageRequest.path.orEmpty().contains("page=0"))
+        assertTrue(secondPageRequest.path.orEmpty().contains("page=1"))
+    }
+
+    @Test
     fun getLibraryItems_mapsBlankAndNonBlankCoverPaths() = runTest {
         server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
         server.enqueueJson(

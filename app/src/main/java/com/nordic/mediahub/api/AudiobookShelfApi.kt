@@ -39,7 +39,7 @@ data class AudiobookShelfLibraryDto(
 )
 
 data class AudiobookShelfLibraryItemsResponse(
-    val results: List<AudiobookShelfLibraryItemMinifiedDto> = emptyList(),
+    val results: List<AudiobookShelfLibraryItemMinifiedDto>? = null,
     val total: Int? = null,
     val limit: Int = 0,
     val page: Int = 0,

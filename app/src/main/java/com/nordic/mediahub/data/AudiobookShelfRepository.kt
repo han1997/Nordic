@@ -132,7 +132,7 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
                     page = page
                 )
             }
-            val pageItems = body.results
+            val pageItems = body.results.orEmpty()
             items += pageItems.map { it.toSummary() }
 
             val total = body.total
