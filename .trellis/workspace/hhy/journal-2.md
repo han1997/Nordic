@@ -929,3 +929,36 @@ Updated Navidrome playlist summary and detail mapping so missing or null playlis
 ### Next Steps
 
 - None - task complete
+
+
+## Session 88: Handle missing Navidrome search lists
+
+**Date**: 2026-06-29
+**Task**: Handle missing Navidrome search lists
+**Branch**: `main`
+
+### Summary
+
+Updated Navidrome search result DTO and repository mapping so missing or null artist, album, and song result arrays map to empty buckets, with focused repository coverage and backend quality-spec documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2e66281` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
