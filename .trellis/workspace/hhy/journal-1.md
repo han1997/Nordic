@@ -1243,3 +1243,36 @@ Updated music bulk play actions to start at the first song with a usable stream 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 38: Filter unplayable songs from music queues
+
+**Date**: 2026-06-28
+**Task**: Filter unplayable songs from music queues
+**Branch**: `main`
+
+### Summary
+
+Filtered missing-stream songs out of MusicPlaybackEngine queues before Media3 playlist creation, mapped requested start indexes to playable songs, added focused resolver tests, and documented the queue contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1aeb892` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
