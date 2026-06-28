@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 20
+- **Total Sessions**: 21
 - **Last Active**: 2026-06-28
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~684 | Active |
+| `journal-1.md` | ~717 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 21 | 2026-06-28 | Optimize music playback list indexing | `b49d11a` | `main` |
 | 20 | 2026-06-28 | Improve audiobook chapter navigation | `b208f81` | `main` |
 | 19 | 2026-06-28 | Improve music shuffle playback | `b23a936` | `main` |
 | 18 | 2026-06-28 | Improve Emby series episode detail | `313b750` | `main` |

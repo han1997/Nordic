@@ -682,3 +682,36 @@ Added AudiobookShelf-style previous/next chapter navigation using absolute audio
 ### Next Steps
 
 - None - task complete
+
+
+## Session 21: Optimize music playback list indexing
+
+**Date**: 2026-06-28
+**Task**: Optimize music playback list indexing
+**Branch**: `main`
+
+### Summary
+
+Replaced MusicScreenV2 playback indexOf lookups with itemsIndexed and position-aware keys, documented the list indexing rule, and verified compile/tests/lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b49d11a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
