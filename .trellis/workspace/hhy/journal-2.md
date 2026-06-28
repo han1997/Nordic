@@ -203,3 +203,36 @@ Reset Emby video browser/detail/search/filter state on saved config changes; ref
 ### Next Steps
 
 - None - task complete
+
+
+## Session 66: Preserve Navidrome lyric timestamps
+
+**Date**: 2026-06-29
+**Task**: Preserve Navidrome lyric timestamps
+**Branch**: `main`
+
+### Summary
+
+Fixed Navidrome structured lyrics so OpenSubsonic line.start values are always preserved as milliseconds, added a regression test for small millisecond starts, and updated the backend quality spec guardrail.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9bfff9d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
