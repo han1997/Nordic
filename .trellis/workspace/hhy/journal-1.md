@@ -1507,3 +1507,36 @@ Kept music/video handoff stable when AudiobookShelf background close fails by re
 ### Next Steps
 
 - None - task complete
+
+
+## Session 46: Respect direct unplayable music row selection
+
+**Date**: 2026-06-28
+**Task**: Respect direct unplayable music row selection
+**Branch**: `main`
+
+### Summary
+
+Added strict direct-selection music playback mode so unavailable clicked songs surface a missing-stream error, while bulk play-all keeps first-playable fallback. Updated tests and quality spec.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2749688` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
