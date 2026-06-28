@@ -550,3 +550,36 @@ Added Yamby-style full-screen video detail route with poster, metadata, overview
 ### Next Steps
 
 - None - task complete
+
+
+## Session 17: Improve media reference playback flows
+
+**Date**: 2026-06-28
+**Task**: Improve media reference playback flows
+**Branch**: `main`
+
+### Summary
+
+Added Emby resume/rating metadata for Yamby-style video shelves, improved audiobook close-session behavior, fixed pending music queue current-index tracking, updated specs, and verified tests/compile/lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `629e7c0` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

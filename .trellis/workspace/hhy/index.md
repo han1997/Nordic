@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 16
+- **Total Sessions**: 17
 - **Last Active**: 2026-06-28
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~552 | Active |
+| `journal-1.md` | ~585 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 17 | 2026-06-28 | Improve media reference playback flows | `629e7c0` | `main` |
 | 16 | 2026-06-28 | Full-screen video detail page | `94833a3` | `main` |
 | 15 | 2026-06-28 | Emby video browsing and playback | `35df606` | `main` |
 | 14 | 2026-06-23 | App-wide performance and smoothness optimization | `339d607`, `8fdb886` | `main` |
