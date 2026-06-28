@@ -71,3 +71,36 @@ Surfaced Navidrome album and artist detail load failures instead of swallowing t
 ### Next Steps
 
 - None - task complete
+
+
+## Session 62: Reset stale video type filter
+
+**Date**: 2026-06-29
+**Task**: Reset stale video type filter
+**Branch**: `main`
+
+### Summary
+
+Reconciled Emby video type filters after catalog refreshes so unavailable filters reset to All, with focused tests and an updated Emby contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b41695a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
