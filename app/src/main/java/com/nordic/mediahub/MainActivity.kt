@@ -500,11 +500,15 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                 0 -> MusicScreenV2(
                                     isDark = isDark,
                                     onThemeToggle = onThemeToggle,
-                                    onSongSelected = { songs, index ->
+                                    onSongSelected = { songs, index, allowUnplayableStartFallback ->
                                         closeAudiobookPlayback()
                                         videoPlaybackEngine.stop()
                                         showVideoPlayer = false
-                                        playbackEngine.playQueue(songs, index)
+                                        playbackEngine.playQueue(
+                                            songs = songs,
+                                            startIndex = index,
+                                            allowUnplayableStartFallback = allowUnplayableStartFallback
+                                        )
                                         showPlayer = true
                                     }
                                 )

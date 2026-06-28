@@ -95,11 +95,14 @@ private enum class MusicSongSort {
     Duration
 }
 
+private const val BULK_PLAY_ALLOW_UNPLAYABLE_START_FALLBACK = true
+private const val DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK = false
+
 @Composable
 fun MusicScreenV2(
     isDark: Boolean,
     onThemeToggle: (Boolean) -> Unit,
-    onSongSelected: (List<NavidromeSong>, Int) -> Unit = { _, _ -> }
+    onSongSelected: (List<NavidromeSong>, Int, Boolean) -> Unit = { _, _, _ -> }
 ) {
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
@@ -275,7 +278,7 @@ fun MusicScreenV2(
             errorMsg = noPlayableMessage
         } else {
             errorMsg = null
-            onSongSelected(songs, startIndex)
+            onSongSelected(songs, startIndex, BULK_PLAY_ALLOW_UNPLAYABLE_START_FALLBACK)
         }
     }
 
@@ -295,7 +298,7 @@ fun MusicScreenV2(
             if (startIndex == null) {
                 errorMsg = "这张专辑没有可播放曲目"
             } else {
-                onSongSelected(albumSongs, startIndex)
+                onSongSelected(albumSongs, startIndex, BULK_PLAY_ALLOW_UNPLAYABLE_START_FALLBACK)
             }
         } catch (e: Exception) {
             errorMsg = "获取专辑曲目失败: ${e.message}"
@@ -623,7 +626,11 @@ fun MusicScreenV2(
                                     song = song,
                                     colorScheme = colorScheme,
                                     onClick = {
-                                        onSongSelected(homePlaybackQueue, index)
+                                        onSongSelected(
+                                            homePlaybackQueue,
+                                            index,
+                                            DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK
+                                        )
                                     }
                                 )
                             }
@@ -748,7 +755,13 @@ fun MusicScreenV2(
                         SongListRow(
                             song = song,
                             colorScheme = colorScheme,
-                            onClick = { onSongSelected(visibleSongs, index) }
+                            onClick = {
+                                onSongSelected(
+                                    visibleSongs,
+                                    index,
+                                    DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK
+                                )
+                            }
                         )
                     }
                 }
@@ -893,7 +906,13 @@ fun MusicScreenV2(
                         SongListRow(
                             song = song,
                             colorScheme = colorScheme,
-                            onClick = { onSongSelected(albumDetailSongs, index) }
+                            onClick = {
+                                onSongSelected(
+                                    albumDetailSongs,
+                                    index,
+                                    DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK
+                                )
+                            }
                         )
                     }
                 }
@@ -956,7 +975,11 @@ fun MusicScreenV2(
                             onSongClick = { index ->
                                 val source = recentlyAddedSongs.ifEmpty { songs }
                                 if (source.isNotEmpty()) {
-                                    onSongSelected(source, index)
+                                    onSongSelected(
+                                        source,
+                                        index,
+                                        DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK
+                                    )
                                 }
                             },
                             onArtistClick = { artist -> openArtistDetail(artist) }
@@ -1042,7 +1065,13 @@ fun MusicScreenV2(
                             SongListRow(
                                 song = song,
                                 colorScheme = colorScheme,
-                                onClick = { onSongSelected(result.songs, index) }
+                                onClick = {
+                                    onSongSelected(
+                                        result.songs,
+                                        index,
+                                        DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK
+                                    )
+                                }
                             )
                         }
                     }
@@ -1134,7 +1163,13 @@ fun MusicScreenV2(
                             SongListRow(
                                 song = song,
                                 colorScheme = colorScheme,
-                                onClick = { onSongSelected(playlistSongs, index) }
+                                onClick = {
+                                    onSongSelected(
+                                        playlistSongs,
+                                        index,
+                                        DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK
+                                    )
+                                }
                             )
                         }
                     }

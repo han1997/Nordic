@@ -83,7 +83,8 @@ internal fun resolveQueueStartIndex(itemCount: Int, startIndex: Int): Int? {
 
 internal fun resolvePlayableMusicQueue(
     songs: List<NavidromeSong>,
-    startIndex: Int
+    startIndex: Int,
+    allowUnplayableStartFallback: Boolean = true
 ): PlayableMusicQueue? {
     val requestedStartIndex = resolveQueueStartIndex(songs.size, startIndex) ?: return null
     val playableSongs = songs.mapIndexedNotNull { index, song ->
@@ -93,6 +94,8 @@ internal fun resolvePlayableMusicQueue(
 
     val requestedPlayableIndex = playableSongs.indexOfFirst { (index, _) -> index == requestedStartIndex }
         .takeIf { index -> index >= 0 }
+    if (requestedPlayableIndex == null && !allowUnplayableStartFallback) return null
+
     val nextPlayableIndex = playableSongs.indexOfFirst { (index, _) -> index > requestedStartIndex }
         .takeIf { index -> index >= 0 }
     val previousPlayableIndex = playableSongs.indexOfLast { (index, _) -> index < requestedStartIndex }
@@ -250,13 +253,32 @@ class MusicPlaybackEngine(context: Context) {
         publishPlayerState()
     }
 
-    fun playQueue(songs: List<NavidromeSong>, startIndex: Int = 0) {
-        val playableQueue = resolvePlayableMusicQueue(songs, startIndex)
+    fun playQueue(
+        songs: List<NavidromeSong>,
+        startIndex: Int = 0,
+        allowUnplayableStartFallback: Boolean = true
+    ) {
+        val requestedStartIndex = resolveQueueStartIndex(songs.size, startIndex)
+        val requestedStartSong = requestedStartIndex?.let { songs.getOrNull(it) }
+        val playableQueue = resolvePlayableMusicQueue(
+            songs = songs,
+            startIndex = startIndex,
+            allowUnplayableStartFallback = allowUnplayableStartFallback
+        )
         if (playableQueue == null) {
             pendingSong = null
             pendingQueue = null
             pendingQueueStartIndex = 0
-            _state.update { it.copy(isBuffering = false, errorMessage = "队列没有可播放曲目") }
+            val errorMessage = if (
+                !allowUnplayableStartFallback &&
+                requestedStartSong != null &&
+                requestedStartSong.streamUrl.isNullOrBlank()
+            ) {
+                "这首歌缺少播放地址"
+            } else {
+                "队列没有可播放曲目"
+            }
+            _state.update { it.copy(isBuffering = false, errorMessage = errorMessage) }
             return
         }
 

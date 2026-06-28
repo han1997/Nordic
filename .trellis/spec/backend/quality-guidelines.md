@@ -241,6 +241,8 @@ onSongSelected(songs, index)
 **Signatures**:
 - `data class MusicPlaybackState(..., val queue: List<NavidromeSong>, val queueIndex: Int)`
 - `data class MusicPlaybackState(..., val shuffleModeEnabled: Boolean)`
+- `fun MusicPlaybackEngine.playQueue(songs: List<NavidromeSong>, startIndex: Int = 0, allowUnplayableStartFallback: Boolean = true)`
+- `internal fun resolvePlayableMusicQueue(songs: List<NavidromeSong>, startIndex: Int, allowUnplayableStartFallback: Boolean = true): PlayableMusicQueue?`
 - `fun MusicPlaybackEngine.seekToQueueIndex(index: Int)`
 - `fun MusicPlaybackEngine.moveQueueItemToPlayNext(index: Int)`
 - `fun MusicPlaybackEngine.removeQueueItem(index: Int)`
@@ -251,7 +253,8 @@ onSongSelected(songs, index)
 **Contract**:
 - `MusicPlaybackEngine` owns all queue mutations. Compose UI passes commands and renders `MusicPlaybackState`; it must not maintain or reorder a shadow queue.
 - `MusicPlaybackEngine.playQueue(...)` must filter out songs whose `streamUrl` is null or blank before creating Media3 media items. Media3 should not receive empty-URI queue entries.
-- When filtering a queue, preserve the requested start song if it is playable. If it is not playable, map the start to the next playable song after the requested position, or the nearest earlier playable song when no later playable song exists.
+- When filtering a queue, preserve the requested start song if it is playable. If it is not playable and `allowUnplayableStartFallback = true`, map the start to the next playable song after the requested position, or the nearest earlier playable song when no later playable song exists.
+- Direct song row/card selection must call `playQueue(..., allowUnplayableStartFallback = false)` through the Music screen callback. In this mode, an unplayable requested start returns no queue even when later songs are playable, and `playQueue(...)` publishes `"这首歌缺少播放地址"` instead of silently starting another track.
 - If a requested queue has no playable songs, clear pending queue requests, keep existing playback state intact, and publish a contextual error instead of replacing Media3 items.
 - After any Media3 playlist mutation, invalidate cached queue state (`cachedTimelineGeneration = -1`) before publishing state so `queue` and `queueIndex` cannot stay stale.
 - Queue commands must guard invalid indexes. Invalid/current/already-next "play next" requests are no-ops.
@@ -267,6 +270,7 @@ onSongSelected(songs, index)
 - Current index outside queue bounds -> no-op for queue reordering/clearing.
 - "Play next" on the current item or the item already immediately after current -> no-op.
 - Queue contains songs with missing/blank `streamUrl` -> filter them before Media3 playlist creation.
+- Direct selection requested start has missing/blank `streamUrl` and fallback disabled -> do not replace Media3 items; publish `"这首歌缺少播放地址"`.
 - Queue contains no playable songs -> do not replace the active Media3 playlist; publish an error.
 - Remove single-item queue -> call `stop()` and clear `MusicPlaybackState`.
 - Duplicate song ids in queue -> use position-aware UI keys such as `"$id:$index"`.
@@ -276,15 +280,17 @@ onSongSelected(songs, index)
 **Good/Base/Bad Cases**:
 - Good: Queue sheet actions call `MusicPlaybackEngine`, engine mutates Media3, then publishes fresh `queue` and `queueIndex`.
 - Good: Play-all queue contains unavailable tracks; playback engine queues only playable songs and maps the current index to the intended playable start.
+- Good: Direct row/card click on an unavailable song passes fallback disabled and surfaces the missing-stream error without starting a different song.
 - Base: Tapping a queue row seeks with `seekToQueueIndex(index)` and closes the sheet.
 - Bad: `playQueue(...)` maps every `NavidromeSong` to a Media3 item even when `streamUrl` is blank; continuous playback can fail when the player reaches that entry.
+- Bad: Direct row/card click uses fallback-enabled queue resolution and starts the next playable song after the unavailable row.
 - Bad: UI removes a row from a local list while Media3 keeps the original playlist, causing the highlighted item and actual playback item to diverge.
 - Bad: Pending queue reordering finds the current item by `song.id`, causing duplicate queued songs to shift the current index to the first matching duplicate.
 - Bad: UI shuffles its own list while Media3 keeps the original timeline, causing next/previous and queue sheet state to disagree.
 
 **Tests Required**:
 - Unit tests for pure queue index rules, especially future item, previous item, current item, already-next item, and invalid indexes.
-- Unit tests for playable queue resolution: filtering blank stream URLs, preserving a playable requested start, mapping an unplayable start to next/previous playable entries, and all-unplayable queues.
+- Unit tests for playable queue resolution: filtering blank stream URLs, preserving a playable requested start, mapping an unplayable start to next/previous playable entries, returning null for fallback-disabled unplayable starts, and all-unplayable queues.
 - Unit tests for pending current-index recalculation when items before/after the current item move.
 - Compile checks for Media3 API usage and callback wiring.
 - Unit tests or focused helper tests when adding non-trivial queue ordering logic.
@@ -306,16 +312,20 @@ onRemoveFromQueue = playbackEngine::removeQueueItem
 
 **Signature**:
 - `internal fun firstPlayableSongIndex(songs: List<NavidromeSong>): Int?`
+- `onSongSelected: (List<NavidromeSong>, Int, Boolean) -> Unit`
 
 **Contract**:
 - Bulk playback must start at the first song whose `streamUrl` is not null or blank.
 - If no songs in the list are playable, show a contextual UI error and do not call `onSongSelected`.
-- Do not change single song-row click behavior; a direct click still attempts the clicked row so the playback engine can surface the specific song error.
+- Bulk play-all entry points must call `onSongSelected(songs, firstPlayableIndex, BULK_PLAY_ALLOW_UNPLAYABLE_START_FALLBACK)`.
+- Do not change single song-row click behavior; a direct click calls `onSongSelected(songs, clickedIndex, DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK)` so the playback engine can surface the specific song error.
 
 **Good/Base/Bad Cases**:
 - Good: Album or playlist starts at track 2 when track 1 has no stream URL and track 2 is playable.
+- Good: Tapping the unplayable track 1 directly surfaces `"这首歌缺少播放地址"` instead of starting track 2.
 - Base: All tracks are playable, so play-all starts at index `0`.
 - Bad: Play-all blindly calls `onSongSelected(songs, 0)` and fails before reaching playable tracks later in the list.
+- Bad: Direct row clicks reuse play-all's first-playable index and ignore the clicked row.
 
 **Tests Required**:
 - Unit tests for `firstPlayableSongIndex(...)` covering playable first match, null/blank stream URLs, and no playable songs.

@@ -130,6 +130,38 @@ class MusicPlaybackEngineTest {
     }
 
     @Test
+    fun resolvePlayableMusicQueue_returnsNullForUnplayableRequestedStartWhenFallbackDisabled() {
+        assertNull(
+            resolvePlayableMusicQueue(
+                songs = listOf(
+                    song(id = "playable-1", streamUrl = "https://music.example/1.mp3"),
+                    song(id = "missing"),
+                    song(id = "playable-2", streamUrl = "https://music.example/2.mp3")
+                ),
+                startIndex = 1,
+                allowUnplayableStartFallback = false
+            )
+        )
+    }
+
+    @Test
+    fun resolvePlayableMusicQueue_keepsPlayableRequestedStartWhenFallbackDisabled() {
+        val queue = resolvePlayableMusicQueue(
+            songs = listOf(
+                song(id = "playable-1", streamUrl = "https://music.example/1.mp3"),
+                song(id = "missing"),
+                song(id = "playable-2", streamUrl = "https://music.example/2.mp3")
+            ),
+            startIndex = 2,
+            allowUnplayableStartFallback = false
+        )
+
+        requireNotNull(queue)
+        assertEquals(listOf("playable-1", "playable-2"), queue.songs.map { it.id })
+        assertEquals(1, queue.startIndex)
+    }
+
+    @Test
     fun resolvePlayableMusicQueue_returnsNullWhenNoSongsArePlayable() {
         assertNull(
             resolvePlayableMusicQueue(
