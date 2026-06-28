@@ -148,7 +148,7 @@ data class NavidromeStructuredLyrics(
 
 data class NavidromeStructuredLyricLine(
     val start: Double? = null,
-    val value: String = ""
+    val value: String? = null
 )
 
 interface NavidromeApi {

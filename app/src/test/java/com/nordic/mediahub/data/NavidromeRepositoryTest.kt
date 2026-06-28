@@ -721,6 +721,71 @@ class NavidromeRepositoryTest {
     }
 
     @Test
+    fun getLyrics_skipsStructuredLinesWithMissingNullOrBlankValues() = runTest {
+        server.enqueueJson(
+            structuredLyricsResponse(
+                """
+                {
+                  "synced": true,
+                  "line": [
+                    {"start": 1000},
+                    {"start": 2000, "value": null},
+                    {"start": 3000, "value": ""},
+                    {"start": 4000, "value": "   "},
+                    {"start": 5000, "value": " Kept structured line "}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+            )
+        )
+
+        assertTrue(lyrics.synced)
+        assertEquals(listOf("Kept structured line"), lyrics.lines.map { it.text })
+        assertEquals(listOf(5000), lyrics.lines.map { it.startMillis })
+    }
+
+    @Test
+    fun getLyrics_fallsBackToPlainLyricsWhenStructuredLineValuesAreMissingNullOrBlank() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "lyricsList": {
+                  "structuredLyrics": [
+                    {
+                      "synced": true,
+                      "line": [
+                        {"start": 1000},
+                        {"start": 2000, "value": null},
+                        {"start": 3000, "value": ""},
+                        {"start": 4000, "value": "   "}
+                      ]
+                    }
+                  ]
+                },
+                "lyrics": {
+                  "value": "Plain fallback lyric"
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+            )
+        )
+
+        assertFalse(lyrics.synced)
+        assertEquals(listOf("Plain fallback lyric"), lyrics.lines.map { it.text })
+    }
+
+    @Test
     fun getLyrics_preservesSmallStructuredLyricMillisecondStarts() = runTest {
         server.enqueueJson(
             structuredLyricsResponse(

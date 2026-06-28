@@ -618,6 +618,7 @@ refreshMusicData(savedConfig, requestVersion)
 - `suspend fun NavidromeRepository.getLyrics(song: NavidromeSong): MusicLyrics?`
 - `NavidromeLyricsList.structuredLyrics: List<NavidromeStructuredLyrics>?`
 - `NavidromeStructuredLyrics.line: List<NavidromeStructuredLyricLine>?`
+- `NavidromeStructuredLyricLine.value: String?`
 - `data class MusicLyrics(val lines: List<MusicLyricsLine>, val synced: Boolean)`
 - `data class MusicLyricsLine(val startMillis: Int? = null, val text: String)`
 
@@ -626,6 +627,8 @@ refreshMusicData(savedConfig, requestVersion)
 - Structured lyrics take priority over plain `lyrics.value` when they contain non-blank lines.
 - OpenSubsonic `structuredLyrics` and nested `line` arrays are optional wire fields. DTOs must model both as nullable, and repository mapping must normalize each level with `orEmpty()`.
 - Missing or null `lyricsList.structuredLyrics` means no usable structured lyrics. Missing or null nested structured `line` means that structured entry has no usable lines. In both cases, keep plain lyric fallback available.
+- OpenSubsonic structured lyric `line.value` is optional text. DTOs must model it as nullable, and repository mapping must treat missing, null, empty, or whitespace-only values as absent lyric lines.
+- A structured lyrics entry with only absent/blank line values is unusable and must not block fallback to plain lyrics.
 - OpenSubsonic structured lyrics use millisecond `line.start` values. Preserve those values as milliseconds before applying any offset.
 - OpenSubsonic `structuredLyrics.offset` is optional and in milliseconds. Positive means lyrics appear sooner and negative means later, so subtract the signed offset from each structured line start. Clamp adjusted timestamps below zero to `0`.
 - Plain LRC timestamp rows such as `[00:10.00]Line` become synced `MusicLyricsLine(startMillis = 10000, text = "Line")`.
@@ -639,6 +642,8 @@ refreshMusicData(savedConfig, requestVersion)
 - Both lyric lookups fail or return no usable lyrics -> return `null`; do not surface a playback error.
 - Missing or null `lyricsList.structuredLyrics` -> no structured lyrics; fall back to plain lyrics when present.
 - Missing or null structured `line` -> structured entry is ignored as unusable; fall back to another usable structured entry or plain lyrics.
+- Missing, null, empty, or blank structured `line.value` -> skip that line and keep other usable lines from the same structured entry.
+- Structured lyrics contain no usable `line.value` text -> fall back to plain lyrics when present.
 - Structured line start `2000` with no offset -> `startMillis = 2000`.
 - Structured line start `120` with song duration `300` -> `startMillis = 120`; do not infer seconds from values below the song duration.
 - Structured offset `250` with line start `2000` -> `startMillis = 1750`.
@@ -655,10 +660,12 @@ refreshMusicData(savedConfig, requestVersion)
 - Good: Structured lyrics preserve OpenSubsonic millisecond starts and apply the structured offset without showing any metadata.
 - Good: Missing or null structured lyric arrays do not crash lyric loading and still allow plain fallback.
 - Good: Structured entries with missing or null `line` arrays are skipped as unusable while other usable lyrics can still be selected.
+- Good: Structured lines with missing, null, empty, or blank `value` are skipped while valid structured lines from the same entry remain visible.
 - Good: LRC offset metadata shifts all timed rows by the file's intended global adjustment without showing the offset row.
 - Base: Plain unsynced lyrics display in source order.
 - Bad: Optional structured lyric arrays are modeled as non-null DTO lists and accessed directly.
 - Bad: Structured offset is ignored, leaving all synced lines consistently early or late.
+- Bad: `NavidromeStructuredLyricLine.value` is modeled as a non-null string and accessed directly, allowing explicit null line text to crash lyric parsing.
 - Bad: Structured `line.start = 2000` is treated as seconds and becomes `2000000`.
 - Bad: Structured `line.start = 120` is treated as seconds because it is smaller than the song duration.
 - Bad: `[ar:Artist]` or `[offset:+500]` appears as a lyric line in `MusicPlayerScreen`.
@@ -668,6 +675,8 @@ refreshMusicData(savedConfig, requestVersion)
 **Tests Required**:
 - Repository unit tests asserting missing and null `lyricsList.structuredLyrics` arrays fall back to plain lyrics.
 - Repository unit test asserting missing and null structured `line` arrays are ignored as unusable structured lyrics and fall back to plain lyrics.
+- Repository unit test asserting missing, null, empty, and blank structured `line.value` fields are skipped without dropping valid structured lines.
+- Repository unit test asserting structured entries with no usable line values fall back to plain lyrics.
 - Repository unit test with `MockWebServer` asserting known LRC metadata rows are skipped while timed lyric rows keep expected `startMillis`.
 - Repository unit tests asserting structured lyric millisecond starts are preserved with no offset, including small values below the song duration; positive structured offsets make lines earlier, negative structured offsets make lines later, and adjusted timestamps below zero clamp to `0`.
 - Repository unit tests asserting positive offset makes lines earlier, negative offset makes lines later, and adjusted timestamps below zero clamp to `0`.
@@ -692,7 +701,7 @@ val structured = lyricsList?.structuredLyrics
 // Correct: nullable wire arrays are normalized before filtering and mapping.
 val structured = lyricsList?.structuredLyrics
     .orEmpty()
-    .filter { lyrics -> lyrics.line.orEmpty().any { it.value.isNotBlank() } }
+    .filter { lyrics -> lyrics.line.orEmpty().any { it.value.orEmpty().isNotBlank() } }
 ```
 
 ### Music playback queue management
