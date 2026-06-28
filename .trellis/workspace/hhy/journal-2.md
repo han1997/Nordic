@@ -368,3 +368,36 @@ Converted empty Emby API-key user lookup, password authentication, library, and 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 71: Type empty Navidrome body responses
+
+**Date**: 2026-06-29
+**Task**: Type empty Navidrome body responses
+**Branch**: `main`
+
+### Summary
+
+Added Navidrome API empty-body classification, routed Subsonic calls through shared response validation, covered API/HTTP/Subsonic typed failures, and updated the error-handling spec.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `448305b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
