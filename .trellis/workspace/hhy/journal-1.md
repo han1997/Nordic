@@ -715,3 +715,36 @@ Replaced MusicScreenV2 playback indexOf lookups with itemsIndexed and position-a
 ### Next Steps
 
 - None - task complete
+
+
+## Session 22: Improve video continue watching recency
+
+**Date**: 2026-06-28
+**Task**: Improve video continue watching recency
+**Branch**: `main`
+
+### Summary
+
+Mapped Emby LastPlayedDate into video items and sorted the continue-watching shelf by recent playback with resume-position fallback.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c79f481` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
