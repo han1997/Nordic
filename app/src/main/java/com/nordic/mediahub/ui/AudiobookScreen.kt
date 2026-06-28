@@ -35,7 +35,7 @@ import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.isReadyForAudiobookSync
 import kotlinx.coroutines.launch
 
-private enum class AudiobookLibraryPage {
+internal enum class AudiobookLibraryPage {
     Home,
     Detail
 }
@@ -47,6 +47,32 @@ internal fun resolveAudiobookSelectedLibraryId(
     return currentLibraryId
         ?.takeIf { selectedId -> libraries.any { library -> library.id == selectedId } }
         ?: libraries.firstOrNull()?.id
+}
+
+internal fun resolveAudiobookSelectedItemAfterLibraryRefresh(
+    selectedItem: AudiobookItemDetail?,
+    items: List<AudiobookItemSummary>
+): AudiobookItemDetail? {
+    val currentSelection = selectedItem ?: return null
+    return currentSelection.takeIf { item ->
+        items.any { summary -> summary.id == item.id }
+    }
+}
+
+internal fun resolveAudiobookLibraryPageAfterRefresh(
+    currentPage: AudiobookLibraryPage,
+    previousSelectedItem: AudiobookItemDetail?,
+    refreshedSelectedItem: AudiobookItemDetail?
+): AudiobookLibraryPage {
+    return if (
+        currentPage == AudiobookLibraryPage.Detail &&
+        previousSelectedItem != null &&
+        refreshedSelectedItem == null
+    ) {
+        AudiobookLibraryPage.Home
+    } else {
+        currentPage
+    }
 }
 
 internal fun sortAudiobookDetailChapters(chapters: List<AudiobookChapter>): List<AudiobookChapter> {
@@ -105,7 +131,19 @@ fun AudiobookScreen(
             libraries = loadedLibraries
             val resolvedLibraryId = resolveAudiobookSelectedLibraryId(selectedLibraryId, loadedLibraries)
             selectedLibraryId = resolvedLibraryId
-            items = if (resolvedLibraryId == null) emptyList() else repo.getLibraryItems(resolvedLibraryId)
+            val refreshedItems = if (resolvedLibraryId == null) emptyList() else repo.getLibraryItems(resolvedLibraryId)
+            val previousSelectedItem = selectedItem
+            val refreshedSelectedItem = resolveAudiobookSelectedItemAfterLibraryRefresh(
+                selectedItem = previousSelectedItem,
+                items = refreshedItems
+            )
+            items = refreshedItems
+            selectedItem = refreshedSelectedItem
+            libraryPage = resolveAudiobookLibraryPageAfterRefresh(
+                currentPage = libraryPage,
+                previousSelectedItem = previousSelectedItem,
+                refreshedSelectedItem = refreshedSelectedItem
+            )
         } catch (e: Exception) {
             errorMessage = e.message ?: "连接 AudiobookShelf 失败"
         } finally {

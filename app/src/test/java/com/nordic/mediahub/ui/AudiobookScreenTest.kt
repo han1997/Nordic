@@ -1,6 +1,8 @@
 package com.nordic.mediahub.ui
 
 import com.nordic.mediahub.data.AudiobookChapter
+import com.nordic.mediahub.data.AudiobookItemDetail
+import com.nordic.mediahub.data.AudiobookItemSummary
 import com.nordic.mediahub.data.AudiobookLibrarySummary
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -45,6 +47,54 @@ class AudiobookScreenTest {
         )
 
         assertNull(selectedLibraryId)
+    }
+
+    @Test
+    fun resolveAudiobookSelectedItemAfterLibraryRefresh_keepsItemStillPresent() {
+        val selectedItem = detail("book-2")
+
+        val resolved = resolveAudiobookSelectedItemAfterLibraryRefresh(
+            selectedItem = selectedItem,
+            items = listOf(summary("book-1"), summary("book-2"))
+        )
+
+        assertEquals(selectedItem, resolved)
+    }
+
+    @Test
+    fun resolveAudiobookSelectedItemAfterLibraryRefresh_clearsItemWhenAbsent() {
+        val selectedItem = detail("book-2")
+
+        val resolved = resolveAudiobookSelectedItemAfterLibraryRefresh(
+            selectedItem = selectedItem,
+            items = listOf(summary("book-1"), summary("book-3"))
+        )
+
+        assertNull(resolved)
+    }
+
+    @Test
+    fun resolveAudiobookLibraryPageAfterRefresh_returnsHomeWhenOpenDetailIsCleared() {
+        val page = resolveAudiobookLibraryPageAfterRefresh(
+            currentPage = AudiobookLibraryPage.Detail,
+            previousSelectedItem = detail("book-2"),
+            refreshedSelectedItem = null
+        )
+
+        assertEquals(AudiobookLibraryPage.Home, page)
+    }
+
+    @Test
+    fun resolveAudiobookLibraryPageAfterRefresh_keepsDetailWhenSelectionRemains() {
+        val selectedItem = detail("book-2")
+
+        val page = resolveAudiobookLibraryPageAfterRefresh(
+            currentPage = AudiobookLibraryPage.Detail,
+            previousSelectedItem = selectedItem,
+            refreshedSelectedItem = selectedItem
+        )
+
+        assertEquals(AudiobookLibraryPage.Detail, page)
     }
 
     @Test
@@ -119,6 +169,38 @@ class AudiobookScreenTest {
             id = id,
             name = id,
             mediaType = "book"
+        )
+    }
+
+    private fun summary(id: String): AudiobookItemSummary {
+        return AudiobookItemSummary(
+            id = id,
+            libraryId = "library-1",
+            title = id,
+            author = "Author",
+            narrator = "Narrator",
+            series = "",
+            coverUrl = null,
+            durationSeconds = 120,
+            chapterCount = 1,
+            updatedAtMillis = 0
+        )
+    }
+
+    private fun detail(id: String): AudiobookItemDetail {
+        return AudiobookItemDetail(
+            id = id,
+            libraryId = "library-1",
+            title = id,
+            subtitle = "",
+            description = "",
+            authors = listOf("Author"),
+            narrators = listOf("Narrator"),
+            series = emptyList(),
+            coverUrl = null,
+            durationSeconds = 120,
+            chapters = emptyList(),
+            progress = null
         )
     }
 
