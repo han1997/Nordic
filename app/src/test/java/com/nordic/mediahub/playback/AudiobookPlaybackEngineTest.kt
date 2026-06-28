@@ -124,6 +124,18 @@ class AudiobookPlaybackEngineTest {
     }
 
     @Test
+    fun resolvePreviousAudiobookChapterStartSeconds_restartsCurrentChapterAtThreshold() {
+        assertEquals(
+            120,
+            resolvePreviousAudiobookChapterStartSeconds(
+                chapters = chapters(),
+                positionSeconds = 125,
+                restartThresholdSeconds = 5
+            )
+        )
+    }
+
+    @Test
     fun resolvePreviousAudiobookChapterStartSeconds_movesToPreviousChapterNearStart() {
         assertEquals(
             0,

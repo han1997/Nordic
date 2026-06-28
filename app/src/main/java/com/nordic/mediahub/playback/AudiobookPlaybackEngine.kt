@@ -342,7 +342,7 @@ internal fun resolvePreviousAudiobookChapterStartSeconds(
     if (currentIndex < 0) return null
 
     val currentChapter = orderedChapters[currentIndex]
-    if (safePosition - currentChapter.startSeconds > restartThresholdSeconds) {
+    if (safePosition - currentChapter.startSeconds >= restartThresholdSeconds) {
         return currentChapter.startSeconds
     }
 

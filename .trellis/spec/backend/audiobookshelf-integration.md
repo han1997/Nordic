@@ -58,7 +58,7 @@
 - Relative skip targets must be clamped to `0..durationSeconds`; do not seek negative or beyond the audiobook duration.
 - Playback speed is Media3 player state. `AudiobookPlaybackState.playbackSpeed` must reflect `Player.playbackParameters.speed`, and `cyclePlaybackSpeed()` cycles common audiobook steps: `0.75x`, `1.0x`, `1.25x`, `1.5x`, `2.0x`.
 - Chapter navigation must seek by absolute audiobook seconds, using the same `seekTo(positionSeconds)` path as the scrubber. Do not seek by track-local time when moving between chapters.
-- Previous chapter behavior should restart the current chapter when playback is more than a small threshold into it; near the start of a chapter, it should jump to the previous chapter when one exists.
+- Previous chapter behavior should restart the current chapter when playback is at or beyond a small threshold into it; before that threshold, it should jump to the previous chapter when one exists.
 - Next chapter behavior should jump to the next chapter start when one exists.
 - `PATCH /api/me/progress/*`, `POST /api/session/*/sync`, and `POST /api/session/*/close` must validate `Response<Unit>.isSuccessful`. Do not fire-and-forget these session endpoints.
 - UI close flows should call `syncAndCloseSession(...)` so the final position is written before closing the AudiobookShelf session.
@@ -134,7 +134,7 @@
   - absolute seek target mapping resolves the expected media item index and clamps local offsets at track boundaries
   - relative skip target calculation clamps at the beginning and end of the audiobook
   - playback speed cycling covers known values and unknown/off-grid values
-  - previous/next chapter helpers resolve absolute chapter start positions, including restart threshold and missing chapter cases
+  - previous/next chapter helpers resolve absolute chapter start positions, including exact restart-threshold boundaries and missing chapter cases
   - `stop()` clears session state and media items
   - closing playback calls repository `closeSession()` with the last absolute position
 
