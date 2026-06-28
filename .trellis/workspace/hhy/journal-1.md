@@ -847,3 +847,36 @@ Made VideoPlaybackEngine seek to Emby resume metadata for unfinished videos, add
 ### Next Steps
 
 - None - task complete
+
+
+## Session 26: Add video skip interval controls
+
+**Date**: 2026-06-28
+**Task**: Add video skip interval controls
+**Branch**: `main`
+
+### Summary
+
+Added 10 second back and 30 second forward controls to the video player, routed them through playback-layer relative seek helpers, covered clamp behavior with unit tests, and updated the Emby playback contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `29b7ecf` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
