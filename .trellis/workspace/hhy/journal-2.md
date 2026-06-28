@@ -863,3 +863,36 @@ Updated Navidrome album detail mapping so missing or null song arrays map to emp
 ### Next Steps
 
 - None - task complete
+
+
+## Session 86: Handle missing Navidrome artist albums
+
+**Date**: 2026-06-29
+**Task**: Handle missing Navidrome artist albums
+**Branch**: `main`
+
+### Summary
+
+Updated Navidrome artist detail mapping so missing or null album arrays map to empty album lists, with focused repository coverage and quality-spec documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6d10049` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
