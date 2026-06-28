@@ -276,14 +276,14 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
             description = media.metadata.descriptionPlain
                 ?: media.metadata.description
                 ?: "",
-            authors = media.metadata.authors.map { it.name },
-            narrators = media.metadata.narrators,
-            series = media.metadata.series.map { series ->
+            authors = media.metadata.authors.orEmpty().map { it.name },
+            narrators = media.metadata.narrators.orEmpty(),
+            series = media.metadata.series.orEmpty().map { series ->
                 if (series.sequence.isNullOrBlank()) series.name else "${series.name} #${series.sequence}"
             },
             coverUrl = media.coverPath.toAbsoluteCoverUrlOrNull(),
             durationSeconds = media.duration.toInt(),
-            chapters = media.chapters.map { chapter ->
+            chapters = media.chapters.orEmpty().map { chapter ->
                 AudiobookChapter(
                     id = chapter.id,
                     title = chapter.title,

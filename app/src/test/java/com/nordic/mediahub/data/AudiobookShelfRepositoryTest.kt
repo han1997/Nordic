@@ -263,6 +263,45 @@ class AudiobookShelfRepositoryTest {
     }
 
     @Test
+    fun getLibraryItem_mapsMissingAndNullDetailListsToEmptyLists() = runTest {
+        listOf(
+            libraryItemDetailWithMissingListsJson(),
+            libraryItemDetailWithNullListsJson()
+        ).forEach { response ->
+            server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+            server.enqueueJson(response)
+
+            val detail = repository().getLibraryItem("book-1")
+
+            assertEquals(emptyList<String>(), detail.authors)
+            assertEquals(emptyList<String>(), detail.narrators)
+            assertEquals(emptyList<String>(), detail.series)
+            assertEquals(emptyList<AudiobookChapter>(), detail.chapters)
+        }
+    }
+
+    @Test
+    fun getLibraryItem_mapsPresentDetailLists() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(libraryItemDetailWithPresentListsJson())
+
+        val detail = repository().getLibraryItem("book-1")
+
+        assertEquals(listOf("Author One", "Author Two"), detail.authors)
+        assertEquals(listOf("Narrator One", "Narrator Two"), detail.narrators)
+        assertEquals(listOf("Saga #1", "Standalone"), detail.series)
+        assertEquals(2, detail.chapters.size)
+        assertEquals(
+            AudiobookChapter(id = 1, title = "Opening", startSeconds = 0, endSeconds = 90),
+            detail.chapters[0]
+        )
+        assertEquals(
+            AudiobookChapter(id = 2, title = "Middle", startSeconds = 90, endSeconds = 180),
+            detail.chapters[1]
+        )
+    }
+
+    @Test
     fun startPlayback_ignoresBlankSessionCoverPath() = runTest {
         server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
         server.enqueueJson(
@@ -533,6 +572,74 @@ class AudiobookShelfRepositoryTest {
                 "coverPath": "$coverPath",
                 "duration": 300.0,
                 "chapters": []
+              }
+            }
+        """.trimIndent()
+    }
+
+    private fun libraryItemDetailWithMissingListsJson(): String {
+        return """
+            {
+              "id": "book-1",
+              "libraryId": "lib-1",
+              "mediaType": "book",
+              "media": {
+                "id": "media-1",
+                "metadata": {
+                  "title": "Book One"
+                },
+                "duration": 300.0
+              }
+            }
+        """.trimIndent()
+    }
+
+    private fun libraryItemDetailWithNullListsJson(): String {
+        return """
+            {
+              "id": "book-1",
+              "libraryId": "lib-1",
+              "mediaType": "book",
+              "media": {
+                "id": "media-1",
+                "metadata": {
+                  "title": "Book One",
+                  "authors": null,
+                  "narrators": null,
+                  "series": null
+                },
+                "duration": 300.0,
+                "chapters": null
+              }
+            }
+        """.trimIndent()
+    }
+
+    private fun libraryItemDetailWithPresentListsJson(): String {
+        return """
+            {
+              "id": "book-1",
+              "libraryId": "lib-1",
+              "mediaType": "book",
+              "media": {
+                "id": "media-1",
+                "metadata": {
+                  "title": "Book One",
+                  "authors": [
+                    {"id": "author-1", "name": "Author One"},
+                    {"id": "author-2", "name": "Author Two"}
+                  ],
+                  "narrators": ["Narrator One", "Narrator Two"],
+                  "series": [
+                    {"id": "series-1", "name": "Saga", "sequence": "1"},
+                    {"id": "series-2", "name": "Standalone"}
+                  ]
+                },
+                "duration": 300.0,
+                "chapters": [
+                  {"id": 1, "start": 0.0, "end": 90.0, "title": "Opening"},
+                  {"id": 2, "start": 90.0, "end": 180.0, "title": "Middle"}
+                ]
               }
             }
         """.trimIndent()

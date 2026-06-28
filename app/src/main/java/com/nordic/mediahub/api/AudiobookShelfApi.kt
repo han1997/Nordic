@@ -93,7 +93,7 @@ data class AudiobookShelfBookExpandedDto(
     val metadata: AudiobookShelfBookExpandedMetadataDto,
     val coverPath: String? = null,
     val duration: Double = 0.0,
-    val chapters: List<AudiobookShelfChapterDto> = emptyList(),
+    val chapters: List<AudiobookShelfChapterDto>? = null,
     val tracks: List<AudiobookShelfAudioTrackDto> = emptyList(),
     val audioFiles: List<AudiobookShelfAudioTrackDto> = emptyList()
 )
@@ -109,9 +109,9 @@ data class AudiobookShelfBookExpandedMetadataDto(
     val description: String? = null,
     val descriptionPlain: String? = null,
     val publishedYear: String? = null,
-    val authors: List<AudiobookShelfNamedRefDto> = emptyList(),
-    val narrators: List<String> = emptyList(),
-    val series: List<AudiobookShelfSeriesRefDto> = emptyList()
+    val authors: List<AudiobookShelfNamedRefDto>? = null,
+    val narrators: List<String>? = null,
+    val series: List<AudiobookShelfSeriesRefDto>? = null
 )
 
 data class AudiobookShelfNamedRefDto(
