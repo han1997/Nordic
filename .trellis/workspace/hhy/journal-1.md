@@ -649,3 +649,36 @@ Added Media3-backed shuffle mode to music playback state and controls, wired pla
 ### Next Steps
 
 - None - task complete
+
+
+## Session 20: Improve audiobook chapter navigation
+
+**Date**: 2026-06-28
+**Task**: Improve audiobook chapter navigation
+**Branch**: `main`
+
+### Summary
+
+Added AudiobookShelf-style previous/next chapter navigation using absolute audiobook positions, wired player controls, updated integration spec, and verified compile/tests/lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b208f81` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
