@@ -1094,3 +1094,36 @@ Updated AudiobookShelf library item page DTO and repository pagination so missin
 ### Next Steps
 
 - None - task complete
+
+
+## Session 93: Handle missing Navidrome structured lyrics
+
+**Date**: 2026-06-29
+**Task**: Handle missing Navidrome structured lyrics
+**Branch**: `main`
+
+### Summary
+
+Updated Navidrome structured lyric DTO and repository mapping so missing or null structured lyric and line arrays are treated as absent structured lyrics, preserving plain lyric fallback with focused repository coverage and backend quality-spec documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `af5ee11` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
