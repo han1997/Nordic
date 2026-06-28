@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 50
+- **Total Sessions**: 51
 - **Last Active**: 2026-06-29
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1674 | Active |
+| `journal-1.md` | ~1707 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 51 | 2026-06-29 | Apply LRC offset to music lyrics | `0ad2c3c` | `main` |
 | 50 | 2026-06-29 | Skip LRC metadata in music lyrics | `88a7e3d` | `main` |
 | 49 | 2026-06-29 | Reuse current audiobook session before starting playback | `d8d45f8` | `main` |
 | 48 | 2026-06-29 | Sync Emby video progress periodically | `b1aa50c` | `main` |

@@ -1672,3 +1672,36 @@ Improved Navidrome plain LRC parsing so known metadata tags are omitted from mus
 ### Next Steps
 
 - None - task complete
+
+
+## Session 51: Apply LRC offset to music lyrics
+
+**Date**: 2026-06-29
+**Task**: Apply LRC offset to music lyrics
+**Branch**: `main`
+
+### Summary
+
+Applied plain LRC offset metadata to parsed Navidrome lyric timestamps using convention semantics where positive offsets make lines earlier; added positive, negative, and clamp regression tests and updated the lyric parsing spec.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0ad2c3c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
