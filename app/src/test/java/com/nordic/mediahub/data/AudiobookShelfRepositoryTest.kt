@@ -56,6 +56,31 @@ class AudiobookShelfRepositoryTest {
     }
 
     @Test
+    fun getLibraryItems_pagesUntilServerTotalIsLoaded() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(libraryItemsJson(itemRange = 1..50, total = 51))
+        server.enqueueJson(libraryItemsJson(itemRange = 51..51, total = 51))
+
+        val items = repository().getLibraryItems("lib-1")
+
+        assertEquals(51, items.size)
+        assertEquals("Book 1", items.first().title)
+        assertEquals("Book 51", items.last().title)
+
+        server.takeRequest()
+        val firstPageRequest = server.takeRequest()
+        assertEquals("Bearer token-123", firstPageRequest.getHeader("Authorization"))
+        assertTrue(firstPageRequest.path.orEmpty().startsWith("/api/libraries/lib-1/items?"))
+        assertTrue(firstPageRequest.path.orEmpty().contains("limit=50"))
+        assertTrue(firstPageRequest.path.orEmpty().contains("page=0"))
+
+        val secondPageRequest = server.takeRequest()
+        assertEquals("Bearer token-123", secondPageRequest.getHeader("Authorization"))
+        assertTrue(secondPageRequest.path.orEmpty().contains("limit=50"))
+        assertTrue(secondPageRequest.path.orEmpty().contains("page=1"))
+    }
+
+    @Test
     fun syncAndCloseSession_sendsProgressSyncAndCloseRequests() = runTest {
         server.enqueueJson("""{"user":{"id":"u1","username":"demo","accessToken":"access-123"}}""")
         server.enqueue(MockResponse().setResponseCode(204))
@@ -182,6 +207,35 @@ class AudiobookShelfRepositoryTest {
             chapters = emptyList(),
             audioTracks = emptyList()
         )
+    }
+
+    private fun libraryItemsJson(itemRange: IntRange, total: Int): String {
+        val results = itemRange.joinToString(",") { index ->
+            """
+                {
+                  "id": "book-$index",
+                  "libraryId": "lib-1",
+                  "mediaType": "book",
+                  "updatedAt": $index,
+                  "media": {
+                    "id": "media-$index",
+                    "metadata": {"title": "Book $index"},
+                    "duration": 60.0,
+                    "numChapters": 1
+                  }
+                }
+            """.trimIndent()
+        }
+        return """
+            {
+              "results": [$results],
+              "total": $total,
+              "limit": 50,
+              "page": 0,
+              "mediaType": "book",
+              "minified": true
+            }
+        """.trimIndent()
     }
 
     private fun playbackSessionJson(contentUrl: String): String {

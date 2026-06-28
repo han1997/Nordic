@@ -45,13 +45,14 @@
 - Authenticated AudiobookShelf API calls pass `Authorization: Bearer <token>`.
 - MVP endpoints:
   - `GET /api/libraries`
-  - `GET /api/libraries/{id}/items?minified=1`
+  - `GET /api/libraries/{id}/items?minified=1&limit=<pageSize>&page=<page>`
   - `GET /api/items/{id}?expanded=1&include=progress`
   - `POST /api/items/{id}/play`
   - `PATCH /api/me/progress/{libraryItemId}`
   - `POST /api/session/{sessionId}/sync`
   - `POST /api/session/{sessionId}/close`
 - Domain mapping must keep music and audiobook models separate. Do not map audiobook sessions into `NavidromeSong`.
+- Library item browsing must page `GET /api/libraries/{id}/items` with a fixed repository page size. Continue requesting `page + 1` until the response `total` count is loaded, or until the server returns an empty/short page.
 - Library refresh must resolve the selected library id against the latest `GET /api/libraries` response. Keep the previous selection only if that id is still present; otherwise fall back to the first returned library, or clear the selection when the response is empty.
 - Library refresh must reconcile an open detail item against the refreshed selected-library item summaries. Keep the open detail only if its id still exists in the refreshed summaries.
 - If the detail page is open and the selected detail no longer exists after refresh, clear the selected detail and return to the library list. Do not show stale detail for books removed from or moved out of the selected library.
@@ -86,6 +87,7 @@
 | Missing server URL or username | Do not construct `AudiobookShelfRepository`; show configuration state |
 | Login HTTP failure | Throw `AudiobookShelfApiException.Kind.HTTP` with status code |
 | Login response lacks token | Throw `AudiobookShelfApiException.Kind.AUTH` |
+| Library items response total is larger than the first page | Continue requesting subsequent pages and merge summaries before returning |
 | Previously selected library id is absent from the latest library list | Fall back to the first returned library before requesting items |
 | Latest library list is empty | Clear the selected library id and show the empty-library state |
 | Open detail item id is present in refreshed item summaries | Keep the selected detail page state |
@@ -120,6 +122,7 @@
 - Good: User taps the same audiobook while it is already active; the app reopens the current player without creating a duplicate AudiobookShelf session.
 - Good: User starts a different audiobook while one is active; the app syncs/closes the previous session in the background and starts the new `/play` session.
 - Good: User switches AudiobookShelf server/account, refreshes libraries, and the app requests items from a library id returned by that server instead of a stale id from the previous server/account.
+- Good: User opens a large AudiobookShelf library and the app displays books from every paginated item response, not only page 0.
 - Good: User switches AudiobookShelf server/account from a detail page and the app returns to Home before loading the new account, instead of retaining the old detail object.
 - Good: User refreshes while viewing a detail page for a book that still exists in the selected library; the detail page remains open.
 - Good: User refreshes while viewing a detail page for a book removed from the selected library; the app returns to the library list instead of showing stale detail.
@@ -127,6 +130,7 @@
 - Good: User can cycle playback speed from the player, and Media3 playback speed plus UI state stay in sync.
 - Good: User can jump to previous/next chapters from the player; absolute position updates continue to drive progress sync.
 - Base: User only browses libraries and details; no playback session is created and no progress endpoint is called.
+- Bad: `getLibraryItems()` requests only `page=0`, truncating any library with more books than the page size.
 - Bad: App extracts a stream URL and plays it without calling `/play`, `/sync`, or `/close`; AudiobookShelf resume state will drift.
 
 ### 6. Tests Required
@@ -138,6 +142,7 @@
   - `:app:assembleDebug` for final packaging verification when playback wiring changes.
 - Repository tests should assert:
   - login token fallback from `user.token` to `user.accessToken`
+  - paginated library item browsing requests `page=0`, `page=1`, and merges results until `total` is loaded
   - relative cover/audio URL normalization
   - progress fraction and current time payload fields
   - progress/session/close `currentTime` payload clamps to `0..durationSeconds`

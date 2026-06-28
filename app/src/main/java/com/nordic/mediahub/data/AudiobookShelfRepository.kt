@@ -15,6 +15,8 @@ import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
+private const val AUDIOBOOK_LIBRARY_PAGE_SIZE = 50
+
 class AudiobookShelfApiException(message: String, val kind: Kind) : Exception(message) {
     enum class Kind { HTTP, AUTH, API }
 }
@@ -91,18 +93,40 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
     }
 
     suspend fun getLibraryItems(libraryId: String): List<AudiobookItemSummary> {
-        val response = api.getLibraryItems(
-            bearerToken = bearerToken(),
-            libraryId = libraryId
-        )
-        if (!response.isSuccessful) {
-            throw AudiobookShelfApiException(
-                "获取有声书列表失败: HTTP ${response.code()}",
-                AudiobookShelfApiException.Kind.HTTP
+        val auth = bearerToken()
+        val items = mutableListOf<AudiobookItemSummary>()
+        var page = 0
+
+        while (true) {
+            val response = api.getLibraryItems(
+                bearerToken = auth,
+                libraryId = libraryId,
+                limit = AUDIOBOOK_LIBRARY_PAGE_SIZE,
+                page = page
             )
+            if (!response.isSuccessful) {
+                throw AudiobookShelfApiException(
+                    "获取有声书列表失败: HTTP ${response.code()}",
+                    AudiobookShelfApiException.Kind.HTTP
+                )
+            }
+
+            val body = response.body()
+                ?: throw AudiobookShelfApiException(
+                    "获取有声书列表失败: 响应为空",
+                    AudiobookShelfApiException.Kind.API
+                )
+            val pageItems = body.results
+            items += pageItems.map { it.toSummary() }
+
+            val total = body.total
+            if (pageItems.isEmpty()) break
+            if (total != null && items.size >= total) break
+            if (pageItems.size < AUDIOBOOK_LIBRARY_PAGE_SIZE) break
+            page += 1
         }
 
-        return response.body()?.results.orEmpty().map { it.toSummary() }
+        return items
     }
 
     suspend fun getLibraryItem(itemId: String): AudiobookItemDetail {
