@@ -30,6 +30,7 @@ import com.nordic.mediahub.data.isReadyForAudiobookSync
 import com.nordic.mediahub.data.isReadyForMusicSync
 import com.nordic.mediahub.playback.AudiobookPlaybackEngine
 import com.nordic.mediahub.playback.MusicPlaybackEngine
+import com.nordic.mediahub.playback.VideoPlaybackEngine
 import com.nordic.mediahub.ui.*
 import com.nordic.mediahub.ui.theme.*
 import coil.Coil
@@ -154,11 +155,13 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     var selectedTab by remember { mutableStateOf(0) }
     var showPlayer by remember { mutableStateOf(false) }
     var showAudiobookPlayer by remember { mutableStateOf(false) }
+    var showVideoPlayer by remember { mutableStateOf(false) }
     var showQueueSheet by remember { mutableStateOf(false) }
     var audiobookPlaybackError by remember { mutableStateOf<String?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val playbackEngine = remember { MusicPlaybackEngine(context) }
     val audiobookPlaybackEngine = remember { AudiobookPlaybackEngine(context) }
+    val videoPlaybackEngine = remember { VideoPlaybackEngine(context) }
     val configRepository = remember { ConfigRepository(context) }
     val navidromeConfig by configRepository.navidromeConfig.collectAsStateWithLifecycle(NavidromeConfig())
     val audiobookConfig by configRepository.audiobookConfig.collectAsStateWithLifecycle(AudiobookShelfConfig())
@@ -182,8 +185,12 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     DisposableEffect(audiobookPlaybackEngine) {
         onDispose { audiobookPlaybackEngine.release() }
     }
+    DisposableEffect(videoPlaybackEngine) {
+        onDispose { videoPlaybackEngine.release() }
+    }
     val playbackState by playbackEngine.state.collectAsStateWithLifecycle()
     val audiobookPlaybackState by audiobookPlaybackEngine.state.collectAsStateWithLifecycle()
+    val videoPlaybackState by videoPlaybackEngine.state.collectAsStateWithLifecycle()
     val currentSong = playbackState.currentSong
     val isPlaying = playbackState.isPlaying
     var lyrics by remember { mutableStateOf<MusicLyrics?>(null) }
@@ -216,7 +223,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     }
 
     fun hideBottomDockForScroll(scheduleReveal: Boolean) {
-        if (showPlayer || showAudiobookPlayer) return
+        if (showPlayer || showAudiobookPlayer || showVideoPlayer) return
         if (bottomDockVisible) {
             bottomDockVisible = false
         }
@@ -227,7 +234,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         }
     }
 
-    val bottomDockScrollConnection = remember(showPlayer, showAudiobookPlayer) {
+    val bottomDockScrollConnection = remember(showPlayer, showAudiobookPlayer, showVideoPlayer) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (available.y != 0f) {
@@ -263,7 +270,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         }
     }
 
-    LaunchedEffect(selectedTab, showPlayer, showAudiobookPlayer) {
+    LaunchedEffect(selectedTab, showPlayer, showAudiobookPlayer, showVideoPlayer) {
         bottomDockRevealController.revealJob?.cancel()
         bottomDockVisible = true
     }
@@ -359,7 +366,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         containerColor = colorScheme.background,
         bottomBar = {
             AnimatedBottomDock(
-                visible = !showPlayer && !showAudiobookPlayer && bottomDockVisible
+                visible = !showPlayer && !showAudiobookPlayer && !showVideoPlayer && bottomDockVisible
             ) {
                 PolishedPlaybackDock(
                     selected = selectedTab,
@@ -423,6 +430,8 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                     onThemeToggle = onThemeToggle,
                                     onSongSelected = { songs, index ->
                                         closeAudiobookPlayback()
+                                        videoPlaybackEngine.stop()
+                                        showVideoPlayer = false
                                         playbackEngine.playQueue(songs, index)
                                         showPlayer = true
                                     }
@@ -443,8 +452,10 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                                     ?: error("未配置 AudiobookShelf")
                                             }.onSuccess { session ->
                                                 playbackEngine.stop()
+                                                videoPlaybackEngine.stop()
                                                 audiobookPlaybackEngine.play(session)
                                                 showAudiobookPlayer = true
+                                                showVideoPlayer = false
                                                 showPlayer = false
                                             }.onFailure { error ->
                                                 audiobookPlaybackError = error.message ?: "启动有声书播放失败"
@@ -452,7 +463,18 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                         }
                                     }
                                 )
-                                2 -> VideoScreen(colorScheme, isDark, onThemeToggle)
+                                2 -> VideoScreen(
+                                    colorScheme = colorScheme,
+                                    isDark = isDark,
+                                    onThemeToggle = onThemeToggle,
+                                    onPlayVideo = { video ->
+                                        closeAudiobookPlayback()
+                                        playbackEngine.stop()
+                                        videoPlaybackEngine.play(video)
+                                        showPlayer = false
+                                        showVideoPlayer = true
+                                    }
+                                )
                             }
                         }
                     }
@@ -469,6 +491,22 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             onSeek = audiobookPlaybackEngine::seekTo,
             onPlayPause = audiobookPlaybackEngine::togglePlayPause,
             onClose = { closeAudiobookPlayback() }
+        )
+    }
+
+    if (showVideoPlayer || videoPlaybackState.video != null) {
+        VideoPlayerScreen(
+            state = videoPlaybackState,
+            colorScheme = colorScheme,
+            onSurfaceReady = videoPlaybackEngine::attachSurface,
+            onSurfaceDisposed = videoPlaybackEngine::detachSurface,
+            onSeek = videoPlaybackEngine::seekTo,
+            onPlayPause = videoPlaybackEngine::togglePlayPause,
+            onClose = {
+                showVideoPlayer = false
+                videoPlaybackEngine.stop()
+            },
+            modifier = Modifier.fillMaxSize()
         )
     }
 

@@ -30,7 +30,8 @@ data class VideoItem(
     val overview: String = "",
     val year: Int? = null,
     val durationSeconds: Int = 0,
-    val imageUrl: String? = null
+    val imageUrl: String? = null,
+    val streamUrl: String? = null
 )
 
 data class VideoCatalog(
@@ -132,13 +133,23 @@ class EmbyRepository(private val config: VideoServerConfig) {
     }
 
     private suspend fun getLibraryItems(session: EmbySession, libraryId: String): List<VideoItem> {
-        return api.getItems(
-            userId = session.userId,
-            token = session.token,
-            parentId = libraryId
-        ).requireBody("获取 Emby 视频失败")
-            .items
-            .map { item -> item.toVideoItem(libraryId, session.token) }
+        val items = mutableListOf<VideoItem>()
+        var startIndex = 0
+
+        do {
+            val response = api.getItems(
+                userId = session.userId,
+                token = session.token,
+                parentId = libraryId,
+                startIndex = startIndex,
+                limit = EMBY_ITEMS_PAGE_SIZE
+            ).requireBody("获取 Emby 视频失败")
+            val pageItems = response.items
+            items += pageItems.map { item -> item.toVideoItem(libraryId, session.token) }
+            startIndex += pageItems.size
+        } while (pageItems.isNotEmpty() && startIndex < response.totalRecordCount)
+
+        return items
     }
 
     private fun EmbyItemDto.toVideoItem(libraryId: String, token: String): VideoItem {
@@ -150,7 +161,8 @@ class EmbyRepository(private val config: VideoServerConfig) {
             overview = overview.orEmpty(),
             year = productionYear,
             durationSeconds = runTimeTicks.toDurationSeconds(),
-            imageUrl = primaryImageUrl(id, token, imageTags["Primary"])
+            imageUrl = primaryImageUrl(id, token, imageTags.orEmpty()["Primary"]),
+            streamUrl = streamUrl(id, token)
         )
     }
 
@@ -166,6 +178,18 @@ class EmbyRepository(private val config: VideoServerConfig) {
             .addQueryParameter("maxWidth", "640")
             .addQueryParameter("quality", "90")
             .addQueryParameter("tag", primaryTag)
+            .addQueryParameter("api_key", token)
+            .build()
+            .toString()
+    }
+
+    private fun streamUrl(itemId: String, token: String): String {
+        return baseUrl.toHttpUrl()
+            .newBuilder()
+            .addPathSegment("Videos")
+            .addPathSegment(itemId)
+            .addPathSegment("stream")
+            .addQueryParameter("Static", "true")
             .addQueryParameter("api_key", token)
             .build()
             .toString()
@@ -190,6 +214,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
 
     private companion object {
         const val EMBY_TICKS_PER_SECOND = 10_000_000L
+        const val EMBY_ITEMS_PAGE_SIZE = 100
         val videoCollectionTypes = setOf("movies", "tvshows", "homevideos", "mixed")
     }
 }

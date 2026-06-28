@@ -55,7 +55,7 @@ data class EmbyItemDto(
     @SerializedName("ChildCount")
     val childCount: Int? = null,
     @SerializedName("ImageTags")
-    val imageTags: Map<String, String> = emptyMap()
+    val imageTags: Map<String, String>? = emptyMap()
 )
 
 interface EmbyApi {
@@ -86,6 +86,7 @@ interface EmbyApi {
         @Query("Fields") fields: String = "Overview,ProductionYear,RunTimeTicks,ChildCount,ImageTags",
         @Query("SortBy") sortBy: String = "DateCreated",
         @Query("SortOrder") sortOrder: String = "Descending",
+        @Query("StartIndex") startIndex: Int = 0,
         @Query("Limit") limit: Int = 50
     ): Response<EmbyItemsResponse>
 }

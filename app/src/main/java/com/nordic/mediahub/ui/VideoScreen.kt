@@ -22,15 +22,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -60,7 +65,12 @@ import com.nordic.mediahub.data.isReadyForVideoSync
 import kotlinx.coroutines.launch
 
 @Composable
-fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
+fun VideoScreen(
+    colorScheme: ColorScheme,
+    isDark: Boolean,
+    onThemeToggle: (Boolean) -> Unit,
+    onPlayVideo: (VideoItem) -> Unit = {}
+) {
     val context = LocalContext.current
     val configRepository = remember { ConfigRepository(context) }
     val savedConfig by configRepository.videoConfig.collectAsStateWithLifecycle(VideoServerConfig())
@@ -69,10 +79,23 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
     var libraries by remember { mutableStateOf(emptyList<VideoLibrary>()) }
     var selectedLibraryId by remember { mutableStateOf<String?>(null) }
     var videos by remember { mutableStateOf(emptyList<VideoItem>()) }
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedTypeFilter by remember { mutableStateOf(VideoTypeFilter.All) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val loadingCardIndexes = remember { List(3) { it } }
+    val visibleTypeFilters = remember(videos) {
+        VideoTypeFilter.values().filter { filter ->
+            filter == VideoTypeFilter.All || videos.any(filter::matches)
+        }
+    }
+    val visibleVideos = remember(videos, searchQuery, selectedTypeFilter) {
+        videos.filter { video ->
+            selectedTypeFilter.matches(video) && video.matchesSearch(searchQuery)
+        }
+    }
+    val hasActiveBrowserFilter = searchQuery.isNotBlank() || selectedTypeFilter != VideoTypeFilter.All
 
     val embyRepository = remember(savedConfig) {
         if (savedConfig.isReadyForVideoSync()) EmbyRepository(savedConfig) else null
@@ -108,19 +131,23 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
         if (savedConfig.isReadyForVideoSync()) {
             refreshVideo(savedConfig, selectedLibraryId)
         } else {
-            libraries = emptyList()
+                            libraries = emptyList()
             selectedLibraryId = null
             videos = emptyList()
+            searchQuery = ""
+            selectedTypeFilter = VideoTypeFilter.All
             errorMessage = null
         }
     }
 
-    LazyColumn(
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 156.dp),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item {
+        item(span = { GridItemSpan(maxLineSpan) }) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -141,7 +168,8 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
                     Text(
                         when {
                             isLoading && videos.isNotEmpty() -> "正在刷新，先显示当前 Emby 内容"
-                            selectedLibraryId != null -> "共 ${videos.size} 个条目，播放功能将在下一阶段接入"
+                            hasActiveBrowserFilter -> "${visibleVideos.size} / ${videos.size} 个匹配条目"
+                            selectedLibraryId != null -> "共 ${videos.size} 个条目，点击海报播放"
                             savedConfig.isReadyForVideoSync() -> "已连接 Emby，选择媒体库浏览内容"
                             else -> "连接 Emby 后显示真实媒体库、海报和视频信息"
                         },
@@ -169,7 +197,7 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
             }
         }
 
-        item {
+        item(span = { GridItemSpan(maxLineSpan) }) {
             AnimatedVisibility(
                 visible = showConfig,
                 enter = fadeIn(tween(300, easing = FastOutSlowInEasing)) + expandVertically(),
@@ -193,7 +221,7 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
         }
 
         if (errorMessage != null) {
-            item {
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 VideoMessageCard(
                     title = "Emby 连接错误",
                     subtitle = errorMessage.orEmpty(),
@@ -204,13 +232,15 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
         }
 
         if (libraries.isNotEmpty()) {
-            item {
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 VideoLibrarySelector(
                     libraries = libraries,
                     selectedLibraryId = selectedLibraryId,
                     colorScheme = colorScheme,
                     onSelect = { libraryId ->
                         selectedLibraryId = libraryId
+                        searchQuery = ""
+                        selectedTypeFilter = VideoTypeFilter.All
                         val repo = embyRepository ?: return@VideoLibrarySelector
                         scope.launch {
                             isLoading = true
@@ -228,9 +258,22 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
             }
         }
 
+        if (videos.isNotEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                VideoBrowserControls(
+                    searchQuery = searchQuery,
+                    selectedTypeFilter = selectedTypeFilter,
+                    filters = visibleTypeFilters,
+                    colorScheme = colorScheme,
+                    onSearchChange = { searchQuery = it },
+                    onFilterSelected = { selectedTypeFilter = it }
+                )
+            }
+        }
+
         when {
             isLoading && videos.isEmpty() -> {
-                itemsIndexed(
+                gridItemsIndexed(
                     items = loadingCardIndexes,
                     contentType = { _, _ -> "video-loading-card" }
                 ) { index, _ ->
@@ -239,7 +282,7 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
             }
 
             !savedConfig.isReadyForVideoSync() -> {
-                item {
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     VideoMessageCard(
                         title = "先接入你的 Emby 服务器",
                         subtitle = "填写服务器地址，并使用 API Key 或用户名密码登录。这里会显示真实媒体库和视频缩略图。",
@@ -249,7 +292,7 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
             }
 
             libraries.isEmpty() && !isLoading -> {
-                item {
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     VideoMessageCard(
                         title = "没有可用视频媒体库",
                         subtitle = "Emby 已连接，但当前用户没有可浏览的电影、剧集或家庭视频媒体库。",
@@ -259,7 +302,7 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
             }
 
             videos.isEmpty() && !isLoading -> {
-                item {
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     VideoMessageCard(
                         title = "这个媒体库暂时没有内容",
                         subtitle = "切换其他媒体库，或回到 Emby 服务端检查扫描结果和用户权限。",
@@ -268,9 +311,27 @@ fun VideoScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boole
                 }
             }
 
+            visibleVideos.isEmpty() && !isLoading -> {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    VideoMessageCard(
+                        title = "没有匹配的视频",
+                        subtitle = "换一个关键词，或切换类型筛选查看这个媒体库中的其他内容。",
+                        colorScheme = colorScheme
+                    )
+                }
+            }
+
             else -> {
-                items(videos, key = { it.id }, contentType = { "video-card" }) { video ->
-                    VideoCard(video = video, colorScheme = colorScheme)
+                gridItems(
+                    items = visibleVideos,
+                    key = { video -> "${video.libraryId}:${video.id}" },
+                    contentType = { "video-card" }
+                ) { video ->
+                    VideoCard(
+                        video = video,
+                        colorScheme = colorScheme,
+                        onClick = { onPlayVideo(video) }
+                    )
                 }
             }
         }
@@ -311,61 +372,116 @@ private fun VideoLibrarySelector(
 }
 
 @Composable
-private fun VideoCard(video: VideoItem, colorScheme: ColorScheme) {
+private fun VideoCard(
+    video: VideoItem,
+    colorScheme: ColorScheme,
+    onClick: () -> Unit
+) {
     val interactionSource = remember { MutableInteractionSource() }
     val scale = rememberPressScale(interactionSource)
 
-    Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .scale(scale)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = {}
-            )
+                onClick = onClick
+            ),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Column {
+        Surface(
+            color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
+            shape = RoundedCornerShape(18.dp),
+            border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
             VideoThumbnail(
                 imageUrl = video.imageUrl,
                 title = video.title,
                 colorScheme = colorScheme,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
+                    .aspectRatio(2f / 3f)
             )
-            Column(
-                modifier = Modifier.padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
+        }
+
+        Column {
+            Text(
+                video.title,
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
+                color = colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            val meta = video.metaText()
+            if (meta.isNotBlank()) {
                 Text(
-                    video.title,
-                    fontSize = 16.sp,
-                    color = colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 2,
+                    meta,
+                    fontSize = 12.sp,
+                    color = colorScheme.onSurface.copy(alpha = 0.56f),
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                val meta = video.metaText()
-                if (meta.isNotBlank()) {
+            }
+        }
+    }
+}
+
+@Composable
+private fun VideoBrowserControls(
+    searchQuery: String,
+    selectedTypeFilter: VideoTypeFilter,
+    filters: List<VideoTypeFilter>,
+    colorScheme: ColorScheme,
+    onSearchChange: (String) -> Unit,
+    onFilterSelected: (VideoTypeFilter) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchChange,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            placeholder = {
+                Text(
+                    "搜索标题、简介、年份",
+                    color = colorScheme.onSurface.copy(alpha = 0.44f)
+                )
+            },
+            shape = RoundedCornerShape(16.dp),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = colorScheme.surfaceVariant.copy(alpha = 0.42f),
+                unfocusedContainerColor = colorScheme.surfaceVariant.copy(alpha = 0.42f),
+                disabledContainerColor = colorScheme.surfaceVariant.copy(alpha = 0.28f)
+            )
+        )
+
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(filters, key = { it.name }, contentType = { "video-type-filter" }) { filter ->
+                val selected = filter == selectedTypeFilter
+                Surface(
+                    color = if (selected) colorScheme.primary.copy(alpha = 0.16f) else colorScheme.surfaceVariant.copy(alpha = 0.50f),
+                    contentColor = if (selected) colorScheme.primary else colorScheme.onSurface,
+                    shape = RoundedCornerShape(999.dp),
+                    border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
+                    modifier = Modifier.clickable { onFilterSelected(filter) }
+                ) {
                     Text(
-                        meta,
-                        fontSize = 12.sp,
-                        color = colorScheme.onSurface.copy(alpha = 0.56f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                if (video.overview.isNotBlank()) {
-                    Text(
-                        video.overview,
+                        text = filter.label,
+                        modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
                         fontSize = 13.sp,
-                        lineHeight = 18.sp,
-                        color = colorScheme.onSurface.copy(alpha = 0.62f),
-                        maxLines = 2,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
@@ -385,7 +501,7 @@ private fun VideoThumbnail(
 
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
+            .clip(RoundedCornerShape(18.dp))
             .background(
                 Brush.linearGradient(
                     listOf(
@@ -451,7 +567,7 @@ private fun VideoLoadingCard(index: Int, colorScheme: ColorScheme) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(16f / 9f)
+                        .aspectRatio(2f / 3f)
                         .background(colorScheme.surface.copy(alpha = 0.34f))
                 )
                 Column(
@@ -460,7 +576,7 @@ private fun VideoLoadingCard(index: Int, colorScheme: ColorScheme) {
                 ) {
                     Box(
                         modifier = Modifier
-                            .width(180.dp)
+                            .fillMaxWidth()
                             .height(14.dp)
                             .clip(RoundedCornerShape(999.dp))
                             .background(colorScheme.onSurface.copy(alpha = 0.12f))
@@ -495,4 +611,32 @@ private fun formatVideoDuration(durationSeconds: Int): String {
     } else {
         "${minutes}m"
     }
+}
+
+private enum class VideoTypeFilter(val label: String) {
+    All("全部"),
+    Movies("电影"),
+    Series("剧集"),
+    Episodes("单集"),
+    Videos("视频");
+
+    fun matches(video: VideoItem): Boolean {
+        return when (this) {
+            All -> true
+            Movies -> video.type.equals("Movie", ignoreCase = true)
+            Series -> video.type.equals("Series", ignoreCase = true)
+            Episodes -> video.type.equals("Episode", ignoreCase = true)
+            Videos -> video.type.equals("Video", ignoreCase = true)
+        }
+    }
+}
+
+private fun VideoItem.matchesSearch(query: String): Boolean {
+    val normalizedQuery = query.trim()
+    if (normalizedQuery.isBlank()) return true
+
+    return title.contains(normalizedQuery, ignoreCase = true) ||
+        overview.contains(normalizedQuery, ignoreCase = true) ||
+        type.contains(normalizedQuery, ignoreCase = true) ||
+        year?.toString()?.contains(normalizedQuery) == true
 }

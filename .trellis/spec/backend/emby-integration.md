@@ -1,11 +1,11 @@
 # Emby Integration Contract
 
-## Scenario: Read-Only Video Browsing MVP
+## Scenario: Emby Video Browsing and Direct Playback
 
 ### 1. Scope / Trigger
 - Trigger: The Android app now exposes Emby as the first real video provider instead of placeholder cards.
-- Scope: Authentication, user media-library discovery, video item listing, thumbnail URL generation, typed errors, and repository tests.
-- Out of scope: Video playback, Plex, WebDAV browsing, persistent Emby token storage, and provider-wide account management.
+- Scope: Authentication, user media-library discovery, video item listing, thumbnail URL generation, direct stream URL generation, typed errors, and repository tests.
+- Out of scope: Plex, WebDAV browsing, persistent Emby token storage, and provider-wide account management.
 
 ### 2. Signatures
 - Config readiness:
@@ -57,7 +57,11 @@ GET Users/{userId}/Items
 - Thumbnail URL:
   - Build `/Items/{itemId}/Images/Primary`
   - Include `maxWidth=640`, `quality=90`, `tag=<ImageTags.Primary>`, and `api_key=<session token>`
-  - Return `null` when `ImageTags.Primary` is absent
+  - Return `null` when `ImageTags` is absent or `ImageTags.Primary` is absent
+- Direct playback URL:
+  - Build `/Videos/{itemId}/stream`
+  - Include `Static=true` and `api_key=<session token>`
+  - Keep playback URL generation in `EmbyRepository`; UI must consume `VideoItem.streamUrl` instead of reconstructing authenticated URLs.
 
 ### 4. Validation & Error Matrix
 - Non-2xx response -> throw `EmbyApiException(kind = HTTP, message contains "HTTP <code>")`
@@ -89,6 +93,8 @@ GET Users/{userId}/Items
   - asserts non-video libraries are filtered
   - asserts duration ticks become seconds
   - asserts thumbnail URL contains item path, primary tag, and token query
+  - asserts missing `ImageTags` maps to a `null` thumbnail instead of crashing catalog loading
+  - asserts stream URL contains video stream path, `Static=true`, and token query
 - Error:
   - asserts non-2xx responses throw typed `EmbyApiException.Kind.HTTP`
 

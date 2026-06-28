@@ -94,6 +94,9 @@ class EmbyRepositoryTest {
         assertTrue(item.imageUrl.orEmpty().contains("/Items/movie-1/Images/Primary"))
         assertTrue(item.imageUrl.orEmpty().contains("api_key=api-key"))
         assertTrue(item.imageUrl.orEmpty().contains("tag=tag-1"))
+        assertTrue(item.streamUrl.orEmpty().contains("/Videos/movie-1/stream"))
+        assertTrue(item.streamUrl.orEmpty().contains("Static=true"))
+        assertTrue(item.streamUrl.orEmpty().contains("api_key=api-key"))
 
         val usersRequest = server.takeRequest()
         assertEquals("/Users", usersRequest.path)
@@ -142,6 +145,55 @@ class EmbyRepositoryTest {
 
         val viewsRequest = server.takeRequest()
         assertEquals("token-123", viewsRequest.getHeader("X-Emby-Token"))
+    }
+
+    @Test
+    fun getCatalog_pagesThroughLibraryItemsUntilTotalCountIsLoaded() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"movie-1","Name":"Arrival","Type":"Movie"}
+                  ],
+                  "TotalRecordCount": 2
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"movie-2","Name":"Dune","Type":"Movie"}
+                  ],
+                  "TotalRecordCount": 2
+                }
+            """.trimIndent()
+        )
+
+        val catalog = repository(apiKey = "api-key").getCatalog()
+
+        assertEquals(listOf("Arrival", "Dune"), catalog.items.map { it.title })
+        assertEquals(listOf(null, null), catalog.items.map { it.imageUrl })
+
+        server.takeRequest()
+        server.takeRequest()
+        val firstItemsRequest = server.takeRequest()
+        val secondItemsRequest = server.takeRequest()
+        assertTrue(firstItemsRequest.path.orEmpty().contains("StartIndex=0"))
+        assertTrue(firstItemsRequest.path.orEmpty().contains("Limit=100"))
+        assertTrue(secondItemsRequest.path.orEmpty().contains("StartIndex=1"))
+        assertTrue(secondItemsRequest.path.orEmpty().contains("Limit=100"))
     }
 
     @Test
