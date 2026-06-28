@@ -76,6 +76,47 @@ class MainActivityTest {
     }
 
     @Test
+    fun resolveAudiobookPlayRequestAction_startsNewSessionWhenNothingIsActive() {
+        assertEquals(
+            AudiobookPlayRequestAction.StartNewSession,
+            resolveAudiobookPlayRequestAction(
+                currentSession = null,
+                requestedLibraryItemId = "book-1"
+            )
+        )
+    }
+
+    @Test
+    fun resolveAudiobookPlayRequestAction_reusesCurrentSessionForSameBook() {
+        assertEquals(
+            AudiobookPlayRequestAction.ReuseCurrentSession,
+            resolveAudiobookPlayRequestAction(
+                currentSession = session(
+                    libraryItemId = "book-1",
+                    startTimeSeconds = 120,
+                    currentTimeSeconds = 118
+                ),
+                requestedLibraryItemId = "book-1"
+            )
+        )
+    }
+
+    @Test
+    fun resolveAudiobookPlayRequestAction_closesCurrentSessionBeforeDifferentBook() {
+        assertEquals(
+            AudiobookPlayRequestAction.CloseCurrentSessionBeforeStart,
+            resolveAudiobookPlayRequestAction(
+                currentSession = session(
+                    libraryItemId = "book-1",
+                    startTimeSeconds = 120,
+                    currentTimeSeconds = 118
+                ),
+                requestedLibraryItemId = "book-2"
+            )
+        )
+    }
+
+    @Test
     fun resolveAudiobookCloseFailurePresentation_ignoresBackgroundHandoffFailure() {
         val presentation = resolveAudiobookCloseFailurePresentation(
             closeFailureMessage = "close failed",
@@ -99,11 +140,12 @@ class MainActivityTest {
 
     private fun session(
         startTimeSeconds: Int,
-        currentTimeSeconds: Int
+        currentTimeSeconds: Int,
+        libraryItemId: String = "book-1"
     ): AudiobookPlaybackSession {
         return AudiobookPlaybackSession(
             sessionId = "session-1",
-            libraryItemId = "book-1",
+            libraryItemId = libraryItemId,
             displayTitle = "Book One",
             displayAuthor = "Author",
             coverUrl = null,

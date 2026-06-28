@@ -75,6 +75,23 @@ internal fun resolveVideoProgressSyncBaselineSeconds(
     )
 }
 
+internal enum class AudiobookPlayRequestAction {
+    StartNewSession,
+    ReuseCurrentSession,
+    CloseCurrentSessionBeforeStart
+}
+
+internal fun resolveAudiobookPlayRequestAction(
+    currentSession: AudiobookPlaybackSession?,
+    requestedLibraryItemId: String
+): AudiobookPlayRequestAction {
+    return when {
+        currentSession == null -> AudiobookPlayRequestAction.StartNewSession
+        currentSession.libraryItemId == requestedLibraryItemId -> AudiobookPlayRequestAction.ReuseCurrentSession
+        else -> AudiobookPlayRequestAction.CloseCurrentSessionBeforeStart
+    }
+}
+
 internal data class AudiobookCloseFailurePresentation(
     val showPlayer: Boolean,
     val errorMessage: String?
@@ -598,6 +615,26 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                         if (!audiobookConfig.isReadyForAudiobookSync()) {
                                             audiobookPlaybackError = "未配置 AudiobookShelf"
                                             return@AudiobookScreen
+                                        }
+                                        when (
+                                            resolveAudiobookPlayRequestAction(
+                                                currentSession = audiobookPlaybackEngine.state.value.session,
+                                                requestedLibraryItemId = item.id
+                                            )
+                                        ) {
+                                            AudiobookPlayRequestAction.ReuseCurrentSession -> {
+                                                audiobookPlaybackError = null
+                                                playbackEngine.stop()
+                                                closeVideoPlayback()
+                                                showAudiobookPlayer = true
+                                                showVideoPlayer = false
+                                                showPlayer = false
+                                                return@AudiobookScreen
+                                            }
+                                            AudiobookPlayRequestAction.CloseCurrentSessionBeforeStart -> {
+                                                closeAudiobookPlayback()
+                                            }
+                                            AudiobookPlayRequestAction.StartNewSession -> Unit
                                         }
                                         scope.launch {
                                             audiobookPlaybackError = null

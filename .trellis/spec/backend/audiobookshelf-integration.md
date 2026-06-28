@@ -31,6 +31,8 @@
   - `fun stop()`
 - Music playback engine:
   - `fun stop()` clears music Media3 state before audiobook playback takes over the shared session service.
+- App shell:
+  - `internal fun resolveAudiobookPlayRequestAction(currentSession: AudiobookPlaybackSession?, requestedLibraryItemId: String): AudiobookPlayRequestAction`
 
 ### 3. Contracts
 
@@ -61,6 +63,8 @@
 - `PATCH /api/me/progress/*`, `POST /api/session/*/sync`, and `POST /api/session/*/close` must validate `Response<Unit>.isSuccessful`. Do not fire-and-forget these session endpoints.
 - UI close flows should call `syncAndCloseSession(...)` so the final position is written before closing the AudiobookShelf session.
 - When starting music or video while an audiobook is active, the app-shell should stop audiobook playback and attempt `syncAndCloseSession(...)` in the background. If that background close fails, do not reopen the stopped audiobook player over the newly selected media.
+- When starting audiobook playback while the requested item already owns the active session, the app-shell should reuse the current session and show the audiobook player instead of calling `/play` again.
+- When starting audiobook playback while a different audiobook session is active, the app-shell should stop the old local session and attempt `syncAndCloseSession(...)` in the background before calling `/play` for the new item. The new playback attempt must not be blocked by a background close failure.
 
 ### 4. Validation & Error Matrix
 
@@ -90,10 +94,14 @@
 | User leaves audiobook playback | Call `syncAndCloseSession(...)` with the last absolute position and clear Media3 audiobook state |
 | Background close fails during music/video handoff | Keep the new media surface active; do not reopen the stopped audiobook player |
 | User starts audiobook playback while music is active | Call `MusicPlaybackEngine.stop()` before `AudiobookPlaybackEngine.play(...)` |
+| User starts the same audiobook that is already active | Reuse the current session and show the player; do not call `startPlayback()` again |
+| User starts a different audiobook while one is active | Background sync/close the old session, then start the requested item |
 
 ### 5. Good/Base/Bad Cases
 
 - Good: User opens an audiobook, `startPlayback()` returns a session, Media3 plays session tracks, progress sync runs periodically, and `syncAndCloseSession()` is called when leaving the player.
+- Good: User taps the same audiobook while it is already active; the app reopens the current player without creating a duplicate AudiobookShelf session.
+- Good: User starts a different audiobook while one is active; the app syncs/closes the previous session in the background and starts the new `/play` session.
 - Good: User switches AudiobookShelf server/account, refreshes libraries, and the app requests items from a library id returned by that server instead of a stale id from the previous server/account.
 - Good: User can skip back/forward by the fixed audiobook interval; progress sync keeps using the resulting absolute position.
 - Good: User can cycle playback speed from the player, and Media3 playback speed plus UI state stay in sync.
@@ -119,6 +127,7 @@
 - UI/helper tests should assert library selection resolution keeps an existing id, falls back from a stale id, and clears selection for an empty library list.
 - App-shell helper tests should assert periodic sync baseline resolution uses the session resume/current time when playback state has not caught up, uses playback state when it is ahead, and clamps negative values to zero.
 - App-shell helper tests should assert manual audiobook close failures present the player/error, while background handoff close failures do not reopen the player.
+- App-shell helper tests should assert audiobook play requests start a new session with no current session, reuse the current session for the same `libraryItemId`, and close the current session before starting a different `libraryItemId`.
 - Playback tests should assert:
   - absolute audiobook position is track offset plus player position
   - absolute audiobook position clamps known-track local player position to the track duration
