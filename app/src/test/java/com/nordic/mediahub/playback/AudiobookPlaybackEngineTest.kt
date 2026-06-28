@@ -37,6 +37,64 @@ class AudiobookPlaybackEngineTest {
     }
 
     @Test
+    fun resolveAudiobookTrackSeekPosition_mapsAbsolutePositionToTrackOffset() {
+        val tracks = listOf(
+            track(index = 0, startOffsetSeconds = 0),
+            track(index = 1, startOffsetSeconds = 120)
+        )
+
+        assertEquals(
+            AudiobookTrackSeekPosition(mediaItemIndex = 1, localOffsetSeconds = 45),
+            resolveAudiobookTrackSeekPosition(
+                tracks = tracks,
+                absolutePositionSeconds = 165
+            )
+        )
+    }
+
+    @Test
+    fun resolveAudiobookTrackSeekPosition_clampsNegativePositionToFirstTrackStart() {
+        val tracks = listOf(
+            track(index = 0, startOffsetSeconds = 0),
+            track(index = 1, startOffsetSeconds = 120)
+        )
+
+        assertEquals(
+            AudiobookTrackSeekPosition(mediaItemIndex = 0, localOffsetSeconds = 0),
+            resolveAudiobookTrackSeekPosition(
+                tracks = tracks,
+                absolutePositionSeconds = -30
+            )
+        )
+    }
+
+    @Test
+    fun resolveAudiobookTrackSeekPosition_clampsBeyondFinalTrackDuration() {
+        val tracks = listOf(
+            track(index = 0, startOffsetSeconds = 0),
+            track(index = 1, startOffsetSeconds = 120)
+        )
+
+        assertEquals(
+            AudiobookTrackSeekPosition(mediaItemIndex = 1, localOffsetSeconds = 120),
+            resolveAudiobookTrackSeekPosition(
+                tracks = tracks,
+                absolutePositionSeconds = 500
+            )
+        )
+    }
+
+    @Test
+    fun resolveAudiobookTrackSeekPosition_returnsNullForEmptyTracks() {
+        assertNull(
+            resolveAudiobookTrackSeekPosition(
+                tracks = emptyList(),
+                absolutePositionSeconds = 42
+            )
+        )
+    }
+
+    @Test
     fun resolvePreviousAudiobookChapterStartSeconds_restartsCurrentChapterAfterThreshold() {
         assertEquals(
             120,

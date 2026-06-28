@@ -47,6 +47,7 @@
 - Domain mapping must keep music and audiobook models separate. Do not map audiobook sessions into `NavidromeSong`.
 - Audio URLs may need the bearer token appended as `token=<token>` when AudiobookShelf returns relative `contentUrl` values.
 - Progress sync must use current absolute audiobook time, not current track-local time.
+- Absolute audiobook seek positions must be mapped to the Media3 track list as `(mediaItemIndex, localOffsetSeconds)` and the local offset must be clamped to `0..track.durationSeconds`.
 - Relative skip controls must resolve to an absolute audiobook position and use the same `seekTo(positionSeconds)` path as the scrubber.
 - Relative skip targets must be clamped to `0..durationSeconds`; do not seek negative or beyond the audiobook duration.
 - Playback speed is Media3 player state. `AudiobookPlaybackState.playbackSpeed` must reflect `Player.playbackParameters.speed`, and `cyclePlaybackSpeed()` cycles common audiobook steps: `0.75x`, `1.0x`, `1.25x`, `1.5x`, `2.0x`.
@@ -65,6 +66,8 @@
 | Login response lacks token | Throw `AudiobookShelfApiException.Kind.AUTH` |
 | Library/item/playback response is empty | Throw `AudiobookShelfApiException.Kind.API` |
 | Playback session has no playable tracks | Keep session visible with a playback error; do not start Media3 |
+| Absolute seek target is before the first track | Seek to media item `0` at offset `0` |
+| Absolute seek target is beyond the final track duration | Seek to the final media item with local offset clamped to that track duration |
 | 30 second skip back is requested near the book start | Clamp to `0` |
 | 30 second skip forward is requested near the book end | Clamp to `durationSeconds` |
 | Playback speed is on an unknown/off-grid value | Cycle to the next higher supported speed, or wrap to the first speed |
@@ -100,6 +103,7 @@
   - non-2xx progress/session responses throw `AudiobookShelfApiException.Kind.HTTP`
 - Playback tests should assert:
   - absolute audiobook position is track offset plus player position
+  - absolute seek target mapping resolves the expected media item index and clamps local offsets at track boundaries
   - relative skip target calculation clamps at the beginning and end of the audiobook
   - playback speed cycling covers known values and unknown/off-grid values
   - previous/next chapter helpers resolve absolute chapter start positions, including restart threshold and missing chapter cases

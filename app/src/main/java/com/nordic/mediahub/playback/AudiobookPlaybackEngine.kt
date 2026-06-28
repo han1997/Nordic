@@ -31,6 +31,11 @@ import kotlinx.coroutines.launch
 private const val AUDIOBOOK_SKIP_INTERVAL_SECONDS = 30
 private val AUDIOBOOK_PLAYBACK_SPEEDS = listOf(0.75f, 1f, 1.25f, 1.5f, 2f)
 
+internal data class AudiobookTrackSeekPosition(
+    val mediaItemIndex: Int,
+    val localOffsetSeconds: Int
+)
+
 data class AudiobookPlaybackState(
     val session: AudiobookPlaybackSession? = null,
     val isPlaying: Boolean = false,
@@ -269,13 +274,8 @@ class AudiobookPlaybackEngine(context: Context) {
         tracks: List<AudiobookAudioTrack>,
         absolutePositionSeconds: Int
     ) {
-        val safePosition = absolutePositionSeconds.coerceAtLeast(0)
-        val targetTrack = tracks.lastOrNull { track ->
-            track.startOffsetSeconds <= safePosition
-        } ?: tracks.first()
-        val index = tracks.indexOf(targetTrack).coerceAtLeast(0)
-        val localOffset = (safePosition - targetTrack.startOffsetSeconds).coerceAtLeast(0)
-        controller.seekTo(index, localOffset * 1000L)
+        val target = resolveAudiobookTrackSeekPosition(tracks, absolutePositionSeconds) ?: return
+        controller.seekTo(target.mediaItemIndex, target.localOffsetSeconds * 1000L)
     }
 
     private fun resolveAbsolutePositionSeconds(
@@ -304,6 +304,26 @@ internal fun resolveAudiobookAbsolutePositionSeconds(
 ): Int {
     val currentTrack = tracks.getOrNull(currentIndex) ?: return (currentPositionMs.coerceAtLeast(0L) / 1000L).toInt()
     return currentTrack.startOffsetSeconds + (currentPositionMs.coerceAtLeast(0L) / 1000L).toInt()
+}
+
+internal fun resolveAudiobookTrackSeekPosition(
+    tracks: List<AudiobookAudioTrack>,
+    absolutePositionSeconds: Int
+): AudiobookTrackSeekPosition? {
+    if (tracks.isEmpty()) return null
+
+    val safePosition = absolutePositionSeconds.coerceAtLeast(0)
+    val targetIndex = tracks.indexOfLast { track ->
+        track.startOffsetSeconds <= safePosition
+    }.takeIf { it >= 0 } ?: 0
+    val targetTrack = tracks[targetIndex]
+    val maxLocalOffset = targetTrack.durationSeconds.coerceAtLeast(0)
+    val localOffset = (safePosition - targetTrack.startOffsetSeconds).coerceIn(0, maxLocalOffset)
+
+    return AudiobookTrackSeekPosition(
+        mediaItemIndex = targetIndex,
+        localOffsetSeconds = localOffset
+    )
 }
 
 internal fun resolvePreviousAudiobookChapterStartSeconds(
