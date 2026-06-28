@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 58
+- **Total Sessions**: 59
 - **Last Active**: 2026-06-29
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1938 | Active |
+| `journal-1.md` | ~1971 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 59 | 2026-06-29 | Improve video episode search | `7bc66ab` | `main` |
 | 58 | 2026-06-29 | Fix video timeline for unknown duration | `b37f356` | `main` |
 | 57 | 2026-06-29 | Sort audiobook detail chapters | `86ecf3a` | `main` |
 | 56 | 2026-06-29 | Prevent audiobook progress regression | `7341b2d` | `main` |

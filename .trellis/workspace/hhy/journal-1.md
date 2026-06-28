@@ -1936,3 +1936,36 @@ Kept the video player timeline usable for unknown-duration streams by growing th
 ### Next Steps
 
 - None - task complete
+
+
+## Session 59: Improve video episode search
+
+**Date**: 2026-06-29
+**Task**: Improve video episode search
+**Branch**: `main`
+
+### Summary
+
+Extended local Emby video browser search to match episode series names and season/episode codes, with focused tests and updated Emby integration contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7bc66ab` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
