@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 55
+- **Total Sessions**: 56
 - **Last Active**: 2026-06-29
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1839 | Active |
+| `journal-1.md` | ~1872 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 56 | 2026-06-29 | Prevent audiobook progress regression | `7341b2d` | `main` |
 | 55 | 2026-06-29 | Resolve audiobook chapter display by time | `2bc9fd4` | `main` |
 | 54 | 2026-06-29 | Allow video skip with unknown duration | `d377b40` | `main` |
 | 53 | 2026-06-29 | Fix audiobook chapter restart threshold | `c28b889` | `main` |

@@ -1837,3 +1837,36 @@ Made the audiobook player current-chapter chip resolve from sorted chapter start
 ### Next Steps
 
 - None - task complete
+
+
+## Session 56: Prevent audiobook progress regression
+
+**Date**: 2026-06-29
+**Task**: Prevent audiobook progress regression
+**Branch**: `main`
+
+### Summary
+
+Made audiobook periodic sync report at least the last synced resume baseline, made audiobook close flows use the resume-aware baseline, added app-shell helper tests, updated the AudiobookShelf contract, and verified focused tests plus compile, full unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7341b2d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
