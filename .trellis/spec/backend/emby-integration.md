@@ -64,7 +64,7 @@ GET Users/{userId}/Items
   - Missing `UserData` or `CommunityRating` must fall back to `0`/`false`/`null` rather than excluding the item
 - Video browsing UI:
   - Yamby-style spotlight shelves may be derived from the already-loaded Emby item list:
-    - Continue watching: `playbackPositionSeconds > 0 && !isPlayed`, sorted by `lastPlayedDate` descending when present, then `playbackPositionSeconds` descending as the compatibility fallback
+    - Continue watching: `playbackPositionSeconds > 0 && !isPlayed`, and when `durationSeconds > 0` the resume position must be less than duration; sort by `lastPlayedDate` descending when present, then `playbackPositionSeconds` descending as the compatibility fallback
     - Top rated: non-null positive `communityRating`, sorted descending
     - Unplayed: `!isPlayed && playbackPositionSeconds <= 0`
   - These shelves are view state only. Do not persist local video history unless the PRD explicitly adds that scope.
@@ -99,6 +99,7 @@ GET Users/{userId}/Items
 - Password flow returns blank `AccessToken` -> throw `EmbyApiException(kind = AUTH)`
 - Missing item `UserData` -> map resume position to `0` and played state to `false`
 - Missing `UserData.LastPlayedDate` -> continue-watching shelf keeps the item eligible by resume position but sorts it behind dated resume items
+- Resume position at or beyond known duration while `Played == false` -> exclude from continue-watching shelf as effectively complete
 - Missing item `CommunityRating` -> map rating to `null`; top-rated shelves should ignore it
 - `playbackPositionSeconds` greater than known duration -> initial playback seek clamps to the duration instead of seeking beyond the item
 - Relative video skip requested near the start or end -> clamp to `0` or `durationSeconds`
@@ -139,6 +140,7 @@ GET Users/{userId}/Items
   - asserts `UserData.PlaybackPositionTicks`, `UserData.Played`, and `CommunityRating` map to `VideoItem`
   - asserts `UserData.LastPlayedDate` maps to `VideoItem.lastPlayedDate`
   - asserts continue-watching shelf sorting uses last-played recency before resume-position fallback
+  - asserts continue-watching shelf excludes resume positions at or beyond known duration, while keeping unknown-duration resume items eligible
   - asserts video initial start-position helper uses resume seconds for unfinished items, starts played items at zero, and clamps beyond duration
   - asserts video relative seek helper clamps at the beginning and end of the item
   - asserts `Fields` requests `SeriesId`, `SeriesName`, `ParentIndexNumber`, and `IndexNumber`

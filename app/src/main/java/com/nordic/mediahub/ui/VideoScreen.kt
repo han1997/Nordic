@@ -1039,13 +1039,20 @@ private fun VideoItem.detailChips(): List<String> {
 
 internal fun continueWatchingShelf(videos: List<VideoItem>, limit: Int = 12): List<VideoItem> {
     return videos
-        .filter { video -> video.playbackPositionSeconds > 0 && !video.isPlayed }
+        .filter { video -> video.isContinueWatchingCandidate() }
         .sortedWith(
             compareByDescending<VideoItem> { it.lastPlayedDate.orEmpty() }
                 .thenByDescending { it.playbackPositionSeconds }
                 .thenBy { it.title }
         )
         .take(limit)
+}
+
+private fun VideoItem.isContinueWatchingCandidate(): Boolean {
+    if (playbackPositionSeconds <= 0 || isPlayed) return false
+
+    val knownDuration = durationSeconds.coerceAtLeast(0)
+    return knownDuration == 0 || playbackPositionSeconds < knownDuration
 }
 
 private fun List<VideoItem>.relatedEpisodesFor(series: VideoItem): List<VideoItem> {

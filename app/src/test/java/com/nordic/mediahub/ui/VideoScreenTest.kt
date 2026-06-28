@@ -61,18 +61,62 @@ class VideoScreenTest {
         )
     }
 
+    @Test
+    fun continueWatchingShelf_excludesResumePositionsAtOrBeyondKnownDuration() {
+        val resumable = video(
+            id = "resumable",
+            title = "Resumable",
+            playbackPositionSeconds = 60,
+            durationSeconds = 120
+        )
+        val atDuration = video(
+            id = "at-duration",
+            title = "At Duration",
+            playbackPositionSeconds = 120,
+            durationSeconds = 120
+        )
+        val beyondDuration = video(
+            id = "beyond-duration",
+            title = "Beyond Duration",
+            playbackPositionSeconds = 150,
+            durationSeconds = 120
+        )
+
+        val shelf = continueWatchingShelf(
+            videos = listOf(atDuration, beyondDuration, resumable)
+        )
+
+        assertEquals(listOf("resumable"), shelf.map { it.id })
+    }
+
+    @Test
+    fun continueWatchingShelf_keepsResumePositionsWhenDurationUnknown() {
+        val unknownDuration = video(
+            id = "unknown-duration",
+            title = "Unknown Duration",
+            playbackPositionSeconds = 150,
+            durationSeconds = 0
+        )
+
+        val shelf = continueWatchingShelf(listOf(unknownDuration))
+
+        assertEquals(listOf("unknown-duration"), shelf.map { it.id })
+    }
+
     private fun video(
         id: String,
         title: String,
         playbackPositionSeconds: Int,
         lastPlayedDate: String? = null,
-        isPlayed: Boolean = false
+        isPlayed: Boolean = false,
+        durationSeconds: Int = 0
     ): VideoItem {
         return VideoItem(
             id = id,
             libraryId = "library-1",
             title = title,
             type = "Movie",
+            durationSeconds = durationSeconds,
             playbackPositionSeconds = playbackPositionSeconds,
             lastPlayedDate = lastPlayedDate,
             isPlayed = isPlayed
