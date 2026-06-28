@@ -335,3 +335,36 @@ Converted empty AudiobookShelf item-list, item-detail, and playback responses in
 ### Next Steps
 
 - None - task complete
+
+
+## Session 70: Type empty Emby body responses
+
+**Date**: 2026-06-29
+**Task**: Type empty Emby body responses
+**Branch**: `main`
+
+### Summary
+
+Converted empty Emby API-key user lookup, password authentication, library, and item-list responses into typed API errors with shared response-body validation, regression tests, and an Emby spec test note.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `25c88c5` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
