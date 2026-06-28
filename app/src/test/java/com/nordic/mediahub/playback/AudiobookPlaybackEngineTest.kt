@@ -1,7 +1,9 @@
 package com.nordic.mediahub.playback
 
 import com.nordic.mediahub.data.AudiobookAudioTrack
+import com.nordic.mediahub.data.AudiobookChapter
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class AudiobookPlaybackEngineTest {
@@ -34,6 +36,62 @@ class AudiobookPlaybackEngineTest {
         )
     }
 
+    @Test
+    fun resolvePreviousAudiobookChapterStartSeconds_restartsCurrentChapterAfterThreshold() {
+        assertEquals(
+            120,
+            resolvePreviousAudiobookChapterStartSeconds(
+                chapters = chapters(),
+                positionSeconds = 140,
+                restartThresholdSeconds = 5
+            )
+        )
+    }
+
+    @Test
+    fun resolvePreviousAudiobookChapterStartSeconds_movesToPreviousChapterNearStart() {
+        assertEquals(
+            0,
+            resolvePreviousAudiobookChapterStartSeconds(
+                chapters = chapters(),
+                positionSeconds = 124,
+                restartThresholdSeconds = 5
+            )
+        )
+    }
+
+    @Test
+    fun resolvePreviousAudiobookChapterStartSeconds_returnsNullWithoutPreviousChapterNearStart() {
+        assertNull(
+            resolvePreviousAudiobookChapterStartSeconds(
+                chapters = chapters(),
+                positionSeconds = 3,
+                restartThresholdSeconds = 5
+            )
+        )
+    }
+
+    @Test
+    fun resolveNextAudiobookChapterStartSeconds_movesToNextChapter() {
+        assertEquals(
+            240,
+            resolveNextAudiobookChapterStartSeconds(
+                chapters = chapters(),
+                positionSeconds = 130
+            )
+        )
+    }
+
+    @Test
+    fun resolveNextAudiobookChapterStartSeconds_returnsNullAtLastChapter() {
+        assertNull(
+            resolveNextAudiobookChapterStartSeconds(
+                chapters = chapters(),
+                positionSeconds = 260
+            )
+        )
+    }
+
     private fun track(index: Int, startOffsetSeconds: Int): AudiobookAudioTrack {
         return AudiobookAudioTrack(
             index = index,
@@ -41,6 +99,23 @@ class AudiobookPlaybackEngineTest {
             contentUrl = "https://example.test/$index.mp3",
             startOffsetSeconds = startOffsetSeconds,
             durationSeconds = 120
+        )
+    }
+
+    private fun chapters(): List<AudiobookChapter> {
+        return listOf(
+            chapter(1, startSeconds = 0, endSeconds = 119),
+            chapter(2, startSeconds = 120, endSeconds = 239),
+            chapter(3, startSeconds = 240, endSeconds = 360)
+        )
+    }
+
+    private fun chapter(id: Int, startSeconds: Int, endSeconds: Int): AudiobookChapter {
+        return AudiobookChapter(
+            id = id,
+            title = "Chapter $id",
+            startSeconds = startSeconds,
+            endSeconds = endSeconds
         )
     }
 }

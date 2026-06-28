@@ -22,6 +22,8 @@
 - Playback engine:
   - `fun play(session: AudiobookPlaybackSession)`
   - `fun seekTo(positionSeconds: Int)`
+  - `fun seekToPreviousChapter()`
+  - `fun seekToNextChapter()`
   - `fun togglePlayPause()`
   - `fun stop()`
 - Music playback engine:
@@ -42,6 +44,9 @@
 - Domain mapping must keep music and audiobook models separate. Do not map audiobook sessions into `NavidromeSong`.
 - Audio URLs may need the bearer token appended as `token=<token>` when AudiobookShelf returns relative `contentUrl` values.
 - Progress sync must use current absolute audiobook time, not current track-local time.
+- Chapter navigation must seek by absolute audiobook seconds, using the same `seekTo(positionSeconds)` path as the scrubber. Do not seek by track-local time when moving between chapters.
+- Previous chapter behavior should restart the current chapter when playback is more than a small threshold into it; near the start of a chapter, it should jump to the previous chapter when one exists.
+- Next chapter behavior should jump to the next chapter start when one exists.
 - `PATCH /api/me/progress/*`, `POST /api/session/*/sync`, and `POST /api/session/*/close` must validate `Response<Unit>.isSuccessful`. Do not fire-and-forget these session endpoints.
 - UI close flows should call `syncAndCloseSession(...)` so the final position is written before closing the AudiobookShelf session.
 
@@ -54,6 +59,9 @@
 | Login response lacks token | Throw `AudiobookShelfApiException.Kind.AUTH` |
 | Library/item/playback response is empty | Throw `AudiobookShelfApiException.Kind.API` |
 | Playback session has no playable tracks | Keep session visible with a playback error; do not start Media3 |
+| Chapter list is empty | Chapter navigation controls are disabled or engine chapter commands no-op |
+| Previous chapter requested near the first chapter start | No-op instead of seeking to a negative position |
+| Next chapter requested from the last chapter | No-op instead of seeking past duration |
 | Progress sync fails while player is visible | Surface a progress-sync error without crashing playback |
 | Progress update/session sync/session close returns non-2xx | Throw `AudiobookShelfApiException.Kind.HTTP` with the failing status code |
 | User leaves audiobook playback | Call `syncAndCloseSession(...)` with the last absolute position and clear Media3 audiobook state |
@@ -62,6 +70,7 @@
 ### 5. Good/Base/Bad Cases
 
 - Good: User opens an audiobook, `startPlayback()` returns a session, Media3 plays session tracks, progress sync runs periodically, and `syncAndCloseSession()` is called when leaving the player.
+- Good: User can jump to previous/next chapters from the player; absolute position updates continue to drive progress sync.
 - Base: User only browses libraries and details; no playback session is created and no progress endpoint is called.
 - Bad: App extracts a stream URL and plays it without calling `/play`, `/sync`, or `/close`; AudiobookShelf resume state will drift.
 
@@ -80,6 +89,7 @@
   - non-2xx progress/session responses throw `AudiobookShelfApiException.Kind.HTTP`
 - Playback tests should assert:
   - absolute audiobook position is track offset plus player position
+  - previous/next chapter helpers resolve absolute chapter start positions, including restart threshold and missing chapter cases
   - `stop()` clears session state and media items
   - closing playback calls repository `closeSession()` with the last absolute position
 

@@ -48,6 +48,8 @@ fun AudiobookPlayerScreen(
     colorScheme: ColorScheme,
     externalError: String? = null,
     onSeek: (Int) -> Unit,
+    onSeekToPreviousChapter: () -> Unit = {},
+    onSeekToNextChapter: () -> Unit = {},
     onPlayPause: () -> Unit,
     onClose: () -> Unit
 ) {
@@ -56,6 +58,7 @@ fun AudiobookPlayerScreen(
     var scrubPosition by remember(session?.sessionId) { mutableStateOf<Float?>(null) }
     val visiblePosition = scrubPosition ?: state.positionSeconds.toFloat()
     val errorMessage = externalError ?: state.errorMessage
+    val chapterNavigationEnabled = session != null && state.chapters.isNotEmpty()
     val statusText = when {
         errorMessage != null -> errorMessage
         state.isBuffering -> "正在缓冲"
@@ -193,12 +196,28 @@ fun AudiobookPlayerScreen(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        AudiobookControlButton(
+                            label = "≪",
+                            colorScheme = colorScheme,
+                            compact = compact,
+                            enabled = chapterNavigationEnabled,
+                            onClick = onSeekToPreviousChapter
+                        )
+                        Spacer(Modifier.size(if (compact) 14.dp else 18.dp))
                         AudiobookPlayButton(
                             label = if (state.isPlaying) "Ⅱ" else "▶",
                             colorScheme = colorScheme,
                             compact = compact,
                             enabled = session != null,
                             onClick = onPlayPause
+                        )
+                        Spacer(Modifier.size(if (compact) 14.dp else 18.dp))
+                        AudiobookControlButton(
+                            label = "≫",
+                            colorScheme = colorScheme,
+                            compact = compact,
+                            enabled = chapterNavigationEnabled,
+                            onClick = onSeekToNextChapter
                         )
                     }
                 }
@@ -311,6 +330,39 @@ private fun AudiobookPlayerMetaChip(text: String, colorScheme: ColorScheme) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+@Composable
+private fun AudiobookControlButton(
+    label: String,
+    colorScheme: ColorScheme,
+    compact: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val foreground = if (enabled) {
+        colorScheme.primary
+    } else {
+        colorScheme.onSurface.copy(alpha = 0.28f)
+    }
+
+    Surface(
+        color = if (enabled) colorScheme.primary.copy(alpha = 0.16f) else colorScheme.surface.copy(alpha = 0.30f),
+        contentColor = foreground,
+        shape = RoundedCornerShape(999.dp),
+        modifier = Modifier
+            .size(if (compact) 48.dp else 52.dp)
+            .clickable(enabled = enabled, onClick = onClick)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                label,
+                fontSize = 20.sp,
+                color = foreground,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
 

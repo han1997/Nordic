@@ -515,6 +515,8 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             colorScheme = colorScheme,
             externalError = audiobookPlaybackError,
             onSeek = audiobookPlaybackEngine::seekTo,
+            onSeekToPreviousChapter = audiobookPlaybackEngine::seekToPreviousChapter,
+            onSeekToNextChapter = audiobookPlaybackEngine::seekToNextChapter,
             onPlayPause = audiobookPlaybackEngine::togglePlayPause,
             onClose = { closeAudiobookPlaybackAfterSync() }
         )

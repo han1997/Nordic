@@ -160,6 +160,24 @@ class AudiobookPlaybackEngine(context: Context) {
         publishPlayerState()
     }
 
+    fun seekToPreviousChapter() {
+        val state = _state.value
+        val targetPosition = resolvePreviousAudiobookChapterStartSeconds(
+            chapters = state.chapters,
+            positionSeconds = state.positionSeconds
+        ) ?: return
+        seekTo(targetPosition)
+    }
+
+    fun seekToNextChapter() {
+        val state = _state.value
+        val targetPosition = resolveNextAudiobookChapterStartSeconds(
+            chapters = state.chapters,
+            positionSeconds = state.positionSeconds
+        ) ?: return
+        seekTo(targetPosition)
+    }
+
     fun stop() {
         stopPositionUpdates()
         controller?.run {
@@ -249,6 +267,39 @@ internal fun resolveAudiobookAbsolutePositionSeconds(
 ): Int {
     val currentTrack = tracks.getOrNull(currentIndex) ?: return (currentPositionMs.coerceAtLeast(0L) / 1000L).toInt()
     return currentTrack.startOffsetSeconds + (currentPositionMs.coerceAtLeast(0L) / 1000L).toInt()
+}
+
+internal fun resolvePreviousAudiobookChapterStartSeconds(
+    chapters: List<AudiobookChapter>,
+    positionSeconds: Int,
+    restartThresholdSeconds: Int = 5
+): Int? {
+    if (chapters.isEmpty()) return null
+
+    val orderedChapters = chapters.sortedBy { it.startSeconds }
+    val safePosition = positionSeconds.coerceAtLeast(0)
+    val currentIndex = orderedChapters.indexOfLast { chapter -> chapter.startSeconds <= safePosition }
+    if (currentIndex < 0) return null
+
+    val currentChapter = orderedChapters[currentIndex]
+    if (safePosition - currentChapter.startSeconds > restartThresholdSeconds) {
+        return currentChapter.startSeconds
+    }
+
+    return orderedChapters.getOrNull(currentIndex - 1)?.startSeconds
+}
+
+internal fun resolveNextAudiobookChapterStartSeconds(
+    chapters: List<AudiobookChapter>,
+    positionSeconds: Int
+): Int? {
+    if (chapters.isEmpty()) return null
+
+    val safePosition = positionSeconds.coerceAtLeast(0)
+    return chapters
+        .sortedBy { it.startSeconds }
+        .firstOrNull { chapter -> chapter.startSeconds > safePosition }
+        ?.startSeconds
 }
 
 private fun AudiobookAudioTrack.toMediaItem(session: AudiobookPlaybackSession): MediaItem {
