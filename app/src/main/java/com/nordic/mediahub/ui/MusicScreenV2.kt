@@ -704,7 +704,6 @@ fun MusicScreenV2(
                         MusicDetailEmptyState(
                             title = "暂无专辑",
                             subtitle = "刷新音乐库后，Navidrome 专辑会显示在这里。",
-                            colorScheme = colorScheme
                         )
                     }
                 } else {
@@ -724,7 +723,6 @@ fun MusicScreenV2(
                         MusicDetailEmptyState(
                             title = "暂无歌曲",
                             subtitle = "刷新音乐库后，Navidrome 中的全部歌曲会显示在这里。",
-                            colorScheme = colorScheme
                         )
                     }
                 } else {
@@ -755,7 +753,6 @@ fun MusicScreenV2(
                         MusicDetailEmptyState(
                             title = "暂无歌手",
                             subtitle = "同步 Navidrome 后，歌手会按列表展示在这里。",
-                            colorScheme = colorScheme
                         )
                     }
                 } else {
@@ -776,7 +773,6 @@ fun MusicScreenV2(
                         MusicDetailEmptyState(
                             title = "未选择歌手",
                             subtitle = "返回首页选择一位歌手。",
-                            colorScheme = colorScheme
                         )
                     }
                 } else {
@@ -838,7 +834,6 @@ fun MusicScreenV2(
                             MusicDetailEmptyState(
                                 title = "暂无专辑",
                                 subtitle = "该歌手暂无可用专辑。",
-                                colorScheme = colorScheme
                             )
                         }
                     } else {
@@ -860,7 +855,6 @@ fun MusicScreenV2(
                         MusicDetailEmptyState(
                             title = "未选择专辑",
                             subtitle = "返回首页选择一张专辑。",
-                            colorScheme = colorScheme
                         )
                     }
                 } else if (isLoadingAlbumDetail) {
@@ -1052,7 +1046,6 @@ fun MusicScreenV2(
                             MusicDetailEmptyState(
                                 title = "没有找到结果",
                                 subtitle = "试试其他关键词。",
-                                colorScheme = colorScheme
                             )
                         }
                     }
@@ -1076,7 +1069,6 @@ fun MusicScreenV2(
                         MusicDetailEmptyState(
                             title = "暂无歌单",
                             subtitle = "Navidrome 中的歌单会显示在这里。",
-                            colorScheme = colorScheme
                         )
                     }
                 } else {
@@ -1097,7 +1089,6 @@ fun MusicScreenV2(
                         MusicDetailEmptyState(
                             title = "未选择歌单",
                             subtitle = "返回歌单列表选择一个歌单。",
-                            colorScheme = colorScheme
                         )
                     }
                 } else if (isLoadingPlaylistDetail) {
@@ -1129,7 +1120,6 @@ fun MusicScreenV2(
                             MusicDetailEmptyState(
                                 title = "暂无曲目",
                                 subtitle = "这个歌单暂时没有可播放曲目。",
-                                colorScheme = colorScheme
                             )
                         }
                     } else {
@@ -1467,8 +1457,7 @@ private fun MusicBackButton(
 @Composable
 private fun MusicDetailEmptyState(
     title: String,
-    subtitle: String,
-    colorScheme: ColorScheme
+    subtitle: String
 ) {
     MediaStateCard(
         title = title,

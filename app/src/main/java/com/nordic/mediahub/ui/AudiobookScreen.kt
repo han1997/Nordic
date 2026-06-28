@@ -255,7 +255,6 @@ fun AudiobookScreen(
                         title = "先接入你的有声书书库",
                         subtitle = "填入 AudiobookShelf 地址、用户名和密码后，这里会显示真实书目、章节和续播进度。",
                         hint = "点右上角设置开始连接",
-                        colorScheme = colorScheme
                     )
                 }
             } else if (libraries.isEmpty() && !isLoading) {
@@ -264,7 +263,6 @@ fun AudiobookScreen(
                         title = "没有可用书库",
                         subtitle = "已连接 AudiobookShelf，但当前账号下没有可访问的 audiobook library。",
                         hint = "检查服务器权限或书库类型",
-                        colorScheme = colorScheme
                     )
                 }
             } else if (items.isEmpty() && !isLoading) {
@@ -273,7 +271,6 @@ fun AudiobookScreen(
                         title = "这个书库还没有内容",
                         subtitle = "已连接 AudiobookShelf，但当前书库里没有可展示的有声书条目。",
                         hint = "切换其他书库或回到服务端检查扫描结果",
-                        colorScheme = colorScheme
                     )
                 }
             } else {
@@ -303,7 +300,6 @@ fun AudiobookScreen(
                             title = "未选中条目",
                             subtitle = "返回列表选择一本有声书。",
                             hint = "",
-                            colorScheme = colorScheme
                         )
                     }
                 }
@@ -563,8 +559,7 @@ private fun AudiobookChapterRow(chapter: AudiobookChapter, colorScheme: ColorSch
 private fun AudiobookEmptyState(
     title: String,
     subtitle: String,
-    hint: String,
-    colorScheme: ColorScheme
+    hint: String
 ) {
     MediaStateCard(
         title = title,
