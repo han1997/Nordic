@@ -1738,3 +1738,36 @@ Mapped OpenSubsonic structured lyric offsets from Navidrome responses and applie
 ### Next Steps
 
 - None - task complete
+
+
+## Session 53: Fix audiobook chapter restart threshold
+
+**Date**: 2026-06-29
+**Task**: Fix audiobook chapter restart threshold
+**Branch**: `main`
+
+### Summary
+
+Made previous-chapter navigation restart the current audiobook chapter at the exact restart threshold, added a boundary regression test, updated the AudiobookShelf playback contract, and verified focused tests plus compile, full unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c28b889` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
