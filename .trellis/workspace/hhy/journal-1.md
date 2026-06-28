@@ -1870,3 +1870,36 @@ Made audiobook periodic sync report at least the last synced resume baseline, ma
 ### Next Steps
 
 - None - task complete
+
+
+## Session 57: Sort audiobook detail chapters
+
+**Date**: 2026-06-29
+**Task**: Sort audiobook detail chapters
+**Branch**: `main`
+
+### Summary
+
+Sorted audiobook detail chapters by start time so detail pages match playback timeline order even when AudiobookShelf returns unordered chapters, added helper tests for ordering, equal-start stability, and empty lists, updated the AudiobookShelf contract, and verified focused tests plus compile, full unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `86ecf3a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
