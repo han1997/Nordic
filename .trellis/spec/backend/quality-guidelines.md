@@ -270,6 +270,7 @@ val songs = albumDetail.song.orEmpty().map { it.withCoverArtUrl(albumDetail.cove
 
 **Signatures**:
 - `enum class NavidromeAlbumSort { RecentlyAdded, ReleaseYear, Name }`
+- `AlbumList.album: List<NavidromeAlbum>?`
 - `NavidromeApi.getAlbumList2(..., type: String, size: Int, offset: Int, fromYear: Int? = null, toYear: Int? = null)`
 - `suspend fun NavidromeRepository.getAlbums(sort: NavidromeAlbumSort): List<NavidromeAlbum>`
 
@@ -279,20 +280,25 @@ val songs = albumDetail.song.orEmpty().map { it.withCoverArtUrl(albumDetail.cove
 - `ReleaseYear` maps to `getAlbumList2(type = "byYear", fromYear = 2100, toYear = 1900)` so the API returns newest release years first across a broad year range.
 - `Name` maps to `getAlbumList2(type = "alphabeticalByName")`.
 - Album browsing should page with `size = 100` and `offset = n` until an empty or short page.
+- Album list arrays are optional wire fields. DTOs must model `albumList2.album` as nullable, and repository mapping must normalize it with `orEmpty()` so missing/null arrays are empty album pages.
 - The sorted album list is view state, not part of `NavidromeMusicCache`; cached `albums` remains the home/recent album preview unless the cache contract is explicitly revised and schema-bumped.
 
 **Validation & Error Matrix**:
 - Subsonic/HTTP error while loading sorted albums -> preserve `NavidromeApiException`.
 - Unknown failure while loading sorted albums -> wrap as `"获取专辑列表失败: ..."` for UI context.
 - Empty sorted album response -> show album empty state; do not fall back to songs or random albums.
+- Missing or null `albumList2.album` -> treat the page as empty, stopping paging with the albums accumulated so far.
 
 **Good/Base/Bad Cases**:
 - Good: Home shows recent album previews, "All" opens album browsing, and sort chips refetch with the mapped API type.
+- Good: A compatible server omits `albumList2.album`, and album browsing returns a successful empty page.
 - Base: Recently added sort shows the same ordering family as the home album preview but can page beyond the preview limit.
 - Bad: Release-year sorting uses alphabetical albums and sorts locally; this can be incorrect across paged server data.
+- Bad: Album list arrays are modeled as non-null Kotlin lists and mapped directly, relying on Gson defaults for omitted fields.
 
 **Tests Required**:
 - Repository unit test with `MockWebServer` asserting `getAlbums(...)` sends `type=newest`, `type=byYear&fromYear=2100&toYear=1900`, and `type=alphabeticalByName` for the three sort modes.
+- Repository unit test asserting missing and null `albumList2.album` arrays map to an empty album list.
 
 **Wrong vs Correct**:
 ```kotlin
@@ -301,6 +307,22 @@ val albums = repo.getAlbums(NavidromeAlbumSort.Name).sortedByDescending { it.yea
 
 // Correct: request the server-side album list type for the selected sort.
 val albums = repo.getAlbums(NavidromeAlbumSort.ReleaseYear)
+```
+
+```kotlin
+// Wrong: optional album arrays are modeled as non-null DTO fields.
+data class AlbumList(
+    val album: List<NavidromeAlbum> = emptyList()
+)
+```
+
+```kotlin
+// Correct: normalize optional album pages at the repository boundary.
+data class AlbumList(
+    val album: List<NavidromeAlbum>? = null
+)
+
+val albums = subsonic.albumList2?.album.orEmpty().map { it.withCoverArtUrl() }
 ```
 
 ### Navidrome search result mapping

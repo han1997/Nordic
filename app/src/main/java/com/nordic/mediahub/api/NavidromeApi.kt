@@ -45,7 +45,7 @@ data class SubsonicError(
 )
 
 data class AlbumList(
-    val album: List<NavidromeAlbum> = emptyList()
+    val album: List<NavidromeAlbum>? = null
 )
 
 data class SongList(

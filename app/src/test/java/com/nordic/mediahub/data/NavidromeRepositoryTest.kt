@@ -141,6 +141,24 @@ class NavidromeRepositoryTest {
     }
 
     @Test
+    fun getAlbums_mapsMissingAndNullAlbumArraysToEmptyList() = runTest {
+        listOf(
+            """
+            "albumList2": {}
+            """.trimIndent(),
+            """
+            "albumList2": {"album": null}
+            """.trimIndent()
+        ).forEach { albumListField ->
+            server.enqueueJson(subsonicResponse(albumListField))
+
+            val albums = repository().getAlbums(NavidromeAlbumSort.Name)
+
+            assertEquals(emptyList<NavidromeAlbum>(), albums)
+        }
+    }
+
+    @Test
     fun getAlbums_ignoresBlankCoverArtIds() = runTest {
         server.enqueueJson(
             subsonicResponse(

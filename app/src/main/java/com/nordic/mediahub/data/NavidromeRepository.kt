@@ -178,7 +178,7 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
                 toYear = toYear
             )
         }
-        return subsonic.albumList2?.album?.map { it.withCoverArtUrl() } ?: emptyList()
+        return subsonic.albumList2?.album.orEmpty().map { it.withCoverArtUrl() }
     }
 
     private fun NavidromeAlbumSort.toAlbumListRequest(): AlbumListRequest {
