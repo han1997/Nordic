@@ -1210,3 +1210,36 @@ Cleared video detail selection when refreshed Emby catalog data no longer contai
 ### Next Steps
 
 - None - task complete
+
+
+## Session 37: Start music play all at first playable song
+
+**Date**: 2026-06-28
+**Task**: Start music play all at first playable song
+**Branch**: `main`
+
+### Summary
+
+Updated music bulk play actions to start at the first song with a usable stream URL, surface contextual errors when no songs are playable, added focused helper tests, and documented the play-all contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a5b2f93` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
