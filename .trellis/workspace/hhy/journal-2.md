@@ -236,3 +236,36 @@ Fixed Navidrome structured lyrics so OpenSubsonic line.start values are always p
 ### Next Steps
 
 - None - task complete
+
+
+## Session 67: Page AudiobookShelf library items
+
+**Date**: 2026-06-29
+**Task**: Page AudiobookShelf library items
+**Branch**: `main`
+
+### Summary
+
+Updated AudiobookShelf library browsing to page through item responses until the server total is loaded, added a MockWebServer regression test for page 0/page 1 requests, and captured the pagination contract in the backend spec.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c7aed87` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
