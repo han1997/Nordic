@@ -141,10 +141,13 @@ class EmbyRepository(private val config: VideoServerConfig) {
             val users = requireResponseBody("获取 Emby 用户失败") {
                 api.getUsers(config.apiKey.trim())
             }
-            val user = users.firstOrNull { it.name.equals(config.username, ignoreCase = true) }
-                ?: users.firstOrNull()
+            val usableUsers = users.filter { !it.id.isNullOrBlank() }
+            val user = usableUsers.firstOrNull { it.name.equals(config.username, ignoreCase = true) }
+                ?: usableUsers.firstOrNull()
                 ?: throw EmbyApiException("获取 Emby 用户失败: 没有可用用户", EmbyApiException.Kind.AUTH)
-            EmbySession(userId = user.id, token = config.apiKey.trim())
+            val userId = user.id?.takeIf { it.isNotBlank() }
+                ?: throw EmbyApiException("获取 Emby 用户失败: 没有可用用户", EmbyApiException.Kind.AUTH)
+            EmbySession(userId = userId, token = config.apiKey.trim())
         } else {
             val response = requireResponseBody("登录 Emby 失败") {
                 api.authenticateByName(
@@ -159,7 +162,9 @@ class EmbyRepository(private val config: VideoServerConfig) {
             if (accessToken == null) {
                 throw EmbyApiException("登录 Emby 失败: 未返回访问令牌", EmbyApiException.Kind.AUTH)
             }
-            EmbySession(userId = response.user.id, token = accessToken)
+            val userId = response.user?.id?.takeIf { it.isNotBlank() }
+                ?: throw EmbyApiException("登录 Emby 失败: 未返回用户标识", EmbyApiException.Kind.AUTH)
+            EmbySession(userId = userId, token = accessToken)
         }
 
         cachedSession = session

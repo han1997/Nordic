@@ -50,7 +50,8 @@ POST Sessions/Playing/Stopped
   - either `apiKey` is not blank, or both `username` and `password` are not blank
 - API key flow:
   - `GET Users` with `X-Emby-Token: <apiKey>`
-  - choose the user whose `Name` matches `config.username` ignoring case, otherwise choose the first returned user
+  - ignore returned users whose `Id` is missing, null, empty, or blank
+  - choose the remaining user whose `Name` matches `config.username` ignoring case, otherwise choose the first remaining user
   - use the API key as the session token for later requests
 - Username/password flow:
   - `POST Users/AuthenticateByName`
@@ -132,8 +133,9 @@ POST Sessions/Playing/Stopped
 - Non-2xx response -> throw `EmbyApiException(kind = HTTP, message contains "HTTP <code>")`
 - Empty response body -> throw `EmbyApiException(kind = API)`
 - Empty 200 JSON responses that fail during Retrofit/Gson conversion must also throw `EmbyApiException(kind = API)`, not a generic wrapped exception.
-- API key flow returns no users -> throw `EmbyApiException(kind = AUTH)`
+- API key flow returns no users with a non-blank `Id` -> throw `EmbyApiException(kind = AUTH)`
 - Password flow returns missing, null, or blank `AccessToken` -> throw `EmbyApiException(kind = AUTH)`
+- Password flow returns missing, null, or blank `User.Id` -> throw `EmbyApiException(kind = AUTH)`
 - Missing item `UserData` -> map resume position to `0` and played state to `false`
 - Missing `UserData.LastPlayedDate` -> continue-watching shelf keeps the item eligible by resume position but sorts it behind dated resume items
 - Resume position at or beyond known duration while `Played == false` -> exclude from continue-watching shelf as effectively complete
@@ -200,11 +202,14 @@ POST Sessions/Playing/Stopped
 - API key flow:
   - asserts `GET /Users` and `X-Emby-Token`
   - asserts matching/first user behavior when applicable
+  - asserts returned users with missing, null, empty, or blank `Id` are not selected
+  - asserts responses with no usable user ids throw `EmbyApiException.Kind.AUTH`
 - Password flow:
   - asserts `POST /Users/AuthenticateByName`
   - asserts `Username` and `Pw` body fields
   - asserts later requests use `AccessToken`
   - asserts missing, null, and blank `AccessToken` responses throw `EmbyApiException.Kind.AUTH`
+  - asserts missing, null, and blank `User.Id` responses throw `EmbyApiException.Kind.AUTH`
 - Mapping:
   - asserts non-video libraries are filtered
   - asserts video library `CollectionType` and blank-collection `CollectionFolder` fallback matching are case-insensitive

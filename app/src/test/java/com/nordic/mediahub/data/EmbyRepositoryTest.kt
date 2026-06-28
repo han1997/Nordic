@@ -126,6 +126,48 @@ class EmbyRepositoryTest {
     }
 
     @Test
+    fun getCatalog_usesFirstUsableApiKeyUserWhenMatchingUserIdIsMissing() = runTest {
+        server.enqueueJson("""[{"Name":"demo"},{"Id":"u-fallback","Name":"fallback"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson("""{"Items":[],"TotalRecordCount":0}""")
+
+        val catalog = repository(apiKey = "api-key").getCatalog()
+
+        assertEquals("lib-movie", catalog.selectedLibraryId)
+        server.takeRequest()
+        assertEquals("/Users/u-fallback/Views", server.takeRequest().path)
+    }
+
+    @Test
+    fun getCatalog_throwsTypedAuthExceptionWhenApiKeyUsersHaveNoUsableIds() = runTest {
+        server.enqueueJson(
+            """
+                [
+                  {"Name":"demo"},
+                  {"Id":null,"Name":"null-id"},
+                  {"Id":"","Name":"empty-id"},
+                  {"Id":"   ","Name":"blank-id"}
+                ]
+            """.trimIndent()
+        )
+
+        assertEmbyApiError(EmbyApiException.Kind.AUTH) {
+            repository(apiKey = "api-key").getCatalog()
+        }
+
+        assertEquals("/Users", server.takeRequest().path)
+    }
+
+    @Test
     fun getCatalog_authenticatesWithUsernameAndPasswordWhenApiKeyIsMissing() = runTest {
         server.enqueueJson(
             """
@@ -189,6 +231,51 @@ class EmbyRepositoryTest {
         }
 
         repeat(3) {
+            assertEquals("/Users/AuthenticateByName", server.takeRequest().path)
+        }
+    }
+
+    @Test
+    fun getCatalog_throwsTypedAuthExceptionForInvalidPasswordUserIds() = runTest {
+        listOf(
+            """
+                {
+                  "AccessToken": "token-123"
+                }
+            """.trimIndent(),
+            """
+                {
+                  "User": null,
+                  "AccessToken": "token-123"
+                }
+            """.trimIndent(),
+            """
+                {
+                  "User": {"Name":"demo"},
+                  "AccessToken": "token-123"
+                }
+            """.trimIndent(),
+            """
+                {
+                  "User": {"Id":null,"Name":"demo"},
+                  "AccessToken": "token-123"
+                }
+            """.trimIndent(),
+            """
+                {
+                  "User": {"Id":"   ","Name":"demo"},
+                  "AccessToken": "token-123"
+                }
+            """.trimIndent()
+        ).forEach { response ->
+            server.enqueueJson(response)
+
+            assertEmbyApiError(EmbyApiException.Kind.AUTH) {
+                repository(apiKey = "").getCatalog()
+            }
+        }
+
+        repeat(5) {
             assertEquals("/Users/AuthenticateByName", server.takeRequest().path)
         }
     }

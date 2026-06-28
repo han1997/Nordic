@@ -18,14 +18,14 @@ data class EmbyAuthenticateRequest(
 
 data class EmbyAuthenticateResponse(
     @SerializedName("User")
-    val user: EmbyUserDto,
+    val user: EmbyUserDto? = null,
     @SerializedName("AccessToken")
     val accessToken: String? = null
 )
 
 data class EmbyUserDto(
     @SerializedName("Id")
-    val id: String,
+    val id: String? = null,
     @SerializedName("Name")
     val name: String? = null
 )
