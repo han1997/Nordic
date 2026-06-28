@@ -60,6 +60,7 @@
 - Next chapter behavior should jump to the next chapter start when one exists.
 - `PATCH /api/me/progress/*`, `POST /api/session/*/sync`, and `POST /api/session/*/close` must validate `Response<Unit>.isSuccessful`. Do not fire-and-forget these session endpoints.
 - UI close flows should call `syncAndCloseSession(...)` so the final position is written before closing the AudiobookShelf session.
+- When starting music or video while an audiobook is active, the app-shell should stop audiobook playback and attempt `syncAndCloseSession(...)` in the background. If that background close fails, do not reopen the stopped audiobook player over the newly selected media.
 
 ### 4. Validation & Error Matrix
 
@@ -87,6 +88,7 @@
 | Progress/session close duration is zero or negative | Send `currentTime: 0.0`; keep request `duration` safe for progress math |
 | Progress update/session sync/session close returns non-2xx | Throw `AudiobookShelfApiException.Kind.HTTP` with the failing status code |
 | User leaves audiobook playback | Call `syncAndCloseSession(...)` with the last absolute position and clear Media3 audiobook state |
+| Background close fails during music/video handoff | Keep the new media surface active; do not reopen the stopped audiobook player |
 | User starts audiobook playback while music is active | Call `MusicPlaybackEngine.stop()` before `AudiobookPlaybackEngine.play(...)` |
 
 ### 5. Good/Base/Bad Cases
@@ -116,6 +118,7 @@
   - non-2xx progress/session responses throw `AudiobookShelfApiException.Kind.HTTP`
 - UI/helper tests should assert library selection resolution keeps an existing id, falls back from a stale id, and clears selection for an empty library list.
 - App-shell helper tests should assert periodic sync baseline resolution uses the session resume/current time when playback state has not caught up, uses playback state when it is ahead, and clamps negative values to zero.
+- App-shell helper tests should assert manual audiobook close failures present the player/error, while background handoff close failures do not reopen the player.
 - Playback tests should assert:
   - absolute audiobook position is track offset plus player position
   - absolute audiobook position clamps known-track local player position to the track duration

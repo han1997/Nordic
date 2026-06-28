@@ -60,6 +60,28 @@ internal fun resolveAudiobookProgressSyncBaselineSeconds(
     )
 }
 
+internal data class AudiobookCloseFailurePresentation(
+    val showPlayer: Boolean,
+    val errorMessage: String?
+)
+
+internal fun resolveAudiobookCloseFailurePresentation(
+    closeFailureMessage: String,
+    reopenPlayerOnFailure: Boolean
+): AudiobookCloseFailurePresentation {
+    return if (reopenPlayerOnFailure) {
+        AudiobookCloseFailurePresentation(
+            showPlayer = true,
+            errorMessage = closeFailureMessage
+        )
+    } else {
+        AudiobookCloseFailurePresentation(
+            showPlayer = false,
+            errorMessage = null
+        )
+    }
+}
+
 private class BottomDockRevealController {
     var revealJob: Job? = null
 }
@@ -307,8 +329,12 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                 runCatching {
                     repo.syncAndCloseSession(session, positionSeconds)
                 }.onFailure { error ->
-                    audiobookPlaybackError = error.message ?: "关闭有声书播放会话失败"
-                    showAudiobookPlayer = true
+                    val presentation = resolveAudiobookCloseFailurePresentation(
+                        closeFailureMessage = error.message ?: "关闭有声书播放会话失败",
+                        reopenPlayerOnFailure = false
+                    )
+                    audiobookPlaybackError = presentation.errorMessage
+                    showAudiobookPlayer = presentation.showPlayer
                 }
             }
         }
@@ -332,8 +358,12 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             }.onSuccess {
                 audiobookPlaybackEngine.stop()
             }.onFailure { error ->
-                audiobookPlaybackError = error.message ?: "Close audiobook playback session failed"
-                showAudiobookPlayer = true
+                val presentation = resolveAudiobookCloseFailurePresentation(
+                    closeFailureMessage = error.message ?: "Close audiobook playback session failed",
+                    reopenPlayerOnFailure = true
+                )
+                audiobookPlaybackError = presentation.errorMessage
+                showAudiobookPlayer = presentation.showPlayer
             }
         }
     }
