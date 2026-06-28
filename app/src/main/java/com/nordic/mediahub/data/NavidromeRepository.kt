@@ -349,12 +349,11 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
         val subsonic = requestSubsonic {
             api.getArtists(config.username, auth.token, auth.salt)
         }
-        val artists = subsonic.artists?.index?.flatMap { index ->
-            index.artist
-        } ?: emptyList()
+        val artists = subsonic.artists?.index.orEmpty().flatMap { index ->
+            index.artist.orEmpty()
+        }
 
         val resolvedArtists = artists.map { it.withInitials() }
-        Log.d("NavidromeRepo", "Prepared ${resolvedArtists.size} artists")
         resolvedArtists
     } catch (e: NavidromeApiException) {
         throw e

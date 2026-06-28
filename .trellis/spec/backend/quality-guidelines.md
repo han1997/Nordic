@@ -144,6 +144,70 @@ coverArt = (coverArt ?: fallbackCoverArt)?.let(::buildCoverArtUrl)
 coverArt = coverArt.toCoverArtUrlOrNull() ?: fallbackCoverArt.toCoverArtUrlOrNull()
 ```
 
+### Navidrome artist index browsing
+
+**Scope / Trigger**: Any change to Music artist browsing UI, `NavidromeApi` artist index DTOs/endpoints, or `NavidromeRepository.getArtists()`.
+
+**Signatures**:
+- `SubsonicData.artists: ArtistsIndex?`
+- `ArtistsIndex.index: List<ArtistIndex>?`
+- `ArtistIndex.artist: List<NavidromeArtist>?`
+- `NavidromeApi.getArtists(...): Response<SubsonicResponse>`
+- `override suspend fun NavidromeRepository.getArtists(): List<NavidromeArtist>`
+
+**Contract**:
+- `getArtists()` calls Subsonic `getArtists.view` and flattens every `artists.index[].artist[]` entry into a single app-facing artist list.
+- Artist index arrays are optional wire fields. DTOs must model both `artists.index` and nested `index.artist` as nullable, and repository mapping must normalize each level with `orEmpty()`.
+- Missing or null nested artist arrays are empty index groups; they must not prevent other index groups from contributing artists.
+- Returned artists must include computed initials through `withInitials()` before reaching UI.
+
+**Validation & Error Matrix**:
+- Subsonic/HTTP error while loading artists -> preserve `NavidromeApiException`.
+- Unknown failure while loading artists -> wrap as `"获取歌手失败: ..."` for UI context.
+- Missing `artists` -> return an empty artist list.
+- Missing or null `artists.index` -> return an empty artist list.
+- Missing or null nested `index.artist` -> skip that index group and keep mapping other groups.
+
+**Good/Base/Bad Cases**:
+- Good: Artist browsing flattens multiple Subsonic index groups and computes initials for every returned artist.
+- Good: A compatible server sends an empty or partial artist index response, and the repository returns a successful empty/partial artist list.
+- Base: Empty server artist list shows artist empty state.
+- Bad: Nested artist arrays are modeled as non-null Kotlin lists and flattened directly.
+
+**Tests Required**:
+- Repository unit test asserting `getArtists()` requests `/rest/getArtists.view`, flattens index groups, and computes initials.
+- Repository unit test asserting missing and null `artists.index` arrays map to an empty artist list.
+- Repository unit test asserting missing and null nested `index.artist` arrays are skipped without dropping artists from other groups.
+
+**Wrong vs Correct**:
+```kotlin
+// Wrong: optional nested wire arrays are modeled as non-null DTO fields.
+data class ArtistsIndex(
+    val index: List<ArtistIndex> = emptyList()
+)
+
+data class ArtistIndex(
+    val name: String,
+    val artist: List<NavidromeArtist> = emptyList()
+)
+```
+
+```kotlin
+// Correct: model optional index arrays as nullable and normalize while flattening.
+data class ArtistsIndex(
+    val index: List<ArtistIndex>? = null
+)
+
+data class ArtistIndex(
+    val name: String,
+    val artist: List<NavidromeArtist>? = null
+)
+
+val artists = subsonic.artists?.index.orEmpty().flatMap { index ->
+    index.artist.orEmpty()
+}
+```
+
 ### Navidrome all-song navigation data
 
 The Music tab's "歌曲" navigation must use all songs, not the recently added preview list.

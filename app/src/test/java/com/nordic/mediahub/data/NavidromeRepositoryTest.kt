@@ -178,6 +178,86 @@ class NavidromeRepositoryTest {
     }
 
     @Test
+    fun getArtists_flattensIndexesAndComputesInitials() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "artists": {
+                  "index": [
+                    {
+                      "name": "A",
+                      "artist": [
+                        {"id": "artist-1", "name": "Artist One", "albumCount": 2}
+                      ]
+                    },
+                    {
+                      "name": "B",
+                      "artist": [
+                        {"id": "artist-2", "name": "Beta", "albumCount": 3}
+                      ]
+                    }
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val artists = repository().getArtists()
+
+        assertEquals(listOf("Artist One", "Beta"), artists.map { it.name })
+        assertEquals(listOf("AO", "B"), artists.map { it.initials })
+        assertEquals(listOf(2, 3), artists.map { it.albumCount })
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/getArtists.view?"))
+    }
+
+    @Test
+    fun getArtists_mapsMissingAndNullIndexArraysToEmptyList() = runTest {
+        listOf(
+            """
+            "artists": {}
+            """.trimIndent(),
+            """
+            "artists": {"index": null}
+            """.trimIndent()
+        ).forEach { artistsField ->
+            server.enqueueJson(subsonicResponse(artistsField))
+
+            val artists = repository().getArtists()
+
+            assertTrue(artists.isEmpty())
+        }
+    }
+
+    @Test
+    fun getArtists_skipsMissingAndNullNestedArtistArrays() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "artists": {
+                  "index": [
+                    {"name": "A"},
+                    {"name": "B", "artist": null},
+                    {
+                      "name": "C",
+                      "artist": [
+                        {"id": "artist-3", "name": "Charlie Delta", "albumCount": 4}
+                      ]
+                    }
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val artists = repository().getArtists()
+
+        assertEquals(listOf("Charlie Delta"), artists.map { it.name })
+        assertEquals(listOf("CD"), artists.map { it.initials })
+    }
+
+    @Test
     fun getArtistAlbums_mapsPresentAlbumsAndCoverArtUrls() = runTest {
         server.enqueueJson(
             artistDetailResponse(

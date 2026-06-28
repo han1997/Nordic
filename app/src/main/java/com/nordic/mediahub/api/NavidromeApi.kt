@@ -57,12 +57,12 @@ data class NavidromePlaylistList(
 )
 
 data class ArtistsIndex(
-    val index: List<ArtistIndex> = emptyList()
+    val index: List<ArtistIndex>? = null
 )
 
 data class ArtistIndex(
     val name: String,
-    val artist: List<NavidromeArtist> = emptyList()
+    val artist: List<NavidromeArtist>? = null
 )
 
 data class NavidromeAlbum(
