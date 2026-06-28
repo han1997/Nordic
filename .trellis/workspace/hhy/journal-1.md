@@ -1705,3 +1705,36 @@ Applied plain LRC offset metadata to parsed Navidrome lyric timestamps using con
 ### Next Steps
 
 - None - task complete
+
+
+## Session 52: Apply structured lyric offsets
+
+**Date**: 2026-06-29
+**Task**: Apply structured lyric offsets
+**Branch**: `main`
+
+### Summary
+
+Mapped OpenSubsonic structured lyric offsets from Navidrome responses and applied them to structured lyric line start times, preserving millisecond starts, handling positive/negative offsets, clamping before zero, and documenting the contract with focused repository tests.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2975fd2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
