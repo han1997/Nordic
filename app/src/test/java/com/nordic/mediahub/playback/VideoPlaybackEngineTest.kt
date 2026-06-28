@@ -26,11 +26,27 @@ class VideoPlaybackEngineTest {
     }
 
     @Test
-    fun resolveVideoInitialStartPositionMs_clampsResumePositionToDuration() {
+    fun resolveVideoInitialStartPositionMs_startsFromBeginningWhenResumeIsComplete() {
         assertEquals(
-            120_000L,
+            0L,
+            resolveVideoInitialStartPositionMs(
+                video(playbackPositionSeconds = 120, durationSeconds = 120)
+            )
+        )
+        assertEquals(
+            0L,
             resolveVideoInitialStartPositionMs(
                 video(playbackPositionSeconds = 300, durationSeconds = 120)
+            )
+        )
+    }
+
+    @Test
+    fun resolveVideoInitialStartPositionMs_keepsResumePositionWhenDurationUnknown() {
+        assertEquals(
+            300_000L,
+            resolveVideoInitialStartPositionMs(
+                video(playbackPositionSeconds = 300, durationSeconds = 0)
             )
         )
     }

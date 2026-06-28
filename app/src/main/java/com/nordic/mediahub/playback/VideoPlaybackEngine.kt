@@ -220,12 +220,9 @@ internal fun resolveVideoInitialStartPositionMs(video: VideoItem): Long {
     if (resumeSeconds <= 0) return 0L
 
     val durationSeconds = video.durationSeconds.coerceAtLeast(0)
-    val startSeconds = if (durationSeconds > 0) {
-        resumeSeconds.coerceAtMost(durationSeconds)
-    } else {
-        resumeSeconds
-    }
-    return startSeconds * 1000L
+    if (durationSeconds > 0 && resumeSeconds >= durationSeconds) return 0L
+
+    return resumeSeconds * 1000L
 }
 
 internal fun resolveVideoRelativeSeekPositionSeconds(

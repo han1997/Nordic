@@ -82,7 +82,8 @@ GET Users/{userId}/Items
 - Direct playback start position:
   - A newly started unplayed `VideoItem` with `playbackPositionSeconds > 0` must seek to that resume position before playback starts.
   - Items marked `isPlayed == true`, or items with no positive resume position, start at `0`.
-  - If `durationSeconds` is known, clamp the initial resume position to `durationSeconds`.
+  - If `durationSeconds` is known, use a resume position only when it is less than duration. Resume positions at or beyond duration are effectively complete and start at `0`.
+  - If `durationSeconds` is unknown, keep positive resume positions because there is no reliable completion boundary.
 - Direct playback controls:
   - Video playback supports fixed relative seek controls: 10 seconds backward and 30 seconds forward.
   - Relative seek commands must resolve to an absolute player position and use the same `seekTo(positionSeconds)` path as the scrubber.
@@ -104,7 +105,7 @@ GET Users/{userId}/Items
 - Catalog refresh omits the currently selected video id -> clear selected video detail state
 - Catalog refresh still contains the selected video id -> keep detail state using the refreshed `VideoItem`
 - Missing item `CommunityRating` -> map rating to `null`; top-rated shelves should ignore it
-- `playbackPositionSeconds` greater than known duration -> initial playback seek clamps to the duration instead of seeking beyond the item
+- `playbackPositionSeconds` at or beyond known duration -> initial playback starts at `0` instead of seeking to the end
 - Relative video skip requested near the start or end -> clamp to `0` or `durationSeconds`
 - Missing episode relationship fields -> keep the episode playable, but only show it under a series detail when `seriesId` is missing/blank and the `seriesName` fallback matches
 - `Series` item -> `VideoItem.streamUrl == null`; UI must not call playback for the series item directly
@@ -146,7 +147,7 @@ GET Users/{userId}/Items
   - asserts continue-watching shelf sorting uses last-played recency before resume-position fallback
   - asserts continue-watching shelf excludes resume positions at or beyond known duration, while keeping unknown-duration resume items eligible
   - asserts selected video detail resolution keeps a refreshed matching item and clears selection when the library changes or the item disappears
-  - asserts video initial start-position helper uses resume seconds for unfinished items, starts played items at zero, and clamps beyond duration
+  - asserts video initial start-position helper uses resume seconds for unfinished items, starts played items at zero, starts at zero for resume positions at/beyond known duration, and preserves positive resume positions when duration is unknown
   - asserts video relative seek helper clamps at the beginning and end of the item
   - asserts `Fields` requests `SeriesId`, `SeriesName`, `ParentIndexNumber`, and `IndexNumber`
   - asserts `Series` items map `streamUrl` to `null`
