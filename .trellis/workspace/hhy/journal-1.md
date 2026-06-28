@@ -1342,3 +1342,36 @@ Tightened Emby series-detail episode derivation so seriesName fallback only appl
 ### Next Steps
 
 - None - task complete
+
+
+## Session 41: Clamp audiobook absolute playback position
+
+**Date**: 2026-06-28
+**Task**: Clamp audiobook absolute playback position
+**Branch**: `main`
+
+### Summary
+
+Clamped AudiobookShelf absolute playback state to the known audio track duration, added regression coverage, updated the AudiobookShelf playback contract, and verified compile, unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a263580` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

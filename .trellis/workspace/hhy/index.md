@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 40
+- **Total Sessions**: 41
 - **Last Active**: 2026-06-28
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1344 | Active |
+| `journal-1.md` | ~1377 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 41 | 2026-06-28 | Clamp audiobook absolute playback position | `a263580` | `main` |
 | 40 | 2026-06-28 | Restrict video series episode fallback matching | `353f29e` | `main` |
 | 39 | 2026-06-28 | Clamp audiobook progress sync time | `8e6d353` | `main` |
 | 38 | 2026-06-28 | Filter unplayable songs from music queues | `1aeb892` | `main` |
