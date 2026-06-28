@@ -21,6 +21,13 @@ class MusicScreenV2Test {
     }
 
     @Test
+    fun resolveMusicLibraryPageAfterConfigChange_returnsHomeForEveryPage() {
+        MusicLibraryPage.values().forEach { page ->
+            assertEquals(MusicLibraryPage.Home, resolveMusicLibraryPageAfterConfigChange(page))
+        }
+    }
+
+    @Test
     fun firstPlayableSongIndex_returnsFirstSongWithStreamUrl() {
         val songs = listOf(
             song(id = "missing"),

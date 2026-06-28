@@ -74,7 +74,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private enum class MusicLibraryPage {
+internal enum class MusicLibraryPage {
     Home,
     Albums,
     Songs,
@@ -144,10 +144,46 @@ fun MusicScreenV2(
     var searchError by remember { mutableStateOf<String?>(null) }
     var searchJob by remember { mutableStateOf<Job?>(null) }
     var cacheUpdatedAtMillis by remember { mutableStateOf<Long?>(null) }
+    var musicConfigStateVersion by remember { mutableStateOf(0) }
     val scope = rememberCoroutineScope()
 
-    suspend fun applyCachedMusicData(targetConfig: NavidromeConfig): Boolean {
+    fun isCurrentMusicConfigRequest(requestVersion: Int?): Boolean {
+        return requestVersion == null || musicConfigStateVersion == requestVersion
+    }
+
+    fun resetMusicStateAfterConfigChange() {
+        musicConfigStateVersion += 1
+        selectedTab = 0
+        libraryPage = resolveMusicLibraryPageAfterConfigChange(libraryPage)
+        sortedAlbums = emptyList()
+        playlists = emptyList()
+        selectedAlbum = null
+        albumDetailSongs = emptyList()
+        selectedArtist = null
+        artistAlbums = emptyList()
+        selectedPlaylist = null
+        playlistSongs = emptyList()
+        isLoading = false
+        isLoadingAlbumList = false
+        isLoadingPlaylists = false
+        isLoadingAlbumDetail = false
+        isLoadingArtistDetail = false
+        isLoadingPlaylistDetail = false
+        searchJob?.cancel()
+        searchJob = null
+        searchQuery = ""
+        searchResult = null
+        searchError = null
+        isSearching = false
+        albumSort = NavidromeAlbumSort.RecentlyAdded
+    }
+
+    suspend fun applyCachedMusicData(targetConfig: NavidromeConfig, requestVersion: Int? = null): Boolean {
         val cached = cacheRepository.load(targetConfig)
+        if (!isCurrentMusicConfigRequest(requestVersion)) {
+            return false
+        }
+
         if (cached == null) {
             albums = emptyList()
             songs = emptyList()
@@ -166,7 +202,7 @@ fun MusicScreenV2(
         return true
     }
 
-    suspend fun refreshMusicData(targetConfig: NavidromeConfig): Boolean {
+    suspend fun refreshMusicData(targetConfig: NavidromeConfig, requestVersion: Int? = null): Boolean {
         if (!targetConfig.isReadyForMusicSync() || isLoading) return false
 
         isLoading = true
@@ -177,6 +213,10 @@ fun MusicScreenV2(
                 savedConfig = savedConfig,
                 savedRepository = navidromeRepository
             ) ?: return false
+            if (!isCurrentMusicConfigRequest(requestVersion)) {
+                return false
+            }
+
             val freshCache = cacheRepository.buildCache(
                 config = targetConfig,
                 albums = freshData.albums,
@@ -193,19 +233,24 @@ fun MusicScreenV2(
             cacheRepository.save(targetConfig, freshCache)
             true
         } catch (e: Exception) {
-            val hasCachedContent = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty()
-            errorMsg = if (hasCachedContent) {
-                "正在显示上次缓存：${e.message}"
-            } else {
-                "连接失败: ${e.message}"
+            if (isCurrentMusicConfigRequest(requestVersion)) {
+                val hasCachedContent = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty()
+                errorMsg = if (hasCachedContent) {
+                    "正在显示上次缓存：${e.message}"
+                } else {
+                    "连接失败: ${e.message}"
+                }
             }
             false
         } finally {
-            isLoading = false
+            if (isCurrentMusicConfigRequest(requestVersion)) {
+                isLoading = false
+            }
         }
     }
 
     suspend fun loadAlbumList(sort: NavidromeAlbumSort): Boolean {
+        val requestVersion = musicConfigStateVersion
         if (isLoadingAlbumList) return false
         val repo = navidromeRepository
         if (repo == null) {
@@ -217,13 +262,22 @@ fun MusicScreenV2(
         isLoadingAlbumList = true
         errorMsg = null
         return try {
-            sortedAlbums = repo.getAlbums(sort)
-            true
+            val albums = repo.getAlbums(sort)
+            if (musicConfigStateVersion == requestVersion) {
+                sortedAlbums = albums
+                true
+            } else {
+                false
+            }
         } catch (e: Exception) {
-            errorMsg = "获取专辑列表失败: ${e.message}"
+            if (musicConfigStateVersion == requestVersion) {
+                errorMsg = "获取专辑列表失败: ${e.message}"
+            }
             false
         } finally {
-            isLoadingAlbumList = false
+            if (musicConfigStateVersion == requestVersion) {
+                isLoadingAlbumList = false
+            }
         }
     }
 
@@ -235,6 +289,7 @@ fun MusicScreenV2(
     }
 
     suspend fun loadPlaylists(): Boolean {
+        val requestVersion = musicConfigStateVersion
         if (isLoadingPlaylists) return false
         val repo = navidromeRepository
         if (repo == null) {
@@ -245,13 +300,22 @@ fun MusicScreenV2(
         isLoadingPlaylists = true
         errorMsg = null
         return try {
-            playlists = repo.getPlaylists()
-            true
+            val loadedPlaylists = repo.getPlaylists()
+            if (musicConfigStateVersion == requestVersion) {
+                playlists = loadedPlaylists
+                true
+            } else {
+                false
+            }
         } catch (e: Exception) {
-            errorMsg = "获取歌单失败: ${e.message}"
+            if (musicConfigStateVersion == requestVersion) {
+                errorMsg = "获取歌单失败: ${e.message}"
+            }
             false
         } finally {
-            isLoadingPlaylists = false
+            if (musicConfigStateVersion == requestVersion) {
+                isLoadingPlaylists = false
+            }
         }
     }
 
@@ -308,6 +372,7 @@ fun MusicScreenV2(
     }
 
     fun openAlbumDetail(album: NavidromeAlbum) {
+        val requestVersion = musicConfigStateVersion
         selectedAlbum = album
         albumDetailSongs = emptyList()
         isLoadingAlbumDetail = true
@@ -316,16 +381,24 @@ fun MusicScreenV2(
         scope.launch {
             try {
                 navidromeRepository?.let { repo ->
-                    albumDetailSongs = repo.getAlbumSongs(album.id)
+                    val songs = repo.getAlbumSongs(album.id)
+                    if (musicConfigStateVersion == requestVersion && selectedAlbum?.id == album.id) {
+                        albumDetailSongs = songs
+                    }
                 }
             } catch (e: Exception) {
-                errorMsg = musicAlbumDetailLoadErrorMessage(e)
+                if (musicConfigStateVersion == requestVersion && selectedAlbum?.id == album.id) {
+                    errorMsg = musicAlbumDetailLoadErrorMessage(e)
+                }
             }
-            isLoadingAlbumDetail = false
+            if (musicConfigStateVersion == requestVersion && selectedAlbum?.id == album.id) {
+                isLoadingAlbumDetail = false
+            }
         }
     }
 
     fun openArtistDetail(artist: NavidromeArtist) {
+        val requestVersion = musicConfigStateVersion
         selectedArtist = artist
         artistAlbums = emptyList()
         isLoadingArtistDetail = true
@@ -334,16 +407,24 @@ fun MusicScreenV2(
         scope.launch {
             try {
                 navidromeRepository?.let { repo ->
-                    artistAlbums = repo.getArtistAlbums(artist.id)
+                    val albums = repo.getArtistAlbums(artist.id)
+                    if (musicConfigStateVersion == requestVersion && selectedArtist?.id == artist.id) {
+                        artistAlbums = albums
+                    }
                 }
             } catch (e: Exception) {
-                errorMsg = musicArtistDetailLoadErrorMessage(e)
+                if (musicConfigStateVersion == requestVersion && selectedArtist?.id == artist.id) {
+                    errorMsg = musicArtistDetailLoadErrorMessage(e)
+                }
             }
-            isLoadingArtistDetail = false
+            if (musicConfigStateVersion == requestVersion && selectedArtist?.id == artist.id) {
+                isLoadingArtistDetail = false
+            }
         }
     }
 
     fun openPlaylistDetail(playlist: NavidromePlaylist) {
+        val requestVersion = musicConfigStateVersion
         selectedPlaylist = playlist
         playlistSongs = emptyList()
         isLoadingPlaylistDetail = true
@@ -352,40 +433,35 @@ fun MusicScreenV2(
         scope.launch {
             try {
                 navidromeRepository?.let { repo ->
-                    playlistSongs = repo.getPlaylistSongs(playlist.id)
+                    val songs = repo.getPlaylistSongs(playlist.id)
+                    if (musicConfigStateVersion == requestVersion && selectedPlaylist?.id == playlist.id) {
+                        playlistSongs = songs
+                    }
                 }
             } catch (e: Exception) {
-                errorMsg = "获取歌单曲目失败: ${e.message}"
+                if (musicConfigStateVersion == requestVersion && selectedPlaylist?.id == playlist.id) {
+                    errorMsg = "获取歌单曲目失败: ${e.message}"
+                }
             } finally {
-                isLoadingPlaylistDetail = false
+                if (musicConfigStateVersion == requestVersion && selectedPlaylist?.id == playlist.id) {
+                    isLoadingPlaylistDetail = false
+                }
             }
         }
     }
 
     LaunchedEffect(savedConfig) {
         config = savedConfig
-        sortedAlbums = emptyList()
-        playlists = emptyList()
-        playlistSongs = emptyList()
-        selectedPlaylist = null
-        searchJob?.cancel()
-        searchResult = null
-        searchError = null
-        isSearching = false
-        albumSort = NavidromeAlbumSort.RecentlyAdded
+        resetMusicStateAfterConfigChange()
+        val requestVersion = musicConfigStateVersion
         if (savedConfig.isReadyForMusicSync()) {
-            applyCachedMusicData(savedConfig)
-            refreshMusicData(savedConfig)
+            applyCachedMusicData(savedConfig, requestVersion)
+            refreshMusicData(savedConfig, requestVersion)
         } else {
             albums = emptyList()
             songs = emptyList()
             recentlyAddedSongs = emptyList()
             artists = emptyList()
-            sortedAlbums = emptyList()
-            playlists = emptyList()
-            playlistSongs = emptyList()
-            selectedPlaylist = null
-            libraryPage = MusicLibraryPage.Home
             cacheUpdatedAtMillis = null
             errorMsg = null
         }
@@ -938,20 +1014,21 @@ fun MusicScreenV2(
                                 isSearching = false
                             } else {
                                 isSearching = true
+                                val requestVersion = musicConfigStateVersion
                                 searchJob = scope.launch {
                                     delay(300)
                                     try {
                                         val result = navidromeRepository?.search(query) ?: SearchMusicResult()
-                                        if (searchQuery.trim() == query) {
+                                        if (musicConfigStateVersion == requestVersion && searchQuery.trim() == query) {
                                             searchResult = result
                                         }
                                     } catch (e: Exception) {
-                                        if (searchQuery.trim() == query) {
+                                        if (musicConfigStateVersion == requestVersion && searchQuery.trim() == query) {
                                             searchResult = null
                                             searchError = e.message ?: "请稍后重试。"
                                         }
                                     } finally {
-                                        if (searchQuery.trim() == query) {
+                                        if (musicConfigStateVersion == requestVersion && searchQuery.trim() == query) {
                                             isSearching = false
                                         }
                                     }
@@ -1606,6 +1683,20 @@ internal fun musicHomePreviewSongs(songs: List<NavidromeSong>): List<NavidromeSo
 
 internal fun musicHomePlaybackQueue(songs: List<NavidromeSong>): List<NavidromeSong> {
     return songs
+}
+
+internal fun resolveMusicLibraryPageAfterConfigChange(currentPage: MusicLibraryPage): MusicLibraryPage {
+    return when (currentPage) {
+        MusicLibraryPage.Home,
+        MusicLibraryPage.Albums,
+        MusicLibraryPage.Songs,
+        MusicLibraryPage.Artists,
+        MusicLibraryPage.ArtistDetail,
+        MusicLibraryPage.AlbumDetail,
+        MusicLibraryPage.Search,
+        MusicLibraryPage.Playlists,
+        MusicLibraryPage.PlaylistDetail -> MusicLibraryPage.Home
+    }
 }
 
 internal fun firstPlayableSongIndex(songs: List<NavidromeSong>): Int? {

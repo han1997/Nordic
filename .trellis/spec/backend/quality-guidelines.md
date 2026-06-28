@@ -264,6 +264,54 @@ onSongSelected(songs, index)
 **Tests Required**:
 - Unit tests for album and artist detail error-message helpers, including the context prefix and cause/fallback.
 
+### Navidrome music config-change state reset
+
+**Scope / Trigger**: Any change to saved Navidrome config handling, Music library navigation, album/artist/playlist detail state, album/playlist list loading, or Music search state in `MusicScreenV2`.
+
+**Signatures**:
+- `internal enum class MusicLibraryPage`
+- `internal fun resolveMusicLibraryPageAfterConfigChange(currentPage: MusicLibraryPage): MusicLibraryPage`
+- `LaunchedEffect(savedConfig)` is the config-boundary reset point for Music screen view state.
+
+**Contract**:
+- A saved config change is a navigation boundary. Reset `libraryPage` to `MusicLibraryPage.Home` and `selectedTab` to the home tab before applying cached or fresh data for the new config.
+- Clear account-scoped detail state on config changes: `selectedAlbum`, `albumDetailSongs`, `selectedArtist`, `artistAlbums`, `selectedPlaylist`, and `playlistSongs`.
+- Clear account-scoped list/search state on config changes: `sortedAlbums`, `playlists`, album sort back to `RecentlyAdded`, `searchQuery`, `searchResult`, `searchError`, `isSearching`, and the pending `searchJob`.
+- Reset account-scoped loading flags so a previous config's in-flight work cannot leave the new config stuck in a loading state.
+- Version or otherwise guard asynchronous album-list, playlist-list, search, and detail-load writes so responses from a previous config cannot repopulate state after the boundary reset.
+- Preserve not-ready config behavior: library content, cache timestamp, and screen errors are cleared when `savedConfig.isReadyForMusicSync()` is false.
+
+**Validation & Error Matrix**:
+- Ready config replaces another ready config -> return to Home, clear detail/search/list state, then apply cache/refresh for the new config.
+- Ready config becomes not-ready -> return to Home and clear music content, cache timestamp, detail/search/list state, and errors.
+- Old album/artist/playlist detail request finishes after config change -> ignore its data/error/loading writes.
+- Old album-list, playlist-list, or search request finishes after config change -> ignore its stale result/error/loading writes.
+
+**Good/Base/Bad Cases**:
+- Good: User switches Navidrome account from an album detail page and sees the Music home for the new account, not the old album.
+- Good: A slow previous search response cannot show results under the new account.
+- Base: A first app launch with no ready config still shows no music content and no stale cache timestamp.
+- Bad: Only clearing `playlistSongs` while leaving `selectedAlbum` or `libraryPage = AlbumDetail` from the previous account.
+- Bad: Resetting state first, but allowing an old coroutine to repopulate `albumDetailSongs`, `artistAlbums`, `playlists`, or `searchResult` afterward.
+
+**Tests Required**:
+- Focused helper tests for `resolveMusicLibraryPageAfterConfigChange(...)` covering every `MusicLibraryPage`.
+- Compile and unit test gates after changing the Compose reset path.
+
+**Wrong vs Correct**:
+```kotlin
+// Wrong: only some view state is reset, and old async requests can still write.
+playlistSongs = emptyList()
+selectedPlaylist = null
+```
+
+```kotlin
+// Correct: treat config changes as a state boundary and guard stale async writes.
+resetMusicStateAfterConfigChange()
+val requestVersion = musicConfigStateVersion
+refreshMusicData(savedConfig, requestVersion)
+```
+
 ### Navidrome lyrics parsing
 
 **Scope / Trigger**: Any change to `NavidromeRepository.getLyrics(...)`, lyric DTOs, plain LRC parsing, or `MusicPlayerScreen` lyric rendering.
