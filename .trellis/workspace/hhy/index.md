@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 89
+- **Total Sessions**: 90
 - **Last Active**: 2026-06-29
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~997 | Active |
+| `journal-2.md` | ~1030 | Active |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 90 | 2026-06-29 | Handle missing Navidrome album lists | `baa1e13` | `main` |
 | 89 | 2026-06-29 | Handle missing Navidrome artist indexes | `aa1d3c8` | `main` |
 | 88 | 2026-06-29 | Handle missing Navidrome search lists | `2e66281` | `main` |
 | 87 | 2026-06-29 | Handle missing Navidrome playlist lists | `e1f812b` | `main` |

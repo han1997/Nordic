@@ -995,3 +995,36 @@ Updated Navidrome artist index DTO and repository mapping so missing or null top
 ### Next Steps
 
 - None - task complete
+
+
+## Session 90: Handle missing Navidrome album lists
+
+**Date**: 2026-06-29
+**Task**: Handle missing Navidrome album lists
+**Branch**: `main`
+
+### Summary
+
+Updated Navidrome album list DTO and repository mapping so missing or null albumList2.album arrays map to empty album pages, with focused repository coverage and backend quality-spec documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `baa1e13` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
