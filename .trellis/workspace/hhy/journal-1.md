@@ -1573,3 +1573,36 @@ Added Emby video progress/stopped reporting, clamped seconds-to-ticks conversion
 ### Next Steps
 
 - None - task complete
+
+
+## Session 48: Sync Emby video progress periodically
+
+**Date**: 2026-06-29
+**Task**: Sync Emby video progress periodically
+**Branch**: `main`
+
+### Summary
+
+Added periodic Emby video progress sync with a non-regressing baseline, close-time baseline reuse, focused MainActivity tests, and Emby spec updates. Verified compile, unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b1aa50c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

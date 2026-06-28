@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 47
+- **Total Sessions**: 48
 - **Last Active**: 2026-06-29
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1575 | Active |
+| `journal-1.md` | ~1608 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 48 | 2026-06-29 | Sync Emby video progress periodically | `b1aa50c` | `main` |
 | 47 | 2026-06-29 | Sync Emby video progress on playback close | `92514cf` | `main` |
 | 46 | 2026-06-28 | Respect direct unplayable music row selection | `2749688` | `main` |
 | 45 | 2026-06-28 | Avoid reopening audiobook player after background close failure | `dbb7465` | `main` |
