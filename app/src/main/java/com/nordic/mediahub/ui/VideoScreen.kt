@@ -137,9 +137,11 @@ fun VideoScreen(
             libraries = catalog.libraries
             selectedLibraryId = catalog.selectedLibraryId
             videos = catalog.items
-            if (selectedVideo?.libraryId != catalog.selectedLibraryId) {
-                selectedVideo = null
-            }
+            selectedVideo = resolveVideoSelectionAfterCatalogRefresh(
+                selectedVideo = selectedVideo,
+                selectedLibraryId = catalog.selectedLibraryId,
+                videos = catalog.items
+            )
         } catch (e: Exception) {
             errorMessage = e.message ?: "连接 Emby 失败"
         } finally {
@@ -1046,6 +1048,20 @@ internal fun continueWatchingShelf(videos: List<VideoItem>, limit: Int = 12): Li
                 .thenBy { it.title }
         )
         .take(limit)
+}
+
+internal fun resolveVideoSelectionAfterCatalogRefresh(
+    selectedVideo: VideoItem?,
+    selectedLibraryId: String?,
+    videos: List<VideoItem>
+): VideoItem? {
+    val currentSelection = selectedVideo ?: return null
+    val currentLibraryId = selectedLibraryId ?: return null
+    if (currentSelection.libraryId != currentLibraryId) return null
+
+    return videos.firstOrNull { video ->
+        video.id == currentSelection.id && video.libraryId == currentLibraryId
+    }
 }
 
 private fun VideoItem.isContinueWatchingCandidate(): Boolean {

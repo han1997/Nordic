@@ -2,6 +2,7 @@ package com.nordic.mediahub.ui
 
 import com.nordic.mediahub.data.VideoItem
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class VideoScreenTest {
@@ -103,17 +104,86 @@ class VideoScreenTest {
         assertEquals(listOf("unknown-duration"), shelf.map { it.id })
     }
 
+    @Test
+    fun resolveVideoSelectionAfterCatalogRefresh_keepsRefreshedItemWhenStillPresent() {
+        val selected = video(
+            id = "movie-1",
+            title = "Old Title",
+            playbackPositionSeconds = 30
+        )
+        val refreshed = video(
+            id = "movie-1",
+            title = "Updated Title",
+            playbackPositionSeconds = 90
+        )
+
+        val resolved = resolveVideoSelectionAfterCatalogRefresh(
+            selectedVideo = selected,
+            selectedLibraryId = "library-1",
+            videos = listOf(refreshed)
+        )
+
+        assertEquals(refreshed, resolved)
+    }
+
+    @Test
+    fun resolveVideoSelectionAfterCatalogRefresh_clearsSelectionWhenLibraryChanges() {
+        val selected = video(
+            id = "movie-1",
+            title = "Movie One",
+            playbackPositionSeconds = 30,
+            libraryId = "library-1"
+        )
+        val refreshed = video(
+            id = "movie-1",
+            title = "Movie One",
+            playbackPositionSeconds = 30,
+            libraryId = "library-2"
+        )
+
+        val resolved = resolveVideoSelectionAfterCatalogRefresh(
+            selectedVideo = selected,
+            selectedLibraryId = "library-2",
+            videos = listOf(refreshed)
+        )
+
+        assertNull(resolved)
+    }
+
+    @Test
+    fun resolveVideoSelectionAfterCatalogRefresh_clearsSelectionWhenItemDisappears() {
+        val selected = video(
+            id = "movie-1",
+            title = "Movie One",
+            playbackPositionSeconds = 30
+        )
+        val refreshed = video(
+            id = "movie-2",
+            title = "Movie Two",
+            playbackPositionSeconds = 0
+        )
+
+        val resolved = resolveVideoSelectionAfterCatalogRefresh(
+            selectedVideo = selected,
+            selectedLibraryId = "library-1",
+            videos = listOf(refreshed)
+        )
+
+        assertNull(resolved)
+    }
+
     private fun video(
         id: String,
         title: String,
         playbackPositionSeconds: Int,
         lastPlayedDate: String? = null,
         isPlayed: Boolean = false,
-        durationSeconds: Int = 0
+        durationSeconds: Int = 0,
+        libraryId: String = "library-1"
     ): VideoItem {
         return VideoItem(
             id = id,
-            libraryId = "library-1",
+            libraryId = libraryId,
             title = title,
             type = "Movie",
             durationSeconds = durationSeconds,

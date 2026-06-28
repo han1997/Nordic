@@ -68,6 +68,7 @@ GET Users/{userId}/Items
     - Top rated: non-null positive `communityRating`, sorted descending
     - Unplayed: `!isPlayed && playbackPositionSeconds <= 0`
   - These shelves are view state only. Do not persist local video history unless the PRD explicitly adds that scope.
+  - After a catalog refresh, selected video detail state must resolve against the refreshed item list. Keep the selection only when the same item id still exists in the selected library, and replace it with the refreshed `VideoItem`; otherwise clear the detail state.
 - Thumbnail URL:
   - Build `/Items/{itemId}/Images/Primary`
   - Include `maxWidth=640`, `quality=90`, `tag=<ImageTags.Primary>`, and `api_key=<session token>`
@@ -100,6 +101,8 @@ GET Users/{userId}/Items
 - Missing item `UserData` -> map resume position to `0` and played state to `false`
 - Missing `UserData.LastPlayedDate` -> continue-watching shelf keeps the item eligible by resume position but sorts it behind dated resume items
 - Resume position at or beyond known duration while `Played == false` -> exclude from continue-watching shelf as effectively complete
+- Catalog refresh omits the currently selected video id -> clear selected video detail state
+- Catalog refresh still contains the selected video id -> keep detail state using the refreshed `VideoItem`
 - Missing item `CommunityRating` -> map rating to `null`; top-rated shelves should ignore it
 - `playbackPositionSeconds` greater than known duration -> initial playback seek clamps to the duration instead of seeking beyond the item
 - Relative video skip requested near the start or end -> clamp to `0` or `durationSeconds`
@@ -113,6 +116,7 @@ GET Users/{userId}/Items
 - Good: Emby returns `UserData.PlaybackPositionTicks` and `CommunityRating`; repository maps resume/rating metadata and UI can show continue-watching/top-rated/unplayed shelves.
 - Good: Emby returns `UserData.LastPlayedDate`; continue watching prioritizes recently watched items over older items with larger resume positions.
 - Good: User starts an unfinished continue-watching item; playback seeks to the Emby resume position before playing.
+- Good: User refreshes a video library while viewing details; if the item still exists, detail metadata updates from the refreshed catalog, and if it disappeared the app returns to the catalog instead of showing stale detail.
 - Good: User can use video skip controls to quickly jump 10 seconds back or 30 seconds forward without leaving player bounds.
 - Good: A TV library returns both a `Series` item and its `Episode` items; series detail shows sorted episode rows, and tapping an episode plays the episode stream.
 - Base: Username/password login, one video library, empty item list, UI shows an empty media-library state.
@@ -141,6 +145,7 @@ GET Users/{userId}/Items
   - asserts `UserData.LastPlayedDate` maps to `VideoItem.lastPlayedDate`
   - asserts continue-watching shelf sorting uses last-played recency before resume-position fallback
   - asserts continue-watching shelf excludes resume positions at or beyond known duration, while keeping unknown-duration resume items eligible
+  - asserts selected video detail resolution keeps a refreshed matching item and clears selection when the library changes or the item disappears
   - asserts video initial start-position helper uses resume seconds for unfinished items, starts played items at zero, and clamps beyond duration
   - asserts video relative seek helper clamps at the beginning and end of the item
   - asserts `Fields` requests `SeriesId`, `SeriesName`, `ParentIndexNumber`, and `IndexNumber`
