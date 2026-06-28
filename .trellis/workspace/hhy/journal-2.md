@@ -1193,3 +1193,36 @@ Updated AudiobookShelf library DTO and repository mapping so incomplete library 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 96: Handle incomplete AudiobookShelf items
+
+**Date**: 2026-06-29
+**Task**: Handle incomplete AudiobookShelf items
+**Branch**: `main`
+
+### Summary
+
+Updated AudiobookShelf item-list DTO and repository mapping so unusable minified item rows are skipped, requested library ids are used as fallbacks, and pagination continues to honor fetched row counts, with focused repository coverage and integration-spec documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `79a78db` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
