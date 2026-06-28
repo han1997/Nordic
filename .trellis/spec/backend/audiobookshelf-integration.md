@@ -37,6 +37,7 @@
   - `internal fun resolveAudiobookSelectedLibraryId(currentLibraryId: String?, libraries: List<AudiobookLibrarySummary>): String?`
   - `internal fun resolveAudiobookSelectedItemAfterLibraryRefresh(selectedItem: AudiobookItemDetail?, items: List<AudiobookItemSummary>): AudiobookItemDetail?`
   - `internal fun resolveAudiobookLibraryPageAfterRefresh(currentPage: AudiobookLibraryPage, previousSelectedItem: AudiobookItemDetail?, refreshedSelectedItem: AudiobookItemDetail?): AudiobookLibraryPage`
+  - `internal fun resolveAudiobookLibraryPageAfterConfigChange(currentPage: AudiobookLibraryPage): AudiobookLibraryPage`
 
 ### 3. Contracts
 
@@ -55,6 +56,9 @@
 - Library refresh must reconcile an open detail item against the refreshed selected-library item summaries. Keep the open detail only if its id still exists in the refreshed summaries.
 - If the detail page is open and the selected detail no longer exists after refresh, clear the selected detail and return to the library list. Do not show stale detail for books removed from or moved out of the selected library.
 - If the selected detail still exists, keeping the already-loaded detail is allowed; do not re-fetch detail metadata unless the PRD explicitly adds that scope.
+- Saved AudiobookShelf config changes are browsing boundaries. Return the Audiobook tab to `AudiobookLibraryPage.Home` and clear `libraries`, `selectedLibraryId`, `items`, `selectedItem`, pending detail id, stale loading state, and stale error state before loading the new account.
+- In-flight library refresh, library selection, or detail requests from a previous saved config must not write list/detail/error/loading state after the config boundary. Guard these writes with a config-state version or equivalent request identity.
+- Same-config manual refresh keeps the existing library/detail reconciliation behavior: preserve the selected library id and selected detail only when they still exist in the refreshed same-account responses.
 - Audio URLs may need the bearer token appended as `token=<token>` when AudiobookShelf returns relative `contentUrl` values.
 - Progress sync must use current absolute audiobook time, not current track-local time, and repository payloads must clamp `currentTime` to `0..durationSeconds` before sending progress, session sync, or close requests.
 - Periodic session sync `timeListened` must measure only newly listened time in the current app session. Initialize the delta baseline from the greater of playback state position, `AudiobookPlaybackSession.startTimeSeconds`, and `currentTimeSeconds` so resumed books do not count already-listened time again. Report at least the last successfully synced baseline so an early zero-position player state cannot regress AudiobookShelf resume metadata.
@@ -86,6 +90,8 @@
 | Latest library list is empty | Clear the selected library id and show the empty-library state |
 | Open detail item id is present in refreshed item summaries | Keep the selected detail page state |
 | Open detail item id is absent from refreshed item summaries | Clear selected detail and return to the library list |
+| Saved config changes while a detail page is open | Return to the audiobook home page and clear the selected detail before loading the new config |
+| Previous-config library/detail response completes after saved config changed | Ignore the stale response and keep the new config's state |
 | Library/item/playback response is empty | Throw `AudiobookShelfApiException.Kind.API` |
 | Playback session has no playable tracks | Keep session visible with a playback error; do not start Media3 |
 | Media3 reports a known-track local position beyond that track duration | Clamp the local position to the track duration before publishing absolute playback progress |
@@ -114,6 +120,7 @@
 - Good: User taps the same audiobook while it is already active; the app reopens the current player without creating a duplicate AudiobookShelf session.
 - Good: User starts a different audiobook while one is active; the app syncs/closes the previous session in the background and starts the new `/play` session.
 - Good: User switches AudiobookShelf server/account, refreshes libraries, and the app requests items from a library id returned by that server instead of a stale id from the previous server/account.
+- Good: User switches AudiobookShelf server/account from a detail page and the app returns to Home before loading the new account, instead of retaining the old detail object.
 - Good: User refreshes while viewing a detail page for a book that still exists in the selected library; the detail page remains open.
 - Good: User refreshes while viewing a detail page for a book removed from the selected library; the app returns to the library list instead of showing stale detail.
 - Good: User can skip back/forward by the fixed audiobook interval; progress sync keeps using the resulting absolute position.
@@ -140,6 +147,7 @@
 - UI/helper tests should assert library selection resolution keeps an existing id, falls back from a stale id, and clears selection for an empty library list.
 - UI/helper tests should assert selected audiobook detail resolution keeps an item still present in refreshed summaries and clears an absent item.
 - UI/helper tests should assert detail page state returns home when an open detail is cleared and remains detail when the selection remains.
+- UI/helper tests should assert saved config changes resolve every `AudiobookLibraryPage` to `Home`.
 - UI/helper tests should assert current-chapter display resolution uses timestamp order for unsorted chapters and returns no chapter before the first chapter start.
 - UI/helper tests should assert audiobook detail chapter sorting orders unsorted chapters by `startSeconds`, preserves equal-start stability, and keeps empty lists empty.
 - App-shell helper tests should assert periodic sync baseline resolution uses the session resume/current time when playback state has not caught up, uses playback state when it is ahead, clamps negative values to zero, and resolves periodic sync positions monotonically from the last synced baseline.

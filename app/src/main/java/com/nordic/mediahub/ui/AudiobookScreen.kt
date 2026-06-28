@@ -75,6 +75,15 @@ internal fun resolveAudiobookLibraryPageAfterRefresh(
     }
 }
 
+internal fun resolveAudiobookLibraryPageAfterConfigChange(
+    currentPage: AudiobookLibraryPage
+): AudiobookLibraryPage {
+    return when (currentPage) {
+        AudiobookLibraryPage.Home,
+        AudiobookLibraryPage.Detail -> AudiobookLibraryPage.Home
+    }
+}
+
 internal fun sortAudiobookDetailChapters(chapters: List<AudiobookChapter>): List<AudiobookChapter> {
     return chapters
         .withIndex()
@@ -102,8 +111,10 @@ fun AudiobookScreen(
     var selectedLibraryId by remember { mutableStateOf<String?>(null) }
     var items by remember { mutableStateOf(emptyList<AudiobookItemSummary>()) }
     var selectedItem by remember { mutableStateOf<AudiobookItemDetail?>(null) }
+    var loadingItemDetailId by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var audiobookConfigStateVersion by remember { mutableStateOf(0) }
     val scope = rememberCoroutineScope()
 
     val audiobookRepository = remember(savedConfig) {
@@ -114,9 +125,26 @@ fun AudiobookScreen(
         }
     }
 
-    LaunchedEffect(savedConfig) { config = savedConfig }
+    fun isCurrentAudiobookConfigRequest(requestVersion: Int?): Boolean {
+        return requestVersion == null || audiobookConfigStateVersion == requestVersion
+    }
 
-    suspend fun refreshAudiobooks(targetConfig: AudiobookShelfConfig = config) {
+    fun resetAudiobookStateAfterConfigChange() {
+        audiobookConfigStateVersion += 1
+        libraryPage = resolveAudiobookLibraryPageAfterConfigChange(libraryPage)
+        libraries = emptyList()
+        selectedLibraryId = null
+        items = emptyList()
+        selectedItem = null
+        loadingItemDetailId = null
+        isLoading = false
+        errorMessage = null
+    }
+
+    suspend fun refreshAudiobooks(
+        targetConfig: AudiobookShelfConfig = config,
+        requestVersion: Int? = audiobookConfigStateVersion
+    ) {
         if (!targetConfig.isReadyForAudiobookSync() || isLoading) return
 
         isLoading = true
@@ -128,56 +156,71 @@ fun AudiobookScreen(
                 AudiobookShelfRepository(targetConfig)
             }
             val loadedLibraries = repo.getLibraries()
-            libraries = loadedLibraries
             val resolvedLibraryId = resolveAudiobookSelectedLibraryId(selectedLibraryId, loadedLibraries)
-            selectedLibraryId = resolvedLibraryId
             val refreshedItems = if (resolvedLibraryId == null) emptyList() else repo.getLibraryItems(resolvedLibraryId)
+            if (!isCurrentAudiobookConfigRequest(requestVersion)) {
+                return
+            }
+
             val previousSelectedItem = selectedItem
             val refreshedSelectedItem = resolveAudiobookSelectedItemAfterLibraryRefresh(
                 selectedItem = previousSelectedItem,
                 items = refreshedItems
             )
+            libraries = loadedLibraries
+            selectedLibraryId = resolvedLibraryId
             items = refreshedItems
             selectedItem = refreshedSelectedItem
+            loadingItemDetailId = null
             libraryPage = resolveAudiobookLibraryPageAfterRefresh(
                 currentPage = libraryPage,
                 previousSelectedItem = previousSelectedItem,
                 refreshedSelectedItem = refreshedSelectedItem
             )
         } catch (e: Exception) {
-            errorMessage = e.message ?: "连接 AudiobookShelf 失败"
+            if (isCurrentAudiobookConfigRequest(requestVersion)) {
+                errorMessage = e.message ?: "连接 AudiobookShelf 失败"
+            }
         } finally {
-            isLoading = false
-        }
-    }
-
-    fun openItemDetail(item: AudiobookItemSummary) {
-        val repo = audiobookRepository ?: return
-        libraryPage = AudiobookLibraryPage.Detail
-        selectedItem = null
-        errorMessage = null
-        scope.launch {
-            isLoading = true
-            try {
-                selectedItem = repo.getLibraryItem(item.id)
-            } catch (e: Exception) {
-                errorMessage = e.message ?: "加载详情失败"
-            } finally {
+            if (isCurrentAudiobookConfigRequest(requestVersion)) {
                 isLoading = false
             }
         }
     }
 
-    LaunchedEffect(savedConfig.serverUrl, savedConfig.username, savedConfig.password) {
+    fun openItemDetail(item: AudiobookItemSummary) {
+        val repo = audiobookRepository ?: return
+        val requestVersion = audiobookConfigStateVersion
+        libraryPage = AudiobookLibraryPage.Detail
+        selectedItem = null
+        loadingItemDetailId = item.id
+        errorMessage = null
+        scope.launch {
+            isLoading = true
+            try {
+                val detail = repo.getLibraryItem(item.id)
+                if (audiobookConfigStateVersion == requestVersion && loadingItemDetailId == item.id) {
+                    selectedItem = detail
+                }
+            } catch (e: Exception) {
+                if (audiobookConfigStateVersion == requestVersion && loadingItemDetailId == item.id) {
+                    errorMessage = e.message ?: "加载详情失败"
+                }
+            } finally {
+                if (audiobookConfigStateVersion == requestVersion && loadingItemDetailId == item.id) {
+                    isLoading = false
+                    loadingItemDetailId = null
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(savedConfig) {
+        config = savedConfig
+        resetAudiobookStateAfterConfigChange()
+        val requestVersion = audiobookConfigStateVersion
         if (savedConfig.isReadyForAudiobookSync()) {
-            refreshAudiobooks(savedConfig)
-        } else {
-            libraries = emptyList()
-            items = emptyList()
-            selectedLibraryId = null
-            selectedItem = null
-            libraryPage = AudiobookLibraryPage.Home
-            errorMessage = null
+            refreshAudiobooks(savedConfig, requestVersion)
         }
     }
 
@@ -253,7 +296,7 @@ fun AudiobookScreen(
                     onSave = {
                         scope.launch {
                             repository.saveAudiobookConfig(config)
-                            refreshAudiobooks(config)
+                            refreshAudiobooks(config, requestVersion = null)
                             if (errorMessage == null) {
                                 showConfig = false
                             }
@@ -283,15 +326,26 @@ fun AudiobookScreen(
                         onSelect = { libraryId ->
                             selectedLibraryId = libraryId
                             val repo = audiobookRepository ?: return@AudiobookLibrarySelector
+                            val requestVersion = audiobookConfigStateVersion
                             scope.launch {
                                 isLoading = true
                                 errorMessage = null
                                 try {
-                                    items = repo.getLibraryItems(libraryId)
+                                    val loadedItems = repo.getLibraryItems(libraryId)
+                                    if (audiobookConfigStateVersion == requestVersion && selectedLibraryId == libraryId) {
+                                        items = loadedItems
+                                        selectedItem = null
+                                        libraryPage = AudiobookLibraryPage.Home
+                                        loadingItemDetailId = null
+                                    }
                                 } catch (e: Exception) {
-                                    errorMessage = e.message ?: "加载书库失败"
+                                    if (audiobookConfigStateVersion == requestVersion && selectedLibraryId == libraryId) {
+                                        errorMessage = e.message ?: "加载书库失败"
+                                    }
                                 } finally {
-                                    isLoading = false
+                                    if (audiobookConfigStateVersion == requestVersion && selectedLibraryId == libraryId) {
+                                        isLoading = false
+                                    }
                                 }
                             }
                         }

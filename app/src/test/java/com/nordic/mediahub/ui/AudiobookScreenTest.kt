@@ -98,6 +98,13 @@ class AudiobookScreenTest {
     }
 
     @Test
+    fun resolveAudiobookLibraryPageAfterConfigChange_returnsHomeForEveryPage() {
+        AudiobookLibraryPage.values().forEach { page ->
+            assertEquals(AudiobookLibraryPage.Home, resolveAudiobookLibraryPageAfterConfigChange(page))
+        }
+    }
+
+    @Test
     fun resolveCurrentAudiobookChapter_usesTimestampOrderForUnsortedChapters() {
         val chapters = listOf(
             chapter(id = 2, startSeconds = 100),
