@@ -632,3 +632,36 @@ Updated Emby password-login handling so missing, null, or blank AccessToken valu
 ### Next Steps
 
 - None - task complete
+
+
+## Session 79: Validate Emby auth user ids
+
+**Date**: 2026-06-29
+**Task**: Validate Emby auth user ids
+**Branch**: `main`
+
+### Summary
+
+Updated Emby authentication mapping so API-key and password-login responses require non-blank user ids, added focused repository coverage for invalid auth user ids, and documented the contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fe249c2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
