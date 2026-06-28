@@ -48,6 +48,7 @@
 - Library refresh must resolve the selected library id against the latest `GET /api/libraries` response. Keep the previous selection only if that id is still present; otherwise fall back to the first returned library, or clear the selection when the response is empty.
 - Audio URLs may need the bearer token appended as `token=<token>` when AudiobookShelf returns relative `contentUrl` values.
 - Progress sync must use current absolute audiobook time, not current track-local time, and repository payloads must clamp `currentTime` to `0..durationSeconds` before sending progress, session sync, or close requests.
+- When session duration is zero or negative, progress/session/close `currentTime` must be `0.0`; request `duration` may be floored to `1.0` only to keep progress math and ABS payloads well-formed.
 - Playback state must resolve absolute audiobook progress as `track.startOffsetSeconds + localPositionSeconds`, with the known-track local position clamped to `0..track.durationSeconds` before adding the track offset.
 - Absolute audiobook seek positions must be mapped to the Media3 track list as `(mediaItemIndex, localOffsetSeconds)` and the local offset must be clamped to `0..track.durationSeconds`.
 - Relative skip controls must resolve to an absolute audiobook position and use the same `seekTo(positionSeconds)` path as the scrubber.
@@ -81,6 +82,7 @@
 | Next chapter requested from the last chapter | No-op instead of seeking past duration |
 | Progress sync fails while player is visible | Surface a progress-sync error without crashing playback |
 | Progress/session close current time is negative or beyond duration | Clamp payload `currentTime` to `0..durationSeconds` |
+| Progress/session close duration is zero or negative | Send `currentTime: 0.0`; keep request `duration` safe for progress math |
 | Progress update/session sync/session close returns non-2xx | Throw `AudiobookShelfApiException.Kind.HTTP` with the failing status code |
 | User leaves audiobook playback | Call `syncAndCloseSession(...)` with the last absolute position and clear Media3 audiobook state |
 | User starts audiobook playback while music is active | Call `MusicPlaybackEngine.stop()` before `AudiobookPlaybackEngine.play(...)` |
@@ -107,6 +109,7 @@
   - relative cover/audio URL normalization
   - progress fraction and current time payload fields
   - progress/session/close `currentTime` payload clamps to `0..durationSeconds`
+  - zero-duration progress/session/close payloads keep `currentTime` at `0.0` while using a safe request duration
   - HTTP and empty-body errors map to typed `AudiobookShelfApiException` kinds
   - non-2xx progress/session responses throw `AudiobookShelfApiException.Kind.HTTP`
 - UI/helper tests should assert library selection resolution keeps an existing id, falls back from a stale id, and clears selection for an empty library list.

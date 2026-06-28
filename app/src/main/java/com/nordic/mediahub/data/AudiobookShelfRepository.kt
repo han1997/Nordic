@@ -20,7 +20,7 @@ class AudiobookShelfApiException(message: String, val kind: Kind) : Exception(me
 }
 
 internal fun resolveAudiobookSyncCurrentTimeSeconds(currentTimeSeconds: Int, durationSeconds: Int): Int {
-    return currentTimeSeconds.coerceIn(0, durationSeconds.coerceAtLeast(1))
+    return currentTimeSeconds.coerceIn(0, durationSeconds.coerceAtLeast(0))
 }
 
 class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
@@ -183,7 +183,7 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
     suspend fun syncProgress(session: AudiobookPlaybackSession, currentTimeSeconds: Int, deltaSeconds: Int) {
         val auth = bearerToken()
         val duration = session.durationSeconds.coerceAtLeast(1)
-        val safeCurrentTime = resolveAudiobookSyncCurrentTimeSeconds(currentTimeSeconds, duration)
+        val safeCurrentTime = resolveAudiobookSyncCurrentTimeSeconds(currentTimeSeconds, session.durationSeconds)
         val progress = (safeCurrentTime.toDouble() / duration.toDouble()).coerceIn(0.0, 1.0)
         api.updateProgress(
             bearerToken = auth,
@@ -209,7 +209,7 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
     suspend fun closeSession(session: AudiobookPlaybackSession, currentTimeSeconds: Int) {
         val auth = bearerToken()
         val duration = session.durationSeconds.coerceAtLeast(1)
-        val safeCurrentTime = resolveAudiobookSyncCurrentTimeSeconds(currentTimeSeconds, duration)
+        val safeCurrentTime = resolveAudiobookSyncCurrentTimeSeconds(currentTimeSeconds, session.durationSeconds)
         api.closeSession(
             bearerToken = auth,
             sessionId = session.sessionId,

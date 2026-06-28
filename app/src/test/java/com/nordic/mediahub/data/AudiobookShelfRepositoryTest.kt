@@ -12,6 +12,14 @@ import org.junit.Test
 class AudiobookShelfRepositoryTest {
     private lateinit var server: MockWebServer
 
+    @Test
+    fun resolveAudiobookSyncCurrentTimeSeconds_clampsZeroDurationToZero() {
+        assertEquals(
+            0,
+            resolveAudiobookSyncCurrentTimeSeconds(currentTimeSeconds = 10, durationSeconds = 0)
+        )
+    }
+
     @Before
     fun setUp() {
         server = MockWebServer()
@@ -100,6 +108,37 @@ class AudiobookShelfRepositoryTest {
         val closeRequest = server.takeRequest()
         val closeBody = closeRequest.body.readUtf8()
         assertEquals("/api/session/session-1/close", closeRequest.path)
+        assertTrue(closeBody.contains(""""currentTime":0.0"""))
+    }
+
+    @Test
+    fun syncAndCloseSession_clampsZeroDurationCurrentTimeToZero() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","accessToken":"access-123"}}""")
+        server.enqueue(MockResponse().setResponseCode(204))
+        server.enqueue(MockResponse().setResponseCode(204))
+        server.enqueue(MockResponse().setResponseCode(204))
+
+        repository().syncAndCloseSession(sampleSession(durationSeconds = 0), currentTimeSeconds = 10, deltaSeconds = 8)
+
+        server.takeRequest()
+        val progressRequest = server.takeRequest()
+        val progressBody = progressRequest.body.readUtf8()
+        assertEquals("/api/me/progress/book-1", progressRequest.path)
+        assertTrue(progressBody.contains(""""duration":1.0"""))
+        assertTrue(progressBody.contains(""""currentTime":0.0"""))
+        assertTrue(progressBody.contains(""""progress":0.0"""))
+
+        val syncRequest = server.takeRequest()
+        val syncBody = syncRequest.body.readUtf8()
+        assertEquals("/api/session/session-1/sync", syncRequest.path)
+        assertTrue(syncBody.contains(""""duration":1.0"""))
+        assertTrue(syncBody.contains(""""currentTime":0.0"""))
+        assertTrue(syncBody.contains(""""timeListened":8.0"""))
+
+        val closeRequest = server.takeRequest()
+        val closeBody = closeRequest.body.readUtf8()
+        assertEquals("/api/session/session-1/close", closeRequest.path)
+        assertTrue(closeBody.contains(""""duration":1.0"""))
         assertTrue(closeBody.contains(""""currentTime":0.0"""))
     }
 
