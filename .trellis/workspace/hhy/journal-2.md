@@ -962,3 +962,36 @@ Updated Navidrome search result DTO and repository mapping so missing or null ar
 ### Next Steps
 
 - None - task complete
+
+
+## Session 89: Handle missing Navidrome artist indexes
+
+**Date**: 2026-06-29
+**Task**: Handle missing Navidrome artist indexes
+**Branch**: `main`
+
+### Summary
+
+Updated Navidrome artist index DTO and repository mapping so missing or null top-level and nested artist arrays map to empty groups, removed a blocking debug log from the covered path, and added focused repository coverage plus backend quality-spec documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `aa1d3c8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
