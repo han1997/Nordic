@@ -87,6 +87,30 @@ class VideoPlaybackEngineTest {
         )
     }
 
+    @Test
+    fun resolveVideoRelativeSeekPositionSeconds_movesForwardWhenDurationUnknown() {
+        assertEquals(
+            70,
+            resolveVideoRelativeSeekPositionSeconds(
+                positionSeconds = 40,
+                durationSeconds = 0,
+                deltaSeconds = 30
+            )
+        )
+    }
+
+    @Test
+    fun resolveVideoRelativeSeekPositionSeconds_clampsAtStartWhenDurationUnknown() {
+        assertEquals(
+            0,
+            resolveVideoRelativeSeekPositionSeconds(
+                positionSeconds = 5,
+                durationSeconds = 0,
+                deltaSeconds = -10
+            )
+        )
+    }
+
     private fun video(
         playbackPositionSeconds: Int,
         durationSeconds: Int,
