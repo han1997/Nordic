@@ -172,24 +172,127 @@ class VideoScreenTest {
         assertNull(resolved)
     }
 
+    @Test
+    fun relatedEpisodesFor_usesSeriesNameFallbackOnlyWhenSeriesIdIsMissing() {
+        val series = video(
+            id = "series-1",
+            title = "Nordic Show",
+            type = "Series"
+        )
+        val matchingId = video(
+            id = "matching-id",
+            title = "Matching Id",
+            type = "Episode",
+            seriesId = "series-1",
+            seriesName = "Different Name"
+        )
+        val missingIdFallback = video(
+            id = "missing-id-fallback",
+            title = "Missing Id Fallback",
+            type = "Episode",
+            seriesName = "Nordic Show"
+        )
+        val blankIdFallback = video(
+            id = "blank-id-fallback",
+            title = "Blank Id Fallback",
+            type = "Episode",
+            seriesId = "",
+            seriesName = "Nordic Show"
+        )
+        val differentIdSameName = video(
+            id = "different-id-same-name",
+            title = "Different Id Same Name",
+            type = "Episode",
+            seriesId = "series-2",
+            seriesName = "Nordic Show"
+        )
+        val nonEpisode = video(
+            id = "movie-same-name",
+            title = "Nordic Show",
+            type = "Movie",
+            seriesName = "Nordic Show"
+        )
+
+        val related = listOf(
+            differentIdSameName,
+            nonEpisode,
+            missingIdFallback,
+            matchingId,
+            blankIdFallback
+        ).relatedEpisodesFor(series)
+
+        assertEquals(
+            listOf("blank-id-fallback", "matching-id", "missing-id-fallback"),
+            related.map { it.id }
+        )
+    }
+
+    @Test
+    fun relatedEpisodesFor_sortsBySeasonEpisodeAndTitle() {
+        val series = video(
+            id = "series-1",
+            title = "Nordic Show",
+            type = "Series"
+        )
+        val episodes = listOf(
+            episode(id = "s2e1", title = "D", seasonNumber = 2, episodeNumber = 1),
+            episode(id = "s1e2", title = "B", seasonNumber = 1, episodeNumber = 2),
+            episode(id = "unknown", title = "Z"),
+            episode(id = "s1e1-c", title = "C", seasonNumber = 1, episodeNumber = 1),
+            episode(id = "s1e1-a", title = "A", seasonNumber = 1, episodeNumber = 1)
+        )
+
+        val related = episodes.relatedEpisodesFor(series)
+
+        assertEquals(
+            listOf("s1e1-a", "s1e1-c", "s1e2", "s2e1", "unknown"),
+            related.map { it.id }
+        )
+    }
+
+    private fun episode(
+        id: String,
+        title: String,
+        seasonNumber: Int? = null,
+        episodeNumber: Int? = null
+    ): VideoItem {
+        return video(
+            id = id,
+            title = title,
+            type = "Episode",
+            seriesId = "series-1",
+            seasonNumber = seasonNumber,
+            episodeNumber = episodeNumber
+        )
+    }
+
     private fun video(
         id: String,
         title: String,
-        playbackPositionSeconds: Int,
+        playbackPositionSeconds: Int = 0,
         lastPlayedDate: String? = null,
         isPlayed: Boolean = false,
         durationSeconds: Int = 0,
-        libraryId: String = "library-1"
+        libraryId: String = "library-1",
+        type: String = "Movie",
+        seriesId: String? = null,
+        seriesName: String? = null,
+        seasonNumber: Int? = null,
+        episodeNumber: Int? = null
     ): VideoItem {
         return VideoItem(
             id = id,
             libraryId = libraryId,
             title = title,
-            type = "Movie",
+            type = type,
             durationSeconds = durationSeconds,
             playbackPositionSeconds = playbackPositionSeconds,
             lastPlayedDate = lastPlayedDate,
-            isPlayed = isPlayed
+            isPlayed = isPlayed,
+            seriesId = seriesId,
+            seriesName = seriesName,
+            seasonNumber = seasonNumber,
+            episodeNumber = episodeNumber
         )
     }
 }

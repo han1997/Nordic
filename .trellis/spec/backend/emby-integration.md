@@ -89,7 +89,7 @@ GET Users/{userId}/Items
   - Clamp relative seek targets to `0..durationSeconds` when duration is known.
 - Series detail UI:
   - A selected `Series` may derive related episodes from the already-loaded library items.
-  - Match episodes by `seriesId == selectedSeries.id`, with `seriesName == selectedSeries.title` as a fallback for incomplete responses.
+  - Match episodes by `seriesId == selectedSeries.id`. Use `seriesName == selectedSeries.title` only when the episode `seriesId` is missing or blank, as a fallback for incomplete responses.
   - Sort derived episodes by `seasonNumber`, then `episodeNumber`, then title.
   - Episode rows play the episode item; the series header primary play action remains disabled when `streamUrl == null`.
 
@@ -106,7 +106,7 @@ GET Users/{userId}/Items
 - Missing item `CommunityRating` -> map rating to `null`; top-rated shelves should ignore it
 - `playbackPositionSeconds` greater than known duration -> initial playback seek clamps to the duration instead of seeking beyond the item
 - Relative video skip requested near the start or end -> clamp to `0` or `durationSeconds`
-- Missing episode relationship fields -> keep the episode playable, but only show it under a series detail when `seriesName` fallback matches
+- Missing episode relationship fields -> keep the episode playable, but only show it under a series detail when `seriesId` is missing/blank and the `seriesName` fallback matches
 - `Series` item -> `VideoItem.streamUrl == null`; UI must not call playback for the series item directly
 - Unknown repository exceptions -> wrap with user-action context, e.g. `"连接 Emby 失败: ..."`
 - Do not classify errors by `message.contains(...)`; callers should catch `EmbyApiException` by type/kind.
@@ -151,6 +151,7 @@ GET Users/{userId}/Items
   - asserts `Fields` requests `SeriesId`, `SeriesName`, `ParentIndexNumber`, and `IndexNumber`
   - asserts `Series` items map `streamUrl` to `null`
   - asserts `Episode` relationship fields map to `VideoItem.seriesId`, `seriesName`, `seasonNumber`, and `episodeNumber`
+  - asserts series detail episode derivation uses `seriesName` fallback only when `seriesId` is missing or blank
   - asserts thumbnail URL contains item path, primary tag, and token query
   - asserts missing `ImageTags` maps to a `null` thumbnail instead of crashing catalog loading
   - asserts stream URL contains video stream path, `Static=true`, and token query

@@ -1071,14 +1071,18 @@ private fun VideoItem.isContinueWatchingCandidate(): Boolean {
     return knownDuration == 0 || playbackPositionSeconds < knownDuration
 }
 
-private fun List<VideoItem>.relatedEpisodesFor(series: VideoItem): List<VideoItem> {
+internal fun List<VideoItem>.relatedEpisodesFor(series: VideoItem): List<VideoItem> {
     if (!series.type.equals("Series", ignoreCase = true)) return emptyList()
 
     return filter { item ->
         item.type.equals("Episode", ignoreCase = true) &&
             (
                 item.seriesId == series.id ||
-                    (!item.seriesName.isNullOrBlank() && item.seriesName.equals(series.title, ignoreCase = true))
+                    (
+                        item.seriesId.isNullOrBlank() &&
+                            !item.seriesName.isNullOrBlank() &&
+                            item.seriesName.equals(series.title, ignoreCase = true)
+                    )
             )
     }.sortedWith(
         compareBy<VideoItem> { it.seasonNumber ?: Int.MAX_VALUE }
