@@ -1078,3 +1078,36 @@ Added a pure audiobook track seek resolver that maps absolute audiobook seconds 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 33: Filter completed video resume items
+
+**Date**: 2026-06-28
+**Task**: Filter completed video resume items
+**Branch**: `main`
+
+### Summary
+
+Updated the video continue-watching shelf to exclude resume items whose saved position reaches or exceeds known duration, kept unknown-duration resume items eligible, added unit tests, and documented the Emby UI contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b706df4` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

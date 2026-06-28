@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 32
+- **Total Sessions**: 33
 - **Last Active**: 2026-06-28
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1080 | Active |
+| `journal-1.md` | ~1113 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 33 | 2026-06-28 | Filter completed video resume items | `b706df4` | `main` |
 | 32 | 2026-06-28 | Clamp audiobook track seek offsets | `edcbc51` | `main` |
 | 31 | 2026-06-28 | Verify music scrubber deferred seeks | `ab1550f` | `main` |
 | 30 | 2026-06-28 | Fix music lyric active line selection | `5ee6489` | `main` |
