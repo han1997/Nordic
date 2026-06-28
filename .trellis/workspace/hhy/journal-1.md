@@ -1177,3 +1177,36 @@ Resolved AudiobookShelf library refresh selection against the latest library lis
 ### Next Steps
 
 - None - task complete
+
+
+## Session 36: Clear stale video selection after refresh
+
+**Date**: 2026-06-28
+**Task**: Clear stale video selection after refresh
+**Branch**: `main`
+
+### Summary
+
+Cleared video detail selection when refreshed Emby catalog data no longer contains the selected item, and replaced retained selections with the refreshed item; added focused UI helper tests and documented the Emby UI contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `98b0f51` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
