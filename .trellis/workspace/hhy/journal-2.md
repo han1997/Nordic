@@ -467,3 +467,36 @@ Updated music playback replacement logic so same-id songs refresh Media3 when th
 ### Next Steps
 
 - None - task complete
+
+
+## Session 74: Refresh same-video streams
+
+**Date**: 2026-06-29
+**Task**: Refresh same-video streams
+**Branch**: `main`
+
+### Summary
+
+Updated video playback replacement logic so same-id Emby videos refresh ExoPlayer when the stream URL changes, with focused regression tests and an Emby contract note.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fcf146d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

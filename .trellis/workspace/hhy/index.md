@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 73
+- **Total Sessions**: 74
 - **Last Active**: 2026-06-29
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~469 | Active |
+| `journal-2.md` | ~502 | Active |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 74 | 2026-06-29 | Refresh same-video streams | `fcf146d` | `main` |
 | 73 | 2026-06-29 | Refresh same-song music streams | `68abe10` | `main` |
 | 72 | 2026-06-29 | Match Emby video libraries case-insensitively | `1d483aa` | `main` |
 | 71 | 2026-06-29 | Type empty Navidrome body responses | `448305b` | `main` |
