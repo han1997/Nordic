@@ -28,7 +28,7 @@ data class AudiobookShelfUserDto(
 )
 
 data class AudiobookShelfLibrariesResponse(
-    val libraries: List<AudiobookShelfLibraryDto> = emptyList()
+    val libraries: List<AudiobookShelfLibraryDto>? = null
 )
 
 data class AudiobookShelfLibraryDto(

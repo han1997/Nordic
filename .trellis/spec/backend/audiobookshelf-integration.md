@@ -38,6 +38,8 @@
   - `internal fun resolveAudiobookSelectedItemAfterLibraryRefresh(selectedItem: AudiobookItemDetail?, items: List<AudiobookItemSummary>): AudiobookItemDetail?`
   - `internal fun resolveAudiobookLibraryPageAfterRefresh(currentPage: AudiobookLibraryPage, previousSelectedItem: AudiobookItemDetail?, refreshedSelectedItem: AudiobookItemDetail?): AudiobookLibraryPage`
   - `internal fun resolveAudiobookLibraryPageAfterConfigChange(currentPage: AudiobookLibraryPage): AudiobookLibraryPage`
+- DTOs:
+  - `AudiobookShelfLibrariesResponse.libraries: List<AudiobookShelfLibraryDto>?`
 
 ### 3. Contracts
 
@@ -55,6 +57,7 @@
   - `POST /api/session/{sessionId}/close`
 - Domain mapping must keep music and audiobook models separate. Do not map audiobook sessions into `NavidromeSong`.
 - Library item browsing must page `GET /api/libraries/{id}/items` with a fixed repository page size. Continue requesting `page + 1` until the response `total` count is loaded, or until the server returns an empty/short page.
+- Library discovery response arrays are optional wire fields. DTOs must model `libraries` as nullable, and `getLibraries()` must normalize it with `orEmpty()` before applying the audiobook media type filter.
 - Library discovery must include libraries whose `mediaType` equals `book` case-insensitively, and must continue excluding non-book media types such as podcasts.
 - Audiobook `coverPath` values map to nullable app artwork URLs: null, empty, and whitespace-only paths stay `null`; non-blank relative paths are normalized against the server base URL; absolute `http://` and `https://` cover URLs are preserved.
 - Expanded audiobook detail responses may omit `media.metadata.authors`, `media.metadata.narrators`, `media.metadata.series`, and `media.chapters`, or send them as null. DTOs must allow those fields to deserialize as nullable lists, and repository detail mapping must convert them to empty domain lists.
@@ -94,6 +97,7 @@
 | Missing server URL or username | Do not construct `AudiobookShelfRepository`; show configuration state |
 | Login HTTP failure | Throw `AudiobookShelfApiException.Kind.HTTP` with status code |
 | Login response lacks `user` or any non-blank token/accessToken | Throw `AudiobookShelfApiException.Kind.AUTH` |
+| Library response omits `libraries` or sends it as null | Return an empty library list |
 | Library response has `mediaType` values such as `book`, `Book`, or `BOOK` | Include those libraries in `getLibraries()` |
 | Library response has non-book `mediaType` values | Exclude those libraries from `getLibraries()` |
 | Summary/detail/session `coverPath` is null, empty, or whitespace-only | Map cover URL to `null` |
@@ -137,6 +141,7 @@
 
 - Good: User opens an audiobook, `startPlayback()` returns a session, Media3 plays session tracks, progress sync runs periodically, and `syncAndCloseSession()` is called when leaving the player.
 - Good: AudiobookShelf-compatible servers return `Book` or `BOOK` media type casing, and the app still shows those audiobook libraries.
+- Good: AudiobookShelf-compatible servers omit `libraries` or return it as null, and the app treats discovery as an empty library list.
 - Good: User taps the same audiobook while it is already active; the app reopens the current player without creating a duplicate AudiobookShelf session.
 - Good: User starts a different audiobook while one is active; the app syncs/closes the previous session in the background and starts the new `/play` session.
 - Good: User switches AudiobookShelf server/account, refreshes libraries, and the app requests items from a library id returned by that server instead of a stale id from the previous server/account.
@@ -156,6 +161,7 @@
 - Bad: Detail DTO list properties are non-null Kotlin lists and repository mapping calls `.map` directly, allowing Gson-omitted fields to become runtime nulls.
 - Bad: Playback-session DTO list properties are non-null Kotlin lists and `startPlayback()` maps them directly, crashing before the no-playable-tracks state can be shown.
 - Bad: `getLibraries()` compares `mediaType == "book"` case-sensitively and drops valid audiobook libraries returned as `Book`.
+- Bad: `AudiobookShelfLibrariesResponse.libraries` is modeled as a non-null Kotlin list and repository mapping calls `.mapNotNull` directly.
 - Bad: Audio URL token detection uses `absolute.contains("token=")` and fails to append auth when that text appears in the path.
 - Bad: App extracts a stream URL and plays it without calling `/play`, `/sync`, or `/close`; AudiobookShelf resume state will drift.
 
@@ -170,6 +176,7 @@
   - login token fallback from non-blank `user.token` to non-blank `user.accessToken`
   - missing/null login `user` responses throw `AudiobookShelfApiException.Kind.AUTH`
   - missing/null/blank login token fields throw `AudiobookShelfApiException.Kind.AUTH`
+  - missing and null library `libraries` arrays map to an empty library list
   - library filtering includes `book`, `Book`, and `BOOK` media type values and excludes non-book media types
   - blank summary/detail/session `coverPath` values map to `null`
   - non-blank relative and absolute cover paths map to expected app-facing cover URLs
@@ -205,6 +212,34 @@
   - closing playback calls repository `closeSession()` with the last absolute position
 
 ### 7. Wrong vs Correct
+
+#### Wrong
+
+```kotlin
+data class AudiobookShelfLibrariesResponse(
+    val libraries: List<AudiobookShelfLibraryDto> = emptyList()
+)
+
+return body.libraries.mapNotNull { dto ->
+    if (!dto.mediaType.equals("book", ignoreCase = true)) return@mapNotNull null
+    AudiobookLibrarySummary(id = dto.id, name = dto.name, mediaType = dto.mediaType)
+}
+```
+
+Gson can set omitted Kotlin list fields to `null`; direct mapping can crash before the repository returns an empty library state.
+
+#### Correct
+
+```kotlin
+data class AudiobookShelfLibrariesResponse(
+    val libraries: List<AudiobookShelfLibraryDto>? = null
+)
+
+return body.libraries.orEmpty().mapNotNull { dto ->
+    if (!dto.mediaType.equals("book", ignoreCase = true)) return@mapNotNull null
+    AudiobookLibrarySummary(id = dto.id, name = dto.name, mediaType = dto.mediaType)
+}
+```
 
 #### Wrong
 

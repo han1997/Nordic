@@ -172,6 +172,25 @@ class AudiobookShelfRepositoryTest {
     }
 
     @Test
+    fun getLibraries_mapsMissingAndNullLibraryArraysToEmptyList() = runTest {
+        listOf(
+            """{}""",
+            """{"libraries": null}"""
+        ).forEach { librariesResponse ->
+            server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+            server.enqueueJson(librariesResponse)
+
+            val libraries = repository().getLibraries()
+
+            assertEquals(emptyList<AudiobookLibrarySummary>(), libraries)
+            server.takeRequest()
+            val librariesRequest = server.takeRequest()
+            assertEquals("/api/libraries", librariesRequest.path)
+            assertEquals("Bearer token-123", librariesRequest.getHeader("Authorization"))
+        }
+    }
+
+    @Test
     fun getLibraryItems_pagesUntilServerTotalIsLoaded() = runTest {
         server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
         server.enqueueJson(libraryItemsJson(itemRange = 1..50, total = 51))

@@ -108,7 +108,7 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
             api.getLibraries(auth)
         }
 
-        return body.libraries.mapNotNull { dto ->
+        return body.libraries.orEmpty().mapNotNull { dto ->
             if (!dto.mediaType.equals("book", ignoreCase = true)) return@mapNotNull null
             AudiobookLibrarySummary(
                 id = dto.id,
