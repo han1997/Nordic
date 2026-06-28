@@ -896,3 +896,36 @@ Updated Navidrome artist detail mapping so missing or null album arrays map to e
 ### Next Steps
 
 - None - task complete
+
+
+## Session 87: Handle missing Navidrome playlist lists
+
+**Date**: 2026-06-29
+**Task**: Handle missing Navidrome playlist lists
+**Branch**: `main`
+
+### Summary
+
+Updated Navidrome playlist summary and detail mapping so missing or null playlist arrays map to empty app lists, with focused repository coverage and backend quality-spec documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e1f812b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
