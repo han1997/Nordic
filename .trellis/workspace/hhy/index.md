@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 26
+- **Total Sessions**: 27
 - **Last Active**: 2026-06-28
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~882 | Active |
+| `journal-1.md` | ~915 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 27 | 2026-06-28 | Add audiobook playback speed control | `e549297` | `main` |
 | 26 | 2026-06-28 | Add video skip interval controls | `29b7ecf` | `main` |
 | 25 | 2026-06-28 | Resume video playback from Emby position | `ffef544` | `main` |
 | 24 | 2026-06-28 | Extend music home playback queue | `88b7dd2` | `main` |

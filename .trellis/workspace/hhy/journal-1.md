@@ -880,3 +880,36 @@ Added 10 second back and 30 second forward controls to the video player, routed 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 27: Add audiobook playback speed control
+
+**Date**: 2026-06-28
+**Task**: Add audiobook playback speed control
+**Branch**: `main`
+
+### Summary
+
+Added Media3-backed audiobook playback speed state and a fixed speed cycle, exposed a player speed chip, covered speed cycling with unit tests, and updated the AudiobookShelf playback contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e549297` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
