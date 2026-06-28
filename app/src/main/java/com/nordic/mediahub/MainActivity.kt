@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.Velocity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.AudiobookShelfConfig
+import com.nordic.mediahub.data.AudiobookPlaybackSession
 import com.nordic.mediahub.data.AudiobookShelfRepository
 import com.nordic.mediahub.data.MusicLyrics
 import com.nordic.mediahub.data.NavidromeConfig
@@ -46,6 +47,18 @@ private const val BOTTOM_DOCK_REVEAL_DELAY_MS = 650L
 private const val BOTTOM_DOCK_ENTER_ANIMATION_MS = 260
 private const val BOTTOM_DOCK_EXIT_ANIMATION_MS = 150
 private const val BOTTOM_DOCK_ENTER_FADE_DELAY_MS = 40
+
+internal fun resolveAudiobookProgressSyncBaselineSeconds(
+    statePositionSeconds: Int,
+    session: AudiobookPlaybackSession
+): Int {
+    return maxOf(
+        0,
+        statePositionSeconds,
+        session.startTimeSeconds,
+        session.currentTimeSeconds
+    )
+}
 
 private class BottomDockRevealController {
     var revealJob: Job? = null
@@ -362,7 +375,10 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     ) {
         val initialSession = audiobookPlaybackState.session ?: return@LaunchedEffect
         val repo = audiobookRepository ?: return@LaunchedEffect
-        var lastSyncedPosition = audiobookPlaybackState.positionSeconds
+        var lastSyncedPosition = resolveAudiobookProgressSyncBaselineSeconds(
+            statePositionSeconds = audiobookPlaybackState.positionSeconds,
+            session = initialSession
+        )
 
         while (true) {
             delay(30_000)
