@@ -434,3 +434,36 @@ Made Emby video library filtering case-insensitive for supported collection type
 ### Next Steps
 
 - None - task complete
+
+
+## Session 73: Refresh same-song music streams
+
+**Date**: 2026-06-29
+**Task**: Refresh same-song music streams
+**Branch**: `main`
+
+### Summary
+
+Updated music playback replacement logic so same-id songs refresh Media3 when the stream URL changes, with focused regression tests and a playback contract spec note.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `68abe10` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
