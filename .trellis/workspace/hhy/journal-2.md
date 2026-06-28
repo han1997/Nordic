@@ -1259,3 +1259,36 @@ Hardened Emby video catalog DTO and repository mapping so library and item rows 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 98: Handle missing Navidrome lyric line text
+
+**Date**: 2026-06-29
+**Task**: Handle missing Navidrome lyric line text
+**Branch**: `main`
+
+### Summary
+
+Hardened Navidrome structured lyric DTO and parser handling so missing, null, empty, or blank structured line values are skipped, valid lines still map with existing timing semantics, and plain lyric fallback remains available, with repository coverage and lyrics-spec documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `957f713` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
