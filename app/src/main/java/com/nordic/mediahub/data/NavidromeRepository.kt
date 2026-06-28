@@ -498,9 +498,9 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
             }
             val result = response.searchResult3 ?: return SearchMusicResult()
             SearchMusicResult(
-                artists = result.artist.map { it.withInitials() },
-                albums = result.album.map { it.withCoverArtUrl() },
-                songs = result.song.map { it.withCoverArtUrl() }
+                artists = result.artist.orEmpty().map { it.withInitials() },
+                albums = result.album.orEmpty().map { it.withCoverArtUrl() },
+                songs = result.song.orEmpty().map { it.withCoverArtUrl() }
             )
         } catch (e: NavidromeApiException) {
             throw e

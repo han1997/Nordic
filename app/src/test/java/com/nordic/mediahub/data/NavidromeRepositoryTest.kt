@@ -403,6 +403,64 @@ class NavidromeRepositoryTest {
     }
 
     @Test
+    fun search_mapsArtistsAlbumsAndSongs() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "searchResult3": {
+                  "artist": [
+                    {"id": "artist-1", "name": "Artist One", "albumCount": 3}
+                  ],
+                  "album": [
+                    {"id": "album-1", "name": "Album One", "artist": "Artist One", "coverArt": "album-cover", "songCount": 2}
+                  ],
+                  "song": [
+                    {"id": "song-1", "title": "Song One", "artist": "Artist One", "album": "Album One", "coverArt": "song-cover"}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val result = repository().search(" road ")
+
+        assertEquals(listOf("Artist One"), result.artists.map { it.name })
+        assertEquals("AO", result.artists[0].initials)
+        assertEquals(3, result.artists[0].albumCount)
+        assertEquals(listOf("Album One"), result.albums.map { it.name })
+        assertTrue(result.albums[0].coverArt.orEmpty().contains("/rest/getCoverArt.view?id=album-cover"))
+        assertEquals(listOf("Song One"), result.songs.map { it.title })
+        assertTrue(result.songs[0].coverArt.orEmpty().contains("/rest/getCoverArt.view?id=song-cover"))
+        assertTrue(result.songs[0].streamUrl.orEmpty().contains("/rest/stream.view?id=song-1"))
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/search3.view?"))
+        assertTrue(request.contains("query=road"))
+    }
+
+    @Test
+    fun search_mapsMissingAndNullResultArraysToEmptyLists() = runTest {
+        listOf(
+            """
+            "searchResult3": {}
+            """.trimIndent(),
+            """
+            "searchResult3": {
+              "artist": null,
+              "album": null,
+              "song": null
+            }
+            """.trimIndent()
+        ).forEach { searchResultField ->
+            server.enqueueJson(subsonicResponse(searchResultField))
+
+            val result = repository().search("road")
+
+            assertEquals(SearchMusicResult(), result)
+        }
+    }
+
+    @Test
     fun getLyrics_preservesStructuredLyricMillisecondStartsWithoutOffset() = runTest {
         server.enqueueJson(
             structuredLyricsResponse(

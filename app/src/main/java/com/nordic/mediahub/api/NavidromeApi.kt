@@ -34,9 +34,9 @@ data class NavidromeArtistDetail(
 )
 
 data class SearchResult3(
-    val artist: List<NavidromeArtist> = emptyList(),
-    val album: List<NavidromeAlbum> = emptyList(),
-    val song: List<NavidromeSong> = emptyList()
+    val artist: List<NavidromeArtist>? = null,
+    val album: List<NavidromeAlbum>? = null,
+    val song: List<NavidromeSong>? = null
 )
 
 data class SubsonicError(

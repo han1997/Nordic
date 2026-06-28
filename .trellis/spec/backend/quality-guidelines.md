@@ -239,6 +239,69 @@ val albums = repo.getAlbums(NavidromeAlbumSort.Name).sortedByDescending { it.yea
 val albums = repo.getAlbums(NavidromeAlbumSort.ReleaseYear)
 ```
 
+### Navidrome search result mapping
+
+**Scope / Trigger**: Any change to Music search UI, `NavidromeApi` search DTOs/endpoints, or `NavidromeRepository.search(...)`.
+
+**Signatures**:
+- `SubsonicData.searchResult3: SearchResult3?`
+- `SearchResult3.artist: List<NavidromeArtist>?`
+- `SearchResult3.album: List<NavidromeAlbum>?`
+- `SearchResult3.song: List<NavidromeSong>?`
+- `NavidromeApi.search3(..., query: String): Response<SubsonicResponse>`
+- `suspend fun NavidromeRepository.search(query: String): SearchMusicResult`
+- `data class SearchMusicResult(val artists: List<NavidromeArtist>, val albums: List<NavidromeAlbum>, val songs: List<NavidromeSong>)`
+
+**Contract**:
+- `search(query)` calls Subsonic `search3.view` with the trimmed non-blank query.
+- Search result buckets are optional wire fields. DTOs must model `searchResult3.artist`, `searchResult3.album`, and `searchResult3.song` as nullable, and repository mapping must normalize each bucket with `orEmpty()` before producing `SearchMusicResult`.
+- Search artists returned to UI must include computed initials through the same `withInitials()` mapping used by artist browsing.
+- Search albums and songs must convert non-blank cover art through `getCoverArt.view`.
+- Search songs returned to UI must include playable `streamUrl` values built through `stream.view`.
+
+**Validation & Error Matrix**:
+- Subsonic/HTTP error while searching -> preserve `NavidromeApiException`.
+- Unknown failure while searching -> wrap as `"搜索失败: ..."` for UI context.
+- Missing `searchResult3` -> return `SearchMusicResult()` with empty buckets.
+- Missing or null `searchResult3.artist` -> return an empty artist bucket.
+- Missing or null `searchResult3.album` -> return an empty album bucket.
+- Missing or null `searchResult3.song` -> return an empty song bucket.
+
+**Good/Base/Bad Cases**:
+- Good: Search results can include artists, albums, and songs together, and each bucket maps through the repository helpers before reaching UI.
+- Good: A compatible server omits one or more search buckets, and the repository returns successful empty buckets instead of surfacing an error.
+- Base: Empty search result buckets render as empty UI sections.
+- Bad: Search result arrays are modeled as non-null Kotlin lists and repository code maps them directly.
+
+**Tests Required**:
+- Repository unit test asserting `search(query)` requests `/rest/search3.view` with the trimmed query and maps artist initials, album cover art, song cover art, and song stream URLs.
+- Repository unit test asserting missing and null `artist`, `album`, and `song` arrays map to empty result buckets.
+
+**Wrong vs Correct**:
+```kotlin
+// Wrong: optional wire arrays are modeled as non-null DTO fields.
+data class SearchResult3(
+    val artist: List<NavidromeArtist> = emptyList(),
+    val album: List<NavidromeAlbum> = emptyList(),
+    val song: List<NavidromeSong> = emptyList()
+)
+```
+
+```kotlin
+// Correct: model optional arrays as nullable and normalize each search bucket.
+data class SearchResult3(
+    val artist: List<NavidromeArtist>? = null,
+    val album: List<NavidromeAlbum>? = null,
+    val song: List<NavidromeSong>? = null
+)
+
+SearchMusicResult(
+    artists = result.artist.orEmpty().map { it.withInitials() },
+    albums = result.album.orEmpty().map { it.withCoverArtUrl() },
+    songs = result.song.orEmpty().map { it.withCoverArtUrl() }
+)
+```
+
 ### Navidrome playlist browsing
 
 **Scope / Trigger**: Any change to Music playlist UI, `NavidromeApi` playlist DTOs/endpoints, or `NavidromeRepository` playlist methods.
