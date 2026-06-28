@@ -1226,3 +1226,36 @@ Updated AudiobookShelf item-list DTO and repository mapping so unusable minified
 ### Next Steps
 
 - None - task complete
+
+
+## Session 97: Handle incomplete Emby catalog rows
+
+**Date**: 2026-06-29
+**Task**: Handle incomplete Emby catalog rows
+**Branch**: `main`
+
+### Summary
+
+Hardened Emby video catalog DTO and repository mapping so library and item rows without usable Id or Name are skipped, valid identities are trimmed before domain and URL use, and item pagination remains tied to fetched row counts, with repository coverage and Emby integration-spec documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `00fa117` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

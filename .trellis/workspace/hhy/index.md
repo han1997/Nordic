@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 96
+- **Total Sessions**: 97
 - **Last Active**: 2026-06-29
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~1228 | Active |
+| `journal-2.md` | ~1261 | Active |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 97 | 2026-06-29 | Handle incomplete Emby catalog rows | `00fa117` | `main` |
 | 96 | 2026-06-29 | Handle incomplete AudiobookShelf items | `79a78db` | `main` |
 | 95 | 2026-06-29 | Handle incomplete AudiobookShelf libraries | `1db1f00` | `main` |
 | 94 | 2026-06-29 | Handle missing Navidrome random songs | `1d08bb6` | `main` |
