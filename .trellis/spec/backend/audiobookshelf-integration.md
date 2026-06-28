@@ -42,6 +42,8 @@
 ### 3. Contracts
 
 - Login uses `POST /login` with `x-return-tokens: true`.
+- Login responses must include a `user` object with either a non-blank `token` or a non-blank `accessToken`.
+- Prefer non-blank `user.token`; if it is missing, null, empty, or blank, fall back to non-blank `user.accessToken`.
 - Authenticated AudiobookShelf API calls pass `Authorization: Bearer <token>`.
 - MVP endpoints:
   - `GET /api/libraries`
@@ -88,7 +90,7 @@
 |---|---|
 | Missing server URL or username | Do not construct `AudiobookShelfRepository`; show configuration state |
 | Login HTTP failure | Throw `AudiobookShelfApiException.Kind.HTTP` with status code |
-| Login response lacks token | Throw `AudiobookShelfApiException.Kind.AUTH` |
+| Login response lacks `user` or any non-blank token/accessToken | Throw `AudiobookShelfApiException.Kind.AUTH` |
 | Library response has `mediaType` values such as `book`, `Book`, or `BOOK` | Include those libraries in `getLibraries()` |
 | Library response has non-book `mediaType` values | Exclude those libraries from `getLibraries()` |
 | Library items response total is larger than the first page | Continue requesting subsequent pages and merge summaries before returning |
@@ -151,7 +153,9 @@
   - `:app:testDebugUnitTest`
   - `:app:assembleDebug` for final packaging verification when playback wiring changes.
 - Repository tests should assert:
-  - login token fallback from `user.token` to `user.accessToken`
+  - login token fallback from non-blank `user.token` to non-blank `user.accessToken`
+  - missing/null login `user` responses throw `AudiobookShelfApiException.Kind.AUTH`
+  - missing/null/blank login token fields throw `AudiobookShelfApiException.Kind.AUTH`
   - library filtering includes `book`, `Book`, and `BOOK` media type values and excludes non-book media types
   - paginated library item browsing requests `page=0`, `page=1`, and merges results until `total` is loaded
   - relative cover/audio URL normalization

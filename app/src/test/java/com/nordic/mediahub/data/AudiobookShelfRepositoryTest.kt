@@ -82,6 +82,64 @@ class AudiobookShelfRepositoryTest {
     }
 
     @Test
+    fun getLibraries_usesAccessTokenWhenLoginTokenIsBlank() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"   ","accessToken":"access-123"}}""")
+        server.enqueueJson(
+            """
+                {
+                  "libraries": [
+                    {"id":"lib-1","name":"Books","mediaType":"book"}
+                  ]
+                }
+            """.trimIndent()
+        )
+
+        val libraries = repository().getLibraries()
+
+        assertEquals(listOf("lib-1"), libraries.map { it.id })
+        server.takeRequest()
+        val librariesRequest = server.takeRequest()
+        assertEquals("Bearer access-123", librariesRequest.getHeader("Authorization"))
+    }
+
+    @Test
+    fun getLibraries_throwsTypedAuthExceptionForMissingLoginUsers() = runTest {
+        listOf(
+            """{}""",
+            """{"user":null}"""
+        ).forEach { response ->
+            server.enqueueJson(response)
+
+            assertAudiobookShelfApiError(AudiobookShelfApiException.Kind.AUTH) {
+                repository().getLibraries()
+            }
+        }
+
+        repeat(2) {
+            assertEquals("/login", server.takeRequest().path)
+        }
+    }
+
+    @Test
+    fun getLibraries_throwsTypedAuthExceptionWhenLoginTokensAreMissingOrBlank() = runTest {
+        listOf(
+            """{"user":{"id":"u1","username":"demo"}}""",
+            """{"user":{"id":"u1","username":"demo","token":null,"accessToken":null}}""",
+            """{"user":{"id":"u1","username":"demo","token":"","accessToken":"   "}}"""
+        ).forEach { response ->
+            server.enqueueJson(response)
+
+            assertAudiobookShelfApiError(AudiobookShelfApiException.Kind.AUTH) {
+                repository().getLibraries()
+            }
+        }
+
+        repeat(3) {
+            assertEquals("/login", server.takeRequest().path)
+        }
+    }
+
+    @Test
     fun getLibraries_filtersBookMediaTypeCaseInsensitively() = runTest {
         server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
         server.enqueueJson(
@@ -309,6 +367,22 @@ class AudiobookShelfRepositoryTest {
                 password = "secret"
             )
         )
+    }
+
+    private suspend fun assertAudiobookShelfApiError(
+        kind: AudiobookShelfApiException.Kind,
+        block: suspend () -> Unit
+    ): AudiobookShelfApiException {
+        val error = try {
+            block()
+            null
+        } catch (error: AudiobookShelfApiException) {
+            error
+        }
+
+        requireNotNull(error)
+        assertEquals(kind, error.kind)
+        return error
     }
 
     private fun sampleSession(durationSeconds: Int = 300): AudiobookPlaybackSession {

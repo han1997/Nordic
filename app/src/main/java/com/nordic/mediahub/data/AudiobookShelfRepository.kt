@@ -94,7 +94,8 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
         val body = response.body()
             ?: throw AudiobookShelfApiException("登录失败: 响应为空", AudiobookShelfApiException.Kind.AUTH)
 
-        val token = body.user.token ?: body.user.accessToken
+        val token = body.user?.token?.takeIf { it.isNotBlank() }
+            ?: body.user?.accessToken?.takeIf { it.isNotBlank() }
         if (token.isNullOrBlank()) {
             throw AudiobookShelfApiException("登录失败: 未返回 token", AudiobookShelfApiException.Kind.AUTH)
         }

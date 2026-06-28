@@ -16,7 +16,7 @@ data class AudiobookShelfLoginRequest(
 )
 
 data class AudiobookShelfLoginResponse(
-    val user: AudiobookShelfUserDto,
+    val user: AudiobookShelfUserDto? = null,
     val userDefaultLibraryId: String? = null
 )
 
