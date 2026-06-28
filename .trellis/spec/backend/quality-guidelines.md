@@ -264,6 +264,60 @@ val songs = albumDetail.song.map { it.withCoverArtUrl(albumDetail.coverArt) }
 val songs = albumDetail.song.orEmpty().map { it.withCoverArtUrl(albumDetail.coverArt) }
 ```
 
+### Navidrome recent-song random fallback
+
+**Scope / Trigger**: Any change to `NavidromeRepository.getRecentSongs()`, `NavidromeApi.getRandomSongs(...)`, or the `SongList` DTO.
+
+**Signatures**:
+- `data class SongList(val song: List<NavidromeSong>? = null)`
+- `suspend fun NavidromeRepository.getRecentSongs(): List<NavidromeSong>`
+- `private suspend fun NavidromeRepository.getRecentSongsFromAlbums(): List<NavidromeSong>`
+
+**Contract**:
+- `getRecentSongs()` tries Subsonic `getRandomSongs.view` first. A non-empty random-song result returns immediately after mapping every song through `withCoverArtUrl()`.
+- `randomSongs.song` is an optional wire array. DTOs must model it as nullable, and repository mapping must normalize it with `orEmpty()` before mapping.
+- Missing, null, or empty random-song arrays should keep the existing fallback to album-derived recent songs.
+- The fallback should use lower-level album helpers (`getAlbumList(type = "newest", size = RECENT_ALBUM_LIMIT)` plus `getSongsFromAlbums(...)`) instead of routing through the public `getRecentAlbums()` logging wrapper.
+- Random-song endpoint failures are fallback-eligible. Fallback album failures still preserve `NavidromeApiException` or get wrapped by `getRecentSongs()` with music context.
+
+**Validation & Error Matrix**:
+- `randomSongs.song` contains songs -> return mapped random songs with stream and cover-art URLs; do not request fallback albums.
+- `randomSongs` is missing, `randomSongs.song` is missing/null, or `randomSongs.song = []` -> request newest albums and expand album tracks as fallback recent songs.
+- Random-song request throws HTTP/Subsonic/API or unknown error -> attempt the same album-track fallback.
+- Fallback album request throws `NavidromeApiException` -> rethrow the typed error.
+- Fallback album request throws unknown error -> wrap as `"鑾峰彇姝屾洸澶辫触: ..."`.
+
+**Good/Base/Bad Cases**:
+- Good: A Subsonic-compatible server omits `randomSongs.song`, and the home recent-song shelf still fills from recent albums.
+- Good: Present random songs map directly to playable songs without extra album calls.
+- Base: Empty random-song result behaves like a random endpoint with no useful data.
+- Bad: `SongList.song` is modeled as a non-null Kotlin list and relies on Gson applying constructor defaults.
+- Bad: Fallback calls `getRecentAlbums()` and pulls Android `Log` side effects into an internal repository fallback path.
+
+**Tests Required**:
+- Repository unit test asserting present random songs return mapped playable songs and do not request fallback albums.
+- Repository unit tests asserting missing and null `randomSongs.song` arrays fall back to album-derived recent songs.
+- Existing full repository/unit gates after changing DTO nullability or fallback control flow.
+
+**Wrong vs Correct**:
+```kotlin
+// Wrong: optional random-song arrays are treated as constructor-defaulted lists.
+data class SongList(
+    val song: List<NavidromeSong> = emptyList()
+)
+
+val songs = subsonic.randomSongs?.song?.map { it.withCoverArtUrl() } ?: emptyList()
+```
+
+```kotlin
+// Correct: model the wire array as nullable and normalize at the repository boundary.
+data class SongList(
+    val song: List<NavidromeSong>? = null
+)
+
+val songs = subsonic.randomSongs?.song.orEmpty().map { it.withCoverArtUrl() }
+```
+
 ### Navidrome album browsing sort modes
 
 **Scope / Trigger**: Any change to the Music screen album page, album sort UI, `NavidromeRepository.getAlbums(...)`, or `NavidromeApi.getAlbumList2(...)`.

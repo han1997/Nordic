@@ -326,18 +326,23 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
         throw Exception("获取全部歌曲失败: ${e.message}")
     }
 
+    private suspend fun getRecentSongsFromAlbums(): List<NavidromeSong> {
+        val albums = getAlbumList(type = "newest", size = RECENT_ALBUM_LIMIT)
+        return getSongsFromAlbums(albums)
+    }
+
     suspend fun getRecentSongs() = try {
         val auth = config.authParams()
         val songs = runCatching {
             val subsonic = requestSubsonic {
                 api.getRandomSongs(config.username, auth.token, auth.salt)
             }
-            subsonic.randomSongs?.song?.map { it.withCoverArtUrl() } ?: emptyList()
+            subsonic.randomSongs?.song.orEmpty().map { it.withCoverArtUrl() }
         }.getOrElse {
-            getSongsFromAlbums(getRecentAlbums())
+            getRecentSongsFromAlbums()
         }
 
-        if (songs.isNotEmpty()) songs else getSongsFromAlbums(getRecentAlbums())
+        if (songs.isNotEmpty()) songs else getRecentSongsFromAlbums()
     } catch (e: NavidromeApiException) {
         throw e
     } catch (e: Exception) {

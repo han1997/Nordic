@@ -114,6 +114,85 @@ class NavidromeRepositoryTest {
     }
 
     @Test
+    fun getRecentSongs_mapsRandomSongsToPlayableSongs() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "randomSongs": {
+                  "song": [
+                    {
+                      "id": "random-song-1",
+                      "title": "Random Song",
+                      "artist": "Artist One",
+                      "album": "Album One",
+                      "coverArt": "random-cover"
+                    }
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val songs = repository().getRecentSongs()
+
+        assertEquals(listOf("Random Song"), songs.map { it.title })
+        assertTrue(songs.single().streamUrl.orEmpty().contains("/rest/stream.view?id=random-song-1"))
+        assertTrue(songs.single().coverArt.orEmpty().contains("/rest/getCoverArt.view?id=random-cover"))
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/getRandomSongs.view?"))
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun getRecentSongs_fallsBackToAlbumSongsWhenRandomSongArrayIsMissingOrNull() = runTest {
+        listOf(
+            """"randomSongs": {}""",
+            """"randomSongs": {"song": null}"""
+        ).forEach { randomSongsField ->
+            server.enqueueJson(subsonicResponse(randomSongsField))
+            server.enqueueJson(
+                subsonicResponse(
+                    """
+                    "albumList2": {
+                      "album": [
+                        {"id": "album-1", "name": "Album One", "coverArt": "cover-1", "songCount": 1}
+                      ]
+                    }
+                    """.trimIndent()
+                )
+            )
+            server.enqueueJson(
+                albumDetailResponse(
+                    """
+                    ,"song": [
+                      {"id": "fallback-song-1", "title": "Fallback Song", "artist": "Artist One", "album": "Album One"}
+                    ]
+                    """.trimIndent()
+                )
+            )
+
+            val songs = repository().getRecentSongs()
+
+            assertEquals(listOf("Fallback Song"), songs.map { it.title })
+            assertTrue(songs.single().streamUrl.orEmpty().contains("/rest/stream.view?id=fallback-song-1"))
+            assertTrue(songs.single().coverArt.orEmpty().contains("/rest/getCoverArt.view?id=cover-1"))
+
+            val randomRequest = server.takeRequest().path.orEmpty()
+            assertTrue(randomRequest.startsWith("/rest/getRandomSongs.view?"))
+
+            val albumListRequest = server.takeRequest().path.orEmpty()
+            assertTrue(albumListRequest.startsWith("/rest/getAlbumList2.view?"))
+            assertTrue(albumListRequest.contains("type=newest"))
+            assertTrue(albumListRequest.contains("size=20"))
+
+            val albumRequest = server.takeRequest().path.orEmpty()
+            assertTrue(albumRequest.startsWith("/rest/getAlbum.view?"))
+            assertTrue(albumRequest.contains("id=album-1"))
+        }
+    }
+
+    @Test
     fun getAlbums_mapsSortModesToAlbumListRequests() = runTest {
         server.enqueueJson(emptyAlbumListResponse())
         server.enqueueJson(emptyAlbumListResponse())

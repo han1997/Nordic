@@ -49,7 +49,7 @@ data class AlbumList(
 )
 
 data class SongList(
-    val song: List<NavidromeSong> = emptyList()
+    val song: List<NavidromeSong>? = null
 )
 
 data class NavidromePlaylistList(
