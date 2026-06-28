@@ -234,6 +234,50 @@ val songs = repo.getPlaylistSongs(playlist.id)
 onSongSelected(songs, index)
 ```
 
+### Navidrome lyrics parsing
+
+**Scope / Trigger**: Any change to `NavidromeRepository.getLyrics(...)`, lyric DTOs, plain LRC parsing, or `MusicPlayerScreen` lyric rendering.
+
+**Signatures**:
+- `suspend fun NavidromeRepository.getLyrics(song: NavidromeSong): MusicLyrics?`
+- `data class MusicLyrics(val lines: List<MusicLyricsLine>, val synced: Boolean)`
+- `data class MusicLyricsLine(val startMillis: Int? = null, val text: String)`
+
+**Contract**:
+- Try `getLyricsBySongId.view` first; fall back to `getLyrics.view` only when song-id lookup yields no lyrics and the song has a non-blank artist.
+- Structured lyrics take priority over plain `lyrics.value` when they contain non-blank lines.
+- Plain LRC timestamp rows such as `[00:10.00]Line` become synced `MusicLyricsLine(startMillis = 10000, text = "Line")`.
+- Known LRC metadata-only rows such as `[ar:...]`, `[ti:...]`, `[al:...]`, `[length:...]`, and `[offset:...]` must be skipped instead of displayed in the lyric view.
+- Bracketed plain lyric rows that are not known LRC metadata, such as `[Chorus]` or `[custom:Keep this line]`, remain visible lyric text.
+- Empty or whitespace-only parsed rows are ignored; if nothing remains, return `null`.
+
+**Validation & Error Matrix**:
+- Song-id lyric lookup throws or returns no usable lyrics -> fallback to artist/title lookup when possible.
+- Both lyric lookups fail or return no usable lyrics -> return `null`; do not surface a playback error.
+- Metadata-only LRC rows -> omit from `MusicLyrics.lines`.
+- Non-metadata bracketed plain rows -> keep as unsynced text.
+
+**Good/Base/Bad Cases**:
+- Good: LRC with metadata and two timed rows displays only the two lyric rows, synced to timestamps.
+- Base: Plain unsynced lyrics display in source order.
+- Bad: `[ar:Artist]` or `[offset:+500]` appears as a lyric line in `MusicPlayerScreen`.
+- Bad: `[Chorus]` is dropped just because it uses brackets.
+
+**Tests Required**:
+- Repository unit test with `MockWebServer` asserting known LRC metadata rows are skipped while timed lyric rows keep expected `startMillis`.
+- Repository unit test asserting non-metadata bracketed plain rows remain visible and unsynced.
+
+**Wrong vs Correct**:
+```kotlin
+// Wrong: every non-timestamp bracket row is treated as lyric text.
+if (matches.isEmpty()) listOf(MusicLyricsLine(text = text))
+```
+
+```kotlin
+// Correct: skip only known metadata rows and preserve other bracketed lyric text.
+if (matches.isEmpty() && rawLine.isLrcMetadataLine()) emptyList()
+```
+
 ### Music playback queue management
 
 **Scope / Trigger**: Any change to the music queue sheet, `MusicPlaybackEngine`, `MusicPlaybackState.queue`, `MusicPlaybackState.queueIndex`, or Media3 music playlist mutations.

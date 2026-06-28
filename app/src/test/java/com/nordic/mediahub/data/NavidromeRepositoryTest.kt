@@ -1,5 +1,6 @@
 package com.nordic.mediahub.data
 
+import com.nordic.mediahub.api.NavidromeSong
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -174,6 +175,74 @@ class NavidromeRepositoryTest {
         val request = server.takeRequest().path.orEmpty()
         assertTrue(request.startsWith("/rest/getPlaylist.view?"))
         assertTrue(request.contains("id=playlist-1"))
+    }
+
+    @Test
+    fun getLyrics_skipsKnownLrcMetadataRows() = runTest {
+        val value = listOf(
+            "[ar:Artist One]",
+            "[ti:Song One]",
+            "[al:Album One]",
+            "[length:03:30]",
+            "[offset:+500]",
+            "[00:10.00]First lyric",
+            "[00:20.50]Second lyric"
+        ).joinToString("\\n")
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "lyrics": {
+                  "artist": "Artist One",
+                  "title": "Song One",
+                  "value": "$value"
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One", duration = 180)
+            )
+        )
+
+        assertTrue(lyrics.synced)
+        assertEquals(listOf("First lyric", "Second lyric"), lyrics.lines.map { it.text })
+        assertEquals(listOf(10_000, 20_500), lyrics.lines.map { it.startMillis })
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/getLyricsBySongId.view?"))
+        assertTrue(request.contains("id=song-1"))
+    }
+
+    @Test
+    fun getLyrics_preservesNonMetadataBracketedPlainRows() = runTest {
+        val value = listOf(
+            "[Chorus]",
+            "[custom:Keep this line]",
+            "Plain lyric"
+        ).joinToString("\\n")
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "lyrics": {
+                  "value": "$value"
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+            )
+        )
+
+        assertFalse(lyrics.synced)
+        assertEquals(
+            listOf("[Chorus]", "[custom:Keep this line]", "Plain lyric"),
+            lyrics.lines.map { it.text }
+        )
     }
 
     private fun repository(): NavidromeRepository {

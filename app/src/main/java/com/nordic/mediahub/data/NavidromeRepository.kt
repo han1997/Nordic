@@ -21,6 +21,22 @@ private const val RECENT_SONG_LIMIT = 20
 private const val ALBUM_PAGE_SIZE = 100
 private const val RELEASE_YEAR_SORT_FROM_YEAR = 2100
 private const val RELEASE_YEAR_SORT_TO_YEAR = 1900
+private val lrcTimestampPattern = Regex("""\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?]""")
+private val lrcMetadataLinePattern = Regex("""^\[([A-Za-z][A-Za-z0-9_-]*):.*]$""")
+private val lrcMetadataKeys = setOf(
+    "al",
+    "album",
+    "ar",
+    "artist",
+    "au",
+    "by",
+    "length",
+    "offset",
+    "re",
+    "ti",
+    "title",
+    "ve"
+)
 
 enum class NavidromeAlbumSort {
     RecentlyAdded,
@@ -369,14 +385,17 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
     }
 
     private fun String.parsePlainLyrics(): MusicLyrics? {
-        val lrcPattern = Regex("""\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?]""")
         val parsedLines = lines().flatMap { rawLine ->
-            val matches = lrcPattern.findAll(rawLine).toList()
-            val text = rawLine.replace(lrcPattern, "").trim()
+            val matches = lrcTimestampPattern.findAll(rawLine).toList()
+            val text = rawLine.replace(lrcTimestampPattern, "").trim()
             if (text.isBlank()) return@flatMap emptyList()
 
             if (matches.isEmpty()) {
-                listOf(MusicLyricsLine(text = text))
+                if (rawLine.isLrcMetadataLine()) {
+                    emptyList()
+                } else {
+                    listOf(MusicLyricsLine(text = text))
+                }
             } else {
                 matches.map { match ->
                     val minutes = match.groupValues[1].toIntOrNull() ?: 0
@@ -403,6 +422,15 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
             lines = if (synced) parsedLines.sortedBy { it.startMillis ?: Int.MAX_VALUE } else parsedLines,
             synced = synced
         )
+    }
+
+    private fun String.isLrcMetadataLine(): Boolean {
+        val key = lrcMetadataLinePattern.matchEntire(trim())
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.lowercase()
+            ?: return false
+        return key in lrcMetadataKeys
     }
 
     private fun Double.toLyricStartMillis(songDurationSeconds: Int): Int {
