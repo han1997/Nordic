@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 38
+- **Total Sessions**: 39
 - **Last Active**: 2026-06-28
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1278 | Active |
+| `journal-1.md` | ~1311 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 39 | 2026-06-28 | Clamp audiobook progress sync time | `8e6d353` | `main` |
 | 38 | 2026-06-28 | Filter unplayable songs from music queues | `1aeb892` | `main` |
 | 37 | 2026-06-28 | Start music play all at first playable song | `a5b2f93` | `main` |
 | 36 | 2026-06-28 | Clear stale video selection after refresh | `98b0f51` | `main` |

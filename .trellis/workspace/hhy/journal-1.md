@@ -1276,3 +1276,36 @@ Filtered missing-stream songs out of MusicPlaybackEngine queues before Media3 pl
 ### Next Steps
 
 - None - task complete
+
+
+## Session 39: Clamp audiobook progress sync time
+
+**Date**: 2026-06-28
+**Task**: Clamp audiobook progress sync time
+**Branch**: `main`
+
+### Summary
+
+Clamped AudiobookShelf progress, session sync, and close currentTime payloads to 0..duration, updated repository tests for over-duration and negative values, and documented the contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8e6d353` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
