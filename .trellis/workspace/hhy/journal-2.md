@@ -1061,3 +1061,36 @@ Updated AudiobookShelf library discovery DTO and repository mapping so missing o
 ### Next Steps
 
 - None - task complete
+
+
+## Session 92: Handle missing AudiobookShelf item lists
+
+**Date**: 2026-06-29
+**Task**: Handle missing AudiobookShelf item lists
+**Branch**: `main`
+
+### Summary
+
+Updated AudiobookShelf library item page DTO and repository pagination so missing or null results arrays map to empty pages, including later-page stop behavior, with focused repository coverage and integration-spec documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `eceff87` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
