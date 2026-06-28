@@ -11,6 +11,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -30,6 +32,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -79,6 +82,7 @@ fun VideoScreen(
     var libraries by remember { mutableStateOf(emptyList<VideoLibrary>()) }
     var selectedLibraryId by remember { mutableStateOf<String?>(null) }
     var videos by remember { mutableStateOf(emptyList<VideoItem>()) }
+    var selectedVideo by remember { mutableStateOf<VideoItem?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var selectedTypeFilter by remember { mutableStateOf(VideoTypeFilter.All) }
     var isLoading by remember { mutableStateOf(false) }
@@ -119,6 +123,9 @@ fun VideoScreen(
             libraries = catalog.libraries
             selectedLibraryId = catalog.selectedLibraryId
             videos = catalog.items
+            if (selectedVideo?.libraryId != catalog.selectedLibraryId) {
+                selectedVideo = null
+            }
         } catch (e: Exception) {
             errorMessage = e.message ?: "连接 Emby 失败"
         } finally {
@@ -131,13 +138,24 @@ fun VideoScreen(
         if (savedConfig.isReadyForVideoSync()) {
             refreshVideo(savedConfig, selectedLibraryId)
         } else {
-                            libraries = emptyList()
+            libraries = emptyList()
             selectedLibraryId = null
             videos = emptyList()
+            selectedVideo = null
             searchQuery = ""
             selectedTypeFilter = VideoTypeFilter.All
             errorMessage = null
         }
+    }
+
+    selectedVideo?.let { video ->
+        VideoDetailScreen(
+            video = video,
+            colorScheme = colorScheme,
+            onBack = { selectedVideo = null },
+            onPlay = { onPlayVideo(video) }
+        )
+        return
     }
 
     LazyVerticalGrid(
@@ -239,6 +257,7 @@ fun VideoScreen(
                     colorScheme = colorScheme,
                     onSelect = { libraryId ->
                         selectedLibraryId = libraryId
+                        selectedVideo = null
                         searchQuery = ""
                         selectedTypeFilter = VideoTypeFilter.All
                         val repo = embyRepository ?: return@VideoLibrarySelector
@@ -330,7 +349,7 @@ fun VideoScreen(
                     VideoCard(
                         video = video,
                         colorScheme = colorScheme,
-                        onClick = { onPlayVideo(video) }
+                        onClick = { selectedVideo = video }
                     )
                 }
             }
@@ -427,6 +446,193 @@ private fun VideoCard(
                     overflow = TextOverflow.Ellipsis
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun VideoDetailScreen(
+    video: VideoItem,
+    colorScheme: ColorScheme,
+    onBack: () -> Unit,
+    onPlay: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
+                contentColor = colorScheme.onSurface,
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
+                modifier = Modifier
+                    .size(42.dp)
+                    .clickable(onClick = onBack)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text("‹", fontSize = 26.sp, color = colorScheme.onSurface.copy(alpha = 0.78f))
+                }
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Text(
+                    "视频详情",
+                    fontSize = 13.sp,
+                    color = colorScheme.onSurface.copy(alpha = 0.58f),
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    video.title,
+                    fontSize = 18.sp,
+                    color = colorScheme.onBackground,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        Surface(
+            color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
+            shape = RoundedCornerShape(24.dp),
+            border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
+            shadowElevation = 10.dp,
+            modifier = Modifier.fillMaxWidth(0.72f)
+        ) {
+            VideoThumbnail(
+                imageUrl = video.imageUrl,
+                title = video.title,
+                colorScheme = colorScheme,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(2f / 3f)
+            )
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                video.title,
+                fontSize = 28.sp,
+                lineHeight = 32.sp,
+                color = colorScheme.onBackground,
+                fontWeight = FontWeight.Bold,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(video.detailChips(), key = { it }, contentType = { "video-detail-chip" }) { chip ->
+                    VideoDetailMetaChip(text = chip, colorScheme = colorScheme)
+                }
+            }
+
+            VideoDetailPlayButton(
+                enabled = !video.streamUrl.isNullOrBlank(),
+                colorScheme = colorScheme,
+                onClick = onPlay
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Text(
+                    "简介",
+                    fontSize = 17.sp,
+                    color = colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    video.overview.ifBlank { "暂无简介" },
+                    fontSize = 14.sp,
+                    lineHeight = 21.sp,
+                    color = colorScheme.onSurface.copy(alpha = 0.68f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VideoDetailMetaChip(text: String, colorScheme: ColorScheme) {
+    Surface(
+        color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
+        contentColor = colorScheme.onSurface,
+        shape = RoundedCornerShape(999.dp),
+        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f))
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
+            fontSize = 12.sp,
+            color = colorScheme.onSurface.copy(alpha = 0.68f),
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun VideoDetailPlayButton(
+    enabled: Boolean,
+    colorScheme: ColorScheme,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val scale = rememberPressScale(
+        interactionSource = interactionSource,
+        pressedScale = 0.985f,
+        enabled = enabled
+    )
+
+    Surface(
+        color = if (enabled) colorScheme.primary else colorScheme.primary.copy(alpha = 0.32f),
+        contentColor = colorScheme.onPrimary,
+        shape = RoundedCornerShape(999.dp),
+        shadowElevation = if (enabled) 4.dp else 0.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .scale(scale)
+            .clickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "▶  播放",
+                fontSize = 16.sp,
+                color = colorScheme.onPrimary,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -600,6 +806,14 @@ private fun VideoItem.metaText(): String {
         year?.let { add(it.toString()) }
         if (durationSeconds > 0) add(formatVideoDuration(durationSeconds))
     }.joinToString("  /  ")
+}
+
+private fun VideoItem.detailChips(): List<String> {
+    return buildList {
+        type.takeIf { it.isNotBlank() }?.let { add(it) }
+        year?.let { add(it.toString()) }
+        if (durationSeconds > 0) add(formatVideoDuration(durationSeconds))
+    }.ifEmpty { listOf("视频") }
 }
 
 private fun formatVideoDuration(durationSeconds: Int): String {
