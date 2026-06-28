@@ -797,3 +797,36 @@ Updated AudiobookShelf playback-session mapping so missing or null chapter and a
 ### Next Steps
 
 - None - task complete
+
+
+## Session 84: Handle missing Emby item lists
+
+**Date**: 2026-06-29
+**Task**: Handle missing Emby item lists
+**Branch**: `main`
+
+### Summary
+
+Updated Emby view and library-item response mapping so missing or null Items arrays map to empty app lists, with focused repository coverage and contract documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a685b1e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
