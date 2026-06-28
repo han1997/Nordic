@@ -698,3 +698,36 @@ Updated AudiobookShelf login handling so missing users and missing or blank toke
 ### Next Steps
 
 - None - task complete
+
+
+## Session 81: Ignore blank AudiobookShelf cover paths
+
+**Date**: 2026-06-29
+**Task**: Ignore blank AudiobookShelf cover paths
+**Branch**: `main`
+
+### Summary
+
+Updated AudiobookShelf cover-path mapping so blank summary, detail, and playback session covers stay absent while valid relative and absolute covers still normalize correctly, with focused repository coverage and contract documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `db6f444` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
