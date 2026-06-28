@@ -137,6 +137,10 @@ fun VideoScreen(
             libraries = catalog.libraries
             selectedLibraryId = catalog.selectedLibraryId
             videos = catalog.items
+            selectedTypeFilter = resolveVideoTypeFilterAfterCatalogRefresh(
+                selectedTypeFilter = selectedTypeFilter,
+                videos = catalog.items
+            )
             selectedVideo = resolveVideoSelectionAfterCatalogRefresh(
                 selectedVideo = selectedVideo,
                 selectedLibraryId = catalog.selectedLibraryId,
@@ -1064,6 +1068,15 @@ internal fun resolveVideoSelectionAfterCatalogRefresh(
     }
 }
 
+internal fun resolveVideoTypeFilterAfterCatalogRefresh(
+    selectedTypeFilter: VideoTypeFilter,
+    videos: List<VideoItem>
+): VideoTypeFilter {
+    return selectedTypeFilter.takeIf { filter ->
+        filter == VideoTypeFilter.All || videos.any(filter::matches)
+    } ?: VideoTypeFilter.All
+}
+
 private fun VideoItem.isContinueWatchingCandidate(): Boolean {
     if (playbackPositionSeconds <= 0 || isPlayed) return false
 
@@ -1113,7 +1126,7 @@ private fun formatVideoDuration(durationSeconds: Int): String {
     }
 }
 
-private enum class VideoTypeFilter(val label: String) {
+internal enum class VideoTypeFilter(val label: String) {
     All("全部"),
     Movies("电影"),
     Series("剧集"),

@@ -174,6 +174,36 @@ class VideoScreenTest {
     }
 
     @Test
+    fun resolveVideoTypeFilterAfterCatalogRefresh_keepsFilterWhenTypeStillPresent() {
+        val resolved = resolveVideoTypeFilterAfterCatalogRefresh(
+            selectedTypeFilter = VideoTypeFilter.Episodes,
+            videos = listOf(video(id = "episode-1", title = "Episode One", type = "Episode"))
+        )
+
+        assertEquals(VideoTypeFilter.Episodes, resolved)
+    }
+
+    @Test
+    fun resolveVideoTypeFilterAfterCatalogRefresh_resetsFilterWhenTypeIsGone() {
+        val resolved = resolveVideoTypeFilterAfterCatalogRefresh(
+            selectedTypeFilter = VideoTypeFilter.Episodes,
+            videos = listOf(video(id = "movie-1", title = "Movie One", type = "Movie"))
+        )
+
+        assertEquals(VideoTypeFilter.All, resolved)
+    }
+
+    @Test
+    fun resolveVideoTypeFilterAfterCatalogRefresh_keepsAllForEmptyCatalog() {
+        val resolved = resolveVideoTypeFilterAfterCatalogRefresh(
+            selectedTypeFilter = VideoTypeFilter.All,
+            videos = emptyList()
+        )
+
+        assertEquals(VideoTypeFilter.All, resolved)
+    }
+
+    @Test
     fun relatedEpisodesFor_usesSeriesNameFallbackOnlyWhenSeriesIdIsMissing() {
         val series = video(
             id = "series-1",
