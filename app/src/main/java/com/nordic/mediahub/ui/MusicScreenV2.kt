@@ -286,7 +286,9 @@ fun MusicScreenV2(
             if (firstPlayableSong == null) {
                 errorMsg = "这张专辑没有可播放曲目"
             } else {
-                onSongSelected(albumSongs, albumSongs.indexOf(firstPlayableSong).coerceAtLeast(0))
+                val startIndex = albumSongs.indexOfFirst { !it.streamUrl.isNullOrBlank() }
+                    .takeIf { it >= 0 } ?: 0
+                onSongSelected(albumSongs, startIndex)
             }
         } catch (e: Exception) {
             errorMsg = "获取专辑曲目失败: ${e.message}"
@@ -732,14 +734,15 @@ fun MusicScreenV2(
                             onSortSelected = { songSort = it }
                         )
                     }
-                    items(visibleSongs, key = { it.id }, contentType = { "song-row" }) { song ->
+                    itemsIndexed(
+                        items = visibleSongs,
+                        key = { index, song -> "song-${song.id}-$index" },
+                        contentType = { _, _ -> "song-row" }
+                    ) { index, song ->
                         SongListRow(
                             song = song,
                             colorScheme = colorScheme,
-                            onClick = {
-                                val index = visibleSongs.indexOf(song)
-                                onSongSelected(visibleSongs, index)
-                            }
+                            onClick = { onSongSelected(visibleSongs, index) }
                         )
                     }
                 }
@@ -882,14 +885,15 @@ fun MusicScreenV2(
                             }
                         )
                     }
-                    items(albumDetailSongs, key = { it.id }, contentType = { "album-song-row" }) { song ->
+                    itemsIndexed(
+                        items = albumDetailSongs,
+                        key = { index, song -> "album-song-${song.id}-$index" },
+                        contentType = { _, _ -> "album-song-row" }
+                    ) { index, song ->
                         SongListRow(
                             song = song,
                             colorScheme = colorScheme,
-                            onClick = {
-                                val index = albumDetailSongs.indexOf(song)
-                                onSongSelected(albumDetailSongs, index)
-                            }
+                            onClick = { onSongSelected(albumDetailSongs, index) }
                         )
                     }
                 }
@@ -949,9 +953,8 @@ fun MusicScreenV2(
                             artists = artists,
                             colorScheme = colorScheme,
                             onAlbumClick = { album -> openAlbumDetail(album) },
-                            onSongClick = { song ->
+                            onSongClick = { index ->
                                 val source = recentlyAddedSongs.ifEmpty { songs }
-                                val index = source.indexOf(song).coerceAtLeast(0)
                                 if (source.isNotEmpty()) {
                                     onSongSelected(source, index)
                                 }
@@ -1031,14 +1034,15 @@ fun MusicScreenV2(
                                 colorScheme = colorScheme
                             )
                         }
-                        items(result.songs, key = { "song-${it.id}" }, contentType = { "search-song-row" }) { song ->
+                        itemsIndexed(
+                            items = result.songs,
+                            key = { index, song -> "search-song-${song.id}-$index" },
+                            contentType = { _, _ -> "search-song-row" }
+                        ) { index, song ->
                             SongListRow(
                                 song = song,
                                 colorScheme = colorScheme,
-                                onClick = {
-                                    val index = result.songs.indexOf(song)
-                                    onSongSelected(result.songs, index)
-                                }
+                                onClick = { onSongSelected(result.songs, index) }
                             )
                         }
                     }
@@ -1128,14 +1132,15 @@ fun MusicScreenV2(
                             )
                         }
                     } else {
-                        items(playlistSongs, key = { it.id }, contentType = { "playlist-song-row" }) { song ->
+                        itemsIndexed(
+                            items = playlistSongs,
+                            key = { index, song -> "playlist-song-${song.id}-$index" },
+                            contentType = { _, _ -> "playlist-song-row" }
+                        ) { index, song ->
                             SongListRow(
                                 song = song,
                                 colorScheme = colorScheme,
-                                onClick = {
-                                    val index = playlistSongs.indexOf(song)
-                                    onSongSelected(playlistSongs, index)
-                                }
+                                onClick = { onSongSelected(playlistSongs, index) }
                             )
                         }
                     }
@@ -1152,7 +1157,7 @@ private fun MusicSearchLanding(
     artists: List<NavidromeArtist>,
     colorScheme: ColorScheme,
     onAlbumClick: (NavidromeAlbum) -> Unit,
-    onSongClick: (NavidromeSong) -> Unit,
+    onSongClick: (Int) -> Unit,
     onArtistClick: (NavidromeArtist) -> Unit
 ) {
     val hasSuggestions = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty()
@@ -1204,15 +1209,15 @@ private fun MusicSearchLanding(
                 colorScheme = colorScheme
             )
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(
+                itemsIndexed(
                     items = suggestedSongs,
-                    key = { "search-home-song-${it.id}" },
-                    contentType = { "search-home-song-card" }
-                ) { song ->
+                    key = { index, song -> "search-home-song-${song.id}-$index" },
+                    contentType = { _, _ -> "search-home-song-card" }
+                ) { index, song ->
                     SongShelfCard(
                         song = song,
                         colorScheme = colorScheme,
-                        onClick = { onSongClick(song) }
+                        onClick = { onSongClick(index) }
                     )
                 }
             }

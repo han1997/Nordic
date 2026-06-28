@@ -57,6 +57,7 @@ Use `MediaStateDensity.Compact` for detail-level empty states and the default pr
 Image-heavy `LazyColumn` and `LazyRow` sections should provide stable `key` values from domain identity and a stable `contentType` for each row/card family. Small fixed control rows such as sort chips do not need this.
 
 Cache preview slices with `remember(sourceList) { sourceList.take(n) }` when they are passed into lazy lists or playback callbacks, and prefer `itemsIndexed` when item click handling needs the index.
+Do not resolve playback click indexes with `list.indexOf(song)`; duplicate song entries can resolve to the wrong item and large lists pay an unnecessary O(n) lookup on click. Use the index provided by `itemsIndexed` and position-aware keys such as `"playlist-song-${song.id}-$index"`.
 
 ```kotlin
 val homeSongs = remember(recentlyAddedSongs) { recentlyAddedSongs.take(12) }
