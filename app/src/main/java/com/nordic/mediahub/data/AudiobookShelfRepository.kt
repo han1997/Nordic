@@ -14,6 +14,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.io.EOFException
 
 private const val AUDIOBOOK_LIBRARY_PAGE_SIZE = 50
 
@@ -74,7 +75,14 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
     }
 
     suspend fun getLibraries(): List<AudiobookLibrarySummary> {
-        val response = api.getLibraries(bearerToken())
+        val response = try {
+            api.getLibraries(bearerToken())
+        } catch (error: EOFException) {
+            throw AudiobookShelfApiException(
+                "获取书库失败: 响应为空",
+                AudiobookShelfApiException.Kind.API
+            )
+        }
         if (!response.isSuccessful) {
             throw AudiobookShelfApiException(
                 "获取书库失败: HTTP ${response.code()}",
@@ -82,7 +90,13 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
             )
         }
 
-        return response.body()?.libraries.orEmpty().mapNotNull { dto ->
+        val body = response.body()
+            ?: throw AudiobookShelfApiException(
+                "获取书库失败: 响应为空",
+                AudiobookShelfApiException.Kind.API
+            )
+
+        return body.libraries.mapNotNull { dto ->
             if (dto.mediaType != "book") return@mapNotNull null
             AudiobookLibrarySummary(
                 id = dto.id,

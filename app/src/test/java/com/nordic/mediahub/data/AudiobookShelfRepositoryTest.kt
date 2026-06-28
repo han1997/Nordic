@@ -81,6 +81,23 @@ class AudiobookShelfRepositoryTest {
     }
 
     @Test
+    fun getLibraries_throwsTypedExceptionForEmptyResponseBody() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val error = try {
+            repository().getLibraries()
+            null
+        } catch (error: AudiobookShelfApiException) {
+            error
+        }
+
+        requireNotNull(error)
+        assertEquals(AudiobookShelfApiException.Kind.API, error.kind)
+        assertTrue(error.message.orEmpty().contains("响应为空"))
+    }
+
+    @Test
     fun syncAndCloseSession_sendsProgressSyncAndCloseRequests() = runTest {
         server.enqueueJson("""{"user":{"id":"u1","username":"demo","accessToken":"access-123"}}""")
         server.enqueue(MockResponse().setResponseCode(204))

@@ -94,7 +94,7 @@
 | Open detail item id is absent from refreshed item summaries | Clear selected detail and return to the library list |
 | Saved config changes while a detail page is open | Return to the audiobook home page and clear the selected detail before loading the new config |
 | Previous-config library/detail response completes after saved config changed | Ignore the stale response and keep the new config's state |
-| Library/item/playback response is empty | Throw `AudiobookShelfApiException.Kind.API` |
+| Library/item/playback response is empty, including Retrofit/Gson `EOFException` before a `Response` is returned | Throw `AudiobookShelfApiException.Kind.API` |
 | Playback session has no playable tracks | Keep session visible with a playback error; do not start Media3 |
 | Media3 reports a known-track local position beyond that track duration | Clamp the local position to the track duration before publishing absolute playback progress |
 | Absolute seek target is before the first track | Seek to media item `0` at offset `0` |
