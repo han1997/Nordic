@@ -1639,3 +1639,36 @@ Prevented duplicate AudiobookShelf sessions by reusing same-book active sessions
 ### Next Steps
 
 - None - task complete
+
+
+## Session 50: Skip LRC metadata in music lyrics
+
+**Date**: 2026-06-29
+**Task**: Skip LRC metadata in music lyrics
+**Branch**: `main`
+
+### Summary
+
+Improved Navidrome plain LRC parsing so known metadata tags are omitted from music lyrics while timed lines and non-metadata bracketed lyric text remain visible; added repository regression tests and documented the lyrics parsing contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `88a7e3d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
