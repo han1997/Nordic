@@ -58,6 +58,7 @@ Image-heavy `LazyColumn` and `LazyRow` sections should provide stable `key` valu
 
 Cache preview slices with `remember(sourceList) { sourceList.take(n) }` when they are passed into lazy lists or playback callbacks, and prefer `itemsIndexed` when item click handling needs the index.
 Do not resolve playback click indexes with `list.indexOf(song)`; duplicate song entries can resolve to the wrong item and large lists pay an unnecessary O(n) lookup on click. Use the index provided by `itemsIndexed` and position-aware keys such as `"playlist-song-${song.id}-$index"`.
+When a shelf is only a visual preview of a longer playback source, keep the preview slice separate from the playback queue. For example, the Music home recently-added shelf may render 12 cards but should pass the full `recentlyAddedSongs` backing list to playback so listening continues beyond the visible preview.
 
 ```kotlin
 val homeSongs = remember(recentlyAddedSongs) { recentlyAddedSongs.take(12) }

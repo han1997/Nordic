@@ -379,7 +379,8 @@ fun MusicScreenV2(
     val visibleSongs = remember(songs, songSort) {
         sortMusicSongs(songs, songSort)
     }
-    val homeSongs = remember(recentlyAddedSongs) { recentlyAddedSongs.take(12) }
+    val homeSongs = remember(recentlyAddedSongs) { musicHomePreviewSongs(recentlyAddedSongs) }
+    val homePlaybackQueue = remember(recentlyAddedSongs) { musicHomePlaybackQueue(recentlyAddedSongs) }
     val homeAlbums = remember(albums) { albums.take(10) }
     val homeArtists = remember(artists) { artists.take(10) }
     val cacheAgeLabel = formatCacheAge(cacheUpdatedAtMillis)
@@ -615,7 +616,7 @@ fun MusicScreenV2(
                                     song = song,
                                     colorScheme = colorScheme,
                                     onClick = {
-                                        onSongSelected(homeSongs, index)
+                                        onSongSelected(homePlaybackQueue, index)
                                     }
                                 )
                             }
@@ -1566,6 +1567,14 @@ private fun MusicSongSort.displayLabel(): String {
     }
 }
 
+internal fun musicHomePreviewSongs(songs: List<NavidromeSong>): List<NavidromeSong> {
+    return songs.take(HOME_SONG_PREVIEW_LIMIT)
+}
+
+internal fun musicHomePlaybackQueue(songs: List<NavidromeSong>): List<NavidromeSong> {
+    return songs
+}
+
 private fun sortMusicSongs(
     songs: List<NavidromeSong>,
     sort: MusicSongSort
@@ -1593,6 +1602,8 @@ private fun sortMusicSongs(
         )
     }
 }
+
+private const val HOME_SONG_PREVIEW_LIMIT = 12
 
 @Composable
 private fun SongSortSegmentedControl(
