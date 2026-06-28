@@ -5,6 +5,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -40,6 +41,7 @@ class AudiobookShelfRepositoryTest {
 
         assertEquals("session-1", session.sessionId)
         assertEquals("Book One", session.displayTitle)
+        assertEquals("${server.url("/")}api/items/book-1/cover", session.coverUrl)
         assertEquals(1, session.audioTracks.size)
         assertEquals(
             "${server.url("/")}audio/book-1.mp3?download=0&token=token-123",
@@ -188,6 +190,91 @@ class AudiobookShelfRepositoryTest {
         assertEquals("Bearer token-123", secondPageRequest.getHeader("Authorization"))
         assertTrue(secondPageRequest.path.orEmpty().contains("limit=50"))
         assertTrue(secondPageRequest.path.orEmpty().contains("page=1"))
+    }
+
+    @Test
+    fun getLibraryItems_mapsBlankAndNonBlankCoverPaths() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(
+            """
+                {
+                  "results": [
+                    {
+                      "id": "book-blank",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {
+                        "id": "media-blank",
+                        "metadata": {"title": "Blank Cover"},
+                        "coverPath": "   ",
+                        "duration": 60.0,
+                        "numChapters": 1
+                      }
+                    },
+                    {
+                      "id": "book-relative",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {
+                        "id": "media-relative",
+                        "metadata": {"title": "Relative Cover"},
+                        "coverPath": "/api/items/book-relative/cover",
+                        "duration": 60.0,
+                        "numChapters": 1
+                      }
+                    },
+                    {
+                      "id": "book-absolute",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {
+                        "id": "media-absolute",
+                        "metadata": {"title": "Absolute Cover"},
+                        "coverPath": "https://cdn.example.test/cover.jpg",
+                        "duration": 60.0,
+                        "numChapters": 1
+                      }
+                    }
+                  ],
+                  "total": 3,
+                  "limit": 50,
+                  "page": 0,
+                  "mediaType": "book",
+                  "minified": true
+                }
+            """.trimIndent()
+        )
+
+        val items = repository().getLibraryItems("lib-1")
+
+        assertNull(items[0].coverUrl)
+        assertEquals("${server.url("/")}api/items/book-relative/cover", items[1].coverUrl)
+        assertEquals("https://cdn.example.test/cover.jpg", items[2].coverUrl)
+    }
+
+    @Test
+    fun getLibraryItem_ignoresBlankCoverPath() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(libraryItemDetailJson(coverPath = "   "))
+
+        val detail = repository().getLibraryItem("book-1")
+
+        assertNull(detail.coverUrl)
+    }
+
+    @Test
+    fun startPlayback_ignoresBlankSessionCoverPath() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(
+            playbackSessionJson(
+                contentUrl = "/audio/book-1.mp3?download=0",
+                coverPath = "   "
+            )
+        )
+
+        val session = repository().startPlayback("book-1")
+
+        assertNull(session.coverUrl)
     }
 
     @Test
@@ -429,7 +516,32 @@ class AudiobookShelfRepositoryTest {
         """.trimIndent()
     }
 
-    private fun playbackSessionJson(contentUrl: String): String {
+    private fun libraryItemDetailJson(coverPath: String): String {
+        return """
+            {
+              "id": "book-1",
+              "libraryId": "lib-1",
+              "mediaType": "book",
+              "media": {
+                "id": "media-1",
+                "metadata": {
+                  "title": "Book One",
+                  "authors": [],
+                  "narrators": [],
+                  "series": []
+                },
+                "coverPath": "$coverPath",
+                "duration": 300.0,
+                "chapters": []
+              }
+            }
+        """.trimIndent()
+    }
+
+    private fun playbackSessionJson(
+        contentUrl: String,
+        coverPath: String = "/api/items/book-1/cover"
+    ): String {
         return """
             {
               "id": "session-1",
@@ -438,7 +550,7 @@ class AudiobookShelfRepositoryTest {
               "mediaType": "book",
               "displayTitle": "Book One",
               "displayAuthor": "Author",
-              "coverPath": "/api/items/book-1/cover",
+              "coverPath": "$coverPath",
               "duration": 300.0,
               "startTime": 12.0,
               "currentTime": 12.0,

@@ -56,6 +56,7 @@
 - Domain mapping must keep music and audiobook models separate. Do not map audiobook sessions into `NavidromeSong`.
 - Library item browsing must page `GET /api/libraries/{id}/items` with a fixed repository page size. Continue requesting `page + 1` until the response `total` count is loaded, or until the server returns an empty/short page.
 - Library discovery must include libraries whose `mediaType` equals `book` case-insensitively, and must continue excluding non-book media types such as podcasts.
+- Audiobook `coverPath` values map to nullable app artwork URLs: null, empty, and whitespace-only paths stay `null`; non-blank relative paths are normalized against the server base URL; absolute `http://` and `https://` cover URLs are preserved.
 - Library refresh must resolve the selected library id against the latest `GET /api/libraries` response. Keep the previous selection only if that id is still present; otherwise fall back to the first returned library, or clear the selection when the response is empty.
 - Library refresh must reconcile an open detail item against the refreshed selected-library item summaries. Keep the open detail only if its id still exists in the refreshed summaries.
 - If the detail page is open and the selected detail no longer exists after refresh, clear the selected detail and return to the library list. Do not show stale detail for books removed from or moved out of the selected library.
@@ -93,6 +94,8 @@
 | Login response lacks `user` or any non-blank token/accessToken | Throw `AudiobookShelfApiException.Kind.AUTH` |
 | Library response has `mediaType` values such as `book`, `Book`, or `BOOK` | Include those libraries in `getLibraries()` |
 | Library response has non-book `mediaType` values | Exclude those libraries from `getLibraries()` |
+| Summary/detail/session `coverPath` is null, empty, or whitespace-only | Map cover URL to `null` |
+| Summary/detail/session `coverPath` is relative or absolute | Normalize relative paths with the server base URL; preserve absolute HTTP(S) URLs |
 | Library items response total is larger than the first page | Continue requesting subsequent pages and merge summaries before returning |
 | Previously selected library id is absent from the latest library list | Fall back to the first returned library before requesting items |
 | Latest library list is empty | Clear the selected library id and show the empty-library state |
@@ -157,6 +160,8 @@
   - missing/null login `user` responses throw `AudiobookShelfApiException.Kind.AUTH`
   - missing/null/blank login token fields throw `AudiobookShelfApiException.Kind.AUTH`
   - library filtering includes `book`, `Book`, and `BOOK` media type values and excludes non-book media types
+  - blank summary/detail/session `coverPath` values map to `null`
+  - non-blank relative and absolute cover paths map to expected app-facing cover URLs
   - paginated library item browsing requests `page=0`, `page=1`, and merges results until `total` is loaded
   - relative cover/audio URL normalization
   - audio URL token handling appends a token when no `token` query parameter exists, including when `token=` appears only in the path, and avoids duplicating an existing token query parameter

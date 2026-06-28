@@ -181,7 +181,7 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
             libraryItemId = session.libraryItemId,
             displayTitle = session.displayTitle,
             displayAuthor = session.displayAuthor.orEmpty(),
-            coverUrl = session.coverPath?.toAbsoluteCoverUrl(),
+            coverUrl = session.coverPath.toAbsoluteCoverUrlOrNull(),
             durationSeconds = session.duration.toInt(),
             currentTimeSeconds = session.currentTime.toInt(),
             startTimeSeconds = session.startTime.toInt(),
@@ -260,7 +260,7 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
             author = media.metadata.authorName.orEmpty(),
             narrator = media.metadata.narratorName.orEmpty(),
             series = media.metadata.seriesName.orEmpty(),
-            coverUrl = media.coverPath?.toAbsoluteCoverUrl(),
+            coverUrl = media.coverPath.toAbsoluteCoverUrlOrNull(),
             durationSeconds = media.duration.toInt(),
             chapterCount = media.numChapters,
             updatedAtMillis = updatedAt
@@ -281,7 +281,7 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
             series = media.metadata.series.map { series ->
                 if (series.sequence.isNullOrBlank()) series.name else "${series.name} #${series.sequence}"
             },
-            coverUrl = media.coverPath?.toAbsoluteCoverUrl(),
+            coverUrl = media.coverPath.toAbsoluteCoverUrlOrNull(),
             durationSeconds = media.duration.toInt(),
             chapters = media.chapters.map { chapter ->
                 AudiobookChapter(
@@ -303,6 +303,10 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
             isFinished = isFinished,
             lastUpdateMillis = lastUpdate
         )
+    }
+
+    private fun String?.toAbsoluteCoverUrlOrNull(): String? {
+        return this?.takeIf { it.isNotBlank() }?.toAbsoluteCoverUrl()
     }
 
     private fun String.toAbsoluteCoverUrl(): String {
