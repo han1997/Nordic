@@ -171,8 +171,8 @@ data class AudiobookShelfPlaybackSessionDto(
     val playMethod: Int = 0,
     val startTime: Double = 0.0,
     val currentTime: Double = 0.0,
-    val chapters: List<AudiobookShelfChapterDto> = emptyList(),
-    val audioTracks: List<AudiobookShelfAudioTrackDto> = emptyList(),
+    val chapters: List<AudiobookShelfChapterDto>? = null,
+    val audioTracks: List<AudiobookShelfAudioTrackDto>? = null,
     val libraryItem: AudiobookShelfLibraryItemExpandedDto? = null
 )
 

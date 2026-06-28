@@ -185,7 +185,7 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
             durationSeconds = session.duration.toInt(),
             currentTimeSeconds = session.currentTime.toInt(),
             startTimeSeconds = session.startTime.toInt(),
-            chapters = session.chapters.map { chapter ->
+            chapters = session.chapters.orEmpty().map { chapter ->
                 AudiobookChapter(
                     id = chapter.id,
                     title = chapter.title,
@@ -193,7 +193,7 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
                     endSeconds = chapter.end.toInt()
                 )
             },
-            audioTracks = session.audioTracks.mapNotNull { track ->
+            audioTracks = session.audioTracks.orEmpty().mapNotNull { track ->
                 val url = track.contentUrl ?: return@mapNotNull null
                 AudiobookAudioTrack(
                     index = track.index,

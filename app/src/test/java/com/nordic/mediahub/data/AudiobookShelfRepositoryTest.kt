@@ -42,6 +42,10 @@ class AudiobookShelfRepositoryTest {
         assertEquals("session-1", session.sessionId)
         assertEquals("Book One", session.displayTitle)
         assertEquals("${server.url("/")}api/items/book-1/cover", session.coverUrl)
+        assertEquals(
+            AudiobookChapter(id = 1, title = "Chapter One", startSeconds = 0, endSeconds = 120),
+            session.chapters.single()
+        )
         assertEquals(1, session.audioTracks.size)
         assertEquals(
             "${server.url("/")}audio/book-1.mp3?download=0&token=token-123",
@@ -314,6 +318,22 @@ class AudiobookShelfRepositoryTest {
         val session = repository().startPlayback("book-1")
 
         assertNull(session.coverUrl)
+    }
+
+    @Test
+    fun startPlayback_mapsMissingAndNullSessionListsToEmptyLists() = runTest {
+        listOf(
+            playbackSessionWithMissingListsJson(),
+            playbackSessionWithNullListsJson()
+        ).forEach { response ->
+            server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+            server.enqueueJson(response)
+
+            val session = repository().startPlayback("book-1")
+
+            assertEquals(emptyList<AudiobookChapter>(), session.chapters)
+            assertEquals(emptyList<AudiobookAudioTrack>(), session.audioTracks)
+        }
     }
 
     @Test
@@ -673,6 +693,42 @@ class AudiobookShelfRepositoryTest {
                   "contentUrl": "$contentUrl"
                 }
               ]
+            }
+        """.trimIndent()
+    }
+
+    private fun playbackSessionWithMissingListsJson(): String {
+        return """
+            {
+              "id": "session-1",
+              "libraryId": "lib-1",
+              "libraryItemId": "book-1",
+              "mediaType": "book",
+              "displayTitle": "Book One",
+              "displayAuthor": "Author",
+              "coverPath": "/api/items/book-1/cover",
+              "duration": 300.0,
+              "startTime": 12.0,
+              "currentTime": 12.0
+            }
+        """.trimIndent()
+    }
+
+    private fun playbackSessionWithNullListsJson(): String {
+        return """
+            {
+              "id": "session-1",
+              "libraryId": "lib-1",
+              "libraryItemId": "book-1",
+              "mediaType": "book",
+              "displayTitle": "Book One",
+              "displayAuthor": "Author",
+              "coverPath": "/api/items/book-1/cover",
+              "duration": 300.0,
+              "startTime": 12.0,
+              "currentTime": 12.0,
+              "chapters": null,
+              "audioTracks": null
             }
         """.trimIndent()
     }

@@ -58,6 +58,7 @@
 - Library discovery must include libraries whose `mediaType` equals `book` case-insensitively, and must continue excluding non-book media types such as podcasts.
 - Audiobook `coverPath` values map to nullable app artwork URLs: null, empty, and whitespace-only paths stay `null`; non-blank relative paths are normalized against the server base URL; absolute `http://` and `https://` cover URLs are preserved.
 - Expanded audiobook detail responses may omit `media.metadata.authors`, `media.metadata.narrators`, `media.metadata.series`, and `media.chapters`, or send them as null. DTOs must allow those fields to deserialize as nullable lists, and repository detail mapping must convert them to empty domain lists.
+- Playback-session responses may omit `chapters` and `audioTracks`, or send them as null. DTOs must allow those fields to deserialize as nullable lists, and `startPlayback()` must convert them to empty domain lists.
 - Library refresh must resolve the selected library id against the latest `GET /api/libraries` response. Keep the previous selection only if that id is still present; otherwise fall back to the first returned library, or clear the selection when the response is empty.
 - Library refresh must reconcile an open detail item against the refreshed selected-library item summaries. Keep the open detail only if its id still exists in the refreshed summaries.
 - If the detail page is open and the selected detail no longer exists after refresh, clear the selected detail and return to the library list. Do not show stale detail for books removed from or moved out of the selected library.
@@ -100,6 +101,8 @@
 | Library items response total is larger than the first page | Continue requesting subsequent pages and merge summaries before returning |
 | Expanded detail `metadata.authors`, `metadata.narrators`, `metadata.series`, or `chapters` is missing or null | Map the corresponding `AudiobookItemDetail` list to `emptyList()` |
 | Expanded detail authors, narrators, series sequence values, or chapters are present | Preserve mapped author/narrator names, `Series #sequence` labels, and chapter id/title/start/end values |
+| Playback session `chapters` or `audioTracks` is missing or null | Map the corresponding `AudiobookPlaybackSession` list to `emptyList()` |
+| Playback session chapters or audio tracks are present | Preserve chapter id/title/start/end values and playable audio track URL/token mapping |
 | Previously selected library id is absent from the latest library list | Fall back to the first returned library before requesting items |
 | Latest library list is empty | Clear the selected library id and show the empty-library state |
 | Open detail item id is present in refreshed item summaries | Keep the selected detail page state |
@@ -140,6 +143,7 @@
 - Good: User opens a large AudiobookShelf library and the app displays books from every paginated item response, not only page 0.
 - Good: An AudiobookShelf-compatible server omits expanded detail metadata arrays or chapters, and the detail mapper returns empty lists instead of crashing.
 - Good: Expanded detail authors, narrators, series sequence labels, and chapters still map when the arrays are present.
+- Good: An AudiobookShelf-compatible server omits playback-session chapters or audio tracks, and `startPlayback()` returns an empty domain list instead of crashing before playback error handling.
 - Good: User switches AudiobookShelf server/account from a detail page and the app returns to Home before loading the new account, instead of retaining the old detail object.
 - Good: User refreshes while viewing a detail page for a book that still exists in the selected library; the detail page remains open.
 - Good: User refreshes while viewing a detail page for a book removed from the selected library; the app returns to the library list instead of showing stale detail.
@@ -150,6 +154,7 @@
 - Base: User only browses libraries and details; no playback session is created and no progress endpoint is called.
 - Bad: `getLibraryItems()` requests only `page=0`, truncating any library with more books than the page size.
 - Bad: Detail DTO list properties are non-null Kotlin lists and repository mapping calls `.map` directly, allowing Gson-omitted fields to become runtime nulls.
+- Bad: Playback-session DTO list properties are non-null Kotlin lists and `startPlayback()` maps them directly, crashing before the no-playable-tracks state can be shown.
 - Bad: `getLibraries()` compares `mediaType == "book"` case-sensitively and drops valid audiobook libraries returned as `Book`.
 - Bad: Audio URL token detection uses `absolute.contains("token=")` and fails to append auth when that text appears in the path.
 - Bad: App extracts a stream URL and plays it without calling `/play`, `/sync`, or `/close`; AudiobookShelf resume state will drift.
@@ -170,6 +175,8 @@
   - non-blank relative and absolute cover paths map to expected app-facing cover URLs
   - missing and null expanded detail `metadata.authors`, `metadata.narrators`, `metadata.series`, and `chapters` map to empty domain lists
   - present expanded detail authors, narrators, series sequence labels, and chapters map to expected domain values
+  - missing and null playback-session `chapters` and `audioTracks` map to empty domain lists
+  - present playback-session chapters and audio tracks map to expected domain values and authenticated audio URLs
   - paginated library item browsing requests `page=0`, `page=1`, and merges results until `total` is loaded
   - relative cover/audio URL normalization
   - audio URL token handling appends a token when no `token` query parameter exists, including when `token=` appears only in the path, and avoids duplicating an existing token query parameter
@@ -204,9 +211,10 @@
 ```kotlin
 authors = media.metadata.authors.map { it.name }
 chapters = media.chapters.map { chapter -> chapter.toDomain() }
+audioTracks = session.audioTracks.mapNotNull { track -> track.toDomainOrNull() }
 ```
 
-Gson can set omitted Kotlin list fields to `null`; direct mapping can crash before the repository returns a domain detail.
+Gson can set omitted Kotlin list fields to `null`; direct mapping can crash before the repository returns a domain detail or playback session.
 
 #### Correct
 
@@ -220,6 +228,7 @@ chapters = media.chapters.orEmpty().map { chapter ->
         endSeconds = chapter.end.toInt()
     )
 }
+audioTracks = session.audioTracks.orEmpty().mapNotNull { track -> track.toDomainOrNull() }
 ```
 
 #### Wrong
