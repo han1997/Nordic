@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 34
+- **Total Sessions**: 35
 - **Last Active**: 2026-06-28
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1146 | Active |
+| `journal-1.md` | ~1179 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 35 | 2026-06-28 | Stabilize audiobook library selection | `b976892` | `main` |
 | 34 | 2026-06-28 | Stabilize pending music queue starts | `8301999` | `main` |
 | 33 | 2026-06-28 | Filter completed video resume items | `b706df4` | `main` |
 | 32 | 2026-06-28 | Clamp audiobook track seek offsets | `edcbc51` | `main` |

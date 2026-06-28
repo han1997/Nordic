@@ -1144,3 +1144,36 @@ Resolved music queue start indexes before pending playback state is published, k
 ### Next Steps
 
 - None - task complete
+
+
+## Session 35: Stabilize audiobook library selection
+
+**Date**: 2026-06-28
+**Task**: Stabilize audiobook library selection
+**Branch**: `main`
+
+### Summary
+
+Resolved AudiobookShelf library refresh selection against the latest library list so stale ids from prior server or account state are not requested; added focused UI helper tests and documented the contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b976892` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
