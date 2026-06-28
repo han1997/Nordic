@@ -1606,3 +1606,36 @@ Added periodic Emby video progress sync with a non-regressing baseline, close-ti
 ### Next Steps
 
 - None - task complete
+
+
+## Session 49: Reuse current audiobook session before starting playback
+
+**Date**: 2026-06-29
+**Task**: Reuse current audiobook session before starting playback
+**Branch**: `main`
+
+### Summary
+
+Prevented duplicate AudiobookShelf sessions by reusing same-book active sessions and closing the old session before starting a different audiobook. Added app-shell helper tests and updated the ABS integration spec.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d8d45f8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
