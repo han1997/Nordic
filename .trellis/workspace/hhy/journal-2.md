@@ -38,3 +38,36 @@ Reconciled open AudiobookShelf detail state after library refresh so removed boo
 ### Next Steps
 
 - None - task complete
+
+
+## Session 61: Surface music detail load errors
+
+**Date**: 2026-06-29
+**Task**: Surface music detail load errors
+**Branch**: `main`
+
+### Summary
+
+Surfaced Navidrome album and artist detail load failures instead of swallowing them, added focused helper tests, and documented the music detail error contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a723c38` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

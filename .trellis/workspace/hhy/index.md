@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 60
+- **Total Sessions**: 61
 - **Last Active**: 2026-06-29
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~40 | Active |
+| `journal-2.md` | ~73 | Active |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 61 | 2026-06-29 | Surface music detail load errors | `a723c38` | `main` |
 | 60 | 2026-06-29 | Clear stale audiobook detail | `a3ff0fe` | `main` |
 | 59 | 2026-06-29 | Improve video episode search | `7bc66ab` | `main` |
 | 58 | 2026-06-29 | Fix video timeline for unknown duration | `b37f356` | `main` |
