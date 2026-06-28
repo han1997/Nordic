@@ -764,3 +764,36 @@ Updated AudiobookShelf detail mapping so missing or null metadata and chapter ar
 ### Next Steps
 
 - None - task complete
+
+
+## Session 83: Handle missing AudiobookShelf playback lists
+
+**Date**: 2026-06-29
+**Task**: Handle missing AudiobookShelf playback lists
+**Branch**: `main`
+
+### Summary
+
+Updated AudiobookShelf playback-session mapping so missing or null chapter and audio track arrays map to empty domain lists, with focused repository coverage and contract documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `06a196a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
