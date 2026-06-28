@@ -1309,3 +1309,36 @@ Clamped AudiobookShelf progress, session sync, and close currentTime payloads to
 ### Next Steps
 
 - None - task complete
+
+
+## Session 40: Restrict video series episode fallback matching
+
+**Date**: 2026-06-28
+**Task**: Restrict video series episode fallback matching
+**Branch**: `main`
+
+### Summary
+
+Tightened Emby series-detail episode derivation so seriesName fallback only applies when episode seriesId is missing, added focused matching and sorting tests, and updated the Emby contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `353f29e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
