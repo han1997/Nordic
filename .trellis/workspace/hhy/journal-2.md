@@ -104,3 +104,36 @@ Reconciled Emby video type filters after catalog refreshes so unavailable filter
 ### Next Steps
 
 - None - task complete
+
+
+## Session 63: Clear stale music detail state
+
+**Date**: 2026-06-29
+**Task**: Clear stale music detail state
+**Branch**: `main`
+
+### Summary
+
+Reset Music navigation, detail, list, and search state on Navidrome config changes; guard stale async list/detail/search writes; add resolver tests and a quality-spec contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b55e18a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
