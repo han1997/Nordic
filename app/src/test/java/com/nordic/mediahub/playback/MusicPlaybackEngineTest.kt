@@ -48,5 +48,20 @@ class MusicPlaybackEngineTest {
             resolveCurrentIndexAfterMove(fromIndex = 3, targetIndex = 0, currentIndex = 2, itemCount = 4)
         )
     }
+
+    @Test
+    fun resolveQueueStartIndex_clampsNegativeIndexToFirstItem() {
+        assertEquals(0, resolveQueueStartIndex(itemCount = 3, startIndex = -2))
+    }
+
+    @Test
+    fun resolveQueueStartIndex_clampsTooLargeIndexToLastItem() {
+        assertEquals(2, resolveQueueStartIndex(itemCount = 3, startIndex = 8))
+    }
+
+    @Test
+    fun resolveQueueStartIndex_returnsNullForEmptyQueue() {
+        assertNull(resolveQueueStartIndex(itemCount = 0, startIndex = 1))
+    }
 }
 

@@ -71,6 +71,11 @@ internal fun resolveCurrentIndexAfterMove(fromIndex: Int, targetIndex: Int, curr
     }.coerceIn(0, itemCount - 1)
 }
 
+internal fun resolveQueueStartIndex(itemCount: Int, startIndex: Int): Int? {
+    if (itemCount <= 0) return null
+    return startIndex.coerceIn(0, itemCount - 1)
+}
+
 @androidx.annotation.OptIn(UnstableApi::class)
 class MusicPlaybackEngine(context: Context) {
     private val appContext = context.applicationContext
@@ -185,6 +190,8 @@ class MusicPlaybackEngine(context: Context) {
         val activeController = controller
         if (activeController == null) {
             pendingSong = song
+            pendingQueue = null
+            pendingQueueStartIndex = 0
             _state.value = MusicPlaybackState(
                 currentSong = song,
                 durationSeconds = song.duration,
@@ -217,25 +224,26 @@ class MusicPlaybackEngine(context: Context) {
 
     fun playQueue(songs: List<NavidromeSong>, startIndex: Int = 0) {
         if (songs.isEmpty()) return
+        val safeStartIndex = resolveQueueStartIndex(songs.size, startIndex) ?: return
 
         val activeController = controller
         if (activeController == null) {
+            pendingSong = null
             pendingQueue = songs
-            pendingQueueStartIndex = startIndex
-            val startSong = songs.getOrNull(startIndex)
+            pendingQueueStartIndex = safeStartIndex
+            val startSong = songs[safeStartIndex]
             _state.update {
                 it.copy(
                     currentSong = startSong,
                     isBuffering = true,
                     queue = songs,
-                    queueIndex = startIndex.coerceIn(0, songs.lastIndex)
+                    queueIndex = safeStartIndex
                 )
             }
             return
         }
 
         val mediaItems = songs.map { it.toMediaItem() }
-        val safeStartIndex = startIndex.coerceIn(0, songs.lastIndex)
         activeController.setMediaItems(mediaItems, safeStartIndex, 0L)
         activeController.prepare()
         activeController.play()
@@ -334,7 +342,9 @@ class MusicPlaybackEngine(context: Context) {
     fun togglePlayPause() {
         val activeController = controller
         if (activeController == null) {
-            _state.value.currentSong?.let { pendingSong = it }
+            if (pendingQueue == null) {
+                _state.value.currentSong?.let { pendingSong = it }
+            }
             return
         }
 
