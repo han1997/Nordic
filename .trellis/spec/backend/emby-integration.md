@@ -94,6 +94,7 @@ POST Sessions/Playing/Stopped
   - Video playback supports fixed relative seek controls: 10 seconds backward and 30 seconds forward.
   - Relative seek commands must resolve to an absolute player position and use the same `seekTo(positionSeconds)` path as the scrubber.
   - Clamp relative seek targets to `0..durationSeconds` when duration is known. When duration is zero or negative, treat it as unknown: clamp only to `>= 0` so skip-forward still advances from the current position.
+  - Player timeline UI must not clamp unknown-duration playback to a one-second range. When duration is unknown, the slider maximum should grow to at least the current player position and the duration label should show `--:--`.
 - Playback progress reporting:
   - `syncPlaybackProgress(...)` posts to `Sessions/Playing/Progress`; `stopPlaybackProgress(...)` posts to `Sessions/Playing/Stopped`.
   - Requests must include `X-Emby-Token`, `ItemId`, `PositionTicks`, and `IsPaused`.
@@ -125,6 +126,7 @@ POST Sessions/Playing/Stopped
 - `playbackPositionSeconds` at or beyond known duration -> initial playback starts at `0` instead of seeking to the end
 - Relative video skip requested near the start or end of a known-duration item -> clamp to `0` or `durationSeconds`
 - Relative video skip requested while duration is unknown -> clamp negative targets to `0`, but allow positive forward targets
+- Video player timeline rendered while duration is unknown -> show the real non-negative position, use a non-empty slider range, and show `--:--` for total duration
 - Progress report position below zero -> report `0` ticks
 - Progress report position beyond known duration -> report duration ticks
 - Progress report position with unknown duration -> keep positive position ticks
@@ -175,6 +177,7 @@ POST Sessions/Playing/Stopped
   - asserts selected video detail resolution keeps a refreshed matching item and clears selection when the library changes or the item disappears
   - asserts video initial start-position helper uses resume seconds for unfinished items, starts played items at zero, starts at zero for resume positions at/beyond known duration, and preserves positive resume positions when duration is unknown
   - asserts video relative seek helper clamps at the beginning and end of known-duration items, and allows forward seek when duration is unknown
+  - asserts video player timeline helpers keep unknown-duration positions visible, keep a non-empty slider range at zero, and format unknown duration as `--:--`
   - asserts playback progress helpers convert seconds to ticks and clamp negative, over-duration, and unknown-duration positions
   - asserts progress/stopped reporting requests use `/Sessions/Playing/Progress` and `/Sessions/Playing/Stopped`, include `X-Emby-Token`, and serialize `ItemId`, `PositionTicks`, and `IsPaused`
   - asserts video periodic progress baseline uses current player position, Emby resume position, and zero without regressing

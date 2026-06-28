@@ -51,10 +51,13 @@ fun VideoPlayerScreen(
 ) {
     val video = state.video
     val durationSeconds = state.durationSeconds.coerceAtLeast(video?.durationSeconds ?: 0)
-    val safeDuration = durationSeconds.coerceAtLeast(1)
-    val positionSeconds = state.positionSeconds.coerceIn(0, safeDuration)
+    val timeline = resolveVideoPlayerTimeline(
+        positionSeconds = state.positionSeconds,
+        durationSeconds = durationSeconds
+    )
     var scrubPosition by remember(video?.id) { mutableStateOf<Float?>(null) }
-    val visiblePosition = (scrubPosition ?: positionSeconds.toFloat()).coerceIn(0f, safeDuration.toFloat())
+    val visiblePosition = (scrubPosition ?: timeline.positionSeconds.toFloat())
+        .coerceIn(0f, timeline.sliderMaxSeconds.toFloat())
     var attachedSurface by remember { mutableStateOf<SurfaceView?>(null) }
 
     DisposableEffect(attachedSurface) {
@@ -136,7 +139,7 @@ fun VideoPlayerScreen(
                             onSeek(target.roundToInt())
                             scrubPosition = null
                         },
-                        valueRange = 0f..safeDuration.toFloat(),
+                        valueRange = 0f..timeline.sliderMaxSeconds.toFloat(),
                         enabled = video != null
                     )
                     Row(
@@ -145,7 +148,7 @@ fun VideoPlayerScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            "${formatDuration(visiblePosition.roundToInt())} / ${formatDuration(durationSeconds)}",
+                            "${formatDuration(visiblePosition.roundToInt())} / ${formatVideoPlayerDurationLabel(durationSeconds)}",
                             fontSize = 12.sp,
                             color = colorScheme.onSurface.copy(alpha = 0.58f),
                             modifier = Modifier.weight(1f),
@@ -270,4 +273,30 @@ private fun com.nordic.mediahub.data.VideoItem.metaTextForPlayer(): String {
         year?.let { add(it.toString()) }
         if (durationSeconds > 0) add(formatDuration(durationSeconds))
     }.joinToString("  /  ")
+}
+
+internal data class VideoPlayerTimeline(
+    val positionSeconds: Int,
+    val sliderMaxSeconds: Int
+)
+
+internal fun resolveVideoPlayerTimeline(
+    positionSeconds: Int,
+    durationSeconds: Int
+): VideoPlayerTimeline {
+    val safePosition = positionSeconds.coerceAtLeast(0)
+    val sliderMax = if (durationSeconds > 0) {
+        maxOf(durationSeconds, safePosition, 1)
+    } else {
+        maxOf(safePosition, 1)
+    }
+
+    return VideoPlayerTimeline(
+        positionSeconds = safePosition.coerceIn(0, sliderMax),
+        sliderMaxSeconds = sliderMax
+    )
+}
+
+internal fun formatVideoPlayerDurationLabel(durationSeconds: Int): String {
+    return if (durationSeconds > 0) formatDuration(durationSeconds) else "--:--"
 }
