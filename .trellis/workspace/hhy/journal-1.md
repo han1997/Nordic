@@ -748,3 +748,36 @@ Mapped Emby LastPlayedDate into video items and sorted the continue-watching she
 ### Next Steps
 
 - None - task complete
+
+
+## Session 23: Add audiobook skip interval controls
+
+**Date**: 2026-06-28
+**Task**: Add audiobook skip interval controls
+**Branch**: `main`
+
+### Summary
+
+Added 30 second audiobook skip back/forward controls, routed them through absolute seek, covered clamping with playback unit tests, and updated the AudiobookShelf playback contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1c2ad52` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

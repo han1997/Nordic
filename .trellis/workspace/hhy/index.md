@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 22
+- **Total Sessions**: 23
 - **Last Active**: 2026-06-28
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~750 | Active |
+| `journal-1.md` | ~783 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 23 | 2026-06-28 | Add audiobook skip interval controls | `1c2ad52` | `main` |
 | 22 | 2026-06-28 | Improve video continue watching recency | `c79f481` | `main` |
 | 21 | 2026-06-28 | Optimize music playback list indexing | `b49d11a` | `main` |
 | 20 | 2026-06-28 | Improve audiobook chapter navigation | `b208f81` | `main` |
