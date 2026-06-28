@@ -637,12 +637,12 @@ private fun PlayerControlButton(
     }
 }
 
-private data class VisibleLyricLine(
+internal data class VisibleLyricLine(
     val text: String,
     val active: Boolean
 )
 
-private fun selectVisibleLyricLines(
+internal fun selectVisibleLyricLines(
     lyrics: MusicLyrics?,
     positionSeconds: Int,
     maxLineCount: Int
@@ -657,9 +657,10 @@ private fun selectVisibleLyricLines(
     val positionMillis = positionSeconds.coerceAtLeast(0) * 1000
     val activeIndex = lines.indexOfLast { line ->
         line.startMillis != null && line.startMillis <= positionMillis
-    }.coerceAtLeast(0)
+    }.takeIf { it >= 0 }
     val halfWindow = maxLineCount / 2
     val startIndex = when {
+        activeIndex == null -> 0
         activeIndex + halfWindow >= lines.size -> (lines.size - maxLineCount).coerceAtLeast(0)
         else -> (activeIndex - halfWindow).coerceAtLeast(0)
     }
@@ -670,7 +671,7 @@ private fun selectVisibleLyricLines(
         .mapIndexed { index, line ->
             VisibleLyricLine(
                 text = line.text,
-                active = startIndex + index == activeIndex
+                active = activeIndex != null && startIndex + index == activeIndex
             )
         }
 }
