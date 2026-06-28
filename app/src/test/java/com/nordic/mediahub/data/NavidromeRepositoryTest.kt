@@ -1,5 +1,6 @@
 package com.nordic.mediahub.data
 
+import com.nordic.mediahub.api.NavidromeAlbum
 import com.nordic.mediahub.api.NavidromeSong
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
@@ -172,6 +173,40 @@ class NavidromeRepositoryTest {
             val songs = repository().getAlbumSongs("album-1")
 
             assertEquals(emptyList<NavidromeSong>(), songs)
+        }
+    }
+
+    @Test
+    fun getArtistAlbums_mapsPresentAlbumsAndCoverArtUrls() = runTest {
+        server.enqueueJson(
+            artistDetailResponse(
+                """
+                ,"album": [
+                  {"id": "album-1", "name": "Album One", "artist": "Artist One", "coverArt": "cover-1"}
+                ]
+                """.trimIndent()
+            )
+        )
+
+        val albums = repository().getArtistAlbums("artist-1")
+
+        assertEquals(1, albums.size)
+        assertEquals("Album One", albums.single().name)
+        assertTrue(albums.single().coverArt.orEmpty().contains("/rest/getCoverArt.view?id=cover-1"))
+        assertTrue(server.takeRequest().path.orEmpty().contains("id=artist-1"))
+    }
+
+    @Test
+    fun getArtistAlbums_mapsMissingAndNullAlbumListsToEmptyList() = runTest {
+        listOf(
+            "",
+            ""","album": null"""
+        ).forEach { albumField ->
+            server.enqueueJson(artistDetailResponse(albumField))
+
+            val albums = repository().getArtistAlbums("artist-1")
+
+            assertEquals(emptyList<NavidromeAlbum>(), albums)
         }
     }
 
@@ -654,6 +689,18 @@ class NavidromeRepositoryTest {
               "name": "Album One",
               "coverArt": "cover-1"
               $songField
+            }
+            """.trimIndent()
+        )
+    }
+
+    private fun artistDetailResponse(albumField: String): String {
+        return subsonicResponse(
+            """
+            "artist": {
+              "id": "artist-1",
+              "name": "Artist One"
+              $albumField
             }
             """.trimIndent()
         )

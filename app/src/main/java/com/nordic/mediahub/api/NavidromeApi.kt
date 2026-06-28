@@ -30,7 +30,7 @@ data class NavidromeArtistDetail(
     val id: String,
     val name: String,
     val albumCount: Int = 0,
-    val album: List<NavidromeAlbum> = emptyList()
+    val album: List<NavidromeAlbum>? = null
 )
 
 data class SearchResult3(

@@ -514,7 +514,7 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
                 api.getArtist(config.username, auth.token, auth.salt, artistId = artistId)
             }.artistDetail
                 ?: return emptyList()
-            detail.album.map { it.withCoverArtUrl() }
+            detail.album.orEmpty().map { it.withCoverArtUrl() }
         } catch (e: NavidromeApiException) {
             throw e
         } catch (e: Exception) {

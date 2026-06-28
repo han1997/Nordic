@@ -301,10 +301,12 @@ onSongSelected(songs, index)
 - Album detail load failures must set a contextual error such as `"获取专辑曲目失败: ..."` instead of swallowing the exception.
 - Artist detail load failures must set a contextual error such as `"获取歌手专辑失败: ..."` instead of swallowing the exception.
 - Do not convert network/API failures into valid empty album or empty artist states. Empty states are only for successful empty responses.
+- Artist detail responses may omit `album` or send it as null. DTOs must allow nullable `NavidromeArtistDetail.album`, and `getArtistAlbums(...)` must convert it to an empty album list.
 - Playlist detail loading should keep its existing contextual error pattern and remain the reference for detail-load failure behavior.
 
 **Validation & Error Matrix**:
 - Album detail repository call throws -> set album-detail load error and stop the loading indicator.
+- Artist detail `album` is missing or null -> return an empty artist album list without surfacing an error.
 - Artist detail repository call throws -> set artist-detail load error and stop the loading indicator.
 - Error has no message -> use a non-empty fallback message such as `"未知错误"`.
 - Detail load starts after an older error -> clear the old error before showing loading/content for the new target.
@@ -312,11 +314,23 @@ onSongSelected(songs, index)
 **Good/Base/Bad Cases**:
 - Good: Album songs request fails and the Music tab shows a contextual album-song load error.
 - Good: Artist albums request fails and the Music tab shows a contextual artist-album load error.
+- Good: Artist detail succeeds with missing/null `album`, and the Music tab can show a real empty artist-album state.
 - Base: Album or artist detail request succeeds with an empty list; show the appropriate empty detail state.
 - Bad: Catching `Exception` with an empty catch block, causing a failed request to look like a real empty album or artist.
+- Bad: Artist detail `album` is modeled as a non-null Kotlin list and repository mapping calls `.map` directly, allowing Gson-omitted fields to become runtime nulls.
 
 **Tests Required**:
 - Unit tests for album and artist detail error-message helpers, including the context prefix and cause/fallback.
+- Repository unit tests asserting missing and null artist detail `album` arrays map to empty album lists, and present artist albums still map cover art URLs.
+
+**Wrong vs Correct**:
+```kotlin
+// Wrong: omitted artist detail album arrays can become runtime nulls with Gson.
+val albums = detail.album.map { it.withCoverArtUrl() }
+
+// Correct: normalize optional arrays at the repository boundary.
+val albums = detail.album.orEmpty().map { it.withCoverArtUrl() }
+```
 
 ### Navidrome music config-change state reset
 
