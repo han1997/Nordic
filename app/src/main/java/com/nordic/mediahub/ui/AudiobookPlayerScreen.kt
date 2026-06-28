@@ -48,6 +48,8 @@ fun AudiobookPlayerScreen(
     colorScheme: ColorScheme,
     externalError: String? = null,
     onSeek: (Int) -> Unit,
+    onSeekBack: () -> Unit = {},
+    onSeekForward: () -> Unit = {},
     onSeekToPreviousChapter: () -> Unit = {},
     onSeekToNextChapter: () -> Unit = {},
     onPlayPause: () -> Unit,
@@ -59,6 +61,7 @@ fun AudiobookPlayerScreen(
     val visiblePosition = scrubPosition ?: state.positionSeconds.toFloat()
     val errorMessage = externalError ?: state.errorMessage
     val chapterNavigationEnabled = session != null && state.chapters.isNotEmpty()
+    val playbackControlsEnabled = session != null
     val statusText = when {
         errorMessage != null -> errorMessage
         state.isBuffering -> "正在缓冲"
@@ -203,15 +206,31 @@ fun AudiobookPlayerScreen(
                             enabled = chapterNavigationEnabled,
                             onClick = onSeekToPreviousChapter
                         )
-                        Spacer(Modifier.size(if (compact) 14.dp else 18.dp))
+                        Spacer(Modifier.size(if (compact) 6.dp else 8.dp))
+                        AudiobookControlButton(
+                            label = "-30",
+                            colorScheme = colorScheme,
+                            compact = compact,
+                            enabled = playbackControlsEnabled,
+                            onClick = onSeekBack
+                        )
+                        Spacer(Modifier.size(if (compact) 6.dp else 8.dp))
                         AudiobookPlayButton(
                             label = if (state.isPlaying) "Ⅱ" else "▶",
                             colorScheme = colorScheme,
                             compact = compact,
-                            enabled = session != null,
+                            enabled = playbackControlsEnabled,
                             onClick = onPlayPause
                         )
-                        Spacer(Modifier.size(if (compact) 14.dp else 18.dp))
+                        Spacer(Modifier.size(if (compact) 6.dp else 8.dp))
+                        AudiobookControlButton(
+                            label = "+30",
+                            colorScheme = colorScheme,
+                            compact = compact,
+                            enabled = playbackControlsEnabled,
+                            onClick = onSeekForward
+                        )
+                        Spacer(Modifier.size(if (compact) 6.dp else 8.dp))
                         AudiobookControlButton(
                             label = "≫",
                             colorScheme = colorScheme,
@@ -352,13 +371,13 @@ private fun AudiobookControlButton(
         contentColor = foreground,
         shape = RoundedCornerShape(999.dp),
         modifier = Modifier
-            .size(if (compact) 48.dp else 52.dp)
+            .size(if (compact) 42.dp else 46.dp)
             .clickable(enabled = enabled, onClick = onClick)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
                 label,
-                fontSize = 20.sp,
+                fontSize = if (label.length > 2) 15.sp else 20.sp,
                 color = foreground,
                 fontWeight = FontWeight.Bold
             )
@@ -380,7 +399,7 @@ private fun AudiobookPlayButton(
         shape = RoundedCornerShape(999.dp),
         shadowElevation = if (enabled) 4.dp else 0.dp,
         modifier = Modifier
-            .size(if (compact) 62.dp else 68.dp)
+            .size(if (compact) 58.dp else 62.dp)
             .clickable(enabled = enabled, onClick = onClick)
     ) {
         Box(contentAlignment = Alignment.Center) {

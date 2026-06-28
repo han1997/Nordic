@@ -92,6 +92,42 @@ class AudiobookPlaybackEngineTest {
         )
     }
 
+    @Test
+    fun resolveAudiobookRelativeSeekPositionSeconds_movesWithinBounds() {
+        assertEquals(
+            70,
+            resolveAudiobookRelativeSeekPositionSeconds(
+                positionSeconds = 40,
+                durationSeconds = 120,
+                deltaSeconds = 30
+            )
+        )
+    }
+
+    @Test
+    fun resolveAudiobookRelativeSeekPositionSeconds_clampsAtStart() {
+        assertEquals(
+            0,
+            resolveAudiobookRelativeSeekPositionSeconds(
+                positionSeconds = 10,
+                durationSeconds = 120,
+                deltaSeconds = -30
+            )
+        )
+    }
+
+    @Test
+    fun resolveAudiobookRelativeSeekPositionSeconds_clampsAtEnd() {
+        assertEquals(
+            120,
+            resolveAudiobookRelativeSeekPositionSeconds(
+                positionSeconds = 100,
+                durationSeconds = 120,
+                deltaSeconds = 30
+            )
+        )
+    }
+
     private fun track(index: Int, startOffsetSeconds: Int): AudiobookAudioTrack {
         return AudiobookAudioTrack(
             index = index,

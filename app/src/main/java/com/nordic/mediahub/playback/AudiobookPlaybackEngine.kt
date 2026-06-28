@@ -27,6 +27,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+private const val AUDIOBOOK_SKIP_INTERVAL_SECONDS = 30
+
 data class AudiobookPlaybackState(
     val session: AudiobookPlaybackSession? = null,
     val isPlaying: Boolean = false,
@@ -178,6 +180,14 @@ class AudiobookPlaybackEngine(context: Context) {
         seekTo(targetPosition)
     }
 
+    fun seekBackBy(intervalSeconds: Int = AUDIOBOOK_SKIP_INTERVAL_SECONDS) {
+        seekBy(-intervalSeconds)
+    }
+
+    fun seekForwardBy(intervalSeconds: Int = AUDIOBOOK_SKIP_INTERVAL_SECONDS) {
+        seekBy(intervalSeconds)
+    }
+
     fun stop() {
         stopPositionUpdates()
         controller?.run {
@@ -258,6 +268,18 @@ class AudiobookPlaybackEngine(context: Context) {
         currentIndex: Int,
         currentPositionMs: Long
     ): Int = resolveAudiobookAbsolutePositionSeconds(tracks, currentIndex, currentPositionMs)
+
+    private fun seekBy(deltaSeconds: Int) {
+        val state = _state.value
+        if (state.session == null) return
+        seekTo(
+            resolveAudiobookRelativeSeekPositionSeconds(
+                positionSeconds = state.positionSeconds,
+                durationSeconds = state.durationSeconds,
+                deltaSeconds = deltaSeconds
+            )
+        )
+    }
 }
 
 internal fun resolveAudiobookAbsolutePositionSeconds(
@@ -300,6 +322,17 @@ internal fun resolveNextAudiobookChapterStartSeconds(
         .sortedBy { it.startSeconds }
         .firstOrNull { chapter -> chapter.startSeconds > safePosition }
         ?.startSeconds
+}
+
+internal fun resolveAudiobookRelativeSeekPositionSeconds(
+    positionSeconds: Int,
+    durationSeconds: Int,
+    deltaSeconds: Int
+): Int {
+    val maxPosition = durationSeconds.coerceAtLeast(0)
+    val safePosition = positionSeconds.coerceIn(0, maxPosition)
+    val target = safePosition.toLong() + deltaSeconds.toLong()
+    return target.coerceIn(0L, maxPosition.toLong()).toInt()
 }
 
 private fun AudiobookAudioTrack.toMediaItem(session: AudiobookPlaybackSession): MediaItem {
