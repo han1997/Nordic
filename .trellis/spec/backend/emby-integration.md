@@ -29,6 +29,8 @@ internal fun resolveEmbyPlaybackPositionTicks(positionSeconds: Int, durationSeco
 internal fun resolveVideoProgressSyncBaselineSeconds(statePositionSeconds: Int, video: VideoItem): Int
 internal fun videoMatchesSearch(video: VideoItem, query: String): Boolean
 internal fun resolveVideoTypeFilterAfterCatalogRefresh(selectedTypeFilter: VideoTypeFilter, videos: List<VideoItem>): VideoTypeFilter
+internal fun resolveVideoSelectionAfterConfigChange(selectedVideo: VideoItem?): VideoItem?
+internal fun resolveVideoTypeFilterAfterConfigChange(selectedTypeFilter: VideoTypeFilter): VideoTypeFilter
 ```
 - Retrofit API:
 ```kotlin
@@ -78,6 +80,10 @@ POST Sessions/Playing/Stopped
   - These shelves are view state only. Do not persist local video history unless the PRD explicitly adds that scope.
   - After a catalog refresh, selected video detail state must resolve against the refreshed item list. Keep the selection only when the same item id still exists in the selected library, and replace it with the refreshed `VideoItem`; otherwise clear the detail state.
   - After a catalog refresh, selected type filter state must resolve against the refreshed item list. Keep `All`, keep a specific type only when at least one refreshed item still matches it, and reset unavailable specific filters to `All`.
+  - Saved video config changes are catalog boundaries. Clear libraries, selected library id, catalog items, selected detail video, local search text, stale loading state, and stale errors before loading the new account.
+  - Saved video config changes must reset the type filter to `All` and load the ready new config without passing a previous config's selected library id.
+  - In-flight catalog refresh or library-selection responses from a previous saved config must not write catalog/detail/filter/error/loading state after the config boundary. Guard these writes with a config-state version or equivalent request identity.
+  - Same-config manual refresh keeps existing catalog reconciliation behavior: selected detail and type filters may be preserved only when they still exist in the refreshed same-catalog response.
   - Search is local to the already-loaded catalog and composes with the selected type filter; do not add server-side search unless the PRD explicitly includes it.
   - Blank or whitespace-only queries must match all currently visible videos.
   - Search must match title, overview, type, year, and non-blank `seriesName`.
@@ -133,6 +139,9 @@ POST Sessions/Playing/Stopped
 - Catalog refresh still contains at least one item for the selected type filter -> keep that filter
 - Catalog refresh no longer contains any item for the selected type filter -> reset the filter to `All`
 - Catalog refresh has an empty item list while `All` is selected -> keep `All`
+- Saved config changes while a detail page or browser filter is active -> clear selected detail, search text, and reset type filter to `All` before loading the new config
+- Ready saved config replaces another ready config -> call catalog refresh without the previous config's selected library id
+- Previous-config catalog or library response completes after saved config changed -> ignore the stale response and keep the new config's state
 - Missing item `CommunityRating` -> map rating to `null`; top-rated shelves should ignore it
 - `playbackPositionSeconds` at or beyond known duration -> initial playback starts at `0` instead of seeking to the end
 - Relative video skip requested near the start or end of a known-duration item -> clamp to `0` or `durationSeconds`
@@ -161,6 +170,7 @@ POST Sessions/Playing/Stopped
 - Good: User refreshes a video library while viewing details; if the item still exists, detail metadata updates from the refreshed catalog, and if it disappeared the app returns to the catalog instead of showing stale detail.
 - Good: User refreshes while filtered to Episodes and the refreshed catalog still has episodes; the Episodes filter remains active.
 - Good: User refreshes while filtered to Episodes and the refreshed catalog no longer has episodes; the browser resets to All instead of leaving a hidden active filter.
+- Good: User switches Emby server/account from a detail page with an active search/filter; the app clears the old detail/search/filter state and loads the new account from its default library selection.
 - Good: User can use video skip controls to quickly jump 10 seconds back or 30 seconds forward without leaving player bounds.
 - Good: User closes or switches away from video playback; Nordic sends the stopped position to Emby so the next catalog refresh has current resume metadata.
 - Good: User watches a long video session; Nordic periodically sends progress so Emby resume metadata stays fresh before close.
@@ -196,6 +206,7 @@ POST Sessions/Playing/Stopped
   - asserts continue-watching shelf excludes resume positions at or beyond known duration, while keeping unknown-duration resume items eligible
   - asserts selected video detail resolution keeps a refreshed matching item and clears selection when the library changes or the item disappears
   - asserts selected video type filter resolution keeps still-present filters, resets unavailable filters to `All`, and keeps `All` for empty catalogs
+  - asserts saved config changes clear selected video detail state and reset every type filter to `All`
   - asserts video initial start-position helper uses resume seconds for unfinished items, starts played items at zero, starts at zero for resume positions at/beyond known duration, and preserves positive resume positions when duration is unknown
   - asserts video relative seek helper clamps at the beginning and end of known-duration items, and allows forward seek when duration is unknown
   - asserts video player timeline helpers keep unknown-duration positions visible, keep a non-empty slider range at zero, and format unknown duration as `--:--`

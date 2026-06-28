@@ -87,6 +87,7 @@ fun VideoScreen(
     var selectedTypeFilter by remember { mutableStateOf(VideoTypeFilter.All) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var videoConfigStateVersion by remember { mutableStateOf(0) }
     val scope = rememberCoroutineScope()
     val loadingCardIndexes = remember { List(3) { it } }
     val visibleTypeFilters = remember(videos) {
@@ -119,9 +120,26 @@ fun VideoScreen(
         if (savedConfig.isReadyForVideoSync()) EmbyRepository(savedConfig) else null
     }
 
+    fun isCurrentVideoConfigRequest(requestVersion: Int?): Boolean {
+        return requestVersion == null || videoConfigStateVersion == requestVersion
+    }
+
+    fun resetVideoStateAfterConfigChange() {
+        videoConfigStateVersion += 1
+        libraries = emptyList()
+        selectedLibraryId = null
+        videos = emptyList()
+        selectedVideo = resolveVideoSelectionAfterConfigChange(selectedVideo)
+        searchQuery = ""
+        selectedTypeFilter = resolveVideoTypeFilterAfterConfigChange(selectedTypeFilter)
+        isLoading = false
+        errorMessage = null
+    }
+
     suspend fun refreshVideo(
         targetConfig: VideoServerConfig = savedConfig,
-        targetLibraryId: String? = selectedLibraryId
+        targetLibraryId: String? = selectedLibraryId,
+        requestVersion: Int? = videoConfigStateVersion
     ) {
         if (!targetConfig.isReadyForVideoSync() || isLoading) return
 
@@ -134,6 +152,10 @@ fun VideoScreen(
                 EmbyRepository(targetConfig)
             }
             val catalog = repo.getCatalog(targetLibraryId)
+            if (!isCurrentVideoConfigRequest(requestVersion)) {
+                return
+            }
+
             libraries = catalog.libraries
             selectedLibraryId = catalog.selectedLibraryId
             videos = catalog.items
@@ -147,24 +169,22 @@ fun VideoScreen(
                 videos = catalog.items
             )
         } catch (e: Exception) {
-            errorMessage = e.message ?: "连接 Emby 失败"
+            if (isCurrentVideoConfigRequest(requestVersion)) {
+                errorMessage = e.message ?: "连接 Emby 失败"
+            }
         } finally {
-            isLoading = false
+            if (isCurrentVideoConfigRequest(requestVersion)) {
+                isLoading = false
+            }
         }
     }
 
     LaunchedEffect(savedConfig) {
         config = savedConfig
+        resetVideoStateAfterConfigChange()
+        val requestVersion = videoConfigStateVersion
         if (savedConfig.isReadyForVideoSync()) {
-            refreshVideo(savedConfig, selectedLibraryId)
-        } else {
-            libraries = emptyList()
-            selectedLibraryId = null
-            videos = emptyList()
-            selectedVideo = null
-            searchQuery = ""
-            selectedTypeFilter = VideoTypeFilter.All
-            errorMessage = null
+            refreshVideo(savedConfig, targetLibraryId = null, requestVersion = requestVersion)
         }
     }
 
@@ -251,7 +271,7 @@ fun VideoScreen(
                     onSave = {
                         scope.launch {
                             configRepository.saveVideoConfig(config)
-                            refreshVideo(config, selectedLibraryId)
+                            refreshVideo(config, selectedLibraryId, requestVersion = null)
                             if (errorMessage == null && config.isReadyForVideoSync()) {
                                 showConfig = false
                             }
@@ -283,15 +303,23 @@ fun VideoScreen(
                         searchQuery = ""
                         selectedTypeFilter = VideoTypeFilter.All
                         val repo = embyRepository ?: return@VideoLibrarySelector
+                        val requestVersion = videoConfigStateVersion
                         scope.launch {
                             isLoading = true
                             errorMessage = null
                             try {
-                                videos = repo.getLibraryItems(libraryId)
+                                val loadedVideos = repo.getLibraryItems(libraryId)
+                                if (videoConfigStateVersion == requestVersion && selectedLibraryId == libraryId) {
+                                    videos = loadedVideos
+                                }
                             } catch (e: Exception) {
-                                errorMessage = e.message ?: "加载视频列表失败"
+                                if (videoConfigStateVersion == requestVersion && selectedLibraryId == libraryId) {
+                                    errorMessage = e.message ?: "加载视频列表失败"
+                                }
                             } finally {
-                                isLoading = false
+                                if (videoConfigStateVersion == requestVersion && selectedLibraryId == libraryId) {
+                                    isLoading = false
+                                }
                             }
                         }
                     }
@@ -1075,6 +1103,25 @@ internal fun resolveVideoTypeFilterAfterCatalogRefresh(
     return selectedTypeFilter.takeIf { filter ->
         filter == VideoTypeFilter.All || videos.any(filter::matches)
     } ?: VideoTypeFilter.All
+}
+
+internal fun resolveVideoSelectionAfterConfigChange(selectedVideo: VideoItem?): VideoItem? {
+    return when (selectedVideo) {
+        null -> null
+        else -> null
+    }
+}
+
+internal fun resolveVideoTypeFilterAfterConfigChange(
+    selectedTypeFilter: VideoTypeFilter
+): VideoTypeFilter {
+    return when (selectedTypeFilter) {
+        VideoTypeFilter.All,
+        VideoTypeFilter.Movies,
+        VideoTypeFilter.Series,
+        VideoTypeFilter.Episodes,
+        VideoTypeFilter.Videos -> VideoTypeFilter.All
+    }
 }
 
 private fun VideoItem.isContinueWatchingCandidate(): Boolean {

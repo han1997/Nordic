@@ -204,6 +204,21 @@ class VideoScreenTest {
     }
 
     @Test
+    fun resolveVideoSelectionAfterConfigChange_clearsSelectedVideo() {
+        val selected = video(id = "movie-1", title = "Movie One")
+
+        assertNull(resolveVideoSelectionAfterConfigChange(selected))
+        assertNull(resolveVideoSelectionAfterConfigChange(null))
+    }
+
+    @Test
+    fun resolveVideoTypeFilterAfterConfigChange_resetsEveryFilterToAll() {
+        VideoTypeFilter.values().forEach { filter ->
+            assertEquals(VideoTypeFilter.All, resolveVideoTypeFilterAfterConfigChange(filter))
+        }
+    }
+
+    @Test
     fun relatedEpisodesFor_usesSeriesNameFallbackOnlyWhenSeriesIdIsMissing() {
         val series = video(
             id = "series-1",
