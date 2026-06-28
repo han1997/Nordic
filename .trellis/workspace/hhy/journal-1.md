@@ -1540,3 +1540,36 @@ Added strict direct-selection music playback mode so unavailable clicked songs s
 ### Next Steps
 
 - None - task complete
+
+
+## Session 47: Sync Emby video progress on playback close
+
+**Date**: 2026-06-29
+**Task**: Sync Emby video progress on playback close
+**Branch**: `main`
+
+### Summary
+
+Added Emby video progress/stopped reporting, clamped seconds-to-ticks conversion, and app-shell video close/handoff sync. Verified compile, unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `92514cf` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
