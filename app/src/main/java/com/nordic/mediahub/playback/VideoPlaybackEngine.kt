@@ -95,6 +95,10 @@ class VideoPlaybackEngine(context: Context) {
             )
             player.setMediaItem(video.toMediaItem())
             player.prepare()
+            val startPositionMs = resolveVideoInitialStartPositionMs(video)
+            if (startPositionMs > 0L) {
+                player.seekTo(startPositionMs)
+            }
         } else {
             _state.update { it.copy(errorMessage = null) }
         }
@@ -184,6 +188,21 @@ class VideoPlaybackEngine(context: Context) {
             )
         }
     }
+}
+
+internal fun resolveVideoInitialStartPositionMs(video: VideoItem): Long {
+    if (video.isPlayed) return 0L
+
+    val resumeSeconds = video.playbackPositionSeconds.coerceAtLeast(0)
+    if (resumeSeconds <= 0) return 0L
+
+    val durationSeconds = video.durationSeconds.coerceAtLeast(0)
+    val startSeconds = if (durationSeconds > 0) {
+        resumeSeconds.coerceAtMost(durationSeconds)
+    } else {
+        resumeSeconds
+    }
+    return startSeconds * 1000L
 }
 
 private fun VideoItem.toMediaItem(): MediaItem {

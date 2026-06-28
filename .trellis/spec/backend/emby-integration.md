@@ -78,6 +78,10 @@ GET Users/{userId}/Items
   - Generate direct stream URLs only for directly playable item types: `Movie`, `Episode`, and `Video`
   - Do not generate a `streamUrl` for `Series`; series detail pages should route playback through episode rows
   - Keep playback URL generation in `EmbyRepository`; UI must consume `VideoItem.streamUrl` instead of reconstructing authenticated URLs.
+- Direct playback start position:
+  - A newly started unplayed `VideoItem` with `playbackPositionSeconds > 0` must seek to that resume position before playback starts.
+  - Items marked `isPlayed == true`, or items with no positive resume position, start at `0`.
+  - If `durationSeconds` is known, clamp the initial resume position to `durationSeconds`.
 - Series detail UI:
   - A selected `Series` may derive related episodes from the already-loaded library items.
   - Match episodes by `seriesId == selectedSeries.id`, with `seriesName == selectedSeries.title` as a fallback for incomplete responses.
@@ -92,6 +96,7 @@ GET Users/{userId}/Items
 - Missing item `UserData` -> map resume position to `0` and played state to `false`
 - Missing `UserData.LastPlayedDate` -> continue-watching shelf keeps the item eligible by resume position but sorts it behind dated resume items
 - Missing item `CommunityRating` -> map rating to `null`; top-rated shelves should ignore it
+- `playbackPositionSeconds` greater than known duration -> initial playback seek clamps to the duration instead of seeking beyond the item
 - Missing episode relationship fields -> keep the episode playable, but only show it under a series detail when `seriesName` fallback matches
 - `Series` item -> `VideoItem.streamUrl == null`; UI must not call playback for the series item directly
 - Unknown repository exceptions -> wrap with user-action context, e.g. `"连接 Emby 失败: ..."`
@@ -101,6 +106,7 @@ GET Users/{userId}/Items
 - Good: API key + username, multiple users, matching user selected, video libraries and items load.
 - Good: Emby returns `UserData.PlaybackPositionTicks` and `CommunityRating`; repository maps resume/rating metadata and UI can show continue-watching/top-rated/unplayed shelves.
 - Good: Emby returns `UserData.LastPlayedDate`; continue watching prioritizes recently watched items over older items with larger resume positions.
+- Good: User starts an unfinished continue-watching item; playback seeks to the Emby resume position before playing.
 - Good: A TV library returns both a `Series` item and its `Episode` items; series detail shows sorted episode rows, and tapping an episode plays the episode stream.
 - Base: Username/password login, one video library, empty item list, UI shows an empty media-library state.
 - Base: Older/incomplete Emby responses omit `UserData` and `CommunityRating`; catalog still loads and spotlight shelves simply omit unavailable groups.
@@ -127,6 +133,7 @@ GET Users/{userId}/Items
   - asserts `UserData.PlaybackPositionTicks`, `UserData.Played`, and `CommunityRating` map to `VideoItem`
   - asserts `UserData.LastPlayedDate` maps to `VideoItem.lastPlayedDate`
   - asserts continue-watching shelf sorting uses last-played recency before resume-position fallback
+  - asserts video initial start-position helper uses resume seconds for unfinished items, starts played items at zero, and clamps beyond duration
   - asserts `Fields` requests `SeriesId`, `SeriesName`, `ParentIndexNumber`, and `IndexNumber`
   - asserts `Series` items map `streamUrl` to `null`
   - asserts `Episode` relationship fields map to `VideoItem.seriesId`, `seriesName`, `seasonNumber`, and `episodeNumber`
