@@ -7,6 +7,7 @@ import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -113,6 +114,29 @@ class NavidromeRepositoryTest {
     }
 
     @Test
+    fun getAlbums_ignoresBlankCoverArtIds() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "albumList2": {
+                  "album": [
+                    {"id": "album-empty", "name": "Empty Cover", "coverArt": "", "songCount": 1},
+                    {"id": "album-blank", "name": "Blank Cover", "coverArt": "   ", "songCount": 1},
+                    {"id": "album-valid", "name": "Valid Cover", "coverArt": "valid-cover", "songCount": 1}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val albums = repository().getAlbums(NavidromeAlbumSort.RecentlyAdded)
+
+        assertNull(albums[0].coverArt)
+        assertNull(albums[1].coverArt)
+        assertTrue(albums[2].coverArt.orEmpty().contains("/rest/getCoverArt.view?id=valid-cover"))
+    }
+
+    @Test
     fun getPlaylists_mapsPlaylistSummariesAndCoverArtUrls() = runTest {
         server.enqueueJson(
             subsonicResponse(
@@ -213,6 +237,53 @@ class NavidromeRepositoryTest {
         val request = server.takeRequest().path.orEmpty()
         assertTrue(request.startsWith("/rest/getPlaylist.view?"))
         assertTrue(request.contains("id=playlist-1"))
+    }
+
+    @Test
+    fun getPlaylistSongs_ignoresBlankPlaylistFallbackCoverArt() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "playlist": {
+                  "id": "playlist-1",
+                  "name": "Road Mix",
+                  "coverArt": "   ",
+                  "entry": [
+                    {"id": "song-1", "title": "Song One", "artist": "Artist One", "album": "Playlist Album"},
+                    {"id": "song-2", "title": "Song Two", "artist": "Artist Two", "album": "Playlist Album", "coverArt": ""}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val songs = repository().getPlaylistSongs("playlist-1")
+
+        assertNull(songs[0].coverArt)
+        assertNull(songs[1].coverArt)
+        assertTrue(songs[0].streamUrl.orEmpty().contains("/rest/stream.view?id=song-1"))
+    }
+
+    @Test
+    fun getPlaylistSongs_usesFallbackWhenSongCoverArtIsBlank() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "playlist": {
+                  "id": "playlist-1",
+                  "name": "Road Mix",
+                  "coverArt": "playlist-cover",
+                  "entry": [
+                    {"id": "song-1", "title": "Song One", "artist": "Artist One", "album": "Playlist Album", "coverArt": "   "}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val songs = repository().getPlaylistSongs("playlist-1")
+
+        assertTrue(songs[0].coverArt.orEmpty().contains("/rest/getCoverArt.view?id=playlist-cover"))
     }
 
     @Test

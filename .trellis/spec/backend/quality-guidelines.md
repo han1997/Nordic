@@ -103,6 +103,47 @@ val repo = if (targetConfig == savedConfig) {
 
 Construct a temporary repository only for unsaved form values being tested/saved, where `targetConfig != savedConfig`.
 
+### Navidrome cover-art URL mapping
+
+**Scope / Trigger**: Any change to `NavidromeRepository` mapping for album, playlist, or song `coverArt` fields.
+
+**Signatures**:
+- `private fun String?.toCoverArtUrlOrNull(): String?`
+- `private fun NavidromeSong.withCoverArtUrl(fallbackCoverArt: String? = null): NavidromeSong`
+
+**Contract**:
+- `null`, empty, and whitespace-only Navidrome `coverArt` ids are absent and must map to `null`.
+- Non-blank `coverArt` ids must map to authenticated `/rest/getCoverArt.view?id=<id>` URLs.
+- Song mapping checks the song's own non-blank `coverArt` first, then a non-blank album or playlist fallback. A blank song value must not block a valid fallback, and a blank fallback must not produce `id=`.
+- Stream URL generation is independent of cover-art mapping and should still use `stream.view`.
+
+**Validation & Error Matrix**:
+- Album or playlist summary `coverArt = ""` or `"   "` -> returned `coverArt = null`.
+- Playlist or album detail fallback `coverArt = ""` or `"   "` with entry missing cover art -> entry `coverArt = null`.
+- Entry `coverArt = ""` or `"   "` with non-blank fallback -> entry uses fallback cover URL.
+- Any non-blank id -> authenticated cover-art URL is preserved.
+
+**Good/Base/Bad Cases**:
+- Good: A blank album cover does not show a broken image request with `id=`.
+- Good: Playlist entries inherit a valid playlist cover when their own `coverArt` is blank.
+- Base: Entries with no cover art and no valid fallback return `null`.
+- Bad: Calling `coverArt?.let(::buildCoverArtUrl)` or `(coverArt ?: fallbackCoverArt)?.let(...)`, because blank strings are treated as real ids.
+
+**Tests Required**:
+- Repository unit test asserting blank album or playlist summary cover ids map to `null`.
+- Repository unit test asserting blank playlist/album fallback ids do not create song cover URLs.
+- Repository unit test asserting a blank song cover id can still use a valid fallback.
+- Existing or new repository assertion that non-blank ids still produce authenticated `getCoverArt.view` URLs.
+
+**Wrong vs Correct**:
+```kotlin
+// Wrong: blank strings become /rest/getCoverArt.view?id=.
+coverArt = (coverArt ?: fallbackCoverArt)?.let(::buildCoverArtUrl)
+
+// Correct: treat blank ids as absent before applying fallback.
+coverArt = coverArt.toCoverArtUrlOrNull() ?: fallbackCoverArt.toCoverArtUrlOrNull()
+```
+
 ### Navidrome all-song navigation data
 
 The Music tab's "歌曲" navigation must use all songs, not the recently added preview list.

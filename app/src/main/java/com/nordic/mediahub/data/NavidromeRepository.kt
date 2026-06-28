@@ -103,6 +103,10 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
         return buildAuthedMediaUrl("getCoverArt", id, params)
     }
 
+    private fun String?.toCoverArtUrlOrNull(): String? {
+        return this?.takeIf { it.isNotBlank() }?.let(::buildCoverArtUrl)
+    }
+
     private fun buildStreamUrl(id: String): String = buildAuthedMediaUrl("stream", id)
 
     private suspend fun requestSubsonic(request: suspend () -> Response<SubsonicResponse>): SubsonicData {
@@ -130,11 +134,11 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
     }
 
     private fun NavidromeAlbum.withCoverArtUrl(): NavidromeAlbum {
-        return copy(coverArt = coverArt?.let(::buildCoverArtUrl))
+        return copy(coverArt = coverArt.toCoverArtUrlOrNull())
     }
 
     private fun NavidromePlaylist.withCoverArtUrl(): NavidromePlaylist {
-        return copy(coverArt = coverArt?.let(::buildCoverArtUrl))
+        return copy(coverArt = coverArt.toCoverArtUrlOrNull())
     }
 
     private fun NavidromeArtist.withInitials(): NavidromeArtist {
@@ -149,7 +153,7 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
 
     private fun NavidromeSong.withCoverArtUrl(fallbackCoverArt: String? = null): NavidromeSong {
         return copy(
-            coverArt = (coverArt ?: fallbackCoverArt)?.let(::buildCoverArtUrl),
+            coverArt = coverArt.toCoverArtUrlOrNull() ?: fallbackCoverArt.toCoverArtUrlOrNull(),
             streamUrl = buildStreamUrl(id)
         )
     }
