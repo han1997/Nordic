@@ -22,6 +22,7 @@ private const val ALBUM_PAGE_SIZE = 100
 private const val RELEASE_YEAR_SORT_FROM_YEAR = 2100
 private const val RELEASE_YEAR_SORT_TO_YEAR = 1900
 private val lrcTimestampPattern = Regex("""\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?]""")
+private val lrcOffsetPattern = Regex("""^\[offset:([+-]?\d+)]$""", RegexOption.IGNORE_CASE)
 private val lrcMetadataLinePattern = Regex("""^\[([A-Za-z][A-Za-z0-9_-]*):.*]$""")
 private val lrcMetadataKeys = setOf(
     "al",
@@ -385,7 +386,11 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
     }
 
     private fun String.parsePlainLyrics(): MusicLyrics? {
-        val parsedLines = lines().flatMap { rawLine ->
+        val rawLines = lines()
+        val offsetMillis = rawLines.firstNotNullOfOrNull { rawLine ->
+            rawLine.toLrcOffsetMillisOrNull()
+        } ?: 0
+        val parsedLines = rawLines.flatMap { rawLine ->
             val matches = lrcTimestampPattern.findAll(rawLine).toList()
             val text = rawLine.replace(lrcTimestampPattern, "").trim()
             if (text.isBlank()) return@flatMap emptyList()
@@ -408,7 +413,7 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
                         else -> 0
                     }
                     MusicLyricsLine(
-                        startMillis = minutes * 60_000 + seconds * 1000 + millis,
+                        startMillis = resolveLrcStartMillis(minutes, seconds, millis, offsetMillis),
                         text = text
                     )
                 }
@@ -431,6 +436,18 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
             ?.lowercase()
             ?: return false
         return key in lrcMetadataKeys
+    }
+
+    private fun String.toLrcOffsetMillisOrNull(): Int? {
+        return lrcOffsetPattern.matchEntire(trim())
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.toIntOrNull()
+    }
+
+    private fun resolveLrcStartMillis(minutes: Int, seconds: Int, millis: Int, offsetMillis: Int): Int {
+        val startMillis = minutes * 60_000 + seconds * 1000 + millis
+        return (startMillis - offsetMillis).coerceAtLeast(0)
     }
 
     private fun Double.toLyricStartMillis(songDurationSeconds: Int): Int {

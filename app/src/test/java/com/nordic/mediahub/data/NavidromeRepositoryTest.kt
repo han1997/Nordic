@@ -208,11 +208,64 @@ class NavidromeRepositoryTest {
 
         assertTrue(lyrics.synced)
         assertEquals(listOf("First lyric", "Second lyric"), lyrics.lines.map { it.text })
-        assertEquals(listOf(10_000, 20_500), lyrics.lines.map { it.startMillis })
+        assertEquals(listOf(9_500, 20_000), lyrics.lines.map { it.startMillis })
 
         val request = server.takeRequest().path.orEmpty()
         assertTrue(request.startsWith("/rest/getLyricsBySongId.view?"))
         assertTrue(request.contains("id=song-1"))
+    }
+
+    @Test
+    fun getLyrics_appliesNegativeLrcOffsetToShowLyricsLater() = runTest {
+        val value = listOf(
+            "[offset:-750]",
+            "[00:10.00]Delayed lyric"
+        ).joinToString("\\n")
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "lyrics": {
+                  "value": "$value"
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+            )
+        )
+
+        assertEquals(listOf("Delayed lyric"), lyrics.lines.map { it.text })
+        assertEquals(listOf(10_750), lyrics.lines.map { it.startMillis })
+    }
+
+    @Test
+    fun getLyrics_clampsPositiveLrcOffsetBeforeZero() = runTest {
+        val value = listOf(
+            "[offset:+1500]",
+            "[00:01.00]Intro lyric",
+            "[00:02.00]Second lyric"
+        ).joinToString("\\n")
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "lyrics": {
+                  "value": "$value"
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+            )
+        )
+
+        assertEquals(listOf("Intro lyric", "Second lyric"), lyrics.lines.map { it.text })
+        assertEquals(listOf(0, 500), lyrics.lines.map { it.startMillis })
     }
 
     @Test
