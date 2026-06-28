@@ -1028,3 +1028,36 @@ Updated Navidrome album list DTO and repository mapping so missing or null album
 ### Next Steps
 
 - None - task complete
+
+
+## Session 91: Handle missing AudiobookShelf library lists
+
+**Date**: 2026-06-29
+**Task**: Handle missing AudiobookShelf library lists
+**Branch**: `main`
+
+### Summary
+
+Updated AudiobookShelf library discovery DTO and repository mapping so missing or null libraries arrays map to empty audiobook library lists while preserving the case-insensitive book filter, with focused repository coverage and integration-spec documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1135ff8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
