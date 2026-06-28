@@ -32,7 +32,7 @@ data class EmbyUserDto(
 
 data class EmbyItemsResponse(
     @SerializedName("Items")
-    val items: List<EmbyItemDto> = emptyList(),
+    val items: List<EmbyItemDto>? = null,
     @SerializedName("TotalRecordCount")
     val totalRecordCount: Int = 0
 )

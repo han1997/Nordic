@@ -176,6 +176,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
             api.getUserViews(session.userId, session.token)
         }
             .items
+            .orEmpty()
             .filter { item -> item.isVideoLibrary() }
             .map { item ->
                 VideoLibrary(
@@ -201,7 +202,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
                     limit = EMBY_ITEMS_PAGE_SIZE
                 )
             }
-            val pageItems = response.items
+            val pageItems = response.items.orEmpty()
             items += pageItems.map { item -> item.toVideoItem(libraryId, session.token) }
             startIndex += pageItems.size
         } while (pageItems.isNotEmpty() && startIndex < response.totalRecordCount)

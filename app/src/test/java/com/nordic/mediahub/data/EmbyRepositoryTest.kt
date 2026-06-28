@@ -304,6 +304,23 @@ class EmbyRepositoryTest {
     }
 
     @Test
+    fun getCatalog_mapsMissingAndNullViewItemsToEmptyLibraries() = runTest {
+        listOf(
+            """{"TotalRecordCount":0}""",
+            """{"Items":null,"TotalRecordCount":0}"""
+        ).forEach { viewsResponse ->
+            server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+            server.enqueueJson(viewsResponse)
+
+            val catalog = repository(apiKey = "api-key").getCatalog()
+
+            assertEquals(emptyList<VideoLibrary>(), catalog.libraries)
+            assertNull(catalog.selectedLibraryId)
+            assertEquals(emptyList<VideoItem>(), catalog.items)
+        }
+    }
+
+    @Test
     fun getCatalog_pagesThroughLibraryItemsUntilTotalCountIsLoaded() = runTest {
         server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
         server.enqueueJson(
@@ -350,6 +367,32 @@ class EmbyRepositoryTest {
         assertTrue(firstItemsRequest.path.orEmpty().contains("Limit=100"))
         assertTrue(secondItemsRequest.path.orEmpty().contains("StartIndex=1"))
         assertTrue(secondItemsRequest.path.orEmpty().contains("Limit=100"))
+    }
+
+    @Test
+    fun getCatalog_mapsMissingAndNullLibraryItemsToEmptyItems() = runTest {
+        listOf(
+            """{"TotalRecordCount":0}""",
+            """{"Items":null,"TotalRecordCount":0}"""
+        ).forEach { itemsResponse ->
+            server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+            server.enqueueJson(
+                """
+                    {
+                      "Items": [
+                        {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
+                      ],
+                      "TotalRecordCount": 1
+                    }
+                """.trimIndent()
+            )
+            server.enqueueJson(itemsResponse)
+
+            val catalog = repository(apiKey = "api-key").getCatalog()
+
+            assertEquals("lib-movie", catalog.selectedLibraryId)
+            assertEquals(emptyList<VideoItem>(), catalog.items)
+        }
     }
 
     @Test

@@ -66,6 +66,7 @@ POST Sessions/Playing/Stopped
   - `GET Users/{userId}/Items`
   - query includes `ParentId`, `Recursive=true`, `IncludeItemTypes=Movie,Series,Episode,Video`
   - query `Fields` includes `Overview`, `ProductionYear`, `SeriesId`, `SeriesName`, `ParentIndexNumber`, `IndexNumber`, `RunTimeTicks`, `ChildCount`, `ImageTags`, `CommunityRating`, and `UserData`
+  - `GET Users/{userId}/Views` and `GET Users/{userId}/Items` responses may omit `Items` or send it as null; DTOs must allow nullable lists and repositories must map them to empty app lists
   - map `RunTimeTicks` to seconds using `10_000_000` ticks per second
 - Video metadata:
   - `VideoItem.playbackPositionSeconds` maps from `UserData.PlaybackPositionTicks` using `10_000_000` ticks per second
@@ -136,6 +137,8 @@ POST Sessions/Playing/Stopped
 - API key flow returns no users with a non-blank `Id` -> throw `EmbyApiException(kind = AUTH)`
 - Password flow returns missing, null, or blank `AccessToken` -> throw `EmbyApiException(kind = AUTH)`
 - Password flow returns missing, null, or blank `User.Id` -> throw `EmbyApiException(kind = AUTH)`
+- View response `Items` is missing or null -> map libraries to `emptyList()`, selected library id to `null`, and catalog items to `emptyList()`
+- Library item response `Items` is missing or null -> map that page to `emptyList()` and stop pagination
 - Missing item `UserData` -> map resume position to `0` and played state to `false`
 - Missing `UserData.LastPlayedDate` -> continue-watching shelf keeps the item eligible by resume position but sorts it behind dated resume items
 - Resume position at or beyond known duration while `Played == false` -> exclude from continue-watching shelf as effectively complete
@@ -172,6 +175,7 @@ POST Sessions/Playing/Stopped
 
 ### 5. Good/Base/Bad Cases
 - Good: API key + username, multiple users, matching user selected, video libraries and items load.
+- Good: An Emby-compatible server omits or nulls a view or item-list `Items` array; Nordic returns empty app lists instead of crashing.
 - Good: Emby returns `UserData.PlaybackPositionTicks` and `CommunityRating`; repository maps resume/rating metadata and UI can show continue-watching/top-rated/unplayed shelves.
 - Good: Emby returns `UserData.LastPlayedDate`; continue watching prioritizes recently watched items over older items with larger resume positions.
 - Good: User starts an unfinished continue-watching item; playback seeks to the Emby resume position before playing.
@@ -190,6 +194,7 @@ POST Sessions/Playing/Stopped
 - Base: Older/incomplete Emby responses omit `UserData` and `CommunityRating`; catalog still loads and spotlight shelves simply omit unavailable groups.
 - Base: A `Series` item has no matching loaded episodes; detail still shows metadata/overview and disables primary playback.
 - Bad: Video browser search checks only episode title/overview and hides loaded episodes when the user searches the show name.
+- Bad: `EmbyItemsResponse.Items` is modeled as a non-null Kotlin list and repository mapping calls `.filter`/`.map` directly, allowing Gson-omitted fields to become runtime nulls.
 - Bad: Video playback compares only `VideoItem.id` and keeps an expired same-item stream URL.
 - Bad: Emby returns HTTP 500 for views, repository throws `EmbyApiException.Kind.HTTP` and UI shows the error card.
 - Bad: Server has music and movie collections, repository filters out music by `CollectionType`.
@@ -212,6 +217,8 @@ POST Sessions/Playing/Stopped
   - asserts missing, null, and blank `User.Id` responses throw `EmbyApiException.Kind.AUTH`
 - Mapping:
   - asserts non-video libraries are filtered
+  - asserts missing and null view response `Items` map to an empty library list, null selected library id, and empty catalog item list
+  - asserts missing and null library item response `Items` map to an empty item list and stop pagination
   - asserts video library `CollectionType` and blank-collection `CollectionFolder` fallback matching are case-insensitive
   - asserts duration ticks become seconds
   - asserts `Fields` requests `UserData` and `CommunityRating`
@@ -244,6 +251,20 @@ POST Sessions/Playing/Stopped
   - asserts empty body responses from body-bearing Emby endpoints throw typed `EmbyApiException.Kind.API`
 
 ### 7. Wrong vs Correct
+
+#### Wrong
+```kotlin
+val pageItems = response.items
+items += pageItems.map { it.toVideoItem(libraryId, token) }
+```
+
+Gson can set omitted `Items` fields to `null`, so direct mapping can crash on empty-compatible Emby responses.
+
+#### Correct
+```kotlin
+val pageItems = response.items.orEmpty()
+items += pageItems.map { it.toVideoItem(libraryId, token) }
+```
 
 #### Wrong
 ```kotlin
