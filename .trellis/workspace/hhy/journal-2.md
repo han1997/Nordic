@@ -269,3 +269,36 @@ Updated AudiobookShelf library browsing to page through item responses until the
 ### Next Steps
 
 - None - task complete
+
+
+## Session 68: Type empty AudiobookShelf library responses
+
+**Date**: 2026-06-29
+**Task**: Type empty AudiobookShelf library responses
+**Branch**: `main`
+
+### Summary
+
+Made AudiobookShelf library discovery convert empty 200 responses, including Retrofit/Gson EOF, into typed API errors; added a repository regression test and updated the integration contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e8994a3` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
