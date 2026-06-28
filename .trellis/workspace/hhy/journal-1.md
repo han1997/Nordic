@@ -1045,3 +1045,36 @@ Verified MusicPlayerScreen already matches the deferred scrubber seek convention
 ### Next Steps
 
 - None - task complete
+
+
+## Session 32: Clamp audiobook track seek offsets
+
+**Date**: 2026-06-28
+**Task**: Clamp audiobook track seek offsets
+**Branch**: `main`
+
+### Summary
+
+Added a pure audiobook track seek resolver that maps absolute audiobook seconds to Media3 media item indexes with local offsets clamped to each track duration; covered in unit tests and recorded the contract in the AudiobookShelf spec.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `edcbc51` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
