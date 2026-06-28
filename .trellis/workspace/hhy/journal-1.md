@@ -1771,3 +1771,36 @@ Made previous-chapter navigation restart the current audiobook chapter at the ex
 ### Next Steps
 
 - None - task complete
+
+
+## Session 54: Allow video skip with unknown duration
+
+**Date**: 2026-06-29
+**Task**: Allow video skip with unknown duration
+**Branch**: `main`
+
+### Summary
+
+Fixed video relative seek so unknown-duration streams can skip forward instead of clamping to zero, added focused playback helper tests, clarified the Emby contract, and verified focused tests plus compile, full unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d377b40` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

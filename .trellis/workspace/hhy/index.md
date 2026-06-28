@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 53
+- **Total Sessions**: 54
 - **Last Active**: 2026-06-29
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1773 | Active |
+| `journal-1.md` | ~1806 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 54 | 2026-06-29 | Allow video skip with unknown duration | `d377b40` | `main` |
 | 53 | 2026-06-29 | Fix audiobook chapter restart threshold | `c28b889` | `main` |
 | 52 | 2026-06-29 | Apply structured lyric offsets | `2975fd2` | `main` |
 | 51 | 2026-06-29 | Apply LRC offset to music lyrics | `0ad2c3c` | `main` |
