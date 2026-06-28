@@ -1441,3 +1441,36 @@ Separated AudiobookShelf current-time clamping from safe payload duration, ensur
 ### Next Steps
 
 - None - task complete
+
+
+## Session 44: Use audiobook resume position as sync baseline
+
+**Date**: 2026-06-28
+**Task**: Use audiobook resume position as sync baseline
+**Branch**: `main`
+
+### Summary
+
+Prevented inflated AudiobookShelf timeListened deltas on resumed sessions by seeding periodic sync from the session resume/current time when playback state has not caught up. Added app-shell helper tests, updated the ABS contract, and verified compile, unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0182314` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

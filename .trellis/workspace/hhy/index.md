@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 43
+- **Total Sessions**: 44
 - **Last Active**: 2026-06-28
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1443 | Active |
+| `journal-1.md` | ~1476 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 44 | 2026-06-28 | Use audiobook resume position as sync baseline | `0182314` | `main` |
 | 43 | 2026-06-28 | Clamp zero-duration audiobook sync current time | `4029498` | `main` |
 | 42 | 2026-06-28 | Start complete-resume videos from beginning | `c78774a` | `main` |
 | 41 | 2026-06-28 | Clamp audiobook absolute playback position | `a263580` | `main` |
