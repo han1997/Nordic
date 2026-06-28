@@ -57,8 +57,8 @@ POST Sessions/Playing/Stopped
   - header: `X-Emby-Authorization` with Nordic Android client metadata
   - response must include `User.Id` and non-blank `AccessToken`
 - Library filtering:
-  - Include libraries whose `CollectionType` is one of `movies`, `tvshows`, `homevideos`, or `mixed`
-  - Include `Type == "CollectionFolder"` only as a fallback when `CollectionType` is blank
+  - Include libraries whose `CollectionType` matches one of `movies`, `tvshows`, `homevideos`, or `mixed`, case-insensitively
+  - Include `Type == "CollectionFolder"` case-insensitively only as a fallback when `CollectionType` is blank
   - Do not include known non-video collections such as `music`
 - Item listing:
   - `GET Users/{userId}/Items`
@@ -199,6 +199,7 @@ POST Sessions/Playing/Stopped
   - asserts later requests use `AccessToken`
 - Mapping:
   - asserts non-video libraries are filtered
+  - asserts video library `CollectionType` and blank-collection `CollectionFolder` fallback matching are case-insensitive
   - asserts duration ticks become seconds
   - asserts `Fields` requests `UserData` and `CommunityRating`
   - asserts `UserData.PlaybackPositionTicks`, `UserData.Played`, and `CommunityRating` map to `VideoItem`

@@ -170,10 +170,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
             api.getUserViews(session.userId, session.token)
         }
             .items
-            .filter { item ->
-                item.collectionType in videoCollectionTypes ||
-                    (item.collectionType.isNullOrBlank() && item.type == "CollectionFolder")
-            }
+            .filter { item -> item.isVideoLibrary() }
             .map { item ->
                 VideoLibrary(
                     id = item.id,
@@ -226,6 +223,12 @@ class EmbyRepository(private val config: VideoServerConfig) {
             imageUrl = primaryImageUrl(id, token, imageTags.orEmpty()["Primary"]),
             streamUrl = if (isDirectlyPlayableVideoType(type)) streamUrl(id, token) else null
         )
+    }
+
+    private fun EmbyItemDto.isVideoLibrary(): Boolean {
+        return videoCollectionTypes.any { collectionType ->
+            collectionType.equals(this.collectionType, ignoreCase = true)
+        } || (collectionType.isNullOrBlank() && type.orEmpty().equals("CollectionFolder", ignoreCase = true))
     }
 
     private fun isDirectlyPlayableVideoType(type: String?): Boolean {

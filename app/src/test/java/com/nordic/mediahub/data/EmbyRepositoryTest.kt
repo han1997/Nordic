@@ -161,6 +161,29 @@ class EmbyRepositoryTest {
     }
 
     @Test
+    fun getCatalog_filtersVideoLibrariesCaseInsensitively() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"Movies"},
+                    {"Id":"lib-fallback","Name":"Videos","Type":"collectionfolder","CollectionType":""},
+                    {"Id":"lib-music","Name":"Music","Type":"CollectionFolder","CollectionType":"Music"}
+                  ],
+                  "TotalRecordCount": 3
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson("""{"Items":[],"TotalRecordCount":0}""")
+
+        val catalog = repository(apiKey = "api-key").getCatalog()
+
+        assertEquals(listOf("lib-movie", "lib-fallback"), catalog.libraries.map { it.id })
+        assertEquals("lib-movie", catalog.selectedLibraryId)
+    }
+
+    @Test
     fun getCatalog_pagesThroughLibraryItemsUntilTotalCountIsLoaded() = runTest {
         server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
         server.enqueueJson(
