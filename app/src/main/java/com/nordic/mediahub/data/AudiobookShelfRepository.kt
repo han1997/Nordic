@@ -47,6 +47,32 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
         .build()
         .create(AudiobookShelfApi::class.java)
 
+    private suspend fun <T> requireResponseBody(
+        action: String,
+        request: suspend () -> Response<T>
+    ): T {
+        val response = try {
+            request()
+        } catch (error: EOFException) {
+            throw AudiobookShelfApiException(
+                "$action: 响应为空",
+                AudiobookShelfApiException.Kind.API
+            )
+        }
+        if (!response.isSuccessful) {
+            throw AudiobookShelfApiException(
+                "$action: HTTP ${response.code()}",
+                AudiobookShelfApiException.Kind.HTTP
+            )
+        }
+
+        return response.body()
+            ?: throw AudiobookShelfApiException(
+                "$action: 响应为空",
+                AudiobookShelfApiException.Kind.API
+            )
+    }
+
     private suspend fun bearerToken(): String {
         cachedBearerToken?.let { return it }
 
@@ -75,26 +101,10 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
     }
 
     suspend fun getLibraries(): List<AudiobookLibrarySummary> {
-        val response = try {
-            api.getLibraries(bearerToken())
-        } catch (error: EOFException) {
-            throw AudiobookShelfApiException(
-                "获取书库失败: 响应为空",
-                AudiobookShelfApiException.Kind.API
-            )
+        val auth = bearerToken()
+        val body = requireResponseBody("获取书库失败") {
+            api.getLibraries(auth)
         }
-        if (!response.isSuccessful) {
-            throw AudiobookShelfApiException(
-                "获取书库失败: HTTP ${response.code()}",
-                AudiobookShelfApiException.Kind.HTTP
-            )
-        }
-
-        val body = response.body()
-            ?: throw AudiobookShelfApiException(
-                "获取书库失败: 响应为空",
-                AudiobookShelfApiException.Kind.API
-            )
 
         return body.libraries.mapNotNull { dto ->
             if (dto.mediaType != "book") return@mapNotNull null
@@ -112,24 +122,14 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
         var page = 0
 
         while (true) {
-            val response = api.getLibraryItems(
-                bearerToken = auth,
-                libraryId = libraryId,
-                limit = AUDIOBOOK_LIBRARY_PAGE_SIZE,
-                page = page
-            )
-            if (!response.isSuccessful) {
-                throw AudiobookShelfApiException(
-                    "获取有声书列表失败: HTTP ${response.code()}",
-                    AudiobookShelfApiException.Kind.HTTP
+            val body = requireResponseBody("获取有声书列表失败") {
+                api.getLibraryItems(
+                    bearerToken = auth,
+                    libraryId = libraryId,
+                    limit = AUDIOBOOK_LIBRARY_PAGE_SIZE,
+                    page = page
                 )
             }
-
-            val body = response.body()
-                ?: throw AudiobookShelfApiException(
-                    "获取有声书列表失败: 响应为空",
-                    AudiobookShelfApiException.Kind.API
-                )
             val pageItems = body.results
             items += pageItems.map { it.toSummary() }
 
@@ -145,46 +145,32 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
 
     suspend fun getLibraryItem(itemId: String): AudiobookItemDetail {
         val auth = bearerToken()
-        val response = api.getLibraryItem(
-            bearerToken = auth,
-            itemId = itemId
-        )
-        if (!response.isSuccessful) {
-            throw AudiobookShelfApiException(
-                "获取有声书详情失败: HTTP ${response.code()}",
-                AudiobookShelfApiException.Kind.HTTP
+        return requireResponseBody("获取有声书详情失败") {
+            api.getLibraryItem(
+                bearerToken = auth,
+                itemId = itemId
             )
-        }
-
-        return response.body()?.toDetail()
-            ?: throw AudiobookShelfApiException("获取有声书详情失败: 响应为空", AudiobookShelfApiException.Kind.API)
+        }.toDetail()
     }
 
     suspend fun startPlayback(itemId: String): AudiobookPlaybackSession {
         val auth = bearerToken()
-        val response = api.startPlayback(
-            bearerToken = auth,
-            itemId = itemId,
-            request = AudiobookShelfPlayRequest(
-                deviceInfo = AudiobookShelfDeviceInfoRequest(),
-                supportedMimeTypes = listOf(
-                    "audio/mpeg",
-                    "audio/mp4",
-                    "audio/x-m4b",
-                    "audio/m4b",
-                    "audio/aac"
+        val session = requireResponseBody("启动播放失败") {
+            api.startPlayback(
+                bearerToken = auth,
+                itemId = itemId,
+                request = AudiobookShelfPlayRequest(
+                    deviceInfo = AudiobookShelfDeviceInfoRequest(),
+                    supportedMimeTypes = listOf(
+                        "audio/mpeg",
+                        "audio/mp4",
+                        "audio/x-m4b",
+                        "audio/m4b",
+                        "audio/aac"
+                    )
                 )
             )
-        )
-        if (!response.isSuccessful) {
-            throw AudiobookShelfApiException(
-                "启动播放失败: HTTP ${response.code()}",
-                AudiobookShelfApiException.Kind.HTTP
-            )
         }
-
-        val session = response.body()
-            ?: throw AudiobookShelfApiException("启动播放失败: 响应为空", AudiobookShelfApiException.Kind.API)
 
         val plainToken = auth.removePrefix("Bearer ").trim()
 

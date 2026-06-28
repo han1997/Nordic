@@ -98,6 +98,54 @@ class AudiobookShelfRepositoryTest {
     }
 
     @Test
+    fun getLibraryItems_throwsTypedExceptionForEmptyResponseBody() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val error = try {
+            repository().getLibraryItems("lib-1")
+            null
+        } catch (error: AudiobookShelfApiException) {
+            error
+        }
+
+        requireNotNull(error)
+        assertEquals(AudiobookShelfApiException.Kind.API, error.kind)
+    }
+
+    @Test
+    fun getLibraryItem_throwsTypedExceptionForEmptyResponseBody() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val error = try {
+            repository().getLibraryItem("book-1")
+            null
+        } catch (error: AudiobookShelfApiException) {
+            error
+        }
+
+        requireNotNull(error)
+        assertEquals(AudiobookShelfApiException.Kind.API, error.kind)
+    }
+
+    @Test
+    fun startPlayback_throwsTypedExceptionForEmptyResponseBody() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val error = try {
+            repository().startPlayback("book-1")
+            null
+        } catch (error: AudiobookShelfApiException) {
+            error
+        }
+
+        requireNotNull(error)
+        assertEquals(AudiobookShelfApiException.Kind.API, error.kind)
+    }
+
+    @Test
     fun syncAndCloseSession_sendsProgressSyncAndCloseRequests() = runTest {
         server.enqueueJson("""{"user":{"id":"u1","username":"demo","accessToken":"access-123"}}""")
         server.enqueue(MockResponse().setResponseCode(204))
