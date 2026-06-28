@@ -566,3 +566,36 @@ Replaced raw AudiobookShelf audio token substring checks with query-parameter-aw
 ### Next Steps
 
 - None - task complete
+
+
+## Session 77: Ignore blank Navidrome cover art ids
+
+**Date**: 2026-06-29
+**Task**: Ignore blank Navidrome cover art ids
+**Branch**: `main`
+
+### Summary
+
+Updated Navidrome cover-art mapping so blank ids remain absent instead of producing broken authenticated cover URLs, added focused repository coverage for blank album and playlist fallback behavior, and documented the mapping contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7a4e663` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
