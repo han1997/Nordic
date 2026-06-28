@@ -517,3 +517,36 @@ Added Yamby-style Emby video grid browsing, search and type filters, paginated c
 ### Next Steps
 
 - None - task complete
+
+
+## Session 16: Full-screen video detail page
+
+**Date**: 2026-06-28
+**Task**: Full-screen video detail page
+**Branch**: `main`
+
+### Summary
+
+Added Yamby-style full-screen video detail route with poster, metadata, overview, back action, and playback entry point.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `94833a3` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
