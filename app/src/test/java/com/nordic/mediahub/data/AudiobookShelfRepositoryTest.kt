@@ -56,6 +56,32 @@ class AudiobookShelfRepositoryTest {
     }
 
     @Test
+    fun getLibraries_filtersBookMediaTypeCaseInsensitively() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(
+            """
+                {
+                  "libraries": [
+                    {"id":"lib-lower","name":"Lower","mediaType":"book"},
+                    {"id":"lib-title","name":"Title","mediaType":"Book"},
+                    {"id":"lib-upper","name":"Upper","mediaType":"BOOK"},
+                    {"id":"lib-podcast","name":"Podcasts","mediaType":"podcast"}
+                  ]
+                }
+            """.trimIndent()
+        )
+
+        val libraries = repository().getLibraries()
+
+        assertEquals(listOf("lib-lower", "lib-title", "lib-upper"), libraries.map { it.id })
+
+        server.takeRequest()
+        val librariesRequest = server.takeRequest()
+        assertEquals("/api/libraries", librariesRequest.path)
+        assertEquals("Bearer token-123", librariesRequest.getHeader("Authorization"))
+    }
+
+    @Test
     fun getLibraryItems_pagesUntilServerTotalIsLoaded() = runTest {
         server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
         server.enqueueJson(libraryItemsJson(itemRange = 1..50, total = 51))

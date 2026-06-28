@@ -53,6 +53,7 @@
   - `POST /api/session/{sessionId}/close`
 - Domain mapping must keep music and audiobook models separate. Do not map audiobook sessions into `NavidromeSong`.
 - Library item browsing must page `GET /api/libraries/{id}/items` with a fixed repository page size. Continue requesting `page + 1` until the response `total` count is loaded, or until the server returns an empty/short page.
+- Library discovery must include libraries whose `mediaType` equals `book` case-insensitively, and must continue excluding non-book media types such as podcasts.
 - Library refresh must resolve the selected library id against the latest `GET /api/libraries` response. Keep the previous selection only if that id is still present; otherwise fall back to the first returned library, or clear the selection when the response is empty.
 - Library refresh must reconcile an open detail item against the refreshed selected-library item summaries. Keep the open detail only if its id still exists in the refreshed summaries.
 - If the detail page is open and the selected detail no longer exists after refresh, clear the selected detail and return to the library list. Do not show stale detail for books removed from or moved out of the selected library.
@@ -87,6 +88,8 @@
 | Missing server URL or username | Do not construct `AudiobookShelfRepository`; show configuration state |
 | Login HTTP failure | Throw `AudiobookShelfApiException.Kind.HTTP` with status code |
 | Login response lacks token | Throw `AudiobookShelfApiException.Kind.AUTH` |
+| Library response has `mediaType` values such as `book`, `Book`, or `BOOK` | Include those libraries in `getLibraries()` |
+| Library response has non-book `mediaType` values | Exclude those libraries from `getLibraries()` |
 | Library items response total is larger than the first page | Continue requesting subsequent pages and merge summaries before returning |
 | Previously selected library id is absent from the latest library list | Fall back to the first returned library before requesting items |
 | Latest library list is empty | Clear the selected library id and show the empty-library state |
@@ -119,6 +122,7 @@
 ### 5. Good/Base/Bad Cases
 
 - Good: User opens an audiobook, `startPlayback()` returns a session, Media3 plays session tracks, progress sync runs periodically, and `syncAndCloseSession()` is called when leaving the player.
+- Good: AudiobookShelf-compatible servers return `Book` or `BOOK` media type casing, and the app still shows those audiobook libraries.
 - Good: User taps the same audiobook while it is already active; the app reopens the current player without creating a duplicate AudiobookShelf session.
 - Good: User starts a different audiobook while one is active; the app syncs/closes the previous session in the background and starts the new `/play` session.
 - Good: User switches AudiobookShelf server/account, refreshes libraries, and the app requests items from a library id returned by that server instead of a stale id from the previous server/account.
@@ -131,6 +135,7 @@
 - Good: User can jump to previous/next chapters from the player; absolute position updates continue to drive progress sync.
 - Base: User only browses libraries and details; no playback session is created and no progress endpoint is called.
 - Bad: `getLibraryItems()` requests only `page=0`, truncating any library with more books than the page size.
+- Bad: `getLibraries()` compares `mediaType == "book"` case-sensitively and drops valid audiobook libraries returned as `Book`.
 - Bad: App extracts a stream URL and plays it without calling `/play`, `/sync`, or `/close`; AudiobookShelf resume state will drift.
 
 ### 6. Tests Required
@@ -142,6 +147,7 @@
   - `:app:assembleDebug` for final packaging verification when playback wiring changes.
 - Repository tests should assert:
   - login token fallback from `user.token` to `user.accessToken`
+  - library filtering includes `book`, `Book`, and `BOOK` media type values and excludes non-book media types
   - paginated library item browsing requests `page=0`, `page=1`, and merges results until `total` is loaded
   - relative cover/audio URL normalization
   - progress fraction and current time payload fields
@@ -169,6 +175,20 @@
   - closing playback calls repository `closeSession()` with the last absolute position
 
 ### 7. Wrong vs Correct
+
+#### Wrong
+
+```kotlin
+if (dto.mediaType != "book") return@mapNotNull null
+```
+
+This can hide valid audiobook libraries from compatible servers that vary `mediaType` casing.
+
+#### Correct
+
+```kotlin
+if (!dto.mediaType.equals("book", ignoreCase = true)) return@mapNotNull null
+```
 
 #### Wrong
 
