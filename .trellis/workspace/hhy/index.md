@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 64
+- **Total Sessions**: 65
 - **Last Active**: 2026-06-29
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~172 | Active |
+| `journal-2.md` | ~205 | Active |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 65 | 2026-06-29 | Reset stale video state | `42f73e5` | `main` |
 | 64 | 2026-06-29 | Reset stale audiobook state | `c6ca155` | `main` |
 | 63 | 2026-06-29 | Clear stale music detail state | `b55e18a` | `main` |
 | 62 | 2026-06-29 | Reset stale video type filter | `b41695a` | `main` |

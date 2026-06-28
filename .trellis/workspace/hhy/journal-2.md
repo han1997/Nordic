@@ -170,3 +170,36 @@ Reset AudiobookShelf browsing/detail state on saved config changes; guard stale 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 65: Reset stale video state
+
+**Date**: 2026-06-29
+**Task**: Reset stale video state
+**Branch**: `main`
+
+### Summary
+
+Reset Emby video browser/detail/search/filter state on saved config changes; refresh new configs without stale library ids; guard stale catalog and library-selection responses; add helper tests and update the Emby contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `42f73e5` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
