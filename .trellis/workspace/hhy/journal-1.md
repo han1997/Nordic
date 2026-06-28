@@ -814,3 +814,36 @@ Kept the Music home recently-added shelf as a 12-song preview while using the fu
 ### Next Steps
 
 - None - task complete
+
+
+## Session 25: Resume video playback from Emby position
+
+**Date**: 2026-06-28
+**Task**: Resume video playback from Emby position
+**Branch**: `main`
+
+### Summary
+
+Made VideoPlaybackEngine seek to Emby resume metadata for unfinished videos, added pure start-position tests, and updated the Emby playback contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ffef544` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
