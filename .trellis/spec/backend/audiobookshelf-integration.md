@@ -50,7 +50,7 @@
 - Library refresh must resolve the selected library id against the latest `GET /api/libraries` response. Keep the previous selection only if that id is still present; otherwise fall back to the first returned library, or clear the selection when the response is empty.
 - Audio URLs may need the bearer token appended as `token=<token>` when AudiobookShelf returns relative `contentUrl` values.
 - Progress sync must use current absolute audiobook time, not current track-local time, and repository payloads must clamp `currentTime` to `0..durationSeconds` before sending progress, session sync, or close requests.
-- Periodic session sync `timeListened` must measure only newly listened time in the current app session. Initialize the delta baseline from the greater of playback state position, `AudiobookPlaybackSession.startTimeSeconds`, and `currentTimeSeconds` so resumed books do not count already-listened time again.
+- Periodic session sync `timeListened` must measure only newly listened time in the current app session. Initialize the delta baseline from the greater of playback state position, `AudiobookPlaybackSession.startTimeSeconds`, and `currentTimeSeconds` so resumed books do not count already-listened time again. Report at least the last successfully synced baseline so an early zero-position player state cannot regress AudiobookShelf resume metadata.
 - When session duration is zero or negative, progress/session/close `currentTime` must be `0.0`; request `duration` may be floored to `1.0` only to keep progress math and ABS payloads well-formed.
 - Playback state must resolve absolute audiobook progress as `track.startOffsetSeconds + localPositionSeconds`, with the known-track local position clamped to `0..track.durationSeconds` before adding the track offset.
 - Absolute audiobook seek positions must be mapped to the Media3 track list as `(mediaItemIndex, localOffsetSeconds)` and the local offset must be clamped to `0..track.durationSeconds`.
@@ -62,7 +62,7 @@
 - Next chapter behavior should jump to the next chapter start when one exists.
 - Player current-chapter display must resolve by sorted chapter `startSeconds`, not by incoming list order. While scrubbing, use the visible scrub position for display-only chapter resolution.
 - `PATCH /api/me/progress/*`, `POST /api/session/*/sync`, and `POST /api/session/*/close` must validate `Response<Unit>.isSuccessful`. Do not fire-and-forget these session endpoints.
-- UI close flows should call `syncAndCloseSession(...)` so the final position is written before closing the AudiobookShelf session.
+- UI close flows should call `syncAndCloseSession(...)` so the final position is written before closing the AudiobookShelf session. When a resumed session exists, close flows must use the same resume-aware baseline instead of a lower raw player position.
 - When starting music or video while an audiobook is active, the app-shell should stop audiobook playback and attempt `syncAndCloseSession(...)` in the background. If that background close fails, do not reopen the stopped audiobook player over the newly selected media.
 - When starting audiobook playback while the requested item already owns the active session, the app-shell should reuse the current session and show the audiobook player instead of calling `/play` again.
 - When starting audiobook playback while a different audiobook session is active, the app-shell should stop the old local session and attempt `syncAndCloseSession(...)` in the background before calling `/play` for the new item. The new playback attempt must not be blocked by a background close failure.
@@ -88,7 +88,7 @@
 | Previous chapter requested near the first chapter start | No-op instead of seeking to a negative position |
 | Next chapter requested from the last chapter | No-op instead of seeking past duration |
 | Progress sync fails while player is visible | Surface a progress-sync error without crashing playback |
-| Periodic sync starts from a resumed session while playback state is still `0` | Use the session resume/current time as the first `timeListened` delta baseline |
+| Periodic sync starts from a resumed session while playback state is still `0` | Use the session resume/current time as the first `timeListened` delta baseline and report at least that baseline as `currentTime` |
 | Progress/session close current time is negative or beyond duration | Clamp payload `currentTime` to `0..durationSeconds` |
 | Progress/session close duration is zero or negative | Send `currentTime: 0.0`; keep request `duration` safe for progress math |
 | Progress update/session sync/session close returns non-2xx | Throw `AudiobookShelfApiException.Kind.HTTP` with the failing status code |
@@ -127,7 +127,7 @@
   - non-2xx progress/session responses throw `AudiobookShelfApiException.Kind.HTTP`
 - UI/helper tests should assert library selection resolution keeps an existing id, falls back from a stale id, and clears selection for an empty library list.
 - UI/helper tests should assert current-chapter display resolution uses timestamp order for unsorted chapters and returns no chapter before the first chapter start.
-- App-shell helper tests should assert periodic sync baseline resolution uses the session resume/current time when playback state has not caught up, uses playback state when it is ahead, and clamps negative values to zero.
+- App-shell helper tests should assert periodic sync baseline resolution uses the session resume/current time when playback state has not caught up, uses playback state when it is ahead, clamps negative values to zero, and resolves periodic sync positions monotonically from the last synced baseline.
 - App-shell helper tests should assert manual audiobook close failures present the player/error, while background handoff close failures do not reopen the player.
 - App-shell helper tests should assert audiobook play requests start a new session with no current session, reuse the current session for the same `libraryItemId`, and close the current session before starting a different `libraryItemId`.
 - Playback tests should assert:

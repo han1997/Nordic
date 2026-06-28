@@ -64,6 +64,17 @@ internal fun resolveAudiobookProgressSyncBaselineSeconds(
     )
 }
 
+internal fun resolveAudiobookProgressSyncPositionSeconds(
+    statePositionSeconds: Int,
+    lastSyncedPositionSeconds: Int
+): Int {
+    return maxOf(
+        0,
+        statePositionSeconds,
+        lastSyncedPositionSeconds
+    )
+}
+
 internal fun resolveVideoProgressSyncBaselineSeconds(
     statePositionSeconds: Int,
     video: VideoItem
@@ -357,8 +368,16 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     }
 
     fun closeAudiobookPlayback() {
-        val session = audiobookPlaybackEngine.state.value.session
-        val positionSeconds = audiobookPlaybackEngine.state.value.positionSeconds
+        val currentState = audiobookPlaybackEngine.state.value
+        val session = currentState.session
+        val positionSeconds = if (session != null) {
+            resolveAudiobookProgressSyncBaselineSeconds(
+                statePositionSeconds = currentState.positionSeconds,
+                session = session
+            )
+        } else {
+            currentState.positionSeconds.coerceAtLeast(0)
+        }
         val repo = audiobookRepository
         showAudiobookPlayer = false
         audiobookPlaybackError = null
@@ -381,8 +400,16 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     }
 
     fun closeAudiobookPlaybackAfterSync() {
-        val session = audiobookPlaybackEngine.state.value.session
-        val positionSeconds = audiobookPlaybackEngine.state.value.positionSeconds
+        val currentState = audiobookPlaybackEngine.state.value
+        val session = currentState.session
+        val positionSeconds = if (session != null) {
+            resolveAudiobookProgressSyncBaselineSeconds(
+                statePositionSeconds = currentState.positionSeconds,
+                session = session
+            )
+        } else {
+            currentState.positionSeconds.coerceAtLeast(0)
+        }
         val repo = audiobookRepository
         showAudiobookPlayer = false
         audiobookPlaybackError = null
@@ -478,7 +505,10 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                 return@LaunchedEffect
             }
 
-            val currentPosition = currentState.positionSeconds
+            val currentPosition = resolveAudiobookProgressSyncPositionSeconds(
+                statePositionSeconds = currentState.positionSeconds,
+                lastSyncedPositionSeconds = lastSyncedPosition
+            )
             val deltaSeconds = (currentPosition - lastSyncedPosition).coerceAtLeast(0)
             runCatching {
                 repo.syncProgress(currentSession, currentPosition, deltaSeconds)

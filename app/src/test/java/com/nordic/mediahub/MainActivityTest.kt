@@ -43,6 +43,39 @@ class MainActivityTest {
     }
 
     @Test
+    fun resolveAudiobookProgressSyncPositionSeconds_usesLastSyncedWhenStateIsBehind() {
+        assertEquals(
+            120,
+            resolveAudiobookProgressSyncPositionSeconds(
+                statePositionSeconds = 0,
+                lastSyncedPositionSeconds = 120
+            )
+        )
+    }
+
+    @Test
+    fun resolveAudiobookProgressSyncPositionSeconds_usesStateWhenAheadOfLastSynced() {
+        assertEquals(
+            135,
+            resolveAudiobookProgressSyncPositionSeconds(
+                statePositionSeconds = 135,
+                lastSyncedPositionSeconds = 120
+            )
+        )
+    }
+
+    @Test
+    fun resolveAudiobookProgressSyncPositionSeconds_clampsNegativeValuesToZero() {
+        assertEquals(
+            0,
+            resolveAudiobookProgressSyncPositionSeconds(
+                statePositionSeconds = -10,
+                lastSyncedPositionSeconds = -20
+            )
+        )
+    }
+
+    @Test
     fun resolveVideoProgressSyncBaselineSeconds_usesVideoResumeWhenStateIsZero() {
         assertEquals(
             90,
