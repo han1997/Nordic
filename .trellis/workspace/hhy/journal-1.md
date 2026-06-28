@@ -484,3 +484,36 @@ Optimized video and audiobook scrolling (lazy column/row, key-based recompositio
 ### Next Steps
 
 - None - task complete
+
+
+## Session 15: Emby video browsing and playback
+
+**Date**: 2026-06-28
+**Task**: Emby video browsing and playback
+**Branch**: `main`
+
+### Summary
+
+Added Yamby-style Emby video grid browsing, search and type filters, paginated catalog loading, stream URL mapping, and in-app video playback.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `35df606` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

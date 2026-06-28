@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 14
-- **Last Active**: 2026-06-23
+- **Total Sessions**: 15
+- **Last Active**: 2026-06-28
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~486 | Active |
+| `journal-1.md` | ~519 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 15 | 2026-06-28 | Emby video browsing and playback | `35df606` | `main` |
 | 14 | 2026-06-23 | App-wide performance and smoothness optimization | `339d607`, `8fdb886` | `main` |
 | 13 | 2026-06-20 | App performance and smoothness optimization | `c65d65c`, `cbdc437` | `main` |
 | 12 | 2026-06-20 | Polish music player UI | `123b054`, `4a71031`, `9bcb3c3`, `5d1cd69` | `main` |
