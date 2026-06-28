@@ -665,3 +665,36 @@ Updated Emby authentication mapping so API-key and password-login responses requ
 ### Next Steps
 
 - None - task complete
+
+
+## Session 80: Harden AudiobookShelf login token handling
+
+**Date**: 2026-06-29
+**Task**: Harden AudiobookShelf login token handling
+**Branch**: `main`
+
+### Summary
+
+Updated AudiobookShelf login handling so missing users and missing or blank token fields stay typed AUTH failures, while blank token values can fall back to a valid accessToken; added focused repository coverage and contract documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1facbf7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
