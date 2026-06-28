@@ -155,10 +155,11 @@ class EmbyRepository(private val config: VideoServerConfig) {
                 )
             }
 
-            if (response.accessToken.isBlank()) {
+            val accessToken = response.accessToken?.takeIf { it.isNotBlank() }
+            if (accessToken == null) {
                 throw EmbyApiException("登录 Emby 失败: 未返回访问令牌", EmbyApiException.Kind.AUTH)
             }
-            EmbySession(userId = response.user.id, token = response.accessToken)
+            EmbySession(userId = response.user.id, token = accessToken)
         }
 
         cachedSession = session

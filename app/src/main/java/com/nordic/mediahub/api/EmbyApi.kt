@@ -20,7 +20,7 @@ data class EmbyAuthenticateResponse(
     @SerializedName("User")
     val user: EmbyUserDto,
     @SerializedName("AccessToken")
-    val accessToken: String
+    val accessToken: String? = null
 )
 
 data class EmbyUserDto(

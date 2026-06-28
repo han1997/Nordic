@@ -161,6 +161,39 @@ class EmbyRepositoryTest {
     }
 
     @Test
+    fun getCatalog_throwsTypedAuthExceptionForInvalidPasswordAccessTokens() = runTest {
+        listOf(
+            """
+                {
+                  "User": {"Id":"u-auth","Name":"demo"}
+                }
+            """.trimIndent(),
+            """
+                {
+                  "User": {"Id":"u-auth","Name":"demo"},
+                  "AccessToken": null
+                }
+            """.trimIndent(),
+            """
+                {
+                  "User": {"Id":"u-auth","Name":"demo"},
+                  "AccessToken": "   "
+                }
+            """.trimIndent()
+        ).forEach { response ->
+            server.enqueueJson(response)
+
+            assertEmbyApiError(EmbyApiException.Kind.AUTH) {
+                repository(apiKey = "").getCatalog()
+            }
+        }
+
+        repeat(3) {
+            assertEquals("/Users/AuthenticateByName", server.takeRequest().path)
+        }
+    }
+
+    @Test
     fun getCatalog_filtersVideoLibrariesCaseInsensitively() = runTest {
         server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
         server.enqueueJson(

@@ -56,7 +56,7 @@ POST Sessions/Playing/Stopped
   - `POST Users/AuthenticateByName`
   - request body: `{"Username": "...", "Pw": "..."}`
   - header: `X-Emby-Authorization` with Nordic Android client metadata
-  - response must include `User.Id` and non-blank `AccessToken`
+  - response must include `User.Id` and a non-null, non-blank `AccessToken`
 - Library filtering:
   - Include libraries whose `CollectionType` matches one of `movies`, `tvshows`, `homevideos`, or `mixed`, case-insensitively
   - Include `Type == "CollectionFolder"` case-insensitively only as a fallback when `CollectionType` is blank
@@ -133,7 +133,7 @@ POST Sessions/Playing/Stopped
 - Empty response body -> throw `EmbyApiException(kind = API)`
 - Empty 200 JSON responses that fail during Retrofit/Gson conversion must also throw `EmbyApiException(kind = API)`, not a generic wrapped exception.
 - API key flow returns no users -> throw `EmbyApiException(kind = AUTH)`
-- Password flow returns blank `AccessToken` -> throw `EmbyApiException(kind = AUTH)`
+- Password flow returns missing, null, or blank `AccessToken` -> throw `EmbyApiException(kind = AUTH)`
 - Missing item `UserData` -> map resume position to `0` and played state to `false`
 - Missing `UserData.LastPlayedDate` -> continue-watching shelf keeps the item eligible by resume position but sorts it behind dated resume items
 - Resume position at or beyond known duration while `Played == false` -> exclude from continue-watching shelf as effectively complete
@@ -204,6 +204,7 @@ POST Sessions/Playing/Stopped
   - asserts `POST /Users/AuthenticateByName`
   - asserts `Username` and `Pw` body fields
   - asserts later requests use `AccessToken`
+  - asserts missing, null, and blank `AccessToken` responses throw `EmbyApiException.Kind.AUTH`
 - Mapping:
   - asserts non-video libraries are filtered
   - asserts video library `CollectionType` and blank-collection `CollectionFolder` fallback matching are case-insensitive
