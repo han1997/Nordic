@@ -1474,3 +1474,36 @@ Prevented inflated AudiobookShelf timeListened deltas on resumed sessions by see
 ### Next Steps
 
 - None - task complete
+
+
+## Session 45: Avoid reopening audiobook player after background close failure
+
+**Date**: 2026-06-28
+**Task**: Avoid reopening audiobook player after background close failure
+**Branch**: `main`
+
+### Summary
+
+Kept music/video handoff stable when AudiobookShelf background close fails by resolving background failures to no player presentation while preserving manual close failure errors. Added app-shell tests, updated the ABS contract, and verified compile, unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `dbb7465` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

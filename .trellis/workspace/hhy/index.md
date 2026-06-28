@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 44
+- **Total Sessions**: 45
 - **Last Active**: 2026-06-28
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1476 | Active |
+| `journal-1.md` | ~1509 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 45 | 2026-06-28 | Avoid reopening audiobook player after background close failure | `dbb7465` | `main` |
 | 44 | 2026-06-28 | Use audiobook resume position as sync baseline | `0182314` | `main` |
 | 43 | 2026-06-28 | Clamp zero-duration audiobook sync current time | `4029498` | `main` |
 | 42 | 2026-06-28 | Start complete-resume videos from beginning | `c78774a` | `main` |
