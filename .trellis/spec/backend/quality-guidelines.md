@@ -234,6 +234,36 @@ val songs = repo.getPlaylistSongs(playlist.id)
 onSongSelected(songs, index)
 ```
 
+### Navidrome music detail loading errors
+
+**Scope / Trigger**: Any change to Music album detail, artist detail, or playlist detail loading paths in `MusicScreenV2`.
+
+**Signatures**:
+- `internal fun musicAlbumDetailLoadErrorMessage(error: Throwable): String`
+- `internal fun musicArtistDetailLoadErrorMessage(error: Throwable): String`
+
+**Contract**:
+- Starting album or artist detail navigation must clear the previous screen-level `errorMsg` before launching the detail load.
+- Album detail load failures must set a contextual error such as `"获取专辑曲目失败: ..."` instead of swallowing the exception.
+- Artist detail load failures must set a contextual error such as `"获取歌手专辑失败: ..."` instead of swallowing the exception.
+- Do not convert network/API failures into valid empty album or empty artist states. Empty states are only for successful empty responses.
+- Playlist detail loading should keep its existing contextual error pattern and remain the reference for detail-load failure behavior.
+
+**Validation & Error Matrix**:
+- Album detail repository call throws -> set album-detail load error and stop the loading indicator.
+- Artist detail repository call throws -> set artist-detail load error and stop the loading indicator.
+- Error has no message -> use a non-empty fallback message such as `"未知错误"`.
+- Detail load starts after an older error -> clear the old error before showing loading/content for the new target.
+
+**Good/Base/Bad Cases**:
+- Good: Album songs request fails and the Music tab shows a contextual album-song load error.
+- Good: Artist albums request fails and the Music tab shows a contextual artist-album load error.
+- Base: Album or artist detail request succeeds with an empty list; show the appropriate empty detail state.
+- Bad: Catching `Exception` with an empty catch block, causing a failed request to look like a real empty album or artist.
+
+**Tests Required**:
+- Unit tests for album and artist detail error-message helpers, including the context prefix and cause/fallback.
+
 ### Navidrome lyrics parsing
 
 **Scope / Trigger**: Any change to `NavidromeRepository.getLyrics(...)`, lyric DTOs, plain LRC parsing, or `MusicPlayerScreen` lyric rendering.

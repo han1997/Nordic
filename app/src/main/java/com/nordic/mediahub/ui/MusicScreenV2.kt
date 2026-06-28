@@ -311,13 +311,16 @@ fun MusicScreenV2(
         selectedAlbum = album
         albumDetailSongs = emptyList()
         isLoadingAlbumDetail = true
+        errorMsg = null
         libraryPage = MusicLibraryPage.AlbumDetail
         scope.launch {
             try {
                 navidromeRepository?.let { repo ->
                     albumDetailSongs = repo.getAlbumSongs(album.id)
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                errorMsg = musicAlbumDetailLoadErrorMessage(e)
+            }
             isLoadingAlbumDetail = false
         }
     }
@@ -326,13 +329,16 @@ fun MusicScreenV2(
         selectedArtist = artist
         artistAlbums = emptyList()
         isLoadingArtistDetail = true
+        errorMsg = null
         libraryPage = MusicLibraryPage.ArtistDetail
         scope.launch {
             try {
                 navidromeRepository?.let { repo ->
                     artistAlbums = repo.getArtistAlbums(artist.id)
                 }
-            } catch (_: Exception) {}
+            } catch (e: Exception) {
+                errorMsg = musicArtistDetailLoadErrorMessage(e)
+            }
             isLoadingArtistDetail = false
         }
     }
@@ -1605,6 +1611,14 @@ internal fun musicHomePlaybackQueue(songs: List<NavidromeSong>): List<NavidromeS
 internal fun firstPlayableSongIndex(songs: List<NavidromeSong>): Int? {
     return songs.indexOfFirst { song -> !song.streamUrl.isNullOrBlank() }
         .takeIf { index -> index >= 0 }
+}
+
+internal fun musicAlbumDetailLoadErrorMessage(error: Throwable): String {
+    return "获取专辑曲目失败: ${error.message ?: "未知错误"}"
+}
+
+internal fun musicArtistDetailLoadErrorMessage(error: Throwable): String {
+    return "获取歌手专辑失败: ${error.message ?: "未知错误"}"
 }
 
 private fun sortMusicSongs(

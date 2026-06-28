@@ -51,6 +51,28 @@ class MusicScreenV2Test {
         assertNull(firstPlayableSongIndex(songs))
     }
 
+    @Test
+    fun musicAlbumDetailLoadErrorMessage_includesContextAndCause() {
+        assertEquals(
+            "获取专辑曲目失败: offline",
+            musicAlbumDetailLoadErrorMessage(Exception("offline"))
+        )
+    }
+
+    @Test
+    fun musicArtistDetailLoadErrorMessage_includesContextAndCause() {
+        assertEquals(
+            "获取歌手专辑失败: timeout",
+            musicArtistDetailLoadErrorMessage(Exception("timeout"))
+        )
+    }
+
+    @Test
+    fun musicDetailLoadErrorMessages_useFallbackWhenCauseIsMissing() {
+        assertEquals("获取专辑曲目失败: 未知错误", musicAlbumDetailLoadErrorMessage(Exception()))
+        assertEquals("获取歌手专辑失败: 未知错误", musicArtistDetailLoadErrorMessage(Exception()))
+    }
+
     private fun song(id: String, streamUrl: String? = null): NavidromeSong {
         return NavidromeSong(
             id = id,
