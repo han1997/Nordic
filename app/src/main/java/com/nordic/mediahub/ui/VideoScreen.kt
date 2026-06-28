@@ -166,11 +166,14 @@ fun VideoScreen(
     }
 
     selectedVideo?.let { video ->
+        val relatedEpisodes = remember(video, videos) { videos.relatedEpisodesFor(video) }
         VideoDetailScreen(
             video = video,
+            relatedEpisodes = relatedEpisodes,
             colorScheme = colorScheme,
             onBack = { selectedVideo = null },
-            onPlay = { onPlayVideo(video) }
+            onPlay = { onPlayVideo(video) },
+            onPlayEpisode = onPlayVideo
         )
         return
     }
@@ -556,9 +559,11 @@ private fun VideoSpotlightRow(
 @Composable
 private fun VideoDetailScreen(
     video: VideoItem,
+    relatedEpisodes: List<VideoItem>,
     colorScheme: ColorScheme,
     onBack: () -> Unit,
-    onPlay: () -> Unit
+    onPlay: () -> Unit,
+    onPlayEpisode: (VideoItem) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -669,6 +674,118 @@ private fun VideoDetailScreen(
                     fontSize = 14.sp,
                     lineHeight = 21.sp,
                     color = colorScheme.onSurface.copy(alpha = 0.68f)
+                )
+            }
+
+            if (relatedEpisodes.isNotEmpty()) {
+                VideoEpisodeSection(
+                    episodes = relatedEpisodes,
+                    colorScheme = colorScheme,
+                    onPlayEpisode = onPlayEpisode
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VideoEpisodeSection(
+    episodes: List<VideoItem>,
+    colorScheme: ColorScheme,
+    onPlayEpisode: (VideoItem) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            "分集",
+            fontSize = 20.sp,
+            color = colorScheme.onBackground,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        episodes.forEach { episode ->
+            VideoEpisodeRow(
+                episode = episode,
+                colorScheme = colorScheme,
+                onClick = { onPlayEpisode(episode) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun VideoEpisodeRow(
+    episode: VideoItem,
+    colorScheme: ColorScheme,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val scale = rememberPressScale(
+        interactionSource = interactionSource,
+        pressedScale = 0.985f,
+        enabled = !episode.streamUrl.isNullOrBlank()
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .scale(scale)
+            .clickable(
+                enabled = !episode.streamUrl.isNullOrBlank(),
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            ),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
+            modifier = Modifier.width(116.dp)
+        ) {
+            VideoThumbnail(
+                imageUrl = episode.imageUrl,
+                title = episode.title,
+                colorScheme = colorScheme,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+            )
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                episode.episodeLabel(),
+                fontSize = 12.sp,
+                color = colorScheme.onSurface.copy(alpha = 0.58f),
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                episode.title,
+                fontSize = 15.sp,
+                lineHeight = 19.sp,
+                color = colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            val meta = episode.metaText()
+            if (meta.isNotBlank()) {
+                Text(
+                    meta,
+                    fontSize = 12.sp,
+                    color = colorScheme.onSurface.copy(alpha = 0.56f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -921,6 +1038,33 @@ private fun VideoItem.detailChips(): List<String> {
         if (isPlayed) add("已播放")
         communityRating?.takeIf { it > 0f }?.let { add("评分 ${"%.1f".format(it)}") }
     }.ifEmpty { listOf("视频") }
+}
+
+private fun List<VideoItem>.relatedEpisodesFor(series: VideoItem): List<VideoItem> {
+    if (!series.type.equals("Series", ignoreCase = true)) return emptyList()
+
+    return filter { item ->
+        item.type.equals("Episode", ignoreCase = true) &&
+            (
+                item.seriesId == series.id ||
+                    (!item.seriesName.isNullOrBlank() && item.seriesName.equals(series.title, ignoreCase = true))
+            )
+    }.sortedWith(
+        compareBy<VideoItem> { it.seasonNumber ?: Int.MAX_VALUE }
+            .thenBy { it.episodeNumber ?: Int.MAX_VALUE }
+            .thenBy { it.title }
+    )
+}
+
+private fun VideoItem.episodeLabel(): String {
+    val season = seasonNumber
+    val episode = episodeNumber
+    return when {
+        season != null && episode != null -> "S$season E$episode"
+        episode != null -> "第 $episode 集"
+        season != null -> "第 $season 季"
+        else -> type.ifBlank { "Episode" }
+    }
 }
 
 private fun formatVideoDuration(durationSeconds: Int): String {

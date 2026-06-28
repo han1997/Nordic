@@ -53,12 +53,13 @@ GET Users/{userId}/Items
 - Item listing:
   - `GET Users/{userId}/Items`
   - query includes `ParentId`, `Recursive=true`, `IncludeItemTypes=Movie,Series,Episode,Video`
-  - query `Fields` includes `Overview`, `ProductionYear`, `RunTimeTicks`, `ChildCount`, `ImageTags`, `CommunityRating`, and `UserData`
+  - query `Fields` includes `Overview`, `ProductionYear`, `SeriesId`, `SeriesName`, `ParentIndexNumber`, `IndexNumber`, `RunTimeTicks`, `ChildCount`, `ImageTags`, `CommunityRating`, and `UserData`
   - map `RunTimeTicks` to seconds using `10_000_000` ticks per second
 - Video metadata:
   - `VideoItem.playbackPositionSeconds` maps from `UserData.PlaybackPositionTicks` using `10_000_000` ticks per second
   - `VideoItem.isPlayed` maps from `UserData.Played == true`
   - `VideoItem.communityRating` maps from `CommunityRating`
+  - `VideoItem.seriesId`, `seriesName`, `seasonNumber`, and `episodeNumber` map from `SeriesId`, `SeriesName`, `ParentIndexNumber`, and `IndexNumber`
   - Missing `UserData` or `CommunityRating` must fall back to `0`/`false`/`null` rather than excluding the item
 - Video browsing UI:
   - Yamby-style spotlight shelves may be derived from the already-loaded Emby item list:
@@ -73,7 +74,14 @@ GET Users/{userId}/Items
 - Direct playback URL:
   - Build `/Videos/{itemId}/stream`
   - Include `Static=true` and `api_key=<session token>`
+  - Generate direct stream URLs only for directly playable item types: `Movie`, `Episode`, and `Video`
+  - Do not generate a `streamUrl` for `Series`; series detail pages should route playback through episode rows
   - Keep playback URL generation in `EmbyRepository`; UI must consume `VideoItem.streamUrl` instead of reconstructing authenticated URLs.
+- Series detail UI:
+  - A selected `Series` may derive related episodes from the already-loaded library items.
+  - Match episodes by `seriesId == selectedSeries.id`, with `seriesName == selectedSeries.title` as a fallback for incomplete responses.
+  - Sort derived episodes by `seasonNumber`, then `episodeNumber`, then title.
+  - Episode rows play the episode item; the series header primary play action remains disabled when `streamUrl == null`.
 
 ### 4. Validation & Error Matrix
 - Non-2xx response -> throw `EmbyApiException(kind = HTTP, message contains "HTTP <code>")`
@@ -82,14 +90,18 @@ GET Users/{userId}/Items
 - Password flow returns blank `AccessToken` -> throw `EmbyApiException(kind = AUTH)`
 - Missing item `UserData` -> map resume position to `0` and played state to `false`
 - Missing item `CommunityRating` -> map rating to `null`; top-rated shelves should ignore it
+- Missing episode relationship fields -> keep the episode playable, but only show it under a series detail when `seriesName` fallback matches
+- `Series` item -> `VideoItem.streamUrl == null`; UI must not call playback for the series item directly
 - Unknown repository exceptions -> wrap with user-action context, e.g. `"连接 Emby 失败: ..."`
 - Do not classify errors by `message.contains(...)`; callers should catch `EmbyApiException` by type/kind.
 
 ### 5. Good/Base/Bad Cases
 - Good: API key + username, multiple users, matching user selected, video libraries and items load.
 - Good: Emby returns `UserData.PlaybackPositionTicks` and `CommunityRating`; repository maps resume/rating metadata and UI can show continue-watching/top-rated/unplayed shelves.
+- Good: A TV library returns both a `Series` item and its `Episode` items; series detail shows sorted episode rows, and tapping an episode plays the episode stream.
 - Base: Username/password login, one video library, empty item list, UI shows an empty media-library state.
 - Base: Older/incomplete Emby responses omit `UserData` and `CommunityRating`; catalog still loads and spotlight shelves simply omit unavailable groups.
+- Base: A `Series` item has no matching loaded episodes; detail still shows metadata/overview and disables primary playback.
 - Bad: Emby returns HTTP 500 for views, repository throws `EmbyApiException.Kind.HTTP` and UI shows the error card.
 - Bad: Server has music and movie collections, repository filters out music by `CollectionType`.
 
@@ -110,6 +122,9 @@ GET Users/{userId}/Items
   - asserts duration ticks become seconds
   - asserts `Fields` requests `UserData` and `CommunityRating`
   - asserts `UserData.PlaybackPositionTicks`, `UserData.Played`, and `CommunityRating` map to `VideoItem`
+  - asserts `Fields` requests `SeriesId`, `SeriesName`, `ParentIndexNumber`, and `IndexNumber`
+  - asserts `Series` items map `streamUrl` to `null`
+  - asserts `Episode` relationship fields map to `VideoItem.seriesId`, `seriesName`, `seasonNumber`, and `episodeNumber`
   - asserts thumbnail URL contains item path, primary tag, and token query
   - asserts missing `ImageTags` maps to a `null` thumbnail instead of crashing catalog loading
   - asserts stream URL contains video stream path, `Static=true`, and token query

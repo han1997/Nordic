@@ -33,6 +33,10 @@ data class VideoItem(
     val playbackPositionSeconds: Int = 0,
     val isPlayed: Boolean = false,
     val communityRating: Float? = null,
+    val seriesId: String? = null,
+    val seriesName: String? = null,
+    val seasonNumber: Int? = null,
+    val episodeNumber: Int? = null,
     val imageUrl: String? = null,
     val streamUrl: String? = null
 )
@@ -167,9 +171,19 @@ class EmbyRepository(private val config: VideoServerConfig) {
             playbackPositionSeconds = userData?.playbackPositionTicks.toDurationSeconds(),
             isPlayed = userData?.played == true,
             communityRating = communityRating,
+            seriesId = seriesId,
+            seriesName = seriesName,
+            seasonNumber = parentIndexNumber,
+            episodeNumber = indexNumber,
             imageUrl = primaryImageUrl(id, token, imageTags.orEmpty()["Primary"]),
-            streamUrl = streamUrl(id, token)
+            streamUrl = if (isDirectlyPlayableVideoType(type)) streamUrl(id, token) else null
         )
+    }
+
+    private fun isDirectlyPlayableVideoType(type: String?): Boolean {
+        return type.equals("Movie", ignoreCase = true) ||
+            type.equals("Episode", ignoreCase = true) ||
+            type.equals("Video", ignoreCase = true)
     }
 
     private fun primaryImageUrl(itemId: String, token: String, primaryTag: String?): String? {

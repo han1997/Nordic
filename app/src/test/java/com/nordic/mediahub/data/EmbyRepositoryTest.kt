@@ -6,6 +6,7 @@ import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -201,6 +202,68 @@ class EmbyRepositoryTest {
         assertTrue(firstItemsRequest.path.orEmpty().contains("Limit=100"))
         assertTrue(secondItemsRequest.path.orEmpty().contains("StartIndex=1"))
         assertTrue(secondItemsRequest.path.orEmpty().contains("Limit=100"))
+    }
+
+    @Test
+    fun getCatalog_mapsSeriesEpisodeMetadataAndOnlyEpisodesArePlayable() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-tv","Name":"TV","Type":"CollectionFolder","CollectionType":"tvshows"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {
+                      "Id":"series-1",
+                      "Name":"Together",
+                      "Type":"Series",
+                      "Overview":"A campus story.",
+                      "ImageTags":{"Primary":"series-tag"}
+                    },
+                    {
+                      "Id":"episode-1",
+                      "Name":"Episode 2",
+                      "Type":"Episode",
+                      "SeriesId":"series-1",
+                      "SeriesName":"Together",
+                      "ParentIndexNumber":1,
+                      "IndexNumber":2,
+                      "RunTimeTicks":18000000000,
+                      "ImageTags":{"Primary":"episode-tag"}
+                    }
+                  ],
+                  "TotalRecordCount": 2
+                }
+            """.trimIndent()
+        )
+
+        val catalog = repository(apiKey = "api-key").getCatalog()
+
+        val series = catalog.items.first { it.id == "series-1" }
+        assertNull(series.streamUrl)
+
+        val episode = catalog.items.first { it.id == "episode-1" }
+        assertEquals("series-1", episode.seriesId)
+        assertEquals("Together", episode.seriesName)
+        assertEquals(1, episode.seasonNumber)
+        assertEquals(2, episode.episodeNumber)
+        assertEquals(1800, episode.durationSeconds)
+        assertTrue(episode.streamUrl.orEmpty().contains("/Videos/episode-1/stream"))
+
+        server.takeRequest()
+        server.takeRequest()
+        val itemsRequest = server.takeRequest()
+        assertTrue(itemsRequest.path.orEmpty().contains("SeriesId"))
+        assertTrue(itemsRequest.path.orEmpty().contains("ParentIndexNumber"))
+        assertTrue(itemsRequest.path.orEmpty().contains("IndexNumber"))
     }
 
     @Test
