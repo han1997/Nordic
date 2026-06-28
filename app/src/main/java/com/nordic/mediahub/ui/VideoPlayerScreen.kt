@@ -53,6 +53,8 @@ fun VideoPlayerScreen(
     val durationSeconds = state.durationSeconds.coerceAtLeast(video?.durationSeconds ?: 0)
     val safeDuration = durationSeconds.coerceAtLeast(1)
     val positionSeconds = state.positionSeconds.coerceIn(0, safeDuration)
+    var scrubPosition by remember(video?.id) { mutableStateOf<Float?>(null) }
+    val visiblePosition = (scrubPosition ?: positionSeconds.toFloat()).coerceIn(0f, safeDuration.toFloat())
     var attachedSurface by remember { mutableStateOf<SurfaceView?>(null) }
 
     DisposableEffect(attachedSurface) {
@@ -127,8 +129,13 @@ fun VideoPlayerScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Slider(
-                        value = positionSeconds.toFloat(),
-                        onValueChange = { value -> onSeek(value.roundToInt()) },
+                        value = visiblePosition,
+                        onValueChange = { value -> scrubPosition = value },
+                        onValueChangeFinished = {
+                            val target = scrubPosition ?: visiblePosition
+                            onSeek(target.roundToInt())
+                            scrubPosition = null
+                        },
                         valueRange = 0f..safeDuration.toFloat(),
                         enabled = video != null
                     )
@@ -138,7 +145,7 @@ fun VideoPlayerScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            "${formatDuration(positionSeconds)} / ${formatDuration(durationSeconds)}",
+                            "${formatDuration(visiblePosition.roundToInt())} / ${formatDuration(durationSeconds)}",
                             fontSize = 12.sp,
                             color = colorScheme.onSurface.copy(alpha = 0.58f),
                             modifier = Modifier.weight(1f),
