@@ -1,6 +1,7 @@
 package com.nordic.mediahub
 
 import com.nordic.mediahub.data.AudiobookPlaybackSession
+import com.nordic.mediahub.data.VideoItem
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -42,6 +43,39 @@ class MainActivityTest {
     }
 
     @Test
+    fun resolveVideoProgressSyncBaselineSeconds_usesVideoResumeWhenStateIsZero() {
+        assertEquals(
+            90,
+            resolveVideoProgressSyncBaselineSeconds(
+                statePositionSeconds = 0,
+                video = video(playbackPositionSeconds = 90)
+            )
+        )
+    }
+
+    @Test
+    fun resolveVideoProgressSyncBaselineSeconds_usesStateWhenAlreadyAheadOfResume() {
+        assertEquals(
+            135,
+            resolveVideoProgressSyncBaselineSeconds(
+                statePositionSeconds = 135,
+                video = video(playbackPositionSeconds = 90)
+            )
+        )
+    }
+
+    @Test
+    fun resolveVideoProgressSyncBaselineSeconds_clampsNegativeValuesToZero() {
+        assertEquals(
+            0,
+            resolveVideoProgressSyncBaselineSeconds(
+                statePositionSeconds = -10,
+                video = video(playbackPositionSeconds = -30)
+            )
+        )
+    }
+
+    @Test
     fun resolveAudiobookCloseFailurePresentation_ignoresBackgroundHandoffFailure() {
         val presentation = resolveAudiobookCloseFailurePresentation(
             closeFailureMessage = "close failed",
@@ -78,6 +112,17 @@ class MainActivityTest {
             startTimeSeconds = startTimeSeconds,
             chapters = emptyList(),
             audioTracks = emptyList()
+        )
+    }
+
+    private fun video(playbackPositionSeconds: Int): VideoItem {
+        return VideoItem(
+            id = "video-1",
+            libraryId = "library-1",
+            title = "Video One",
+            type = "Movie",
+            playbackPositionSeconds = playbackPositionSeconds,
+            streamUrl = "https://example.test/video.mp4"
         )
     }
 }

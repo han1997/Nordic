@@ -28,6 +28,7 @@ import com.nordic.mediahub.data.EmbyRepository
 import com.nordic.mediahub.data.MusicLyrics
 import com.nordic.mediahub.data.NavidromeConfig
 import com.nordic.mediahub.data.NavidromeRepository
+import com.nordic.mediahub.data.VideoItem
 import com.nordic.mediahub.data.VideoServerConfig
 import com.nordic.mediahub.data.isReadyForAudiobookSync
 import com.nordic.mediahub.data.isReadyForMusicSync
@@ -60,6 +61,17 @@ internal fun resolveAudiobookProgressSyncBaselineSeconds(
         statePositionSeconds,
         session.startTimeSeconds,
         session.currentTimeSeconds
+    )
+}
+
+internal fun resolveVideoProgressSyncBaselineSeconds(
+    statePositionSeconds: Int,
+    video: VideoItem
+): Int {
+    return maxOf(
+        0,
+        statePositionSeconds,
+        video.playbackPositionSeconds
     )
 }
 
@@ -382,11 +394,14 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     fun closeVideoPlayback() {
         val currentState = videoPlaybackEngine.state.value
         val video = currentState.video
-        val positionSeconds = currentState.positionSeconds
         val repo = embyRepository
         showVideoPlayer = false
 
         if (video != null && repo != null && !video.streamUrl.isNullOrBlank()) {
+            val positionSeconds = resolveVideoProgressSyncBaselineSeconds(
+                statePositionSeconds = currentState.positionSeconds,
+                video = video
+            )
             scope.launch {
                 runCatching {
                     repo.stopPlaybackProgress(video, positionSeconds)
@@ -456,6 +471,42 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                 if (showAudiobookPlayer) {
                     audiobookPlaybackError = error.message ?: "同步有声书进度失败"
                 }
+            }
+        }
+    }
+
+    LaunchedEffect(
+        videoPlaybackState.video?.id,
+        embyRepository
+    ) {
+        val initialVideo = videoPlaybackState.video ?: return@LaunchedEffect
+        val repo = embyRepository ?: return@LaunchedEffect
+        if (initialVideo.streamUrl.isNullOrBlank()) return@LaunchedEffect
+        var lastSyncedPosition = resolveVideoProgressSyncBaselineSeconds(
+            statePositionSeconds = videoPlaybackState.positionSeconds,
+            video = initialVideo
+        )
+
+        while (true) {
+            delay(30_000)
+            val currentState = videoPlaybackEngine.state.value
+            val currentVideo = currentState.video ?: return@LaunchedEffect
+            if (currentVideo.id != initialVideo.id) {
+                return@LaunchedEffect
+            }
+            if (currentVideo.streamUrl.isNullOrBlank()) {
+                return@LaunchedEffect
+            }
+
+            val currentPosition = maxOf(currentState.positionSeconds, lastSyncedPosition)
+            runCatching {
+                repo.syncPlaybackProgress(
+                    video = currentVideo,
+                    positionSeconds = currentPosition,
+                    isPaused = !currentState.isPlaying
+                )
+            }.onSuccess {
+                lastSyncedPosition = currentPosition
             }
         }
     }

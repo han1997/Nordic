@@ -26,6 +26,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
     suspend fun stopPlaybackProgress(video: VideoItem, positionSeconds: Int)
 }
 internal fun resolveEmbyPlaybackPositionTicks(positionSeconds: Int, durationSeconds: Int): Long
+internal fun resolveVideoProgressSyncBaselineSeconds(statePositionSeconds: Int, video: VideoItem): Int
 ```
 - Retrofit API:
 ```kotlin
@@ -99,6 +100,10 @@ POST Sessions/Playing/Stopped
   - Convert seconds to ticks with the same `10_000_000` ticks-per-second convention used for item duration and resume metadata.
   - Clamp reported positions to `0..durationSeconds` when duration is known, and to at least `0` when duration is unknown.
   - The app shell must snapshot the current `VideoPlaybackState.video` and `positionSeconds` before clearing playback, then use `stopPlaybackProgress(...)` on video close, music handoff, audiobook handoff, and switching to a different video item.
+  - The app shell must run a 30-second periodic progress loop while the same playable video remains active and an Emby repository is available.
+  - Periodic progress uses `syncPlaybackProgress(video, positionSeconds, isPaused = !state.isPlaying)`.
+  - Periodic progress initializes its local baseline with `maxOf(0, state.positionSeconds, video.playbackPositionSeconds)` and reports at least that baseline so an early zero-position player state cannot regress Emby resume metadata.
+  - Periodic progress advances the local baseline only after a successful sync. Failed periodic syncs leave the baseline unchanged.
   - Background progress-sync failures must not reopen the video player or block local media handoff.
 - Series detail UI:
   - A selected `Series` may derive related episodes from the already-loaded library items.
@@ -123,6 +128,8 @@ POST Sessions/Playing/Stopped
 - Progress report position beyond known duration -> report duration ticks
 - Progress report position with unknown duration -> keep positive position ticks
 - Progress/stopped report non-2xx response -> throw `EmbyApiException(kind = HTTP)`
+- Periodic sync current player position behind local baseline -> report the baseline, not the lower player position
+- Periodic sync failure -> keep playback UI unchanged and do not advance the baseline
 - Missing episode relationship fields -> keep the episode playable, but only show it under a series detail when `seriesId` is missing/blank and the `seriesName` fallback matches
 - `Series` item -> `VideoItem.streamUrl == null`; UI must not call playback for the series item directly
 - Unknown repository exceptions -> wrap with user-action context, e.g. `"连接 Emby 失败: ..."`
@@ -136,6 +143,7 @@ POST Sessions/Playing/Stopped
 - Good: User refreshes a video library while viewing details; if the item still exists, detail metadata updates from the refreshed catalog, and if it disappeared the app returns to the catalog instead of showing stale detail.
 - Good: User can use video skip controls to quickly jump 10 seconds back or 30 seconds forward without leaving player bounds.
 - Good: User closes or switches away from video playback; Nordic sends the stopped position to Emby so the next catalog refresh has current resume metadata.
+- Good: User watches a long video session; Nordic periodically sends progress so Emby resume metadata stays fresh before close.
 - Good: A TV library returns both a `Series` item and its `Episode` items; series detail shows sorted episode rows, and tapping an episode plays the episode stream.
 - Base: Username/password login, one video library, empty item list, UI shows an empty media-library state.
 - Base: Older/incomplete Emby responses omit `UserData` and `CommunityRating`; catalog still loads and spotlight shelves simply omit unavailable groups.
@@ -168,6 +176,7 @@ POST Sessions/Playing/Stopped
   - asserts video relative seek helper clamps at the beginning and end of the item
   - asserts playback progress helpers convert seconds to ticks and clamp negative, over-duration, and unknown-duration positions
   - asserts progress/stopped reporting requests use `/Sessions/Playing/Progress` and `/Sessions/Playing/Stopped`, include `X-Emby-Token`, and serialize `ItemId`, `PositionTicks`, and `IsPaused`
+  - asserts video periodic progress baseline uses current player position, Emby resume position, and zero without regressing
   - asserts `Fields` requests `SeriesId`, `SeriesName`, `ParentIndexNumber`, and `IndexNumber`
   - asserts `Series` items map `streamUrl` to `null`
   - asserts `Episode` relationship fields map to `VideoItem.seriesId`, `seriesName`, `seasonNumber`, and `episodeNumber`
