@@ -4,7 +4,7 @@
 
 ### 1. Scope / Trigger
 - Trigger: The Android app now exposes Emby as the first real video provider instead of placeholder cards.
-- Scope: Authentication, user media-library discovery, video item listing, thumbnail URL generation, direct stream URL generation, watched/resume/rating metadata, typed errors, and repository tests.
+- Scope: Authentication, user media-library discovery, video item listing, thumbnail URL generation, direct stream URL generation, watched/resume/rating metadata, playback progress reporting, typed errors, and repository tests.
 - Out of scope: Plex, WebDAV browsing, persistent Emby token storage, and provider-wide account management.
 
 ### 2. Signatures
@@ -22,7 +22,10 @@ internal fun VideoServerConfig.normalizedBaseUrl(): String
 class EmbyRepository(private val config: VideoServerConfig) {
     suspend fun getCatalog(selectedLibraryId: String? = null): VideoCatalog
     suspend fun getLibraryItems(libraryId: String): List<VideoItem>
+    suspend fun syncPlaybackProgress(video: VideoItem, positionSeconds: Int, isPaused: Boolean)
+    suspend fun stopPlaybackProgress(video: VideoItem, positionSeconds: Int)
 }
+internal fun resolveEmbyPlaybackPositionTicks(positionSeconds: Int, durationSeconds: Int): Long
 ```
 - Retrofit API:
 ```kotlin
@@ -30,6 +33,8 @@ POST Users/AuthenticateByName
 GET Users
 GET Users/{userId}/Views
 GET Users/{userId}/Items
+POST Sessions/Playing/Progress
+POST Sessions/Playing/Stopped
 ```
 
 ### 3. Contracts
@@ -88,6 +93,13 @@ GET Users/{userId}/Items
   - Video playback supports fixed relative seek controls: 10 seconds backward and 30 seconds forward.
   - Relative seek commands must resolve to an absolute player position and use the same `seekTo(positionSeconds)` path as the scrubber.
   - Clamp relative seek targets to `0..durationSeconds` when duration is known.
+- Playback progress reporting:
+  - `syncPlaybackProgress(...)` posts to `Sessions/Playing/Progress`; `stopPlaybackProgress(...)` posts to `Sessions/Playing/Stopped`.
+  - Requests must include `X-Emby-Token`, `ItemId`, `PositionTicks`, and `IsPaused`.
+  - Convert seconds to ticks with the same `10_000_000` ticks-per-second convention used for item duration and resume metadata.
+  - Clamp reported positions to `0..durationSeconds` when duration is known, and to at least `0` when duration is unknown.
+  - The app shell must snapshot the current `VideoPlaybackState.video` and `positionSeconds` before clearing playback, then use `stopPlaybackProgress(...)` on video close, music handoff, audiobook handoff, and switching to a different video item.
+  - Background progress-sync failures must not reopen the video player or block local media handoff.
 - Series detail UI:
   - A selected `Series` may derive related episodes from the already-loaded library items.
   - Match episodes by `seriesId == selectedSeries.id`. Use `seriesName == selectedSeries.title` only when the episode `seriesId` is missing or blank, as a fallback for incomplete responses.
@@ -107,6 +119,10 @@ GET Users/{userId}/Items
 - Missing item `CommunityRating` -> map rating to `null`; top-rated shelves should ignore it
 - `playbackPositionSeconds` at or beyond known duration -> initial playback starts at `0` instead of seeking to the end
 - Relative video skip requested near the start or end -> clamp to `0` or `durationSeconds`
+- Progress report position below zero -> report `0` ticks
+- Progress report position beyond known duration -> report duration ticks
+- Progress report position with unknown duration -> keep positive position ticks
+- Progress/stopped report non-2xx response -> throw `EmbyApiException(kind = HTTP)`
 - Missing episode relationship fields -> keep the episode playable, but only show it under a series detail when `seriesId` is missing/blank and the `seriesName` fallback matches
 - `Series` item -> `VideoItem.streamUrl == null`; UI must not call playback for the series item directly
 - Unknown repository exceptions -> wrap with user-action context, e.g. `"连接 Emby 失败: ..."`
@@ -119,6 +135,7 @@ GET Users/{userId}/Items
 - Good: User starts an unfinished continue-watching item; playback seeks to the Emby resume position before playing.
 - Good: User refreshes a video library while viewing details; if the item still exists, detail metadata updates from the refreshed catalog, and if it disappeared the app returns to the catalog instead of showing stale detail.
 - Good: User can use video skip controls to quickly jump 10 seconds back or 30 seconds forward without leaving player bounds.
+- Good: User closes or switches away from video playback; Nordic sends the stopped position to Emby so the next catalog refresh has current resume metadata.
 - Good: A TV library returns both a `Series` item and its `Episode` items; series detail shows sorted episode rows, and tapping an episode plays the episode stream.
 - Base: Username/password login, one video library, empty item list, UI shows an empty media-library state.
 - Base: Older/incomplete Emby responses omit `UserData` and `CommunityRating`; catalog still loads and spotlight shelves simply omit unavailable groups.
@@ -149,6 +166,8 @@ GET Users/{userId}/Items
   - asserts selected video detail resolution keeps a refreshed matching item and clears selection when the library changes or the item disappears
   - asserts video initial start-position helper uses resume seconds for unfinished items, starts played items at zero, starts at zero for resume positions at/beyond known duration, and preserves positive resume positions when duration is unknown
   - asserts video relative seek helper clamps at the beginning and end of the item
+  - asserts playback progress helpers convert seconds to ticks and clamp negative, over-duration, and unknown-duration positions
+  - asserts progress/stopped reporting requests use `/Sessions/Playing/Progress` and `/Sessions/Playing/Stopped`, include `X-Emby-Token`, and serialize `ItemId`, `PositionTicks`, and `IsPaused`
   - asserts `Fields` requests `SeriesId`, `SeriesName`, `ParentIndexNumber`, and `IndexNumber`
   - asserts `Series` items map `streamUrl` to `null`
   - asserts `Episode` relationship fields map to `VideoItem.seriesId`, `seriesName`, `seasonNumber`, and `episodeNumber`

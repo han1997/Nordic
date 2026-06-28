@@ -24,11 +24,14 @@ import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.AudiobookShelfConfig
 import com.nordic.mediahub.data.AudiobookPlaybackSession
 import com.nordic.mediahub.data.AudiobookShelfRepository
+import com.nordic.mediahub.data.EmbyRepository
 import com.nordic.mediahub.data.MusicLyrics
 import com.nordic.mediahub.data.NavidromeConfig
 import com.nordic.mediahub.data.NavidromeRepository
+import com.nordic.mediahub.data.VideoServerConfig
 import com.nordic.mediahub.data.isReadyForAudiobookSync
 import com.nordic.mediahub.data.isReadyForMusicSync
+import com.nordic.mediahub.data.isReadyForVideoSync
 import com.nordic.mediahub.playback.AudiobookPlaybackEngine
 import com.nordic.mediahub.playback.MusicPlaybackEngine
 import com.nordic.mediahub.playback.VideoPlaybackEngine
@@ -200,6 +203,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     val configRepository = remember { ConfigRepository(context) }
     val navidromeConfig by configRepository.navidromeConfig.collectAsStateWithLifecycle(NavidromeConfig())
     val audiobookConfig by configRepository.audiobookConfig.collectAsStateWithLifecycle(AudiobookShelfConfig())
+    val videoConfig by configRepository.videoConfig.collectAsStateWithLifecycle(VideoServerConfig())
     val navidromeRepository = remember(navidromeConfig) {
         if (navidromeConfig.isReadyForMusicSync()) {
             NavidromeRepository(navidromeConfig)
@@ -210,6 +214,13 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     val audiobookRepository = remember(audiobookConfig) {
         if (audiobookConfig.isReadyForAudiobookSync()) {
             AudiobookShelfRepository(audiobookConfig)
+        } else {
+            null
+        }
+    }
+    val embyRepository = remember(videoConfig) {
+        if (videoConfig.isReadyForVideoSync()) {
+            EmbyRepository(videoConfig)
         } else {
             null
         }
@@ -368,6 +379,23 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         }
     }
 
+    fun closeVideoPlayback() {
+        val currentState = videoPlaybackEngine.state.value
+        val video = currentState.video
+        val positionSeconds = currentState.positionSeconds
+        val repo = embyRepository
+        showVideoPlayer = false
+
+        if (video != null && repo != null && !video.streamUrl.isNullOrBlank()) {
+            scope.launch {
+                runCatching {
+                    repo.stopPlaybackProgress(video, positionSeconds)
+                }
+            }
+        }
+        videoPlaybackEngine.stop()
+    }
+
     LaunchedEffect(
         currentSong?.id,
         navidromeConfig.serverUrl,
@@ -502,8 +530,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                     onThemeToggle = onThemeToggle,
                                     onSongSelected = { songs, index, allowUnplayableStartFallback ->
                                         closeAudiobookPlayback()
-                                        videoPlaybackEngine.stop()
-                                        showVideoPlayer = false
+                                        closeVideoPlayback()
                                         playbackEngine.playQueue(
                                             songs = songs,
                                             startIndex = index,
@@ -528,7 +555,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                                     ?: error("未配置 AudiobookShelf")
                                             }.onSuccess { session ->
                                                 playbackEngine.stop()
-                                                videoPlaybackEngine.stop()
+                                                closeVideoPlayback()
                                                 audiobookPlaybackEngine.play(session)
                                                 showAudiobookPlayer = true
                                                 showVideoPlayer = false
@@ -546,6 +573,10 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                     onPlayVideo = { video ->
                                         closeAudiobookPlayback()
                                         playbackEngine.stop()
+                                        val currentVideo = videoPlaybackEngine.state.value.video
+                                        if (currentVideo != null && currentVideo.id != video.id) {
+                                            closeVideoPlayback()
+                                        }
                                         videoPlaybackEngine.play(video)
                                         showPlayer = false
                                         showVideoPlayer = true
@@ -585,10 +616,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             onSeekBack = { videoPlaybackEngine.seekBackBy() },
             onSeekForward = { videoPlaybackEngine.seekForwardBy() },
             onPlayPause = videoPlaybackEngine::togglePlayPause,
-            onClose = {
-                showVideoPlayer = false
-                videoPlaybackEngine.stop()
-            },
+            onClose = { closeVideoPlayback() },
             modifier = Modifier.fillMaxSize()
         )
     }

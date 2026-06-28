@@ -288,6 +288,63 @@ class EmbyRepositoryTest {
         assertTrue(error.message.orEmpty().contains("HTTP 500"))
     }
 
+    @Test
+    fun syncPlaybackProgress_sendsProgressRequestWithPositionTicksAndPausedState() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueue(MockResponse().setResponseCode(204))
+
+        repository(apiKey = "api-key").syncPlaybackProgress(
+            video = video(id = "movie-1", durationSeconds = 120),
+            positionSeconds = 45,
+            isPaused = false
+        )
+
+        server.takeRequest()
+        val progressRequest = server.takeRequest()
+        val progressBody = progressRequest.body.readUtf8()
+        assertEquals("/Sessions/Playing/Progress", progressRequest.path)
+        assertEquals("api-key", progressRequest.getHeader("X-Emby-Token"))
+        assertTrue(progressBody.contains(""""ItemId":"movie-1""""))
+        assertTrue(progressBody.contains(""""PositionTicks":450000000"""))
+        assertTrue(progressBody.contains(""""IsPaused":false"""))
+    }
+
+    @Test
+    fun stopPlaybackProgress_sendsStoppedRequestWithClampedPositionTicks() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueue(MockResponse().setResponseCode(204))
+
+        repository(apiKey = "api-key").stopPlaybackProgress(
+            video = video(id = "movie-1", durationSeconds = 120),
+            positionSeconds = 150
+        )
+
+        server.takeRequest()
+        val stoppedRequest = server.takeRequest()
+        val stoppedBody = stoppedRequest.body.readUtf8()
+        assertEquals("/Sessions/Playing/Stopped", stoppedRequest.path)
+        assertEquals("api-key", stoppedRequest.getHeader("X-Emby-Token"))
+        assertTrue(stoppedBody.contains(""""ItemId":"movie-1""""))
+        assertTrue(stoppedBody.contains(""""PositionTicks":1200000000"""))
+        assertTrue(stoppedBody.contains(""""IsPaused":true"""))
+    }
+
+    @Test
+    fun resolveEmbyPlaybackPositionTicks_clampsKnownDurationAndKeepsUnknownDurationPositions() {
+        assertEquals(
+            0L,
+            resolveEmbyPlaybackPositionTicks(positionSeconds = -10, durationSeconds = 120)
+        )
+        assertEquals(
+            1_200_000_000L,
+            resolveEmbyPlaybackPositionTicks(positionSeconds = 150, durationSeconds = 120)
+        )
+        assertEquals(
+            3_000_000_000L,
+            resolveEmbyPlaybackPositionTicks(positionSeconds = 300, durationSeconds = 0)
+        )
+    }
+
     private fun repository(apiKey: String = "api-key"): EmbyRepository {
         return EmbyRepository(
             VideoServerConfig(
@@ -296,6 +353,17 @@ class EmbyRepositoryTest {
                 password = "secret",
                 apiKey = apiKey
             )
+        )
+    }
+
+    private fun video(id: String, durationSeconds: Int): VideoItem {
+        return VideoItem(
+            id = id,
+            libraryId = "library-1",
+            title = "Video",
+            type = "Movie",
+            durationSeconds = durationSeconds,
+            streamUrl = "https://example.test/video.mp4"
         )
     }
 }

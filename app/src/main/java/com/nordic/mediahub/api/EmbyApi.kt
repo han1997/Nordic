@@ -79,6 +79,15 @@ data class EmbyUserDataDto(
     val lastPlayedDate: String? = null
 )
 
+data class EmbyPlaybackProgressRequest(
+    @SerializedName("ItemId")
+    val itemId: String,
+    @SerializedName("PositionTicks")
+    val positionTicks: Long,
+    @SerializedName("IsPaused")
+    val isPaused: Boolean
+)
+
 interface EmbyApi {
     @POST("Users/AuthenticateByName")
     suspend fun authenticateByName(
@@ -110,6 +119,18 @@ interface EmbyApi {
         @Query("StartIndex") startIndex: Int = 0,
         @Query("Limit") limit: Int = 50
     ): Response<EmbyItemsResponse>
+
+    @POST("Sessions/Playing/Progress")
+    suspend fun reportPlaybackProgress(
+        @Header("X-Emby-Token") token: String,
+        @Body request: EmbyPlaybackProgressRequest
+    ): Response<Unit>
+
+    @POST("Sessions/Playing/Stopped")
+    suspend fun reportPlaybackStopped(
+        @Header("X-Emby-Token") token: String,
+        @Body request: EmbyPlaybackProgressRequest
+    ): Response<Unit>
 }
 
 private const val EMBY_CLIENT_AUTHORIZATION =

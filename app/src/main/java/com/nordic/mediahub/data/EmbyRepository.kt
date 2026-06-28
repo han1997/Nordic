@@ -4,6 +4,7 @@ import android.util.Log
 import com.nordic.mediahub.api.EmbyApi
 import com.nordic.mediahub.api.EmbyAuthenticateRequest
 import com.nordic.mediahub.api.EmbyItemDto
+import com.nordic.mediahub.api.EmbyPlaybackProgressRequest
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -47,6 +48,19 @@ data class VideoCatalog(
     val selectedLibraryId: String?,
     val items: List<VideoItem>
 )
+
+private const val EMBY_TICKS_PER_SECOND = 10_000_000L
+private const val EMBY_ITEMS_PAGE_SIZE = 100
+private val videoCollectionTypes = setOf("movies", "tvshows", "homevideos", "mixed")
+
+internal fun resolveEmbyPlaybackPositionTicks(positionSeconds: Int, durationSeconds: Int): Long {
+    val safePositionSeconds = if (durationSeconds > 0) {
+        positionSeconds.coerceIn(0, durationSeconds)
+    } else {
+        positionSeconds.coerceAtLeast(0)
+    }
+    return safePositionSeconds.toLong() * EMBY_TICKS_PER_SECOND
+}
 
 class EmbyRepository(private val config: VideoServerConfig) {
     private val baseUrl = config.normalizedBaseUrl()
@@ -93,6 +107,30 @@ class EmbyRepository(private val config: VideoServerConfig) {
         throw e
     } catch (e: Exception) {
         throw Exception("加载视频列表失败: ${e.message}")
+    }
+
+    suspend fun syncPlaybackProgress(video: VideoItem, positionSeconds: Int, isPaused: Boolean) = try {
+        val session = session()
+        api.reportPlaybackProgress(
+            token = session.token,
+            request = video.toPlaybackProgressRequest(positionSeconds, isPaused)
+        ).requireSuccess("同步 Emby 视频进度失败")
+    } catch (e: EmbyApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("同步 Emby 视频进度失败: ${e.message}")
+    }
+
+    suspend fun stopPlaybackProgress(video: VideoItem, positionSeconds: Int) = try {
+        val session = session()
+        api.reportPlaybackStopped(
+            token = session.token,
+            request = video.toPlaybackProgressRequest(positionSeconds, isPaused = true)
+        ).requireSuccess("同步 Emby 视频停止进度失败")
+    } catch (e: EmbyApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("同步 Emby 视频停止进度失败: ${e.message}")
     }
 
     private suspend fun session(): EmbySession {
@@ -221,6 +259,14 @@ class EmbyRepository(private val config: VideoServerConfig) {
         return ((this ?: 0L) / EMBY_TICKS_PER_SECOND).coerceAtLeast(0L).toInt()
     }
 
+    private fun VideoItem.toPlaybackProgressRequest(positionSeconds: Int, isPaused: Boolean): EmbyPlaybackProgressRequest {
+        return EmbyPlaybackProgressRequest(
+            itemId = id,
+            positionTicks = resolveEmbyPlaybackPositionTicks(positionSeconds, durationSeconds),
+            isPaused = isPaused
+        )
+    }
+
     private fun <T> Response<T>.requireBody(action: String): T {
         if (!isSuccessful) {
             throw EmbyApiException("$action: HTTP ${code()}", EmbyApiException.Kind.HTTP)
@@ -229,14 +275,15 @@ class EmbyRepository(private val config: VideoServerConfig) {
         return body() ?: throw EmbyApiException("$action: 响应为空", EmbyApiException.Kind.API)
     }
 
+    private fun Response<Unit>.requireSuccess(action: String) {
+        if (!isSuccessful) {
+            throw EmbyApiException("$action: HTTP ${code()}", EmbyApiException.Kind.HTTP)
+        }
+    }
+
     private data class EmbySession(
         val userId: String,
         val token: String
     )
 
-    private companion object {
-        const val EMBY_TICKS_PER_SECOND = 10_000_000L
-        const val EMBY_ITEMS_PAGE_SIZE = 100
-        val videoCollectionTypes = setOf("movies", "tvshows", "homevideos", "mixed")
-    }
 }
