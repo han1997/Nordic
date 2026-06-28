@@ -1,5 +1,6 @@
 package com.nordic.mediahub.playback
 
+import com.nordic.mediahub.api.NavidromeSong
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -62,6 +63,91 @@ class MusicPlaybackEngineTest {
     @Test
     fun resolveQueueStartIndex_returnsNullForEmptyQueue() {
         assertNull(resolveQueueStartIndex(itemCount = 0, startIndex = 1))
+    }
+
+    @Test
+    fun resolvePlayableMusicQueue_filtersUnplayableSongs() {
+        val queue = resolvePlayableMusicQueue(
+            songs = listOf(
+                song(id = "missing"),
+                song(id = "playable-1", streamUrl = "https://music.example/1.mp3"),
+                song(id = "blank", streamUrl = " "),
+                song(id = "playable-2", streamUrl = "https://music.example/2.mp3")
+            ),
+            startIndex = 1
+        )
+
+        requireNotNull(queue)
+        assertEquals(listOf("playable-1", "playable-2"), queue.songs.map { it.id })
+        assertEquals(0, queue.startIndex)
+    }
+
+    @Test
+    fun resolvePlayableMusicQueue_keepsPlayableRequestedStartSong() {
+        val queue = resolvePlayableMusicQueue(
+            songs = listOf(
+                song(id = "playable-1", streamUrl = "https://music.example/1.mp3"),
+                song(id = "missing"),
+                song(id = "playable-2", streamUrl = "https://music.example/2.mp3")
+            ),
+            startIndex = 2
+        )
+
+        requireNotNull(queue)
+        assertEquals(listOf("playable-1", "playable-2"), queue.songs.map { it.id })
+        assertEquals(1, queue.startIndex)
+    }
+
+    @Test
+    fun resolvePlayableMusicQueue_mapsUnplayableStartToNextPlayableSong() {
+        val queue = resolvePlayableMusicQueue(
+            songs = listOf(
+                song(id = "playable-1", streamUrl = "https://music.example/1.mp3"),
+                song(id = "missing"),
+                song(id = "playable-2", streamUrl = "https://music.example/2.mp3")
+            ),
+            startIndex = 1
+        )
+
+        requireNotNull(queue)
+        assertEquals(listOf("playable-1", "playable-2"), queue.songs.map { it.id })
+        assertEquals(1, queue.startIndex)
+    }
+
+    @Test
+    fun resolvePlayableMusicQueue_mapsUnplayableStartToPreviousPlayableSongWhenNoNextPlayableExists() {
+        val queue = resolvePlayableMusicQueue(
+            songs = listOf(
+                song(id = "playable-1", streamUrl = "https://music.example/1.mp3"),
+                song(id = "missing")
+            ),
+            startIndex = 1
+        )
+
+        requireNotNull(queue)
+        assertEquals(listOf("playable-1"), queue.songs.map { it.id })
+        assertEquals(0, queue.startIndex)
+    }
+
+    @Test
+    fun resolvePlayableMusicQueue_returnsNullWhenNoSongsArePlayable() {
+        assertNull(
+            resolvePlayableMusicQueue(
+                songs = listOf(
+                    song(id = "missing"),
+                    song(id = "blank", streamUrl = "")
+                ),
+                startIndex = 1
+            )
+        )
+    }
+
+    private fun song(id: String, streamUrl: String? = null): NavidromeSong {
+        return NavidromeSong(
+            id = id,
+            title = id,
+            streamUrl = streamUrl
+        )
     }
 }
 

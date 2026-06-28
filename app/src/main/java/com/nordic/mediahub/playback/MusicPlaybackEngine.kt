@@ -36,6 +36,11 @@ data class MusicPlaybackState(
     val queueIndex: Int = 0
 )
 
+internal data class PlayableMusicQueue(
+    val songs: List<NavidromeSong>,
+    val startIndex: Int
+)
+
 internal fun resolvePlayNextTargetIndex(index: Int, currentIndex: Int, itemCount: Int): Int? {
     if (itemCount <= 1 || index !in 0 until itemCount || currentIndex !in 0 until itemCount || index == currentIndex) {
         return null
@@ -74,6 +79,29 @@ internal fun resolveCurrentIndexAfterMove(fromIndex: Int, targetIndex: Int, curr
 internal fun resolveQueueStartIndex(itemCount: Int, startIndex: Int): Int? {
     if (itemCount <= 0) return null
     return startIndex.coerceIn(0, itemCount - 1)
+}
+
+internal fun resolvePlayableMusicQueue(
+    songs: List<NavidromeSong>,
+    startIndex: Int
+): PlayableMusicQueue? {
+    val requestedStartIndex = resolveQueueStartIndex(songs.size, startIndex) ?: return null
+    val playableSongs = songs.mapIndexedNotNull { index, song ->
+        if (song.streamUrl.isNullOrBlank()) null else index to song
+    }
+    if (playableSongs.isEmpty()) return null
+
+    val requestedPlayableIndex = playableSongs.indexOfFirst { (index, _) -> index == requestedStartIndex }
+        .takeIf { index -> index >= 0 }
+    val nextPlayableIndex = playableSongs.indexOfFirst { (index, _) -> index > requestedStartIndex }
+        .takeIf { index -> index >= 0 }
+    val previousPlayableIndex = playableSongs.indexOfLast { (index, _) -> index < requestedStartIndex }
+        .takeIf { index -> index >= 0 }
+
+    return PlayableMusicQueue(
+        songs = playableSongs.map { (_, song) -> song },
+        startIndex = requestedPlayableIndex ?: nextPlayableIndex ?: previousPlayableIndex ?: 0
+    )
 }
 
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -223,28 +251,35 @@ class MusicPlaybackEngine(context: Context) {
     }
 
     fun playQueue(songs: List<NavidromeSong>, startIndex: Int = 0) {
-        if (songs.isEmpty()) return
-        val safeStartIndex = resolveQueueStartIndex(songs.size, startIndex) ?: return
+        val playableQueue = resolvePlayableMusicQueue(songs, startIndex)
+        if (playableQueue == null) {
+            pendingSong = null
+            pendingQueue = null
+            pendingQueueStartIndex = 0
+            _state.update { it.copy(isBuffering = false, errorMessage = "队列没有可播放曲目") }
+            return
+        }
 
         val activeController = controller
         if (activeController == null) {
             pendingSong = null
-            pendingQueue = songs
-            pendingQueueStartIndex = safeStartIndex
-            val startSong = songs[safeStartIndex]
+            pendingQueue = playableQueue.songs
+            pendingQueueStartIndex = playableQueue.startIndex
+            val startSong = playableQueue.songs[playableQueue.startIndex]
             _state.update {
                 it.copy(
                     currentSong = startSong,
                     isBuffering = true,
-                    queue = songs,
-                    queueIndex = safeStartIndex
+                    queue = playableQueue.songs,
+                    queueIndex = playableQueue.startIndex,
+                    errorMessage = null
                 )
             }
             return
         }
 
-        val mediaItems = songs.map { it.toMediaItem() }
-        activeController.setMediaItems(mediaItems, safeStartIndex, 0L)
+        val mediaItems = playableQueue.songs.map { it.toMediaItem() }
+        activeController.setMediaItems(mediaItems, playableQueue.startIndex, 0L)
         activeController.prepare()
         activeController.play()
         publishPlayerState()

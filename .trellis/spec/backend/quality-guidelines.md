@@ -250,6 +250,9 @@ onSongSelected(songs, index)
 
 **Contract**:
 - `MusicPlaybackEngine` owns all queue mutations. Compose UI passes commands and renders `MusicPlaybackState`; it must not maintain or reorder a shadow queue.
+- `MusicPlaybackEngine.playQueue(...)` must filter out songs whose `streamUrl` is null or blank before creating Media3 media items. Media3 should not receive empty-URI queue entries.
+- When filtering a queue, preserve the requested start song if it is playable. If it is not playable, map the start to the next playable song after the requested position, or the nearest earlier playable song when no later playable song exists.
+- If a requested queue has no playable songs, clear pending queue requests, keep existing playback state intact, and publish a contextual error instead of replacing Media3 items.
 - After any Media3 playlist mutation, invalidate cached queue state (`cachedTimelineGeneration = -1`) before publishing state so `queue` and `queueIndex` cannot stay stale.
 - Queue commands must guard invalid indexes. Invalid/current/already-next "play next" requests are no-ops.
 - Removing the only queued item stops playback and clears state.
@@ -263,6 +266,8 @@ onSongSelected(songs, index)
 - Index outside `0 until mediaItemCount` -> no-op.
 - Current index outside queue bounds -> no-op for queue reordering/clearing.
 - "Play next" on the current item or the item already immediately after current -> no-op.
+- Queue contains songs with missing/blank `streamUrl` -> filter them before Media3 playlist creation.
+- Queue contains no playable songs -> do not replace the active Media3 playlist; publish an error.
 - Remove single-item queue -> call `stop()` and clear `MusicPlaybackState`.
 - Duplicate song ids in queue -> use position-aware UI keys such as `"$id:$index"`.
 - Duplicate song ids in a pending queue -> preserve the current position by index math after moves/removals; do not search by song id.
@@ -270,13 +275,16 @@ onSongSelected(songs, index)
 
 **Good/Base/Bad Cases**:
 - Good: Queue sheet actions call `MusicPlaybackEngine`, engine mutates Media3, then publishes fresh `queue` and `queueIndex`.
+- Good: Play-all queue contains unavailable tracks; playback engine queues only playable songs and maps the current index to the intended playable start.
 - Base: Tapping a queue row seeks with `seekToQueueIndex(index)` and closes the sheet.
+- Bad: `playQueue(...)` maps every `NavidromeSong` to a Media3 item even when `streamUrl` is blank; continuous playback can fail when the player reaches that entry.
 - Bad: UI removes a row from a local list while Media3 keeps the original playlist, causing the highlighted item and actual playback item to diverge.
 - Bad: Pending queue reordering finds the current item by `song.id`, causing duplicate queued songs to shift the current index to the first matching duplicate.
 - Bad: UI shuffles its own list while Media3 keeps the original timeline, causing next/previous and queue sheet state to disagree.
 
 **Tests Required**:
 - Unit tests for pure queue index rules, especially future item, previous item, current item, already-next item, and invalid indexes.
+- Unit tests for playable queue resolution: filtering blank stream URLs, preserving a playable requested start, mapping an unplayable start to next/previous playable entries, and all-unplayable queues.
 - Unit tests for pending current-index recalculation when items before/after the current item move.
 - Compile checks for Media3 API usage and callback wiring.
 - Unit tests or focused helper tests when adding non-trivial queue ordering logic.
