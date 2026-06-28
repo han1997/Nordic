@@ -1903,3 +1903,36 @@ Sorted audiobook detail chapters by start time so detail pages match playback ti
 ### Next Steps
 
 - None - task complete
+
+
+## Session 58: Fix video timeline for unknown duration
+
+**Date**: 2026-06-29
+**Task**: Fix video timeline for unknown duration
+**Branch**: `main`
+
+### Summary
+
+Kept the video player timeline usable for unknown-duration streams by growing the slider range with current playback position, showing --:-- for unknown total duration, adding focused UI helper tests, updating the Emby contract, and verifying focused tests plus compile, full unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b37f356` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
