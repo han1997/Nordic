@@ -2,10 +2,64 @@ package com.nordic.mediahub.playback
 
 import com.nordic.mediahub.api.NavidromeSong
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MusicPlaybackEngineTest {
+    @Test
+    fun shouldReplaceCurrentMusicItem_returnsFalseForSameIdAndSameStreamUrl() {
+        val song = song(id = "song-1", streamUrl = "https://music.example/stream?id=song-1&token=old")
+
+        assertFalse(
+            shouldReplaceCurrentMusicItem(
+                currentMediaId = "song-1",
+                currentStreamUrl = "https://music.example/stream?id=song-1&token=old",
+                requestedSong = song
+            )
+        )
+    }
+
+    @Test
+    fun shouldReplaceCurrentMusicItem_returnsTrueForSameIdAndDifferentStreamUrl() {
+        val song = song(id = "song-1", streamUrl = "https://music.example/stream?id=song-1&token=new")
+
+        assertTrue(
+            shouldReplaceCurrentMusicItem(
+                currentMediaId = "song-1",
+                currentStreamUrl = "https://music.example/stream?id=song-1&token=old",
+                requestedSong = song
+            )
+        )
+    }
+
+    @Test
+    fun shouldReplaceCurrentMusicItem_returnsTrueForDifferentId() {
+        val song = song(id = "song-2", streamUrl = "https://music.example/stream?id=song-2&token=old")
+
+        assertTrue(
+            shouldReplaceCurrentMusicItem(
+                currentMediaId = "song-1",
+                currentStreamUrl = "https://music.example/stream?id=song-1&token=old",
+                requestedSong = song
+            )
+        )
+    }
+
+    @Test
+    fun shouldReplaceCurrentMusicItem_returnsTrueWhenNoCurrentItemExists() {
+        val song = song(id = "song-1", streamUrl = "https://music.example/stream?id=song-1&token=old")
+
+        assertTrue(
+            shouldReplaceCurrentMusicItem(
+                currentMediaId = null,
+                currentStreamUrl = null,
+                requestedSong = song
+            )
+        )
+    }
+
     @Test
     fun resolvePlayNextTargetIndex_movesFutureItemAfterCurrent() {
         assertEquals(2, resolvePlayNextTargetIndex(index = 4, currentIndex = 1, itemCount = 5))

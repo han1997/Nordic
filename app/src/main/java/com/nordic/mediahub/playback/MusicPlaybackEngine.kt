@@ -107,6 +107,15 @@ internal fun resolvePlayableMusicQueue(
     )
 }
 
+internal fun shouldReplaceCurrentMusicItem(
+    currentMediaId: String?,
+    currentStreamUrl: String?,
+    requestedSong: NavidromeSong
+): Boolean {
+    return currentMediaId != requestedSong.id ||
+        currentStreamUrl != requestedSong.streamUrl.orEmpty()
+}
+
 @androidx.annotation.OptIn(UnstableApi::class)
 class MusicPlaybackEngine(context: Context) {
     private val appContext = context.applicationContext
@@ -231,12 +240,15 @@ class MusicPlaybackEngine(context: Context) {
             return
         }
 
-        if (activeController.currentMediaItem?.mediaId != song.id) {
+        val currentMediaItem = activeController.currentMediaItem
+        val currentStreamUrl = currentMediaItem?.localConfiguration?.uri?.toString()
+        if (shouldReplaceCurrentMusicItem(currentMediaItem?.mediaId, currentStreamUrl, song)) {
             _state.value = MusicPlaybackState(
                 currentSong = song,
                 durationSeconds = song.duration,
                 isBuffering = true
             )
+            cachedTimelineGeneration = -1
             activeController.setMediaItem(song.toMediaItem())
             activeController.prepare()
         } else {

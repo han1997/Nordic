@@ -390,6 +390,7 @@ if (matches.isEmpty() && rawLine.isLrcMetadataLine()) emptyList()
 - `fun MusicPlaybackEngine.clearUpcomingQueueItems()`
 - `fun MusicPlaybackEngine.toggleShuffleMode()`
 - `internal fun resolvePlayNextTargetIndex(index: Int, currentIndex: Int, itemCount: Int): Int?`
+- `internal fun shouldReplaceCurrentMusicItem(currentMediaId: String?, currentStreamUrl: String?, requestedSong: NavidromeSong): Boolean`
 
 **Contract**:
 - `MusicPlaybackEngine` owns all queue mutations. Compose UI passes commands and renders `MusicPlaybackState`; it must not maintain or reorder a shadow queue.
@@ -405,6 +406,7 @@ if (matches.isEmpty() && rawLine.isLrcMetadataLine()) emptyList()
 - If the Media3 controller is not connected yet, mutate `pendingQueue` and `_state` consistently so the eventual controller start uses the same queue order/index shown in UI.
 - Pending-queue current-index recalculation must be position-based, not `song.id` based. Queues may contain the same song multiple times, so using `indexOfFirst { it.id == currentSong.id }` can highlight or start the wrong duplicate after a pending reorder.
 - Shuffle mode is player state, not a locally shuffled list. `MusicPlaybackEngine.toggleShuffleMode()` must delegate to Media3 `shuffleModeEnabled`, publish `MusicPlaybackState.shuffleModeEnabled`, and listen for `onShuffleModeEnabledChanged`.
+- Direct `MusicPlaybackEngine.play(song)` calls must replace the Media3 item when either the current media id differs or the current item URI differs from `song.streamUrl.orEmpty()`. Navidrome stream URLs may contain regenerated auth parameters, so same-id/different-stream requests must refresh Media3 instead of keeping a stale URL. Same-id/same-stream requests should keep the existing item and just clear transient errors.
 
 **Validation & Error Matrix**:
 - Index outside `0 until mediaItemCount` -> no-op.
@@ -417,22 +419,28 @@ if (matches.isEmpty() && rawLine.isLrcMetadataLine()) emptyList()
 - Duplicate song ids in queue -> use position-aware UI keys such as `"$id:$index"`.
 - Duplicate song ids in a pending queue -> preserve the current position by index math after moves/removals; do not search by song id.
 - Shuffle toggle -> update Media3 `shuffleModeEnabled`; UI should render active state from `MusicPlaybackState.shuffleModeEnabled`.
+- Same current media id and same stream URL -> do not replace the Media3 item.
+- Same current media id and different stream URL -> replace the Media3 item and prepare it.
+- Different media id -> replace the Media3 item regardless of stream URL.
 
 **Good/Base/Bad Cases**:
 - Good: Queue sheet actions call `MusicPlaybackEngine`, engine mutates Media3, then publishes fresh `queue` and `queueIndex`.
 - Good: Play-all queue contains unavailable tracks; playback engine queues only playable songs and maps the current index to the intended playable start.
 - Good: Direct row/card click on an unavailable song passes fallback disabled and surfaces the missing-stream error without starting a different song.
+- Good: Replaying a refreshed Navidrome song with the same id but a regenerated stream URL replaces Media3 so playback uses the fresh URL.
 - Base: Tapping a queue row seeks with `seekToQueueIndex(index)` and closes the sheet.
 - Bad: `playQueue(...)` maps every `NavidromeSong` to a Media3 item even when `streamUrl` is blank; continuous playback can fail when the player reaches that entry.
 - Bad: Direct row/card click uses fallback-enabled queue resolution and starts the next playable song after the unavailable row.
 - Bad: UI removes a row from a local list while Media3 keeps the original playlist, causing the highlighted item and actual playback item to diverge.
 - Bad: Pending queue reordering finds the current item by `song.id`, causing duplicate queued songs to shift the current index to the first matching duplicate.
 - Bad: UI shuffles its own list while Media3 keeps the original timeline, causing next/previous and queue sheet state to disagree.
+- Bad: Direct play compares only `currentMediaItem.mediaId` and keeps an expired same-song stream URL.
 
 **Tests Required**:
 - Unit tests for pure queue index rules, especially future item, previous item, current item, already-next item, and invalid indexes.
 - Unit tests for playable queue resolution: filtering blank stream URLs, preserving a playable requested start, mapping an unplayable start to next/previous playable entries, returning null for fallback-disabled unplayable starts, and all-unplayable queues.
 - Unit tests for pending current-index recalculation when items before/after the current item move.
+- Unit tests for current-item replacement decisions: same id/same stream does not replace, same id/different stream replaces, and different id replaces.
 - Compile checks for Media3 API usage and callback wiring.
 - Unit tests or focused helper tests when adding non-trivial queue ordering logic.
 
@@ -445,6 +453,27 @@ visibleQueue = visibleQueue.toMutableList().also { it.removeAt(index) }
 ```kotlin
 // Correct: command goes through playback layer and UI observes published state.
 onRemoveFromQueue = playbackEngine::removeQueueItem
+```
+
+```kotlin
+// Wrong: id-only comparison can keep an expired Navidrome stream URL.
+if (controller.currentMediaItem?.mediaId != song.id) {
+    controller.setMediaItem(song.toMediaItem())
+}
+```
+
+```kotlin
+// Correct: compare both identity and the stream URI Media3 will play.
+val currentItem = controller.currentMediaItem
+if (
+    shouldReplaceCurrentMusicItem(
+        currentMediaId = currentItem?.mediaId,
+        currentStreamUrl = currentItem?.localConfiguration?.uri?.toString(),
+        requestedSong = song
+    )
+) {
+    controller.setMediaItem(song.toMediaItem())
+}
 ```
 
 ### Music play-all start index
