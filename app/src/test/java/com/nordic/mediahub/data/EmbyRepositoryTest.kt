@@ -276,16 +276,59 @@ class EmbyRepositoryTest {
         server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
         server.enqueue(MockResponse().setResponseCode(500))
 
-        val error = try {
+        val error = assertEmbyApiError(EmbyApiException.Kind.HTTP) {
             repository(apiKey = "api-key").getCatalog()
-            null
-        } catch (error: EmbyApiException) {
-            error
         }
 
-        requireNotNull(error)
-        assertEquals(EmbyApiException.Kind.HTTP, error.kind)
         assertTrue(error.message.orEmpty().contains("HTTP 500"))
+    }
+
+    @Test
+    fun getCatalog_throwsTypedExceptionForEmptyApiKeyUserResponse() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        assertEmbyApiError(EmbyApiException.Kind.API) {
+            repository(apiKey = "api-key").getCatalog()
+        }
+    }
+
+    @Test
+    fun getCatalog_throwsTypedExceptionForEmptyPasswordAuthenticationResponse() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        assertEmbyApiError(EmbyApiException.Kind.API) {
+            repository(apiKey = "").getCatalog()
+        }
+    }
+
+    @Test
+    fun getCatalog_throwsTypedExceptionForEmptyLibraryResponse() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        assertEmbyApiError(EmbyApiException.Kind.API) {
+            repository(apiKey = "api-key").getCatalog()
+        }
+    }
+
+    @Test
+    fun getCatalog_throwsTypedExceptionForEmptyItemListResponse() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        assertEmbyApiError(EmbyApiException.Kind.API) {
+            repository(apiKey = "api-key").getCatalog()
+        }
     }
 
     @Test
@@ -343,6 +386,22 @@ class EmbyRepositoryTest {
             3_000_000_000L,
             resolveEmbyPlaybackPositionTicks(positionSeconds = 300, durationSeconds = 0)
         )
+    }
+
+    private suspend fun assertEmbyApiError(
+        kind: EmbyApiException.Kind,
+        block: suspend () -> Unit
+    ): EmbyApiException {
+        val error = try {
+            block()
+            null
+        } catch (error: EmbyApiException) {
+            error
+        }
+
+        requireNotNull(error)
+        assertEquals(kind, error.kind)
+        return error
     }
 
     private fun repository(apiKey: String = "api-key"): EmbyRepository {

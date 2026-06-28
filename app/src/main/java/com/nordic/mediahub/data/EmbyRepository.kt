@@ -11,6 +11,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.io.EOFException
 
 class EmbyApiException(message: String, val kind: Kind) : Exception(message) {
     enum class Kind { HTTP, AUTH, API }
@@ -137,18 +138,22 @@ class EmbyRepository(private val config: VideoServerConfig) {
         cachedSession?.let { return it }
 
         val session = if (config.apiKey.isNotBlank()) {
-            val users = api.getUsers(config.apiKey.trim()).requireBody("获取 Emby 用户失败")
+            val users = requireResponseBody("获取 Emby 用户失败") {
+                api.getUsers(config.apiKey.trim())
+            }
             val user = users.firstOrNull { it.name.equals(config.username, ignoreCase = true) }
                 ?: users.firstOrNull()
                 ?: throw EmbyApiException("获取 Emby 用户失败: 没有可用用户", EmbyApiException.Kind.AUTH)
             EmbySession(userId = user.id, token = config.apiKey.trim())
         } else {
-            val response = api.authenticateByName(
-                EmbyAuthenticateRequest(
-                    username = config.username.trim(),
-                    password = config.password
+            val response = requireResponseBody("登录 Emby 失败") {
+                api.authenticateByName(
+                    EmbyAuthenticateRequest(
+                        username = config.username.trim(),
+                        password = config.password
+                    )
                 )
-            ).requireBody("登录 Emby 失败")
+            }
 
             if (response.accessToken.isBlank()) {
                 throw EmbyApiException("登录 Emby 失败: 未返回访问令牌", EmbyApiException.Kind.AUTH)
@@ -161,8 +166,9 @@ class EmbyRepository(private val config: VideoServerConfig) {
     }
 
     private suspend fun getLibraries(session: EmbySession): List<VideoLibrary> {
-        return api.getUserViews(session.userId, session.token)
-            .requireBody("获取 Emby 媒体库失败")
+        return requireResponseBody("获取 Emby 媒体库失败") {
+            api.getUserViews(session.userId, session.token)
+        }
             .items
             .filter { item ->
                 item.collectionType in videoCollectionTypes ||
@@ -183,13 +189,15 @@ class EmbyRepository(private val config: VideoServerConfig) {
         var startIndex = 0
 
         do {
-            val response = api.getItems(
-                userId = session.userId,
-                token = session.token,
-                parentId = libraryId,
-                startIndex = startIndex,
-                limit = EMBY_ITEMS_PAGE_SIZE
-            ).requireBody("获取 Emby 视频失败")
+            val response = requireResponseBody("获取 Emby 视频失败") {
+                api.getItems(
+                    userId = session.userId,
+                    token = session.token,
+                    parentId = libraryId,
+                    startIndex = startIndex,
+                    limit = EMBY_ITEMS_PAGE_SIZE
+                )
+            }
             val pageItems = response.items
             items += pageItems.map { item -> item.toVideoItem(libraryId, session.token) }
             startIndex += pageItems.size
@@ -267,12 +275,20 @@ class EmbyRepository(private val config: VideoServerConfig) {
         )
     }
 
-    private fun <T> Response<T>.requireBody(action: String): T {
-        if (!isSuccessful) {
-            throw EmbyApiException("$action: HTTP ${code()}", EmbyApiException.Kind.HTTP)
+    private suspend fun <T> requireResponseBody(
+        action: String,
+        request: suspend () -> Response<T>
+    ): T {
+        val response = try {
+            request()
+        } catch (error: EOFException) {
+            throw EmbyApiException("$action: 响应为空", EmbyApiException.Kind.API)
+        }
+        if (!response.isSuccessful) {
+            throw EmbyApiException("$action: HTTP ${response.code()}", EmbyApiException.Kind.HTTP)
         }
 
-        return body() ?: throw EmbyApiException("$action: 响应为空", EmbyApiException.Kind.API)
+        return response.body() ?: throw EmbyApiException("$action: 响应为空", EmbyApiException.Kind.API)
     }
 
     private fun Response<Unit>.requireSuccess(action: String) {

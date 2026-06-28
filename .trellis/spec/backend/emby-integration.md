@@ -129,6 +129,7 @@ POST Sessions/Playing/Stopped
 ### 4. Validation & Error Matrix
 - Non-2xx response -> throw `EmbyApiException(kind = HTTP, message contains "HTTP <code>")`
 - Empty response body -> throw `EmbyApiException(kind = API)`
+- Empty 200 JSON responses that fail during Retrofit/Gson conversion must also throw `EmbyApiException(kind = API)`, not a generic wrapped exception.
 - API key flow returns no users -> throw `EmbyApiException(kind = AUTH)`
 - Password flow returns blank `AccessToken` -> throw `EmbyApiException(kind = AUTH)`
 - Missing item `UserData` -> map resume position to `0` and played state to `false`
@@ -225,6 +226,7 @@ POST Sessions/Playing/Stopped
   - asserts stream URL contains video stream path, `Static=true`, and token query
 - Error:
   - asserts non-2xx responses throw typed `EmbyApiException.Kind.HTTP`
+  - asserts empty body responses from body-bearing Emby endpoints throw typed `EmbyApiException.Kind.API`
 
 ### 7. Wrong vs Correct
 
