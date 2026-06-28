@@ -1375,3 +1375,36 @@ Clamped AudiobookShelf absolute playback state to the known audio track duration
 ### Next Steps
 
 - None - task complete
+
+
+## Session 42: Start complete-resume videos from beginning
+
+**Date**: 2026-06-28
+**Task**: Start complete-resume videos from beginning
+**Branch**: `main`
+
+### Summary
+
+Aligned Emby video initial playback with continue-watching completion rules: known-duration resume points at or beyond runtime now start from zero, unknown-duration resumes are preserved, tests were updated, and compile, unit tests, and lint passed.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c78774a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
