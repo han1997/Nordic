@@ -178,6 +178,112 @@ class NavidromeRepositoryTest {
     }
 
     @Test
+    fun getLyrics_preservesStructuredLyricMillisecondStartsWithoutOffset() = runTest {
+        server.enqueueJson(
+            structuredLyricsResponse(
+                """
+                {
+                  "synced": true,
+                  "line": [
+                    {"start": 2000, "value": "First structured line"},
+                    {"start": 3001, "value": "Second structured line"}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+            )
+        )
+
+        assertTrue(lyrics.synced)
+        assertEquals(listOf("First structured line", "Second structured line"), lyrics.lines.map { it.text })
+        assertEquals(listOf(2000, 3001), lyrics.lines.map { it.startMillis })
+    }
+
+    @Test
+    fun getLyrics_appliesPositiveStructuredLyricOffsetToShowLyricsSooner() = runTest {
+        server.enqueueJson(
+            structuredLyricsResponse(
+                """
+                {
+                  "synced": true,
+                  "offset": 250,
+                  "line": [
+                    {"start": 2000, "value": "Shifted earlier"}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+            )
+        )
+
+        assertEquals(listOf("Shifted earlier"), lyrics.lines.map { it.text })
+        assertEquals(listOf(1750), lyrics.lines.map { it.startMillis })
+    }
+
+    @Test
+    fun getLyrics_appliesNegativeStructuredLyricOffsetToShowLyricsLater() = runTest {
+        server.enqueueJson(
+            structuredLyricsResponse(
+                """
+                {
+                  "synced": true,
+                  "offset": -250,
+                  "line": [
+                    {"start": 2000, "value": "Shifted later"}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+            )
+        )
+
+        assertEquals(listOf("Shifted later"), lyrics.lines.map { it.text })
+        assertEquals(listOf(2250), lyrics.lines.map { it.startMillis })
+    }
+
+    @Test
+    fun getLyrics_clampsPositiveStructuredLyricOffsetBeforeZero() = runTest {
+        server.enqueueJson(
+            structuredLyricsResponse(
+                """
+                {
+                  "synced": true,
+                  "offset": 250,
+                  "line": [
+                    {"start": 100, "value": "Clamped start"},
+                    {"start": 500, "value": "Still shifted"}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+            )
+        )
+
+        assertEquals(listOf("Clamped start", "Still shifted"), lyrics.lines.map { it.text })
+        assertEquals(listOf(0, 250), lyrics.lines.map { it.startMillis })
+    }
+
+    @Test
     fun getLyrics_skipsKnownLrcMetadataRows() = runTest {
         val value = listOf(
             "[ar:Artist One]",
@@ -325,6 +431,18 @@ class NavidromeRepositoryTest {
             """
             "albumList2": {
               "album": []
+            }
+            """.trimIndent()
+        )
+    }
+
+    private fun structuredLyricsResponse(structuredLyrics: String): String {
+        return subsonicResponse(
+            """
+            "lyricsList": {
+              "structuredLyrics": [
+                $structuredLyrics
+              ]
             }
             """.trimIndent()
         )

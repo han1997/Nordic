@@ -246,6 +246,8 @@ onSongSelected(songs, index)
 **Contract**:
 - Try `getLyricsBySongId.view` first; fall back to `getLyrics.view` only when song-id lookup yields no lyrics and the song has a non-blank artist.
 - Structured lyrics take priority over plain `lyrics.value` when they contain non-blank lines.
+- OpenSubsonic structured lyrics use millisecond `line.start` values. Preserve those values as milliseconds before applying any offset.
+- OpenSubsonic `structuredLyrics.offset` is optional and in milliseconds. Positive means lyrics appear sooner and negative means later, so subtract the signed offset from each structured line start. Clamp adjusted timestamps below zero to `0`.
 - Plain LRC timestamp rows such as `[00:10.00]Line` become synced `MusicLyricsLine(startMillis = 10000, text = "Line")`.
 - Known LRC metadata-only rows such as `[ar:...]`, `[ti:...]`, `[al:...]`, `[length:...]`, and `[offset:...]` must be skipped instead of displayed in the lyric view.
 - Plain LRC `[offset:<signed milliseconds>]` applies globally to timestamped rows. Follow LRC semantics: positive offsets make lyrics appear sooner, so subtract the signed offset from parsed timestamps. Clamp adjusted timestamps below zero to `0`.
@@ -255,6 +257,10 @@ onSongSelected(songs, index)
 **Validation & Error Matrix**:
 - Song-id lyric lookup throws or returns no usable lyrics -> fallback to artist/title lookup when possible.
 - Both lyric lookups fail or return no usable lyrics -> return `null`; do not surface a playback error.
+- Structured line start `2000` with no offset -> `startMillis = 2000`.
+- Structured offset `250` with line start `2000` -> `startMillis = 1750`.
+- Structured offset `-250` with line start `2000` -> `startMillis = 2250`.
+- Structured positive offset pushes an adjusted timestamp below zero -> clamp to `0`.
 - Metadata-only LRC rows -> omit from `MusicLyrics.lines`.
 - `[offset:+500]` with `[00:10.00]Line` -> `startMillis = 9500`.
 - `[offset:-500]` with `[00:10.00]Line` -> `startMillis = 10500`.
@@ -263,14 +269,18 @@ onSongSelected(songs, index)
 
 **Good/Base/Bad Cases**:
 - Good: LRC with metadata and two timed rows displays only the two lyric rows, synced to timestamps.
+- Good: Structured lyrics preserve OpenSubsonic millisecond starts and apply the structured offset without showing any metadata.
 - Good: LRC offset metadata shifts all timed rows by the file's intended global adjustment without showing the offset row.
 - Base: Plain unsynced lyrics display in source order.
+- Bad: Structured offset is ignored, leaving all synced lines consistently early or late.
+- Bad: Structured `line.start = 2000` is treated as seconds and becomes `2000000`.
 - Bad: `[ar:Artist]` or `[offset:+500]` appears as a lyric line in `MusicPlayerScreen`.
 - Bad: `[offset:+500]` is added to `startMillis`, making lyrics appear later instead of sooner.
 - Bad: `[Chorus]` is dropped just because it uses brackets.
 
 **Tests Required**:
 - Repository unit test with `MockWebServer` asserting known LRC metadata rows are skipped while timed lyric rows keep expected `startMillis`.
+- Repository unit tests asserting structured lyric millisecond starts are preserved with no offset, positive structured offsets make lines earlier, negative structured offsets make lines later, and adjusted timestamps below zero clamp to `0`.
 - Repository unit tests asserting positive offset makes lines earlier, negative offset makes lines later, and adjusted timestamps below zero clamp to `0`.
 - Repository unit test asserting non-metadata bracketed plain rows remain visible and unsynced.
 

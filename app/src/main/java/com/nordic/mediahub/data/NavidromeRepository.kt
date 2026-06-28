@@ -367,12 +367,15 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
     }
 
     private fun NavidromeStructuredLyrics.toMusicLyrics(song: NavidromeSong): MusicLyrics? {
+        val offsetMillis = offset?.toInt() ?: 0
         val parsedLines = line.mapNotNull { lyricLine ->
             val text = lyricLine.value.trim()
             if (text.isBlank()) return@mapNotNull null
 
             MusicLyricsLine(
-                startMillis = lyricLine.start?.toLyricStartMillis(song.duration),
+                startMillis = lyricLine.start
+                    ?.toLyricStartMillis(song.duration)
+                    ?.let { startMillis -> resolveLyricStartMillisWithOffset(startMillis, offsetMillis) },
                 text = text
             )
         }
@@ -447,6 +450,10 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
 
     private fun resolveLrcStartMillis(minutes: Int, seconds: Int, millis: Int, offsetMillis: Int): Int {
         val startMillis = minutes * 60_000 + seconds * 1000 + millis
+        return resolveLyricStartMillisWithOffset(startMillis, offsetMillis)
+    }
+
+    private fun resolveLyricStartMillisWithOffset(startMillis: Int, offsetMillis: Int): Int {
         return (startMillis - offsetMillis).coerceAtLeast(0)
     }
 

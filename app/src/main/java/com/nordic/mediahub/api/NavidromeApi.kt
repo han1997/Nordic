@@ -141,6 +141,7 @@ data class NavidromeStructuredLyrics(
     val displayArtist: String? = null,
     val displayTitle: String? = null,
     val lang: String? = null,
+    val offset: Double? = null,
     val synced: Boolean = false,
     val line: List<NavidromeStructuredLyricLine> = emptyList()
 )
