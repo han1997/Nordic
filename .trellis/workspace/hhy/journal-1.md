@@ -1804,3 +1804,36 @@ Fixed video relative seek so unknown-duration streams can skip forward instead o
 ### Next Steps
 
 - None - task complete
+
+
+## Session 55: Resolve audiobook chapter display by time
+
+**Date**: 2026-06-29
+**Task**: Resolve audiobook chapter display by time
+**Branch**: `main`
+
+### Summary
+
+Made the audiobook player current-chapter chip resolve from sorted chapter start times and visible scrub position, added UI helper tests for unsorted and pre-start chapters, updated the AudiobookShelf contract, and verified focused tests plus compile, full unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2bc9fd4` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
