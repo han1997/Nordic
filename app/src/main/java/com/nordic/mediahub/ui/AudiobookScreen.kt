@@ -49,6 +49,16 @@ internal fun resolveAudiobookSelectedLibraryId(
         ?: libraries.firstOrNull()?.id
 }
 
+internal fun sortAudiobookDetailChapters(chapters: List<AudiobookChapter>): List<AudiobookChapter> {
+    return chapters
+        .withIndex()
+        .sortedWith(
+            compareBy<IndexedValue<AudiobookChapter>> { indexed -> indexed.value.startSeconds }
+                .thenBy { indexed -> indexed.index }
+        )
+        .map { indexed -> indexed.value }
+}
+
 @Composable
 fun AudiobookScreen(
     colorScheme: ColorScheme,
@@ -313,6 +323,7 @@ fun AudiobookScreen(
                     }
                 }
                 else -> {
+                    val detailChapters = sortAudiobookDetailChapters(item.chapters)
                     item {
                         AudiobookDetailHeader(
                             item = item,
@@ -325,7 +336,7 @@ fun AudiobookScreen(
                             }
                         )
                     }
-                    if (item.chapters.isNotEmpty()) {
+                    if (detailChapters.isNotEmpty()) {
                         item {
                             Text(
                                 "章节",
@@ -334,7 +345,7 @@ fun AudiobookScreen(
                                 color = colorScheme.onBackground
                             )
                         }
-                        items(item.chapters, key = { it.id }, contentType = { "audiobook-chapter-row" }) { chapter ->
+                        items(detailChapters, key = { it.id }, contentType = { "audiobook-chapter-row" }) { chapter ->
                             AudiobookChapterRow(chapter, colorScheme)
                         }
                     }

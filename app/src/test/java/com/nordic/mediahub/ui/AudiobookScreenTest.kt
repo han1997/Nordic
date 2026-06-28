@@ -83,6 +83,37 @@ class AudiobookScreenTest {
         assertNull(currentChapter)
     }
 
+    @Test
+    fun sortAudiobookDetailChapters_ordersByStartTime() {
+        val chapters = listOf(
+            chapter(id = 3, startSeconds = 240),
+            chapter(id = 1, startSeconds = 0),
+            chapter(id = 2, startSeconds = 120)
+        )
+
+        val sorted = sortAudiobookDetailChapters(chapters)
+
+        assertEquals(listOf(1, 2, 3), sorted.map { it.id })
+    }
+
+    @Test
+    fun sortAudiobookDetailChapters_preservesOriginalOrderForEqualStarts() {
+        val chapters = listOf(
+            chapter(id = 2, startSeconds = 120),
+            chapter(id = 1, startSeconds = 120),
+            chapter(id = 3, startSeconds = 240)
+        )
+
+        val sorted = sortAudiobookDetailChapters(chapters)
+
+        assertEquals(listOf(2, 1, 3), sorted.map { it.id })
+    }
+
+    @Test
+    fun sortAudiobookDetailChapters_keepsEmptyListEmpty() {
+        assertEquals(emptyList<AudiobookChapter>(), sortAudiobookDetailChapters(emptyList()))
+    }
+
     private fun library(id: String): AudiobookLibrarySummary {
         return AudiobookLibrarySummary(
             id = id,
