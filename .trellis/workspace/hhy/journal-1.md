@@ -946,3 +946,36 @@ Removed unused colorScheme parameters from local audiobook and music empty-state
 ### Next Steps
 
 - None - task complete
+
+
+## Session 29: Defer video scrubber seeks
+
+**Date**: 2026-06-28
+**Task**: Defer video scrubber seeks
+**Branch**: `main`
+
+### Summary
+
+Changed the video scrubber to keep local drag state and seek only on release, matching the music/audiobook scrubber pattern and documenting the playback UI convention.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `88756f8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

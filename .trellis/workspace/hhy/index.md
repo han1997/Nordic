@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 28
+- **Total Sessions**: 29
 - **Last Active**: 2026-06-28
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~948 | Active |
+| `journal-1.md` | ~981 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 29 | 2026-06-28 | Defer video scrubber seeks | `88756f8` | `main` |
 | 28 | 2026-06-28 | Remove unused media state parameters | `46e6a1d` | `main` |
 | 27 | 2026-06-28 | Add audiobook playback speed control | `e549297` | `main` |
 | 26 | 2026-06-28 | Add video skip interval controls | `29b7ecf` | `main` |
