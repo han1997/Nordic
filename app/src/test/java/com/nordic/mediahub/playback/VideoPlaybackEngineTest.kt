@@ -2,9 +2,63 @@ package com.nordic.mediahub.playback
 
 import com.nordic.mediahub.data.VideoItem
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VideoPlaybackEngineTest {
+    @Test
+    fun shouldReplaceCurrentVideoItem_returnsFalseForSameIdAndSameStreamUrl() {
+        val currentVideo = video(
+            id = "video-1",
+            streamUrl = "https://emby.example/Videos/video-1/stream?api_key=old"
+        )
+        val requestedVideo = video(
+            id = "video-1",
+            streamUrl = "https://emby.example/Videos/video-1/stream?api_key=old"
+        )
+
+        assertFalse(shouldReplaceCurrentVideoItem(currentVideo, requestedVideo))
+    }
+
+    @Test
+    fun shouldReplaceCurrentVideoItem_returnsTrueForSameIdAndDifferentStreamUrl() {
+        val currentVideo = video(
+            id = "video-1",
+            streamUrl = "https://emby.example/Videos/video-1/stream?api_key=old"
+        )
+        val requestedVideo = video(
+            id = "video-1",
+            streamUrl = "https://emby.example/Videos/video-1/stream?api_key=new"
+        )
+
+        assertTrue(shouldReplaceCurrentVideoItem(currentVideo, requestedVideo))
+    }
+
+    @Test
+    fun shouldReplaceCurrentVideoItem_returnsTrueForDifferentId() {
+        val currentVideo = video(
+            id = "video-1",
+            streamUrl = "https://emby.example/Videos/video-1/stream?api_key=old"
+        )
+        val requestedVideo = video(
+            id = "video-2",
+            streamUrl = "https://emby.example/Videos/video-2/stream?api_key=old"
+        )
+
+        assertTrue(shouldReplaceCurrentVideoItem(currentVideo, requestedVideo))
+    }
+
+    @Test
+    fun shouldReplaceCurrentVideoItem_returnsTrueWhenNoCurrentVideoExists() {
+        val requestedVideo = video(
+            id = "video-1",
+            streamUrl = "https://emby.example/Videos/video-1/stream?api_key=old"
+        )
+
+        assertTrue(shouldReplaceCurrentVideoItem(null, requestedVideo))
+    }
+
     @Test
     fun resolveVideoInitialStartPositionMs_usesResumePositionForUnplayedVideo() {
         assertEquals(
@@ -112,19 +166,21 @@ class VideoPlaybackEngineTest {
     }
 
     private fun video(
-        playbackPositionSeconds: Int,
-        durationSeconds: Int,
+        id: String = "video-1",
+        streamUrl: String? = "https://example.test/video.mp4",
+        playbackPositionSeconds: Int = 0,
+        durationSeconds: Int = 0,
         isPlayed: Boolean = false
     ): VideoItem {
         return VideoItem(
-            id = "video-1",
+            id = id,
             libraryId = "library-1",
             title = "Video",
             type = "Movie",
             durationSeconds = durationSeconds,
             playbackPositionSeconds = playbackPositionSeconds,
             isPlayed = isPlayed,
-            streamUrl = "https://example.test/video.mp4"
+            streamUrl = streamUrl
         )
     }
 }

@@ -25,6 +25,16 @@ import kotlinx.coroutines.launch
 private const val VIDEO_SKIP_BACK_SECONDS = 10
 private const val VIDEO_SKIP_FORWARD_SECONDS = 30
 
+internal fun shouldReplaceCurrentVideoItem(
+    currentVideo: VideoItem?,
+    requestedVideo: VideoItem
+): Boolean {
+    if (currentVideo == null) return true
+
+    return currentVideo.id != requestedVideo.id ||
+        currentVideo.streamUrl.orEmpty() != requestedVideo.streamUrl.orEmpty()
+}
+
 data class VideoPlaybackState(
     val video: VideoItem? = null,
     val isPlaying: Boolean = false,
@@ -90,7 +100,7 @@ class VideoPlaybackEngine(context: Context) {
             return
         }
 
-        if (_state.value.video?.id != video.id) {
+        if (shouldReplaceCurrentVideoItem(_state.value.video, video)) {
             _state.value = VideoPlaybackState(
                 video = video,
                 durationSeconds = video.durationSeconds,

@@ -31,6 +31,7 @@ internal fun videoMatchesSearch(video: VideoItem, query: String): Boolean
 internal fun resolveVideoTypeFilterAfterCatalogRefresh(selectedTypeFilter: VideoTypeFilter, videos: List<VideoItem>): VideoTypeFilter
 internal fun resolveVideoSelectionAfterConfigChange(selectedVideo: VideoItem?): VideoItem?
 internal fun resolveVideoTypeFilterAfterConfigChange(selectedTypeFilter: VideoTypeFilter): VideoTypeFilter
+internal fun shouldReplaceCurrentVideoItem(currentVideo: VideoItem?, requestedVideo: VideoItem): Boolean
 ```
 - Retrofit API:
 ```kotlin
@@ -99,6 +100,7 @@ POST Sessions/Playing/Stopped
   - Generate direct stream URLs only for directly playable item types: `Movie`, `Episode`, and `Video`
   - Do not generate a `streamUrl` for `Series`; series detail pages should route playback through episode rows
   - Keep playback URL generation in `EmbyRepository`; UI must consume `VideoItem.streamUrl` instead of reconstructing authenticated URLs.
+  - `VideoPlaybackEngine.play(video)` must replace the ExoPlayer item when either the current video id differs or the current `VideoItem.streamUrl` differs from the requested `VideoItem.streamUrl`. Emby stream URLs carry server/token context, so same-id/different-stream requests must refresh ExoPlayer instead of reusing a stale URL.
 - Direct playback start position:
   - A newly started unplayed `VideoItem` with `playbackPositionSeconds > 0` must seek to that resume position before playback starts.
   - Items marked `isPlayed == true`, or items with no positive resume position, start at `0`.
@@ -145,6 +147,9 @@ POST Sessions/Playing/Stopped
 - Previous-config catalog or library response completes after saved config changed -> ignore the stale response and keep the new config's state
 - Missing item `CommunityRating` -> map rating to `null`; top-rated shelves should ignore it
 - `playbackPositionSeconds` at or beyond known duration -> initial playback starts at `0` instead of seeking to the end
+- Same current video id and same stream URL -> do not replace the ExoPlayer item.
+- Same current video id and different stream URL -> replace the ExoPlayer item and prepare it.
+- Different video id -> replace the ExoPlayer item regardless of stream URL.
 - Relative video skip requested near the start or end of a known-duration item -> clamp to `0` or `durationSeconds`
 - Relative video skip requested while duration is unknown -> clamp negative targets to `0`, but allow positive forward targets
 - Video player timeline rendered while duration is unknown -> show the real non-negative position, use a non-empty slider range, and show `--:--` for total duration
@@ -168,6 +173,7 @@ POST Sessions/Playing/Stopped
 - Good: Emby returns `UserData.PlaybackPositionTicks` and `CommunityRating`; repository maps resume/rating metadata and UI can show continue-watching/top-rated/unplayed shelves.
 - Good: Emby returns `UserData.LastPlayedDate`; continue watching prioritizes recently watched items over older items with larger resume positions.
 - Good: User starts an unfinished continue-watching item; playback seeks to the Emby resume position before playing.
+- Good: User replays a refreshed Emby item with the same id but a changed stream URL; playback replaces ExoPlayer so the fresh URL is used.
 - Good: User refreshes a video library while viewing details; if the item still exists, detail metadata updates from the refreshed catalog, and if it disappeared the app returns to the catalog instead of showing stale detail.
 - Good: User refreshes while filtered to Episodes and the refreshed catalog still has episodes; the Episodes filter remains active.
 - Good: User refreshes while filtered to Episodes and the refreshed catalog no longer has episodes; the browser resets to All instead of leaving a hidden active filter.
@@ -182,6 +188,7 @@ POST Sessions/Playing/Stopped
 - Base: Older/incomplete Emby responses omit `UserData` and `CommunityRating`; catalog still loads and spotlight shelves simply omit unavailable groups.
 - Base: A `Series` item has no matching loaded episodes; detail still shows metadata/overview and disables primary playback.
 - Bad: Video browser search checks only episode title/overview and hides loaded episodes when the user searches the show name.
+- Bad: Video playback compares only `VideoItem.id` and keeps an expired same-item stream URL.
 - Bad: Emby returns HTTP 500 for views, repository throws `EmbyApiException.Kind.HTTP` and UI shows the error card.
 - Bad: Server has music and movie collections, repository filters out music by `CollectionType`.
 
@@ -225,6 +232,7 @@ POST Sessions/Playing/Stopped
   - asserts thumbnail URL contains item path, primary tag, and token query
   - asserts missing `ImageTags` maps to a `null` thumbnail instead of crashing catalog loading
   - asserts stream URL contains video stream path, `Static=true`, and token query
+  - asserts current video replacement decisions: same id/same stream does not replace, same id/different stream replaces, different id replaces
 - Error:
   - asserts non-2xx responses throw typed `EmbyApiException.Kind.HTTP`
   - asserts empty body responses from body-bearing Emby endpoints throw typed `EmbyApiException.Kind.API`
@@ -247,3 +255,21 @@ val libraries = response.items.filter { item ->
 ```
 
 This keeps video-first behavior while retaining a compatibility fallback for older or incomplete Emby responses.
+
+#### Wrong
+```kotlin
+if (state.value.video?.id != video.id) {
+    player.setMediaItem(video.toMediaItem())
+}
+```
+
+This can keep playing a stale Emby URL when the same item id is refreshed with a new server/token stream URL.
+
+#### Correct
+```kotlin
+if (shouldReplaceCurrentVideoItem(state.value.video, video)) {
+    player.setMediaItem(video.toMediaItem())
+}
+```
+
+This preserves lightweight replay for the same stream while refreshing ExoPlayer when the stream URL changes.
