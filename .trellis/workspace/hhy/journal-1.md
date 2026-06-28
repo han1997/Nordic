@@ -781,3 +781,36 @@ Added 30 second audiobook skip back/forward controls, routed them through absolu
 ### Next Steps
 
 - None - task complete
+
+
+## Session 24: Extend music home playback queue
+
+**Date**: 2026-06-28
+**Task**: Extend music home playback queue
+**Branch**: `main`
+
+### Summary
+
+Kept the Music home recently-added shelf as a 12-song preview while using the full recently-added backing list as the playback queue for continuous listening.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `88b7dd2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
