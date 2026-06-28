@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 93
+- **Total Sessions**: 94
 - **Last Active**: 2026-06-29
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~1129 | Active |
+| `journal-2.md` | ~1162 | Active |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 94 | 2026-06-29 | Handle missing Navidrome random songs | `1d08bb6` | `main` |
 | 93 | 2026-06-29 | Handle missing Navidrome structured lyrics | `af5ee11` | `main` |
 | 92 | 2026-06-29 | Handle missing AudiobookShelf item lists | `eceff87` | `main` |
 | 91 | 2026-06-29 | Handle missing AudiobookShelf library lists | `1135ff8` | `main` |

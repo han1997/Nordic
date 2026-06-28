@@ -1127,3 +1127,36 @@ Updated Navidrome structured lyric DTO and repository mapping so missing or null
 ### Next Steps
 
 - None - task complete
+
+
+## Session 94: Handle missing Navidrome random songs
+
+**Date**: 2026-06-29
+**Task**: Handle missing Navidrome random songs
+**Branch**: `main`
+
+### Summary
+
+Updated Navidrome random-song DTO and recent-song fallback mapping so missing or null random song arrays are normalized as empty, preserving album-derived fallback with focused repository tests and backend quality-spec documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1d08bb6` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
