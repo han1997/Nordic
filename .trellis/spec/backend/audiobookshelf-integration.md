@@ -44,6 +44,13 @@
   - `AudiobookShelfLibraryDto.name: String?`
   - `AudiobookShelfLibraryDto.mediaType: String?`
   - `AudiobookShelfLibraryItemsResponse.results: List<AudiobookShelfLibraryItemMinifiedDto>?`
+  - `AudiobookShelfLibraryItemMinifiedDto.id: String?`
+  - `AudiobookShelfLibraryItemMinifiedDto.libraryId: String?`
+  - `AudiobookShelfLibraryItemMinifiedDto.mediaType: String?`
+  - `AudiobookShelfLibraryItemMinifiedDto.media: AudiobookShelfBookMinifiedDto?`
+  - `AudiobookShelfBookMinifiedDto.id: String?`
+  - `AudiobookShelfBookMinifiedDto.metadata: AudiobookShelfBookMinifiedMetadataDto?`
+  - `AudiobookShelfBookMinifiedMetadataDto.title: String?`
 
 ### 3. Contracts
 
@@ -62,6 +69,10 @@
 - Domain mapping must keep music and audiobook models separate. Do not map audiobook sessions into `NavidromeSong`.
 - Library item browsing must page `GET /api/libraries/{id}/items` with a fixed repository page size. Continue requesting `page + 1` until the response `total` count is loaded, or until the server returns an empty/short page.
 - Library item page result arrays are optional wire fields. DTOs must model `results` as nullable, and `getLibraryItems()` must normalize it with `orEmpty()` before mapping summaries and evaluating pagination stop conditions.
+- Minified library item row fields are optional wire fields. DTOs must model item `id`, `libraryId`, `mediaType`, `media`, nested book `id`, nested `metadata`, and metadata `title` as nullable.
+- `getLibraryItems()` must skip minified item rows that lack a non-blank item `id`, a `media` object, a `metadata` object, or a non-blank metadata `title`. Keep mapping other valid rows from the same response.
+- Valid minified item rows with missing, null, empty, or blank row `libraryId` must use the requested endpoint library id as the returned `AudiobookItemSummary.libraryId`.
+- Library item pagination must compare server `total` to the count of fetched rows, not the count of mapped summaries. Skipped unusable rows must not force extra page requests after the declared total has already been fetched.
 - Library discovery response arrays are optional wire fields. DTOs must model `libraries` as nullable, and `getLibraries()` must normalize it with `orEmpty()` before applying the audiobook media type filter.
 - Library discovery must include libraries whose `mediaType` equals `book` case-insensitively, and must continue excluding non-book media types such as podcasts.
 - Library discovery item fields are optional wire fields. DTOs must model `AudiobookShelfLibraryDto.id`, `name`, and `mediaType` as nullable strings. `getLibraries()` must skip rows whose trimmed `id` or `name` is blank, and must skip rows whose trimmed `mediaType` is blank or not `book` case-insensitively.
@@ -110,9 +121,14 @@
 | Library row omits `id`, `name`, or `mediaType`, or sends any as null | Skip that row and continue mapping other libraries |
 | Library row has blank `id`, `name`, or `mediaType` | Skip that row and continue mapping other libraries |
 | Library items response omits `results` or sends it as null on the first page | Return an empty item list |
+| Library item row omits item `id` or sends it as null, empty, or blank | Skip that row and continue mapping other valid rows |
+| Library item row omits `media`, omits `metadata`, omits metadata `title`, or sends any as null | Skip that row and continue mapping other valid rows |
+| Library item row sends metadata `title` as empty or blank | Skip that row and continue mapping other valid rows |
+| Valid library item row omits row `libraryId` or sends it as null, empty, or blank | Map `AudiobookItemSummary.libraryId` to the requested endpoint library id |
 | Summary/detail/session `coverPath` is null, empty, or whitespace-only | Map cover URL to `null` |
 | Summary/detail/session `coverPath` is relative or absolute | Normalize relative paths with the server base URL; preserve absolute HTTP(S) URLs |
 | Library items response total is larger than the first page | Continue requesting subsequent pages and merge summaries before returning |
+| Library items response fetched row count reaches `total` while mapped summaries are fewer because rows were skipped | Stop pagination without requesting another page |
 | Library items response omits `results` or sends it as null on a later page | Stop pagination and return the items accumulated so far |
 | Expanded detail `metadata.authors`, `metadata.narrators`, `metadata.series`, or `chapters` is missing or null | Map the corresponding `AudiobookItemDetail` list to `emptyList()` |
 | Expanded detail authors, narrators, series sequence values, or chapters are present | Preserve mapped author/narrator names, `Series #sequence` labels, and chapter id/title/start/end values |
@@ -159,6 +175,8 @@
 - Good: User switches AudiobookShelf server/account, refreshes libraries, and the app requests items from a library id returned by that server instead of a stale id from the previous server/account.
 - Good: User opens a large AudiobookShelf library and the app displays books from every paginated item response, not only page 0.
 - Good: An AudiobookShelf-compatible server omits `results` on an item page, and the repository treats that response as an empty page.
+- Good: An AudiobookShelf-compatible server includes partial minified item rows, and the repository skips unusable rows while keeping valid books from the same page.
+- Good: A valid minified item row omits its own `libraryId`, and the returned summary uses the requested library id from `/api/libraries/{id}/items`.
 - Good: An AudiobookShelf-compatible server omits expanded detail metadata arrays or chapters, and the detail mapper returns empty lists instead of crashing.
 - Good: Expanded detail authors, narrators, series sequence labels, and chapters still map when the arrays are present.
 - Good: An AudiobookShelf-compatible server omits playback-session chapters or audio tracks, and `startPlayback()` returns an empty domain list instead of crashing before playback error handling.
@@ -172,6 +190,8 @@
 - Base: User only browses libraries and details; no playback session is created and no progress endpoint is called.
 - Bad: `getLibraryItems()` requests only `page=0`, truncating any library with more books than the page size.
 - Bad: `AudiobookShelfLibraryItemsResponse.results` is modeled as a non-null Kotlin list and pagination calls `.map` or `.isEmpty()` on it directly.
+- Bad: Minified item row fields such as `id`, `media`, `metadata`, or `title` are modeled as non-null and mapped directly, allowing compatible partial rows to crash library browsing.
+- Bad: Pagination compares `total` to mapped summary count after filtering, causing extra page requests when unusable rows were already included in the fetched total.
 - Bad: Detail DTO list properties are non-null Kotlin lists and repository mapping calls `.map` directly, allowing Gson-omitted fields to become runtime nulls.
 - Bad: Playback-session DTO list properties are non-null Kotlin lists and `startPlayback()` maps them directly, crashing before the no-playable-tracks state can be shown.
 - Bad: `getLibraries()` compares `mediaType == "book"` case-sensitively and drops valid audiobook libraries returned as `Book`.
@@ -196,6 +216,11 @@
   - library rows with missing, null, empty, or blank `id`, `name`, or `mediaType` are skipped without dropping valid rows
   - missing and null library item `results` arrays map to an empty item list on the first page
   - missing or null library item `results` arrays on a later page stop pagination while preserving accumulated summaries
+  - minified library item rows with missing, null, empty, or blank item `id` are skipped without dropping valid rows
+  - minified library item rows with missing/null `media`, missing/null `metadata`, or missing/null/blank metadata `title` are skipped without dropping valid rows
+  - valid minified library item rows with missing/null/blank row `libraryId` map to the requested endpoint library id
+  - paginated library item browsing stops when fetched row count reaches server `total`, even when mapped summaries are fewer because rows were skipped
+  - valid minified item summary mapping preserves title, author, narrator, series, cover URL, duration, chapter count, and update timestamp
   - blank summary/detail/session `coverPath` values map to `null`
   - non-blank relative and absolute cover paths map to expected app-facing cover URLs
   - missing and null expanded detail `metadata.authors`, `metadata.narrators`, `metadata.series`, and `chapters` map to empty domain lists
@@ -300,9 +325,23 @@ data class AudiobookShelfLibraryItemsResponse(
     val results: List<AudiobookShelfLibraryItemMinifiedDto> = emptyList()
 )
 
+data class AudiobookShelfLibraryItemMinifiedDto(
+    val id: String,
+    val libraryId: String,
+    val media: AudiobookShelfBookMinifiedDto
+)
+
+data class AudiobookShelfBookMinifiedDto(
+    val metadata: AudiobookShelfBookMinifiedMetadataDto
+)
+
+data class AudiobookShelfBookMinifiedMetadataDto(
+    val title: String
+)
+
 val pageItems = body.results
 items += pageItems.map { it.toSummary() }
-if (pageItems.isEmpty()) break
+if (body.total != null && items.size >= body.total) break
 ```
 
 #### Correct
@@ -312,9 +351,24 @@ data class AudiobookShelfLibraryItemsResponse(
     val results: List<AudiobookShelfLibraryItemMinifiedDto>? = null
 )
 
+data class AudiobookShelfLibraryItemMinifiedDto(
+    val id: String? = null,
+    val libraryId: String? = null,
+    val media: AudiobookShelfBookMinifiedDto? = null
+)
+
+data class AudiobookShelfBookMinifiedDto(
+    val metadata: AudiobookShelfBookMinifiedMetadataDto? = null
+)
+
+data class AudiobookShelfBookMinifiedMetadataDto(
+    val title: String? = null
+)
+
 val pageItems = body.results.orEmpty()
-items += pageItems.map { it.toSummary() }
-if (pageItems.isEmpty()) break
+fetchedItemCount += pageItems.size
+items += pageItems.mapNotNull { it.toSummary(fallbackLibraryId = libraryId) }
+if (body.total != null && fetchedItemCount >= body.total) break
 ```
 
 #### Wrong

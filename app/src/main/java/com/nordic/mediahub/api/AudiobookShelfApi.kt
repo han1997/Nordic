@@ -48,12 +48,12 @@ data class AudiobookShelfLibraryItemsResponse(
 )
 
 data class AudiobookShelfLibraryItemMinifiedDto(
-    val id: String,
-    val libraryId: String,
-    val mediaType: String,
+    val id: String? = null,
+    val libraryId: String? = null,
+    val mediaType: String? = null,
     val addedAt: Long = 0L,
     val updatedAt: Long = 0L,
-    val media: AudiobookShelfBookMinifiedDto
+    val media: AudiobookShelfBookMinifiedDto? = null
 )
 
 data class AudiobookShelfLibraryItemExpandedDto(
@@ -68,8 +68,8 @@ data class AudiobookShelfLibraryItemExpandedDto(
 )
 
 data class AudiobookShelfBookMinifiedDto(
-    val id: String,
-    val metadata: AudiobookShelfBookMinifiedMetadataDto,
+    val id: String? = null,
+    val metadata: AudiobookShelfBookMinifiedMetadataDto? = null,
     val coverPath: String? = null,
     val duration: Double = 0.0,
     val numTracks: Int = 0,
@@ -78,7 +78,7 @@ data class AudiobookShelfBookMinifiedDto(
 )
 
 data class AudiobookShelfBookMinifiedMetadataDto(
-    val title: String,
+    val title: String? = null,
     val titleIgnorePrefix: String? = null,
     val authorName: String? = null,
     val authorNameLF: String? = null,

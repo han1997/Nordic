@@ -125,6 +125,7 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
         val auth = bearerToken()
         val items = mutableListOf<AudiobookItemSummary>()
         var page = 0
+        var fetchedItemCount = 0
 
         while (true) {
             val body = requireResponseBody("获取有声书列表失败") {
@@ -136,11 +137,12 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
                 )
             }
             val pageItems = body.results.orEmpty()
-            items += pageItems.map { it.toSummary() }
+            fetchedItemCount += pageItems.size
+            items += pageItems.mapNotNull { it.toSummary(fallbackLibraryId = libraryId) }
 
             val total = body.total
             if (pageItems.isEmpty()) break
-            if (total != null && items.size >= total) break
+            if (total != null && fetchedItemCount >= total) break
             if (pageItems.size < AUDIOBOOK_LIBRARY_PAGE_SIZE) break
             page += 1
         }
@@ -255,14 +257,22 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
         closeSession(session, currentTimeSeconds)
     }
 
-    private fun AudiobookShelfLibraryItemMinifiedDto.toSummary(): AudiobookItemSummary {
+    private fun AudiobookShelfLibraryItemMinifiedDto.toSummary(
+        fallbackLibraryId: String
+    ): AudiobookItemSummary? {
+        val itemId = id?.trim()?.takeIf { it.isNotBlank() } ?: return null
+        val resolvedLibraryId = libraryId?.trim()?.takeIf { it.isNotBlank() } ?: fallbackLibraryId
+        val media = media ?: return null
+        val metadata = media.metadata ?: return null
+        val title = metadata.title?.trim()?.takeIf { it.isNotBlank() } ?: return null
+
         return AudiobookItemSummary(
-            id = id,
-            libraryId = libraryId,
-            title = media.metadata.title,
-            author = media.metadata.authorName.orEmpty(),
-            narrator = media.metadata.narratorName.orEmpty(),
-            series = media.metadata.seriesName.orEmpty(),
+            id = itemId,
+            libraryId = resolvedLibraryId,
+            title = title,
+            author = metadata.authorName.orEmpty(),
+            narrator = metadata.narratorName.orEmpty(),
+            series = metadata.seriesName.orEmpty(),
             coverUrl = media.coverPath.toAbsoluteCoverUrlOrNull(),
             durationSeconds = media.duration.toInt(),
             chapterCount = media.numChapters,

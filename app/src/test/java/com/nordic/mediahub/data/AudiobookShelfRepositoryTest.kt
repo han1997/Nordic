@@ -284,6 +284,199 @@ class AudiobookShelfRepositoryTest {
     }
 
     @Test
+    fun getLibraryItems_skipsRowsWithMissingNullOrBlankRequiredFields() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(
+            """
+                {
+                  "results": [
+                    {
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {"metadata": {"title": "Missing Id"}}
+                    },
+                    {
+                      "id": null,
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {"metadata": {"title": "Null Id"}}
+                    },
+                    {
+                      "id": "   ",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {"metadata": {"title": "Blank Id"}}
+                    },
+                    {
+                      "id": "missing-media",
+                      "libraryId": "lib-1",
+                      "mediaType": "book"
+                    },
+                    {
+                      "id": "null-media",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": null
+                    },
+                    {
+                      "id": "missing-metadata",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {"id": "media-missing-metadata"}
+                    },
+                    {
+                      "id": "null-metadata",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {"id": "media-null-metadata", "metadata": null}
+                    },
+                    {
+                      "id": "missing-title",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {"metadata": {}}
+                    },
+                    {
+                      "id": "null-title",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {"metadata": {"title": null}}
+                    },
+                    {
+                      "id": "blank-title",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {"metadata": {"title": "   "}}
+                    },
+                    {
+                      "id": " valid-book ",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "updatedAt": 42,
+                      "media": {
+                        "id": "media-valid",
+                        "metadata": {
+                          "title": " Valid Book ",
+                          "authorName": "Author",
+                          "narratorName": "Narrator",
+                          "seriesName": "Series"
+                        },
+                        "duration": 60.0,
+                        "numChapters": 1
+                      }
+                    }
+                  ],
+                  "total": 11,
+                  "limit": 50,
+                  "page": 0,
+                  "mediaType": "book",
+                  "minified": true
+                }
+            """.trimIndent()
+        )
+
+        val items = repository().getLibraryItems("lib-1")
+
+        assertEquals(1, items.size)
+        val item = items.single()
+        assertEquals("valid-book", item.id)
+        assertEquals("lib-1", item.libraryId)
+        assertEquals("Valid Book", item.title)
+        assertEquals("Author", item.author)
+        assertEquals("Narrator", item.narrator)
+        assertEquals("Series", item.series)
+        assertEquals(60, item.durationSeconds)
+        assertEquals(1, item.chapterCount)
+        assertEquals(42, item.updatedAtMillis)
+    }
+
+    @Test
+    fun getLibraryItems_usesRequestedLibraryIdWhenItemLibraryIdIsMissingNullOrBlank() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(
+            """
+                {
+                  "results": [
+                    {
+                      "id": "book-missing-library",
+                      "mediaType": "book",
+                      "media": {"metadata": {"title": "Missing Library"}}
+                    },
+                    {
+                      "id": "book-null-library",
+                      "libraryId": null,
+                      "mediaType": "book",
+                      "media": {"metadata": {"title": "Null Library"}}
+                    },
+                    {
+                      "id": "book-blank-library",
+                      "libraryId": "   ",
+                      "mediaType": "book",
+                      "media": {"metadata": {"title": "Blank Library"}}
+                    }
+                  ],
+                  "total": 3,
+                  "limit": 50,
+                  "page": 0,
+                  "mediaType": "book",
+                  "minified": true
+                }
+            """.trimIndent()
+        )
+
+        val items = repository().getLibraryItems("requested-lib")
+
+        assertEquals(listOf("Missing Library", "Null Library", "Blank Library"), items.map { it.title })
+        assertEquals(listOf("requested-lib", "requested-lib", "requested-lib"), items.map { it.libraryId })
+    }
+
+    @Test
+    fun getLibraryItems_stopsWhenFetchedRowsReachTotalEvenIfRowsAreSkipped() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        val validRows = (1..49).joinToString(",") { index ->
+            """
+                {
+                  "id": "book-$index",
+                  "libraryId": "lib-1",
+                  "mediaType": "book",
+                  "media": {
+                    "id": "media-$index",
+                    "metadata": {"title": "Book $index"},
+                    "duration": 60.0,
+                    "numChapters": 1
+                  }
+                }
+            """.trimIndent()
+        }
+        server.enqueueJson(
+            """
+                {
+                  "results": [
+                    $validRows,
+                    {"media": {"metadata": {"title": "Missing Id"}}}
+                  ],
+                  "total": 50,
+                  "limit": 50,
+                  "page": 0,
+                  "mediaType": "book",
+                  "minified": true
+                }
+            """.trimIndent()
+        )
+
+        val items = repository().getLibraryItems("lib-1")
+
+        assertEquals(49, items.size)
+        assertEquals("Book 1", items.first().title)
+        assertEquals("Book 49", items.last().title)
+
+        server.takeRequest()
+        val firstPageRequest = server.takeRequest()
+        assertTrue(firstPageRequest.path.orEmpty().contains("page=0"))
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
     fun getLibraryItems_mapsBlankAndNonBlankCoverPaths() = runTest {
         server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
         server.enqueueJson(
