@@ -1111,3 +1111,36 @@ Updated the video continue-watching shelf to exclude resume items whose saved po
 ### Next Steps
 
 - None - task complete
+
+
+## Session 34: Stabilize pending music queue starts
+
+**Date**: 2026-06-28
+**Task**: Stabilize pending music queue starts
+**Branch**: `main`
+
+### Summary
+
+Resolved music queue start indexes before pending playback state is published, kept pending single-song and queue requests mutually exclusive, prevented controller-unavailable play/pause from replacing a pending queue, and added queue start-index unit tests.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8301999` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
