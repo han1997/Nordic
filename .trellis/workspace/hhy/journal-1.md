@@ -1012,3 +1012,36 @@ Fixed synced music lyric highlighting so no line is active before the first time
 ### Next Steps
 
 - None - task complete
+
+
+## Session 31: Verify music scrubber deferred seeks
+
+**Date**: 2026-06-28
+**Task**: Verify music scrubber deferred seeks
+**Branch**: `main`
+
+### Summary
+
+Verified MusicPlayerScreen already matches the deferred scrubber seek convention: local scrub state is updated during drag and onSeek is called only on release. No source changes were needed.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ab1550f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

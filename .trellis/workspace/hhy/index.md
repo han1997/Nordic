@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 30
+- **Total Sessions**: 31
 - **Last Active**: 2026-06-28
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~1014 | Active |
+| `journal-1.md` | ~1047 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 31 | 2026-06-28 | Verify music scrubber deferred seeks | `ab1550f` | `main` |
 | 30 | 2026-06-28 | Fix music lyric active line selection | `5ee6489` | `main` |
 | 29 | 2026-06-28 | Defer video scrubber seeks | `88756f8` | `main` |
 | 28 | 2026-06-28 | Remove unused media state parameters | `46e6a1d` | `main` |
