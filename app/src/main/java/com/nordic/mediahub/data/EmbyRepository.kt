@@ -178,10 +178,12 @@ class EmbyRepository(private val config: VideoServerConfig) {
             .items
             .orEmpty()
             .filter { item -> item.isVideoLibrary() }
-            .map { item ->
+            .mapNotNull { item ->
+                val id = item.id?.trim()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                val name = item.name?.trim()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
                 VideoLibrary(
-                    id = item.id,
-                    name = item.name,
+                    id = id,
+                    name = name,
                     collectionType = item.collectionType.orEmpty(),
                     itemCount = item.childCount ?: 0
                 )
@@ -203,18 +205,21 @@ class EmbyRepository(private val config: VideoServerConfig) {
                 )
             }
             val pageItems = response.items.orEmpty()
-            items += pageItems.map { item -> item.toVideoItem(libraryId, session.token) }
+            items += pageItems.mapNotNull { item -> item.toVideoItem(libraryId, session.token) }
             startIndex += pageItems.size
         } while (pageItems.isNotEmpty() && startIndex < response.totalRecordCount)
 
         return items
     }
 
-    private fun EmbyItemDto.toVideoItem(libraryId: String, token: String): VideoItem {
+    private fun EmbyItemDto.toVideoItem(libraryId: String, token: String): VideoItem? {
+        val itemId = id?.trim()?.takeIf { it.isNotBlank() } ?: return null
+        val title = name?.trim()?.takeIf { it.isNotBlank() } ?: return null
+
         return VideoItem(
-            id = id,
+            id = itemId,
             libraryId = libraryId,
-            title = name,
+            title = title,
             type = type.orEmpty(),
             overview = overview.orEmpty(),
             year = productionYear,
@@ -227,8 +232,8 @@ class EmbyRepository(private val config: VideoServerConfig) {
             seriesName = seriesName,
             seasonNumber = parentIndexNumber,
             episodeNumber = indexNumber,
-            imageUrl = primaryImageUrl(id, token, imageTags.orEmpty()["Primary"]),
-            streamUrl = if (isDirectlyPlayableVideoType(type)) streamUrl(id, token) else null
+            imageUrl = primaryImageUrl(itemId, token, imageTags.orEmpty()["Primary"]),
+            streamUrl = if (isDirectlyPlayableVideoType(type)) streamUrl(itemId, token) else null
         )
     }
 

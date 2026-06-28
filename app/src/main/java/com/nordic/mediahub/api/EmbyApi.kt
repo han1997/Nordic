@@ -39,9 +39,9 @@ data class EmbyItemsResponse(
 
 data class EmbyItemDto(
     @SerializedName("Id")
-    val id: String,
+    val id: String? = null,
     @SerializedName("Name")
-    val name: String,
+    val name: String? = null,
     @SerializedName("Type")
     val type: String? = null,
     @SerializedName("CollectionType")

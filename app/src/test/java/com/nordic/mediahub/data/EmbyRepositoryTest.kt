@@ -321,6 +321,42 @@ class EmbyRepositoryTest {
     }
 
     @Test
+    fun getCatalog_skipsLibraryRowsWithMissingNullOrBlankIdentity() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Name":"Missing Id","Type":"CollectionFolder","CollectionType":"movies"},
+                    {"Id":null,"Name":"Null Id","Type":"CollectionFolder","CollectionType":"movies"},
+                    {"Id":"","Name":"Empty Id","Type":"CollectionFolder","CollectionType":"movies"},
+                    {"Id":"   ","Name":"Blank Id","Type":"CollectionFolder","CollectionType":"movies"},
+                    {"Id":"lib-missing-name","Type":"CollectionFolder","CollectionType":"movies"},
+                    {"Id":"lib-null-name","Name":null,"Type":"CollectionFolder","CollectionType":"movies"},
+                    {"Id":"lib-empty-name","Name":"","Type":"CollectionFolder","CollectionType":"movies"},
+                    {"Id":"lib-blank-name","Name":"   ","Type":"CollectionFolder","CollectionType":"movies"},
+                    {"Id":" lib-valid ","Name":" Valid Movies ","Type":"CollectionFolder","CollectionType":"Movies","ChildCount":4}
+                  ],
+                  "TotalRecordCount": 9
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson("""{"Items":[],"TotalRecordCount":0}""")
+
+        val catalog = repository(apiKey = "api-key").getCatalog()
+
+        assertEquals(listOf("lib-valid"), catalog.libraries.map { it.id })
+        assertEquals(listOf("Valid Movies"), catalog.libraries.map { it.name })
+        assertEquals("lib-valid", catalog.selectedLibraryId)
+        assertEquals(4, catalog.libraries.single().itemCount)
+
+        server.takeRequest()
+        server.takeRequest()
+        val itemsRequest = server.takeRequest()
+        assertTrue(itemsRequest.path.orEmpty().contains("ParentId=lib-valid"))
+    }
+
+    @Test
     fun getCatalog_pagesThroughLibraryItemsUntilTotalCountIsLoaded() = runTest {
         server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
         server.enqueueJson(
@@ -393,6 +429,110 @@ class EmbyRepositoryTest {
             assertEquals("lib-movie", catalog.selectedLibraryId)
             assertEquals(emptyList<VideoItem>(), catalog.items)
         }
+    }
+
+    @Test
+    fun getCatalog_skipsItemRowsWithMissingNullOrBlankIdentity() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Name":"Missing Id","Type":"Movie"},
+                    {"Id":null,"Name":"Null Id","Type":"Movie"},
+                    {"Id":"","Name":"Empty Id","Type":"Movie"},
+                    {"Id":"   ","Name":"Blank Id","Type":"Movie"},
+                    {"Id":"missing-name","Type":"Movie"},
+                    {"Id":"null-name","Name":null,"Type":"Movie"},
+                    {"Id":"empty-name","Name":"","Type":"Movie"},
+                    {"Id":"blank-name","Name":"   ","Type":"Movie"},
+                    {
+                      "Id":" movie-1 ",
+                      "Name":" Arrival ",
+                      "Type":"Movie",
+                      "Overview":"First contact story.",
+                      "ProductionYear":2016,
+                      "RunTimeTicks":69600000000,
+                      "CommunityRating":8.6,
+                      "UserData":{
+                        "Played":false,
+                        "PlaybackPositionTicks":1200000000,
+                        "LastPlayedDate":"2026-06-28T08:15:30.0000000Z"
+                      },
+                      "ImageTags":{"Primary":"tag-1"}
+                    }
+                  ],
+                  "TotalRecordCount": 9
+                }
+            """.trimIndent()
+        )
+
+        val catalog = repository(apiKey = "api-key").getCatalog()
+
+        assertEquals(1, catalog.items.size)
+        val item = catalog.items.single()
+        assertEquals("movie-1", item.id)
+        assertEquals("Arrival", item.title)
+        assertEquals("Movie", item.type)
+        assertEquals("First contact story.", item.overview)
+        assertEquals(2016, item.year)
+        assertEquals(6960, item.durationSeconds)
+        assertEquals(120, item.playbackPositionSeconds)
+        assertFalse(item.isPlayed)
+        assertEquals(8.6f, item.communityRating ?: 0f, 0.001f)
+        assertTrue(item.imageUrl.orEmpty().contains("/Items/movie-1/Images/Primary"))
+        assertTrue(item.streamUrl.orEmpty().contains("/Videos/movie-1/stream"))
+    }
+
+    @Test
+    fun getCatalog_stopsWhenFetchedItemRowsReachTotalEvenIfRowsAreSkipped() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        val validRows = (1..99).joinToString(",") { index ->
+            validEmbyMovieJson(index)
+        }
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    $validRows,
+                    {"Name":"Missing Id","Type":"Movie"}
+                  ],
+                  "TotalRecordCount": 100
+                }
+            """.trimIndent()
+        )
+
+        val catalog = repository(apiKey = "api-key").getCatalog()
+
+        assertEquals(99, catalog.items.size)
+        assertEquals("Movie 1", catalog.items.first().title)
+        assertEquals("Movie 99", catalog.items.last().title)
+
+        server.takeRequest()
+        server.takeRequest()
+        val itemsRequest = server.takeRequest()
+        assertTrue(itemsRequest.path.orEmpty().contains("StartIndex=0"))
+        assertEquals(3, server.requestCount)
     }
 
     @Test
@@ -610,6 +750,18 @@ class EmbyRepositoryTest {
             durationSeconds = durationSeconds,
             streamUrl = "https://example.test/video.mp4"
         )
+    }
+
+    private fun validEmbyMovieJson(index: Int): String {
+        return """
+            {
+              "Id":"movie-$index",
+              "Name":"Movie $index",
+              "Type":"Movie",
+              "RunTimeTicks":600000000,
+              "ImageTags":{"Primary":"tag-$index"}
+            }
+        """.trimIndent()
     }
 }
 

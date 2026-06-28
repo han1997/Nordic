@@ -42,6 +42,17 @@ GET Users/{userId}/Items
 POST Sessions/Playing/Progress
 POST Sessions/Playing/Stopped
 ```
+- DTOs:
+```kotlin
+data class EmbyItemsResponse(
+    val items: List<EmbyItemDto>? = null
+)
+
+data class EmbyItemDto(
+    val id: String? = null,
+    val name: String? = null
+)
+```
 
 ### 3. Contracts
 - `VideoServerConfig.isReadyForVideoSync()` returns `true` only when:
@@ -67,6 +78,11 @@ POST Sessions/Playing/Stopped
   - query includes `ParentId`, `Recursive=true`, `IncludeItemTypes=Movie,Series,Episode,Video`
   - query `Fields` includes `Overview`, `ProductionYear`, `SeriesId`, `SeriesName`, `ParentIndexNumber`, `IndexNumber`, `RunTimeTicks`, `ChildCount`, `ImageTags`, `CommunityRating`, and `UserData`
   - `GET Users/{userId}/Views` and `GET Users/{userId}/Items` responses may omit `Items` or send it as null; DTOs must allow nullable lists and repositories must map them to empty app lists
+  - Emby item row `Id` and `Name` are optional wire fields. DTOs must model both as nullable strings.
+  - Library discovery must skip view rows whose trimmed `Id` or `Name` is blank, while keeping other valid video libraries from the same response.
+  - Video item listing must skip item rows whose trimmed `Id` or `Name` is blank, while keeping other valid videos from the same page.
+  - Returned `VideoLibrary.id`, `VideoLibrary.name`, `VideoItem.id`, and `VideoItem.title` values should be trimmed so UI state, image URLs, stream URLs, and follow-up item requests do not carry accidental surrounding whitespace.
+  - Item pagination must advance `StartIndex` by fetched row count, not mapped video count, so skipped unusable rows do not force extra requests after `TotalRecordCount` has already been fetched.
   - map `RunTimeTicks` to seconds using `10_000_000` ticks per second
 - Video metadata:
   - `VideoItem.playbackPositionSeconds` maps from `UserData.PlaybackPositionTicks` using `10_000_000` ticks per second
@@ -138,7 +154,11 @@ POST Sessions/Playing/Stopped
 - Password flow returns missing, null, or blank `AccessToken` -> throw `EmbyApiException(kind = AUTH)`
 - Password flow returns missing, null, or blank `User.Id` -> throw `EmbyApiException(kind = AUTH)`
 - View response `Items` is missing or null -> map libraries to `emptyList()`, selected library id to `null`, and catalog items to `emptyList()`
+- View response item row omits `Id` or `Name`, or sends either as null, empty, or blank -> skip that library row and keep mapping other valid rows
 - Library item response `Items` is missing or null -> map that page to `emptyList()` and stop pagination
+- Library item response row omits `Id` or `Name`, or sends either as null, empty, or blank -> skip that video row and keep mapping other valid rows
+- Library/item row sends `Id` or `Name` with surrounding whitespace -> trim the value before building domain models, image URLs, stream URLs, or follow-up requests
+- Library item response fetched row count reaches `TotalRecordCount` while mapped videos are fewer because rows were skipped -> stop pagination without requesting another page
 - Missing item `UserData` -> map resume position to `0` and played state to `false`
 - Missing `UserData.LastPlayedDate` -> continue-watching shelf keeps the item eligible by resume position but sorts it behind dated resume items
 - Resume position at or beyond known duration while `Played == false` -> exclude from continue-watching shelf as effectively complete
@@ -176,6 +196,8 @@ POST Sessions/Playing/Stopped
 ### 5. Good/Base/Bad Cases
 - Good: API key + username, multiple users, matching user selected, video libraries and items load.
 - Good: An Emby-compatible server omits or nulls a view or item-list `Items` array; Nordic returns empty app lists instead of crashing.
+- Good: An Emby-compatible server includes partial view or item rows, and the repository skips unusable rows while preserving valid libraries and videos from the same response.
+- Good: Emby sends valid `Id` or `Name` values with surrounding whitespace, and Nordic trims them before storing domain ids/titles or building URLs.
 - Good: Emby returns `UserData.PlaybackPositionTicks` and `CommunityRating`; repository maps resume/rating metadata and UI can show continue-watching/top-rated/unplayed shelves.
 - Good: Emby returns `UserData.LastPlayedDate`; continue watching prioritizes recently watched items over older items with larger resume positions.
 - Good: User starts an unfinished continue-watching item; playback seeks to the Emby resume position before playing.
@@ -195,6 +217,8 @@ POST Sessions/Playing/Stopped
 - Base: A `Series` item has no matching loaded episodes; detail still shows metadata/overview and disables primary playback.
 - Bad: Video browser search checks only episode title/overview and hides loaded episodes when the user searches the show name.
 - Bad: `EmbyItemsResponse.Items` is modeled as a non-null Kotlin list and repository mapping calls `.filter`/`.map` directly, allowing Gson-omitted fields to become runtime nulls.
+- Bad: `EmbyItemDto.Id` or `Name` is modeled as a non-null Kotlin string and mapped directly, allowing compatible partial rows to crash catalog browsing.
+- Bad: Item pagination compares `TotalRecordCount` to mapped video count after filtering, causing extra page requests when unusable rows were already included in the fetched total.
 - Bad: Video playback compares only `VideoItem.id` and keeps an expired same-item stream URL.
 - Bad: Emby returns HTTP 500 for views, repository throws `EmbyApiException.Kind.HTTP` and UI shows the error card.
 - Bad: Server has music and movie collections, repository filters out music by `CollectionType`.
@@ -219,6 +243,10 @@ POST Sessions/Playing/Stopped
   - asserts non-video libraries are filtered
   - asserts missing and null view response `Items` map to an empty library list, null selected library id, and empty catalog item list
   - asserts missing and null library item response `Items` map to an empty item list and stop pagination
+  - asserts view rows with missing/null/blank `Id` or `Name` are skipped without dropping valid video library rows
+  - asserts item rows with missing/null/blank `Id` or `Name` are skipped without dropping valid video item rows
+  - asserts valid library and item rows with surrounding whitespace in `Id` or `Name` map to trimmed domain values
+  - asserts item pagination stops when fetched row count reaches `TotalRecordCount`, even when mapped videos are fewer because rows were skipped
   - asserts video library `CollectionType` and blank-collection `CollectionFolder` fallback matching are case-insensitive
   - asserts duration ticks become seconds
   - asserts `Fields` requests `UserData` and `CommunityRating`
@@ -265,6 +293,32 @@ Gson can set omitted `Items` fields to `null`, so direct mapping can crash on em
 val pageItems = response.items.orEmpty()
 items += pageItems.map { it.toVideoItem(libraryId, token) }
 ```
+
+#### Wrong
+```kotlin
+data class EmbyItemDto(
+    val id: String,
+    val name: String
+)
+
+items += pageItems.map { item -> item.toVideoItem(libraryId, token) }
+startIndex += items.size
+```
+
+Non-null row fields and mapped-count pagination let partial rows crash catalog loading or trigger extra page requests after filtering.
+
+#### Correct
+```kotlin
+data class EmbyItemDto(
+    val id: String? = null,
+    val name: String? = null
+)
+
+items += pageItems.mapNotNull { item -> item.toVideoItem(libraryId, token) }
+startIndex += pageItems.size
+```
+
+Validate row identity at the repository boundary and keep pagination tied to the server rows fetched.
 
 #### Wrong
 ```kotlin
