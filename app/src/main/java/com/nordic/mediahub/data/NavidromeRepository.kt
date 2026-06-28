@@ -234,7 +234,7 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
             val albumDetail = subsonic.album ?: continue
             val fallbackCoverArt = albumDetail.coverArt
 
-            songs += albumDetail.song.map { song ->
+            songs += albumDetail.song.orEmpty().map { song ->
                 song.withCoverArtUrl(fallbackCoverArt)
             }
         }
@@ -248,7 +248,7 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
             api.getAlbum(config.username, auth.token, auth.salt, albumId = albumId)
         }
         subsonic.album?.let { albumDetail ->
-            albumDetail.song.map { song ->
+            albumDetail.song.orEmpty().map { song ->
                 song.withCoverArtUrl(albumDetail.coverArt)
             }
         } ?: emptyList()

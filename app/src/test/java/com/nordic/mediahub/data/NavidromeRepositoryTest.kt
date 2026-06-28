@@ -87,6 +87,31 @@ class NavidromeRepositoryTest {
     }
 
     @Test
+    fun getAllSongs_mapsMissingAndNullAlbumDetailSongsToEmptyList() = runTest {
+        listOf(
+            "",
+            ""","song": null"""
+        ).forEach { songField ->
+            server.enqueueJson(
+                subsonicResponse(
+                    """
+                    "albumList2": {
+                      "album": [
+                        {"id": "album-1", "name": "Album One", "coverArt": "cover-1", "songCount": 1}
+                      ]
+                    }
+                    """.trimIndent()
+                )
+            )
+            server.enqueueJson(albumDetailResponse(songField))
+
+            val songs = repository().getAllSongs()
+
+            assertEquals(emptyList<NavidromeSong>(), songs)
+        }
+    }
+
+    @Test
     fun getAlbums_mapsSortModesToAlbumListRequests() = runTest {
         server.enqueueJson(emptyAlbumListResponse())
         server.enqueueJson(emptyAlbumListResponse())
@@ -134,6 +159,20 @@ class NavidromeRepositoryTest {
         assertNull(albums[0].coverArt)
         assertNull(albums[1].coverArt)
         assertTrue(albums[2].coverArt.orEmpty().contains("/rest/getCoverArt.view?id=valid-cover"))
+    }
+
+    @Test
+    fun getAlbumSongs_mapsMissingAndNullSongListsToEmptyList() = runTest {
+        listOf(
+            "",
+            ""","song": null"""
+        ).forEach { songField ->
+            server.enqueueJson(albumDetailResponse(songField))
+
+            val songs = repository().getAlbumSongs("album-1")
+
+            assertEquals(emptyList<NavidromeSong>(), songs)
+        }
     }
 
     @Test
@@ -602,6 +641,19 @@ class NavidromeRepositoryTest {
             """
             "albumList2": {
               "album": []
+            }
+            """.trimIndent()
+        )
+    }
+
+    private fun albumDetailResponse(songField: String): String {
+        return subsonicResponse(
+            """
+            "album": {
+              "id": "album-1",
+              "name": "Album One",
+              "coverArt": "cover-1"
+              $songField
             }
             """.trimIndent()
         )

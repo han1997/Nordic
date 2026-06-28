@@ -79,7 +79,7 @@ data class NavidromeAlbumDetail(
     val name: String,
     val artist: String? = null,
     val coverArt: String? = null,
-    val song: List<NavidromeSong> = emptyList()
+    val song: List<NavidromeSong>? = null
 )
 
 data class NavidromePlaylist(

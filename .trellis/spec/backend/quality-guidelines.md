@@ -158,6 +158,7 @@ The Music tab's "歌曲" navigation must use all songs, not the recently added p
 
 **Contract**:
 - All songs are loaded by paging `getAlbumList2(type = "alphabeticalByName", size = ALBUM_PAGE_SIZE, offset = n)` until a short page or empty page, then expanding each album with `getAlbum`.
+- Album detail responses may omit `song` or send it as null. DTOs must allow nullable `NavidromeAlbumDetail.song`, and repository mapping paths such as `getAllSongs()`, `getRecentlyAddedSongs(...)`, and `getAlbumSongs(...)` must convert it to an empty song list.
 - Song added-time sorting is a UI sort over `NavidromeSong.created`, newest first. Do not use the limited `recentlyAddedSongs` preview as the Songs page data source.
 - Home "最近添加" may show `recentlyAddedSongs`, but selecting navigation "歌曲" must render cached/refreshed `songs` from `getAllSongs()`.
 - When changing `NavidromeMusicCache` field semantics, bump `MUSIC_CACHE_SCHEMA_VERSION` so stale cached data is not displayed under the new meaning.
@@ -166,16 +167,20 @@ The Music tab's "歌曲" navigation must use all songs, not the recently added p
 - Subsonic/HTTP error while paging albums -> preserve `NavidromeApiException`.
 - Unknown failure while loading all songs -> wrap as `"获取全部歌曲失败: ..."` for UI context.
 - Empty album list -> return an empty song list, do not fall back to random songs.
+- Album detail `song` is missing or null -> treat that album as having zero songs, do not crash the repository flow.
 - Missing song `created` value -> added-time sort keeps those songs after timestamped songs via empty-string fallback, then title tiebreaker.
 
 **Good/Base/Bad Cases**:
 - Good: Song tab displays every track returned by all paged albums.
+- Good: A Subsonic-compatible server omits an album detail `song` array, and the repository returns an empty song list for that album instead of crashing.
 - Base: Recently added carousel displays only the limited recent-song set.
 - Bad: Song tab uses `getRecentlyAddedSongs(...)` or `getRandomSongs(...)`, or drops `created` during DTO mapping / Media3 queue conversion.
+- Bad: Album detail `song` is modeled as a non-null Kotlin list and repository mapping calls `.map` directly, allowing Gson-omitted fields to become runtime nulls.
 
 **Tests Required**:
 - Repository unit test with `MockWebServer` asserting `getAllSongs()` requests `type=alphabeticalByName`, `size=100`, `offset=0`, then expands album tracks via `getAlbum`.
 - Repository unit test asserting album song JSON `created` is preserved on returned `NavidromeSong`.
+- Repository unit tests asserting missing and null album detail `song` arrays map to empty song lists in both all-song expansion and direct `getAlbumSongs(...)`.
 
 **Wrong vs Correct**:
 ```kotlin
@@ -185,6 +190,14 @@ val freshSongs = repo.getRecentlyAddedSongs(freshAlbums)
 // Correct: keep preview and all-song navigation separate.
 val freshRecentlyAddedSongs = repo.getRecentlyAddedSongs(freshAlbums)
 val freshSongs = repo.getAllSongs()
+```
+
+```kotlin
+// Wrong: omitted album detail song arrays can become runtime nulls with Gson.
+val songs = albumDetail.song.map { it.withCoverArtUrl(albumDetail.coverArt) }
+
+// Correct: normalize optional arrays at the repository boundary.
+val songs = albumDetail.song.orEmpty().map { it.withCoverArtUrl(albumDetail.coverArt) }
 ```
 
 ### Navidrome album browsing sort modes
