@@ -30,6 +30,9 @@ data class VideoItem(
     val overview: String = "",
     val year: Int? = null,
     val durationSeconds: Int = 0,
+    val playbackPositionSeconds: Int = 0,
+    val isPlayed: Boolean = false,
+    val communityRating: Float? = null,
     val imageUrl: String? = null,
     val streamUrl: String? = null
 )
@@ -161,6 +164,9 @@ class EmbyRepository(private val config: VideoServerConfig) {
             overview = overview.orEmpty(),
             year = productionYear,
             durationSeconds = runTimeTicks.toDurationSeconds(),
+            playbackPositionSeconds = userData?.playbackPositionTicks.toDurationSeconds(),
+            isPlayed = userData?.played == true,
+            communityRating = communityRating,
             imageUrl = primaryImageUrl(id, token, imageTags.orEmpty()["Primary"]),
             streamUrl = streamUrl(id, token)
         )

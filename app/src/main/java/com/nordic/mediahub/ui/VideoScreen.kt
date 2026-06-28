@@ -100,6 +100,23 @@ fun VideoScreen(
         }
     }
     val hasActiveBrowserFilter = searchQuery.isNotBlank() || selectedTypeFilter != VideoTypeFilter.All
+    val continueWatchingVideos = remember(videos) {
+        videos
+            .filter { video -> video.playbackPositionSeconds > 0 && !video.isPlayed }
+            .sortedByDescending { video -> video.playbackPositionSeconds }
+            .take(12)
+    }
+    val topRatedVideos = remember(videos) {
+        videos
+            .filter { video -> (video.communityRating ?: 0f) > 0f }
+            .sortedByDescending { video -> video.communityRating ?: 0f }
+            .take(12)
+    }
+    val unplayedVideos = remember(videos) {
+        videos
+            .filter { video -> !video.isPlayed && video.playbackPositionSeconds <= 0 }
+            .take(12)
+    }
 
     val embyRepository = remember(savedConfig) {
         if (savedConfig.isReadyForVideoSync()) EmbyRepository(savedConfig) else null
@@ -243,7 +260,6 @@ fun VideoScreen(
                 VideoMessageCard(
                     title = "Emby 连接错误",
                     subtitle = errorMessage.orEmpty(),
-                    colorScheme = colorScheme,
                     isError = true
                 )
             }
@@ -278,6 +294,18 @@ fun VideoScreen(
         }
 
         if (videos.isNotEmpty()) {
+            if (!hasActiveBrowserFilter) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    VideoSpotlightSections(
+                        continueWatching = continueWatchingVideos,
+                        topRated = topRatedVideos,
+                        unplayed = unplayedVideos,
+                        colorScheme = colorScheme,
+                        onVideoSelected = { selectedVideo = it }
+                    )
+                }
+            }
+
             item(span = { GridItemSpan(maxLineSpan) }) {
                 VideoBrowserControls(
                     searchQuery = searchQuery,
@@ -304,8 +332,7 @@ fun VideoScreen(
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     VideoMessageCard(
                         title = "先接入你的 Emby 服务器",
-                        subtitle = "填写服务器地址，并使用 API Key 或用户名密码登录。这里会显示真实媒体库和视频缩略图。",
-                        colorScheme = colorScheme
+                        subtitle = "填写服务器地址，并使用 API Key 或用户名密码登录。这里会显示真实媒体库和视频缩略图。"
                     )
                 }
             }
@@ -314,8 +341,7 @@ fun VideoScreen(
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     VideoMessageCard(
                         title = "没有可用视频媒体库",
-                        subtitle = "Emby 已连接，但当前用户没有可浏览的电影、剧集或家庭视频媒体库。",
-                        colorScheme = colorScheme
+                        subtitle = "Emby 已连接，但当前用户没有可浏览的电影、剧集或家庭视频媒体库。"
                     )
                 }
             }
@@ -324,8 +350,7 @@ fun VideoScreen(
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     VideoMessageCard(
                         title = "这个媒体库暂时没有内容",
-                        subtitle = "切换其他媒体库，或回到 Emby 服务端检查扫描结果和用户权限。",
-                        colorScheme = colorScheme
+                        subtitle = "切换其他媒体库，或回到 Emby 服务端检查扫描结果和用户权限。"
                     )
                 }
             }
@@ -334,8 +359,7 @@ fun VideoScreen(
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     VideoMessageCard(
                         title = "没有匹配的视频",
-                        subtitle = "换一个关键词，或切换类型筛选查看这个媒体库中的其他内容。",
-                        colorScheme = colorScheme
+                        subtitle = "换一个关键词，或切换类型筛选查看这个媒体库中的其他内容。"
                     )
                 }
             }
@@ -445,6 +469,85 @@ private fun VideoCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VideoSpotlightSections(
+    continueWatching: List<VideoItem>,
+    topRated: List<VideoItem>,
+    unplayed: List<VideoItem>,
+    colorScheme: ColorScheme,
+    onVideoSelected: (VideoItem) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        VideoSpotlightRow(
+            title = "继续观看",
+            videos = continueWatching,
+            keyPrefix = "continue",
+            colorScheme = colorScheme,
+            onVideoSelected = onVideoSelected
+        )
+        VideoSpotlightRow(
+            title = "最受好评",
+            videos = topRated,
+            keyPrefix = "rated",
+            colorScheme = colorScheme,
+            onVideoSelected = onVideoSelected
+        )
+        VideoSpotlightRow(
+            title = "未播放的",
+            videos = unplayed,
+            keyPrefix = "unplayed",
+            colorScheme = colorScheme,
+            onVideoSelected = onVideoSelected
+        )
+    }
+}
+
+@Composable
+private fun VideoSpotlightRow(
+    title: String,
+    videos: List<VideoItem>,
+    keyPrefix: String,
+    colorScheme: ColorScheme,
+    onVideoSelected: (VideoItem) -> Unit
+) {
+    if (videos.isEmpty()) return
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            title,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = colorScheme.onBackground,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(
+                items = videos,
+                key = { video -> "$keyPrefix-${video.libraryId}:${video.id}" },
+                contentType = { "video-spotlight-card" }
+            ) { video ->
+                Box(modifier = Modifier.width(132.dp)) {
+                    VideoCard(
+                        video = video,
+                        colorScheme = colorScheme,
+                        onClick = { onVideoSelected(video) }
+                    )
+                }
             }
         }
     }
@@ -742,7 +845,6 @@ private fun VideoThumbnail(
 private fun VideoMessageCard(
     title: String,
     subtitle: String,
-    colorScheme: ColorScheme,
     isError: Boolean = false
 ) {
     MediaStateCard(
@@ -805,6 +907,8 @@ private fun VideoItem.metaText(): String {
         type.takeIf { it.isNotBlank() }?.let { add(it) }
         year?.let { add(it.toString()) }
         if (durationSeconds > 0) add(formatVideoDuration(durationSeconds))
+        if (playbackPositionSeconds > 0 && !isPlayed) add("看到 ${formatVideoDuration(playbackPositionSeconds)}")
+        if (isPlayed) add("已播放")
     }.joinToString("  /  ")
 }
 
@@ -813,6 +917,9 @@ private fun VideoItem.detailChips(): List<String> {
         type.takeIf { it.isNotBlank() }?.let { add(it) }
         year?.let { add(it.toString()) }
         if (durationSeconds > 0) add(formatVideoDuration(durationSeconds))
+        if (playbackPositionSeconds > 0 && !isPlayed) add("续看 ${formatVideoDuration(playbackPositionSeconds)}")
+        if (isPlayed) add("已播放")
+        communityRating?.takeIf { it > 0f }?.let { add("评分 ${"%.1f".format(it)}") }
     }.ifEmpty { listOf("视频") }
 }
 

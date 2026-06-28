@@ -74,6 +74,8 @@ class EmbyRepositoryTest {
                       "Overview":"First contact story.",
                       "ProductionYear":2016,
                       "RunTimeTicks":69600000000,
+                      "CommunityRating":8.6,
+                      "UserData":{"Played":false,"PlaybackPositionTicks":1200000000},
                       "ImageTags":{"Primary":"tag-1"}
                     }
                   ],
@@ -91,6 +93,9 @@ class EmbyRepositoryTest {
         val item = catalog.items.single()
         assertEquals("Arrival", item.title)
         assertEquals(6960, item.durationSeconds)
+        assertEquals(120, item.playbackPositionSeconds)
+        assertFalse(item.isPlayed)
+        assertEquals(8.6f, item.communityRating ?: 0f, 0.001f)
         assertTrue(item.imageUrl.orEmpty().contains("/Items/movie-1/Images/Primary"))
         assertTrue(item.imageUrl.orEmpty().contains("api_key=api-key"))
         assertTrue(item.imageUrl.orEmpty().contains("tag=tag-1"))
@@ -109,6 +114,8 @@ class EmbyRepositoryTest {
         val itemsRequest = server.takeRequest()
         assertTrue(itemsRequest.path.orEmpty().startsWith("/Users/u1/Items?"))
         assertTrue(itemsRequest.path.orEmpty().contains("ParentId=lib-movie"))
+        assertTrue(itemsRequest.path.orEmpty().contains("UserData"))
+        assertTrue(itemsRequest.path.orEmpty().contains("CommunityRating"))
         assertEquals("api-key", itemsRequest.getHeader("X-Emby-Token"))
     }
 

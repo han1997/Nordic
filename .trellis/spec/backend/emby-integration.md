@@ -4,7 +4,7 @@
 
 ### 1. Scope / Trigger
 - Trigger: The Android app now exposes Emby as the first real video provider instead of placeholder cards.
-- Scope: Authentication, user media-library discovery, video item listing, thumbnail URL generation, direct stream URL generation, typed errors, and repository tests.
+- Scope: Authentication, user media-library discovery, video item listing, thumbnail URL generation, direct stream URL generation, watched/resume/rating metadata, typed errors, and repository tests.
 - Out of scope: Plex, WebDAV browsing, persistent Emby token storage, and provider-wide account management.
 
 ### 2. Signatures
@@ -53,7 +53,19 @@ GET Users/{userId}/Items
 - Item listing:
   - `GET Users/{userId}/Items`
   - query includes `ParentId`, `Recursive=true`, `IncludeItemTypes=Movie,Series,Episode,Video`
+  - query `Fields` includes `Overview`, `ProductionYear`, `RunTimeTicks`, `ChildCount`, `ImageTags`, `CommunityRating`, and `UserData`
   - map `RunTimeTicks` to seconds using `10_000_000` ticks per second
+- Video metadata:
+  - `VideoItem.playbackPositionSeconds` maps from `UserData.PlaybackPositionTicks` using `10_000_000` ticks per second
+  - `VideoItem.isPlayed` maps from `UserData.Played == true`
+  - `VideoItem.communityRating` maps from `CommunityRating`
+  - Missing `UserData` or `CommunityRating` must fall back to `0`/`false`/`null` rather than excluding the item
+- Video browsing UI:
+  - Yamby-style spotlight shelves may be derived from the already-loaded Emby item list:
+    - Continue watching: `playbackPositionSeconds > 0 && !isPlayed`
+    - Top rated: non-null positive `communityRating`, sorted descending
+    - Unplayed: `!isPlayed && playbackPositionSeconds <= 0`
+  - These shelves are view state only. Do not persist local video history unless the PRD explicitly adds that scope.
 - Thumbnail URL:
   - Build `/Items/{itemId}/Images/Primary`
   - Include `maxWidth=640`, `quality=90`, `tag=<ImageTags.Primary>`, and `api_key=<session token>`
@@ -68,12 +80,16 @@ GET Users/{userId}/Items
 - Empty response body -> throw `EmbyApiException(kind = API)`
 - API key flow returns no users -> throw `EmbyApiException(kind = AUTH)`
 - Password flow returns blank `AccessToken` -> throw `EmbyApiException(kind = AUTH)`
+- Missing item `UserData` -> map resume position to `0` and played state to `false`
+- Missing item `CommunityRating` -> map rating to `null`; top-rated shelves should ignore it
 - Unknown repository exceptions -> wrap with user-action context, e.g. `"连接 Emby 失败: ..."`
 - Do not classify errors by `message.contains(...)`; callers should catch `EmbyApiException` by type/kind.
 
 ### 5. Good/Base/Bad Cases
 - Good: API key + username, multiple users, matching user selected, video libraries and items load.
+- Good: Emby returns `UserData.PlaybackPositionTicks` and `CommunityRating`; repository maps resume/rating metadata and UI can show continue-watching/top-rated/unplayed shelves.
 - Base: Username/password login, one video library, empty item list, UI shows an empty media-library state.
+- Base: Older/incomplete Emby responses omit `UserData` and `CommunityRating`; catalog still loads and spotlight shelves simply omit unavailable groups.
 - Bad: Emby returns HTTP 500 for views, repository throws `EmbyApiException.Kind.HTTP` and UI shows the error card.
 - Bad: Server has music and movie collections, repository filters out music by `CollectionType`.
 
@@ -92,6 +108,8 @@ GET Users/{userId}/Items
 - Mapping:
   - asserts non-video libraries are filtered
   - asserts duration ticks become seconds
+  - asserts `Fields` requests `UserData` and `CommunityRating`
+  - asserts `UserData.PlaybackPositionTicks`, `UserData.Played`, and `CommunityRating` map to `VideoItem`
   - asserts thumbnail URL contains item path, primary tag, and token query
   - asserts missing `ImageTags` maps to a `null` thumbnail instead of crashing catalog loading
   - asserts stream URL contains video stream path, `Static=true`, and token query

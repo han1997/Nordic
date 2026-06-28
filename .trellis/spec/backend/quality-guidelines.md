@@ -250,6 +250,7 @@ onSongSelected(songs, index)
 - `clearUpcomingQueueItems()` preserves the current item and removes only items after `queueIndex`.
 - Queue UI keys must tolerate duplicate songs in the queue; do not key rows by `song.id` alone.
 - If the Media3 controller is not connected yet, mutate `pendingQueue` and `_state` consistently so the eventual controller start uses the same queue order/index shown in UI.
+- Pending-queue current-index recalculation must be position-based, not `song.id` based. Queues may contain the same song multiple times, so using `indexOfFirst { it.id == currentSong.id }` can highlight or start the wrong duplicate after a pending reorder.
 
 **Validation & Error Matrix**:
 - Index outside `0 until mediaItemCount` -> no-op.
@@ -257,14 +258,17 @@ onSongSelected(songs, index)
 - "Play next" on the current item or the item already immediately after current -> no-op.
 - Remove single-item queue -> call `stop()` and clear `MusicPlaybackState`.
 - Duplicate song ids in queue -> use position-aware UI keys such as `"$id:$index"`.
+- Duplicate song ids in a pending queue -> preserve the current position by index math after moves/removals; do not search by song id.
 
 **Good/Base/Bad Cases**:
 - Good: Queue sheet actions call `MusicPlaybackEngine`, engine mutates Media3, then publishes fresh `queue` and `queueIndex`.
 - Base: Tapping a queue row seeks with `seekToQueueIndex(index)` and closes the sheet.
 - Bad: UI removes a row from a local list while Media3 keeps the original playlist, causing the highlighted item and actual playback item to diverge.
+- Bad: Pending queue reordering finds the current item by `song.id`, causing duplicate queued songs to shift the current index to the first matching duplicate.
 
 **Tests Required**:
 - Unit tests for pure queue index rules, especially future item, previous item, current item, already-next item, and invalid indexes.
+- Unit tests for pending current-index recalculation when items before/after the current item move.
 - Compile checks for Media3 API usage and callback wiring.
 - Unit tests or focused helper tests when adding non-trivial queue ordering logic.
 

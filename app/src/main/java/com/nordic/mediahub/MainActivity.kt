@@ -301,6 +301,30 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         }
     }
 
+    fun closeAudiobookPlaybackAfterSync() {
+        val session = audiobookPlaybackEngine.state.value.session
+        val positionSeconds = audiobookPlaybackEngine.state.value.positionSeconds
+        val repo = audiobookRepository
+        showAudiobookPlayer = false
+        audiobookPlaybackError = null
+
+        if (session == null || repo == null) {
+            audiobookPlaybackEngine.stop()
+            return
+        }
+
+        scope.launch {
+            runCatching {
+                repo.syncAndCloseSession(session, positionSeconds)
+            }.onSuccess {
+                audiobookPlaybackEngine.stop()
+            }.onFailure { error ->
+                audiobookPlaybackError = error.message ?: "Close audiobook playback session failed"
+                showAudiobookPlayer = true
+            }
+        }
+    }
+
     LaunchedEffect(
         currentSong?.id,
         navidromeConfig.serverUrl,
@@ -490,7 +514,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             externalError = audiobookPlaybackError,
             onSeek = audiobookPlaybackEngine::seekTo,
             onPlayPause = audiobookPlaybackEngine::togglePlayPause,
-            onClose = { closeAudiobookPlayback() }
+            onClose = { closeAudiobookPlaybackAfterSync() }
         )
     }
 

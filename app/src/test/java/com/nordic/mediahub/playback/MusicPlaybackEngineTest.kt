@@ -32,5 +32,21 @@ class MusicPlaybackEngineTest {
             listOf("A", "B", "C", "D").moveItemToIndex(fromIndex = 0, targetIndex = 2)
         )
     }
+
+    @Test
+    fun resolveCurrentIndexAfterMove_tracksCurrentItemWhenPreviousItemMovesAfterIt() {
+        assertEquals(
+            1,
+            resolveCurrentIndexAfterMove(fromIndex = 0, targetIndex = 2, currentIndex = 2, itemCount = 4)
+        )
+    }
+
+    @Test
+    fun resolveCurrentIndexAfterMove_tracksCurrentItemWhenFutureItemMovesBeforeIt() {
+        assertEquals(
+            3,
+            resolveCurrentIndexAfterMove(fromIndex = 3, targetIndex = 0, currentIndex = 2, itemCount = 4)
+        )
+    }
 }
 
