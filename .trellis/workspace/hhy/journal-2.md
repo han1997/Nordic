@@ -830,3 +830,36 @@ Updated Emby view and library-item response mapping so missing or null Items arr
 ### Next Steps
 
 - None - task complete
+
+
+## Session 85: Handle missing Navidrome album songs
+
+**Date**: 2026-06-29
+**Task**: Handle missing Navidrome album songs
+**Branch**: `main`
+
+### Summary
+
+Updated Navidrome album detail mapping so missing or null song arrays map to empty song lists, with focused repository coverage and quality-spec documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `38d61ed` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
