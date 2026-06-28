@@ -1131,12 +1131,47 @@ private enum class VideoTypeFilter(val label: String) {
     }
 }
 
-private fun VideoItem.matchesSearch(query: String): Boolean {
+internal fun videoMatchesSearch(video: VideoItem, query: String): Boolean {
     val normalizedQuery = query.trim()
     if (normalizedQuery.isBlank()) return true
 
-    return title.contains(normalizedQuery, ignoreCase = true) ||
-        overview.contains(normalizedQuery, ignoreCase = true) ||
-        type.contains(normalizedQuery, ignoreCase = true) ||
-        year?.toString()?.contains(normalizedQuery) == true
+    val searchableTerms = buildList {
+        add(video.title)
+        add(video.overview)
+        add(video.type)
+        video.year?.let { year -> add(year.toString()) }
+        video.seriesName?.takeIf { it.isNotBlank() }?.let { seriesName -> add(seriesName) }
+
+        val seasonNumber = video.seasonNumber?.takeIf { it > 0 }
+        val episodeNumber = video.episodeNumber?.takeIf { it > 0 }
+        val seasonTokens = seasonNumber?.let { number -> videoNumberVariants(number) }.orEmpty()
+        val episodeTokens = episodeNumber?.let { number -> videoNumberVariants(number) }.orEmpty()
+
+        seasonTokens.forEach { season -> add("S$season") }
+        episodeTokens.forEach { episode -> add("E$episode") }
+        seasonNumber?.let { season -> add("Season $season") }
+        episodeNumber?.let { episode -> add("Episode $episode") }
+
+        seasonTokens.forEach { season ->
+            episodeTokens.forEach { episode ->
+                add("S${season}E${episode}")
+                add("S$season E$episode")
+            }
+        }
+        if (seasonNumber != null && episodeNumber != null) {
+            add("Season $seasonNumber Episode $episodeNumber")
+        }
+    }
+
+    return searchableTerms.any { term -> term.contains(normalizedQuery, ignoreCase = true) }
+}
+
+private fun VideoItem.matchesSearch(query: String): Boolean {
+    return videoMatchesSearch(this, query)
+}
+
+private fun videoNumberVariants(number: Int): List<String> {
+    val raw = number.toString()
+    val padded = raw.padStart(2, '0')
+    return if (raw == padded) listOf(raw) else listOf(raw, padded)
 }

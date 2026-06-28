@@ -3,6 +3,7 @@ package com.nordic.mediahub.ui
 import com.nordic.mediahub.data.VideoItem
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VideoScreenTest {
@@ -248,6 +249,42 @@ class VideoScreenTest {
             listOf("s1e1-a", "s1e1-c", "s1e2", "s2e1", "unknown"),
             related.map { it.id }
         )
+    }
+
+    @Test
+    fun videoMatchesSearch_matchesEpisodeSeriesName() {
+        val episode = video(
+            id = "episode-1",
+            title = "The Arrival",
+            type = "Episode",
+            seriesName = "Together"
+        )
+
+        assertTrue(videoMatchesSearch(episode, "together"))
+    }
+
+    @Test
+    fun videoMatchesSearch_matchesCompactSeasonEpisodeCodes() {
+        val episode = video(
+            id = "episode-1",
+            title = "The Arrival",
+            type = "Episode",
+            seasonNumber = 1,
+            episodeNumber = 2
+        )
+
+        assertTrue(videoMatchesSearch(episode, "S1E2"))
+        assertTrue(videoMatchesSearch(episode, "s01e02"))
+    }
+
+    @Test
+    fun videoMatchesSearch_keepsBlankQueryMatchAll() {
+        val video = video(
+            id = "movie-1",
+            title = "Movie One"
+        )
+
+        assertTrue(videoMatchesSearch(video, "   "))
     }
 
     private fun episode(

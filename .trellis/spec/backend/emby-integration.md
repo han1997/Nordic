@@ -27,6 +27,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
 }
 internal fun resolveEmbyPlaybackPositionTicks(positionSeconds: Int, durationSeconds: Int): Long
 internal fun resolveVideoProgressSyncBaselineSeconds(statePositionSeconds: Int, video: VideoItem): Int
+internal fun videoMatchesSearch(video: VideoItem, query: String): Boolean
 ```
 - Retrofit API:
 ```kotlin
@@ -75,6 +76,11 @@ POST Sessions/Playing/Stopped
     - Unplayed: `!isPlayed && playbackPositionSeconds <= 0`
   - These shelves are view state only. Do not persist local video history unless the PRD explicitly adds that scope.
   - After a catalog refresh, selected video detail state must resolve against the refreshed item list. Keep the selection only when the same item id still exists in the selected library, and replace it with the refreshed `VideoItem`; otherwise clear the detail state.
+  - Search is local to the already-loaded catalog and composes with the selected type filter; do not add server-side search unless the PRD explicitly includes it.
+  - Blank or whitespace-only queries must match all currently visible videos.
+  - Search must match title, overview, type, year, and non-blank `seriesName`.
+  - When `seasonNumber` or `episodeNumber` is positive, search must match common episode tokens such as `S1`, `E2`, `S1E2`, `S1 E2`, and zero-padded variants such as `S01E02`.
+  - Keep token matching in a testable helper such as `videoMatchesSearch(...)`; Compose filtering should call the helper rather than duplicating token rules inline.
 - Thumbnail URL:
   - Build `/Items/{itemId}/Images/Primary`
   - Include `maxWidth=640`, `quality=90`, `tag=<ImageTags.Primary>`, and `api_key=<session token>`
@@ -135,6 +141,10 @@ POST Sessions/Playing/Stopped
 - Periodic sync failure -> keep playback UI unchanged and do not advance the baseline
 - Missing episode relationship fields -> keep the episode playable, but only show it under a series detail when `seriesId` is missing/blank and the `seriesName` fallback matches
 - `Series` item -> `VideoItem.streamUrl == null`; UI must not call playback for the series item directly
+- Video search query is blank or whitespace -> return `true` so clearing search restores the full filtered catalog
+- Video search query is a series title and an episode has matching `seriesName` -> include the episode even when the episode title does not contain the series title
+- Video search query is a compact or zero-padded episode code and season/episode numbers are present -> include the episode
+- Video search query needs missing season/episode fields -> do not synthesize misleading `S`/`E` tokens
 - Unknown repository exceptions -> wrap with user-action context, e.g. `"连接 Emby 失败: ..."`
 - Do not classify errors by `message.contains(...)`; callers should catch `EmbyApiException` by type/kind.
 
@@ -148,9 +158,12 @@ POST Sessions/Playing/Stopped
 - Good: User closes or switches away from video playback; Nordic sends the stopped position to Emby so the next catalog refresh has current resume metadata.
 - Good: User watches a long video session; Nordic periodically sends progress so Emby resume metadata stays fresh before close.
 - Good: A TV library returns both a `Series` item and its `Episode` items; series detail shows sorted episode rows, and tapping an episode plays the episode stream.
+- Good: Searching a show name in the video browser returns matching episode rows via `seriesName`.
+- Good: Searching `S01E02` returns the episode whose season is `1` and episode is `2`.
 - Base: Username/password login, one video library, empty item list, UI shows an empty media-library state.
 - Base: Older/incomplete Emby responses omit `UserData` and `CommunityRating`; catalog still loads and spotlight shelves simply omit unavailable groups.
 - Base: A `Series` item has no matching loaded episodes; detail still shows metadata/overview and disables primary playback.
+- Bad: Video browser search checks only episode title/overview and hides loaded episodes when the user searches the show name.
 - Bad: Emby returns HTTP 500 for views, repository throws `EmbyApiException.Kind.HTTP` and UI shows the error card.
 - Bad: Server has music and movie collections, repository filters out music by `CollectionType`.
 
@@ -185,6 +198,9 @@ POST Sessions/Playing/Stopped
   - asserts `Series` items map `streamUrl` to `null`
   - asserts `Episode` relationship fields map to `VideoItem.seriesId`, `seriesName`, `seasonNumber`, and `episodeNumber`
   - asserts series detail episode derivation uses `seriesName` fallback only when `seriesId` is missing or blank
+  - asserts local video search matches an episode by `seriesName`
+  - asserts local video search matches compact and zero-padded season/episode tokens
+  - asserts local video search treats blank queries as match-all
   - asserts thumbnail URL contains item path, primary tag, and token query
   - asserts missing `ImageTags` maps to a `null` thumbnail instead of crashing catalog loading
   - asserts stream URL contains video stream path, `Static=true`, and token query
