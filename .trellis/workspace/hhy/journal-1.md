@@ -583,3 +583,36 @@ Added Emby resume/rating metadata for Yamby-style video shelves, improved audiob
 ### Next Steps
 
 - None - task complete
+
+
+## Session 18: Improve Emby series episode detail
+
+**Date**: 2026-06-28
+**Task**: Improve Emby series episode detail
+**Branch**: `main`
+
+### Summary
+
+Mapped Emby series and episode metadata, disabled direct playback for Series items, added episode rows to series detail pages, covered repository mapping with tests, and verified tests/compile/lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `313b750` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
