@@ -137,3 +137,36 @@ Reset Music navigation, detail, list, and search state on Navidrome config chang
 ### Next Steps
 
 - None - task complete
+
+
+## Session 64: Reset stale audiobook state
+
+**Date**: 2026-06-29
+**Task**: Reset stale audiobook state
+**Branch**: `main`
+
+### Summary
+
+Reset AudiobookShelf browsing/detail state on saved config changes; guard stale refresh, library-selection, and detail responses; add page-reset helper tests and update the AudiobookShelf contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c6ca155` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
