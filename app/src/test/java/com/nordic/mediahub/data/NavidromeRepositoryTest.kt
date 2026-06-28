@@ -205,6 +205,37 @@ class NavidromeRepositoryTest {
     }
 
     @Test
+    fun getLyrics_preservesSmallStructuredLyricMillisecondStarts() = runTest {
+        server.enqueueJson(
+            structuredLyricsResponse(
+                """
+                {
+                  "synced": true,
+                  "line": [
+                    {"start": 120, "value": "Early structured line"}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(
+                    id = "song-1",
+                    title = "Song One",
+                    artist = "Artist One",
+                    duration = 300
+                )
+            )
+        )
+
+        assertTrue(lyrics.synced)
+        assertEquals(listOf("Early structured line"), lyrics.lines.map { it.text })
+        assertEquals(listOf(120), lyrics.lines.map { it.startMillis })
+    }
+
+    @Test
     fun getLyrics_appliesPositiveStructuredLyricOffsetToShowLyricsSooner() = runTest {
         server.enqueueJson(
             structuredLyricsResponse(

@@ -336,6 +336,7 @@ refreshMusicData(savedConfig, requestVersion)
 - Song-id lyric lookup throws or returns no usable lyrics -> fallback to artist/title lookup when possible.
 - Both lyric lookups fail or return no usable lyrics -> return `null`; do not surface a playback error.
 - Structured line start `2000` with no offset -> `startMillis = 2000`.
+- Structured line start `120` with song duration `300` -> `startMillis = 120`; do not infer seconds from values below the song duration.
 - Structured offset `250` with line start `2000` -> `startMillis = 1750`.
 - Structured offset `-250` with line start `2000` -> `startMillis = 2250`.
 - Structured positive offset pushes an adjusted timestamp below zero -> clamp to `0`.
@@ -352,13 +353,14 @@ refreshMusicData(savedConfig, requestVersion)
 - Base: Plain unsynced lyrics display in source order.
 - Bad: Structured offset is ignored, leaving all synced lines consistently early or late.
 - Bad: Structured `line.start = 2000` is treated as seconds and becomes `2000000`.
+- Bad: Structured `line.start = 120` is treated as seconds because it is smaller than the song duration.
 - Bad: `[ar:Artist]` or `[offset:+500]` appears as a lyric line in `MusicPlayerScreen`.
 - Bad: `[offset:+500]` is added to `startMillis`, making lyrics appear later instead of sooner.
 - Bad: `[Chorus]` is dropped just because it uses brackets.
 
 **Tests Required**:
 - Repository unit test with `MockWebServer` asserting known LRC metadata rows are skipped while timed lyric rows keep expected `startMillis`.
-- Repository unit tests asserting structured lyric millisecond starts are preserved with no offset, positive structured offsets make lines earlier, negative structured offsets make lines later, and adjusted timestamps below zero clamp to `0`.
+- Repository unit tests asserting structured lyric millisecond starts are preserved with no offset, including small values below the song duration; positive structured offsets make lines earlier, negative structured offsets make lines later, and adjusted timestamps below zero clamp to `0`.
 - Repository unit tests asserting positive offset makes lines earlier, negative offset makes lines later, and adjusted timestamps below zero clamp to `0`.
 - Repository unit test asserting non-metadata bracketed plain rows remain visible and unsynced.
 
