@@ -384,9 +384,10 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
 
     private fun SubsonicData.toMusicLyrics(): MusicLyrics? {
         val structured = lyricsList?.structuredLyrics
-            ?.filter { lyrics -> lyrics.line.any { it.value.isNotBlank() } }
-            ?.sortedByDescending { it.synced }
-            ?.firstOrNull()
+            .orEmpty()
+            .filter { lyrics -> lyrics.line.orEmpty().any { it.value.isNotBlank() } }
+            .sortedByDescending { it.synced }
+            .firstOrNull()
             ?.toMusicLyrics()
 
         if (structured != null) return structured
@@ -398,7 +399,7 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
 
     private fun NavidromeStructuredLyrics.toMusicLyrics(): MusicLyrics? {
         val offsetMillis = offset?.toInt() ?: 0
-        val parsedLines = line.mapNotNull { lyricLine ->
+        val parsedLines = line.orEmpty().mapNotNull { lyricLine ->
             val text = lyricLine.value.trim()
             if (text.isBlank()) return@mapNotNull null
 

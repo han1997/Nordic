@@ -134,7 +134,7 @@ data class NavidromePlainLyrics(
 )
 
 data class NavidromeLyricsList(
-    val structuredLyrics: List<NavidromeStructuredLyrics> = emptyList()
+    val structuredLyrics: List<NavidromeStructuredLyrics>? = null
 )
 
 data class NavidromeStructuredLyrics(
@@ -143,7 +143,7 @@ data class NavidromeStructuredLyrics(
     val lang: String? = null,
     val offset: Double? = null,
     val synced: Boolean = false,
-    val line: List<NavidromeStructuredLyricLine> = emptyList()
+    val line: List<NavidromeStructuredLyricLine>? = null
 )
 
 data class NavidromeStructuredLyricLine(

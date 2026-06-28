@@ -586,6 +586,62 @@ class NavidromeRepositoryTest {
     }
 
     @Test
+    fun getLyrics_fallsBackToPlainLyricsWhenStructuredLyricsArrayIsMissingOrNull() = runTest {
+        listOf(
+            """"lyricsList": {}""",
+            """"lyricsList": {"structuredLyrics": null}"""
+        ).forEach { lyricsListField ->
+            server.enqueueJson(
+                subsonicResponse(
+                    """
+                    $lyricsListField,
+                    "lyrics": {
+                      "value": "Plain fallback lyric"
+                    }
+                    """.trimIndent()
+                )
+            )
+
+            val lyrics = requireNotNull(
+                repository().getLyrics(
+                    NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+                )
+            )
+
+            assertFalse(lyrics.synced)
+            assertEquals(listOf("Plain fallback lyric"), lyrics.lines.map { it.text })
+        }
+    }
+
+    @Test
+    fun getLyrics_fallsBackToPlainLyricsWhenStructuredLineArraysAreMissingOrNull() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "lyricsList": {
+                  "structuredLyrics": [
+                    {"synced": true},
+                    {"synced": true, "line": null}
+                  ]
+                },
+                "lyrics": {
+                  "value": "Plain fallback lyric"
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+            )
+        )
+
+        assertFalse(lyrics.synced)
+        assertEquals(listOf("Plain fallback lyric"), lyrics.lines.map { it.text })
+    }
+
+    @Test
     fun getLyrics_preservesSmallStructuredLyricMillisecondStarts() = runTest {
         server.enqueueJson(
             structuredLyricsResponse(
