@@ -48,6 +48,7 @@
 - Library refresh must resolve the selected library id against the latest `GET /api/libraries` response. Keep the previous selection only if that id is still present; otherwise fall back to the first returned library, or clear the selection when the response is empty.
 - Audio URLs may need the bearer token appended as `token=<token>` when AudiobookShelf returns relative `contentUrl` values.
 - Progress sync must use current absolute audiobook time, not current track-local time, and repository payloads must clamp `currentTime` to `0..durationSeconds` before sending progress, session sync, or close requests.
+- Playback state must resolve absolute audiobook progress as `track.startOffsetSeconds + localPositionSeconds`, with the known-track local position clamped to `0..track.durationSeconds` before adding the track offset.
 - Absolute audiobook seek positions must be mapped to the Media3 track list as `(mediaItemIndex, localOffsetSeconds)` and the local offset must be clamped to `0..track.durationSeconds`.
 - Relative skip controls must resolve to an absolute audiobook position and use the same `seekTo(positionSeconds)` path as the scrubber.
 - Relative skip targets must be clamped to `0..durationSeconds`; do not seek negative or beyond the audiobook duration.
@@ -69,6 +70,7 @@
 | Latest library list is empty | Clear the selected library id and show the empty-library state |
 | Library/item/playback response is empty | Throw `AudiobookShelfApiException.Kind.API` |
 | Playback session has no playable tracks | Keep session visible with a playback error; do not start Media3 |
+| Media3 reports a known-track local position beyond that track duration | Clamp the local position to the track duration before publishing absolute playback progress |
 | Absolute seek target is before the first track | Seek to media item `0` at offset `0` |
 | Absolute seek target is beyond the final track duration | Seek to the final media item with local offset clamped to that track duration |
 | 30 second skip back is requested near the book start | Clamp to `0` |
@@ -110,6 +112,7 @@
 - UI/helper tests should assert library selection resolution keeps an existing id, falls back from a stale id, and clears selection for an empty library list.
 - Playback tests should assert:
   - absolute audiobook position is track offset plus player position
+  - absolute audiobook position clamps known-track local player position to the track duration
   - absolute seek target mapping resolves the expected media item index and clamps local offsets at track boundaries
   - relative skip target calculation clamps at the beginning and end of the audiobook
   - playback speed cycling covers known values and unknown/off-grid values

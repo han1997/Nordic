@@ -303,7 +303,10 @@ internal fun resolveAudiobookAbsolutePositionSeconds(
     currentPositionMs: Long
 ): Int {
     val currentTrack = tracks.getOrNull(currentIndex) ?: return (currentPositionMs.coerceAtLeast(0L) / 1000L).toInt()
-    return currentTrack.startOffsetSeconds + (currentPositionMs.coerceAtLeast(0L) / 1000L).toInt()
+    val localPositionSeconds = (currentPositionMs.coerceAtLeast(0L) / 1000L)
+        .coerceIn(0L, currentTrack.durationSeconds.coerceAtLeast(0).toLong())
+        .toInt()
+    return currentTrack.startOffsetSeconds + localPositionSeconds
 }
 
 internal fun resolveAudiobookTrackSeekPosition(

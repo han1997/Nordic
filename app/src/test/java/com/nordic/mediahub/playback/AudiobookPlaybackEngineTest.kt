@@ -37,6 +37,23 @@ class AudiobookPlaybackEngineTest {
     }
 
     @Test
+    fun resolveAudiobookAbsolutePositionSeconds_clampsKnownTrackPositionToTrackDuration() {
+        val tracks = listOf(
+            track(index = 0, startOffsetSeconds = 0),
+            track(index = 1, startOffsetSeconds = 120)
+        )
+
+        assertEquals(
+            240,
+            resolveAudiobookAbsolutePositionSeconds(
+                tracks = tracks,
+                currentIndex = 1,
+                currentPositionMs = 180_000L
+            )
+        )
+    }
+
+    @Test
     fun resolveAudiobookTrackSeekPosition_mapsAbsolutePositionToTrackOffset() {
         val tracks = listOf(
             track(index = 0, startOffsetSeconds = 0),
