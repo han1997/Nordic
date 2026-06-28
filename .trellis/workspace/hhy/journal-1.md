@@ -913,3 +913,36 @@ Added Media3-backed audiobook playback speed state and a fixed speed cycle, expo
 ### Next Steps
 
 - None - task complete
+
+
+## Session 28: Remove unused media state parameters
+
+**Date**: 2026-06-28
+**Task**: Remove unused media state parameters
+**Branch**: `main`
+
+### Summary
+
+Removed unused colorScheme parameters from local audiobook and music empty-state wrappers, clearing the compile-time warnings while preserving rendered media state UI.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `46e6a1d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
