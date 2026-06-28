@@ -148,6 +148,44 @@ class NavidromeRepositoryTest {
     }
 
     @Test
+    fun getPlaylists_throwsTypedApiExceptionForEmptyResponseBody() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val error = assertNavidromeApiError(NavidromeApiException.Kind.API) {
+            repository().getPlaylists()
+        }
+
+        assertTrue(error.message.orEmpty().contains("响应为空"))
+    }
+
+    @Test
+    fun getPlaylists_throwsTypedExceptionForHttpErrors() = runTest {
+        server.enqueue(MockResponse().setResponseCode(500))
+
+        val error = assertNavidromeApiError(NavidromeApiException.Kind.HTTP) {
+            repository().getPlaylists()
+        }
+
+        assertTrue(error.message.orEmpty().contains("HTTP"))
+    }
+
+    @Test
+    fun getPlaylists_throwsTypedExceptionForSubsonicErrors() = runTest {
+        server.enqueueJson(
+            subsonicFailedResponse(
+                code = 40,
+                message = "Wrong username or password"
+            )
+        )
+
+        val error = assertNavidromeApiError(NavidromeApiException.Kind.SUBSONIC) {
+            repository().getPlaylists()
+        }
+
+        assertTrue(error.message.orEmpty().contains("[40]"))
+    }
+
+    @Test
     fun getPlaylistSongs_mapsEntriesToPlayableSongs() = runTest {
         server.enqueueJson(
             subsonicResponse(
@@ -435,6 +473,22 @@ class NavidromeRepositoryTest {
         )
     }
 
+    private suspend fun assertNavidromeApiError(
+        kind: NavidromeApiException.Kind,
+        block: suspend () -> Unit
+    ): NavidromeApiException {
+        val error = try {
+            block()
+            null
+        } catch (error: NavidromeApiException) {
+            error
+        }
+
+        requireNotNull(error)
+        assertEquals(kind, error.kind)
+        return error
+    }
+
     private fun repository(): NavidromeRepository {
         return NavidromeRepository(
             NavidromeConfig(
@@ -452,6 +506,21 @@ class NavidromeRepositoryTest {
                 "status": "ok",
                 "version": "1.16.1",
                 $dataFields
+              }
+            }
+        """.trimIndent()
+    }
+
+    private fun subsonicFailedResponse(code: Int, message: String): String {
+        return """
+            {
+              "subsonic-response": {
+                "status": "failed",
+                "version": "1.16.1",
+                "error": {
+                  "code": $code,
+                  "message": "$message"
+                }
               }
             }
         """.trimIndent()
