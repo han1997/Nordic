@@ -76,7 +76,11 @@ class EmbyRepositoryTest {
                       "ProductionYear":2016,
                       "RunTimeTicks":69600000000,
                       "CommunityRating":8.6,
-                      "UserData":{"Played":false,"PlaybackPositionTicks":1200000000},
+                      "UserData":{
+                        "Played":false,
+                        "PlaybackPositionTicks":1200000000,
+                        "LastPlayedDate":"2026-06-28T08:15:30.0000000Z"
+                      },
                       "ImageTags":{"Primary":"tag-1"}
                     }
                   ],
@@ -95,6 +99,7 @@ class EmbyRepositoryTest {
         assertEquals("Arrival", item.title)
         assertEquals(6960, item.durationSeconds)
         assertEquals(120, item.playbackPositionSeconds)
+        assertEquals("2026-06-28T08:15:30.0000000Z", item.lastPlayedDate)
         assertFalse(item.isPlayed)
         assertEquals(8.6f, item.communityRating ?: 0f, 0.001f)
         assertTrue(item.imageUrl.orEmpty().contains("/Items/movie-1/Images/Primary"))

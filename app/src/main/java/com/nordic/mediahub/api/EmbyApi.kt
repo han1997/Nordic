@@ -74,7 +74,9 @@ data class EmbyUserDataDto(
     @SerializedName("Played")
     val played: Boolean? = null,
     @SerializedName("PlaybackPositionTicks")
-    val playbackPositionTicks: Long? = null
+    val playbackPositionTicks: Long? = null,
+    @SerializedName("LastPlayedDate")
+    val lastPlayedDate: String? = null
 )
 
 interface EmbyApi {

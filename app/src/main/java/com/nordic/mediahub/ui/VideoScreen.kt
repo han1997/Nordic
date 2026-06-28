@@ -101,10 +101,7 @@ fun VideoScreen(
     }
     val hasActiveBrowserFilter = searchQuery.isNotBlank() || selectedTypeFilter != VideoTypeFilter.All
     val continueWatchingVideos = remember(videos) {
-        videos
-            .filter { video -> video.playbackPositionSeconds > 0 && !video.isPlayed }
-            .sortedByDescending { video -> video.playbackPositionSeconds }
-            .take(12)
+        continueWatchingShelf(videos)
     }
     val topRatedVideos = remember(videos) {
         videos
@@ -1038,6 +1035,17 @@ private fun VideoItem.detailChips(): List<String> {
         if (isPlayed) add("已播放")
         communityRating?.takeIf { it > 0f }?.let { add("评分 ${"%.1f".format(it)}") }
     }.ifEmpty { listOf("视频") }
+}
+
+internal fun continueWatchingShelf(videos: List<VideoItem>, limit: Int = 12): List<VideoItem> {
+    return videos
+        .filter { video -> video.playbackPositionSeconds > 0 && !video.isPlayed }
+        .sortedWith(
+            compareByDescending<VideoItem> { it.lastPlayedDate.orEmpty() }
+                .thenByDescending { it.playbackPositionSeconds }
+                .thenBy { it.title }
+        )
+        .take(limit)
 }
 
 private fun List<VideoItem>.relatedEpisodesFor(series: VideoItem): List<VideoItem> {
