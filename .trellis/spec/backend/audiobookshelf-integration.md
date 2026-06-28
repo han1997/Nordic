@@ -62,6 +62,7 @@
 - In-flight library refresh, library selection, or detail requests from a previous saved config must not write list/detail/error/loading state after the config boundary. Guard these writes with a config-state version or equivalent request identity.
 - Same-config manual refresh keeps the existing library/detail reconciliation behavior: preserve the selected library id and selected detail only when they still exist in the refreshed same-account responses.
 - Audio URLs may need the bearer token appended as `token=<token>` when AudiobookShelf returns relative `contentUrl` values.
+- Detect existing audio URL tokens by parsing query parameter names, not by raw substring search. If `token=` appears in the path but no `token` query parameter exists, still append the bearer token.
 - Progress sync must use current absolute audiobook time, not current track-local time, and repository payloads must clamp `currentTime` to `0..durationSeconds` before sending progress, session sync, or close requests.
 - Periodic session sync `timeListened` must measure only newly listened time in the current app session. Initialize the delta baseline from the greater of playback state position, `AudiobookPlaybackSession.startTimeSeconds`, and `currentTimeSeconds` so resumed books do not count already-listened time again. Report at least the last successfully synced baseline so an early zero-position player state cannot regress AudiobookShelf resume metadata.
 - When session duration is zero or negative, progress/session/close `currentTime` must be `0.0`; request `duration` may be floored to `1.0` only to keep progress math and ABS payloads well-formed.
@@ -118,6 +119,8 @@
 | User starts audiobook playback while music is active | Call `MusicPlaybackEngine.stop()` before `AudiobookPlaybackEngine.play(...)` |
 | User starts the same audiobook that is already active | Reuse the current session and show the player; do not call `startPlayback()` again |
 | User starts a different audiobook while one is active | Background sync/close the old session, then start the requested item |
+| Audio URL path contains `token=` but query has no `token` parameter | Append the bearer token as a query parameter |
+| Audio URL already contains a `token` query parameter | Do not append a duplicate token |
 
 ### 5. Good/Base/Bad Cases
 
@@ -131,11 +134,13 @@
 - Good: User refreshes while viewing a detail page for a book that still exists in the selected library; the detail page remains open.
 - Good: User refreshes while viewing a detail page for a book removed from the selected library; the app returns to the library list instead of showing stale detail.
 - Good: User can skip back/forward by the fixed audiobook interval; progress sync keeps using the resulting absolute position.
+- Good: AudiobookShelf returns `/audio/token=placeholder/book.mp3?download=0`; Nordic still appends `&token=<token>` because the path text is not an auth query parameter.
 - Good: User can cycle playback speed from the player, and Media3 playback speed plus UI state stay in sync.
 - Good: User can jump to previous/next chapters from the player; absolute position updates continue to drive progress sync.
 - Base: User only browses libraries and details; no playback session is created and no progress endpoint is called.
 - Bad: `getLibraryItems()` requests only `page=0`, truncating any library with more books than the page size.
 - Bad: `getLibraries()` compares `mediaType == "book"` case-sensitively and drops valid audiobook libraries returned as `Book`.
+- Bad: Audio URL token detection uses `absolute.contains("token=")` and fails to append auth when that text appears in the path.
 - Bad: App extracts a stream URL and plays it without calling `/play`, `/sync`, or `/close`; AudiobookShelf resume state will drift.
 
 ### 6. Tests Required
@@ -150,6 +155,7 @@
   - library filtering includes `book`, `Book`, and `BOOK` media type values and excludes non-book media types
   - paginated library item browsing requests `page=0`, `page=1`, and merges results until `total` is loaded
   - relative cover/audio URL normalization
+  - audio URL token handling appends a token when no `token` query parameter exists, including when `token=` appears only in the path, and avoids duplicating an existing token query parameter
   - progress fraction and current time payload fields
   - progress/session/close `currentTime` payload clamps to `0..durationSeconds`
   - zero-duration progress/session/close payloads keep `currentTime` at `0.0` while using a safe request duration
@@ -175,6 +181,25 @@
   - closing playback calls repository `closeSession()` with the last absolute position
 
 ### 7. Wrong vs Correct
+
+#### Wrong
+
+```kotlin
+if (absolute.contains("token=")) absolute else "$absolute&token=$token"
+```
+
+This treats any path text as authentication state and can leave playback URLs unauthenticated.
+
+#### Correct
+
+```kotlin
+val url = absolute.toHttpUrlOrNull()
+if (url?.queryParameterNames?.any { it.equals("token", ignoreCase = true) } == true) {
+    url.toString()
+} else {
+    url?.newBuilder()?.addQueryParameter("token", token)?.build()?.toString()
+}
+```
 
 #### Wrong
 

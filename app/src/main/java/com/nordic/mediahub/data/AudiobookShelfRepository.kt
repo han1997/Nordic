@@ -9,6 +9,7 @@ import com.nordic.mediahub.api.AudiobookShelfMediaProgressDto
 import com.nordic.mediahub.api.AudiobookShelfPlayRequest
 import com.nordic.mediahub.api.AudiobookShelfProgressUpdateRequest
 import com.nordic.mediahub.api.AudiobookShelfSessionSyncRequest
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
@@ -309,10 +310,20 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
 
     private fun String.toAbsoluteAudioUrl(token: String): String {
         val absolute = if (startsWith("http://") || startsWith("https://")) this else "$baseUrl$this"
-        return if (absolute.contains("token=")) absolute else {
-            val separator = if (absolute.contains("?")) "&" else "?"
-            "$absolute${separator}token=$token"
+        val url = absolute.toHttpUrlOrNull()
+        if (url != null) {
+            return if (url.queryParameterNames.any { it.equals("token", ignoreCase = true) }) {
+                url.toString()
+            } else {
+                url.newBuilder()
+                    .addQueryParameter("token", token)
+                    .build()
+                    .toString()
+            }
         }
+
+        val separator = if (absolute.contains("?")) "&" else "?"
+        return "$absolute${separator}token=$token"
     }
 
     private fun Response<Unit>.requireUnitResponse(action: String) {

@@ -56,6 +56,32 @@ class AudiobookShelfRepositoryTest {
     }
 
     @Test
+    fun startPlayback_appendsTokenWhenTokenTextIsOnlyInAudioPath() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(playbackSessionJson(contentUrl = "/audio/token=placeholder/book-1.mp3?download=0"))
+
+        val session = repository().startPlayback("book-1")
+
+        assertEquals(
+            "${server.url("/")}audio/token=placeholder/book-1.mp3?download=0&token=token-123",
+            session.audioTracks.single().contentUrl
+        )
+    }
+
+    @Test
+    fun startPlayback_doesNotDuplicateExistingAudioTokenQueryParameter() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(playbackSessionJson(contentUrl = "/audio/book-1.mp3?token=upstream-token"))
+
+        val session = repository().startPlayback("book-1")
+
+        assertEquals(
+            "${server.url("/")}audio/book-1.mp3?token=upstream-token",
+            session.audioTracks.single().contentUrl
+        )
+    }
+
+    @Test
     fun getLibraries_filtersBookMediaTypeCaseInsensitively() = runTest {
         server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
         server.enqueueJson(
