@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 75
+- **Total Sessions**: 76
 - **Last Active**: 2026-06-29
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~535 | Active |
+| `journal-2.md` | ~568 | Active |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 76 | 2026-06-29 | Parse AudiobookShelf audio token queries | `7cc7921` | `main` |
 | 75 | 2026-06-29 | Match AudiobookShelf book media types | `a542189` | `main` |
 | 74 | 2026-06-29 | Refresh same-video streams | `fcf146d` | `main` |
 | 73 | 2026-06-29 | Refresh same-song music streams | `68abe10` | `main` |

@@ -533,3 +533,36 @@ Updated AudiobookShelf library filtering so book media types are matched case-in
 ### Next Steps
 
 - None - task complete
+
+
+## Session 76: Parse AudiobookShelf audio token queries
+
+**Date**: 2026-06-29
+**Task**: Parse AudiobookShelf audio token queries
+**Branch**: `main`
+
+### Summary
+
+Replaced raw AudiobookShelf audio token substring checks with query-parameter-aware URL handling, with regression tests for path token text and existing token parameters.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7cc7921` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
