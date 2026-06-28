@@ -1408,3 +1408,36 @@ Aligned Emby video initial playback with continue-watching completion rules: kno
 ### Next Steps
 
 - None - task complete
+
+
+## Session 43: Clamp zero-duration audiobook sync current time
+
+**Date**: 2026-06-28
+**Task**: Clamp zero-duration audiobook sync current time
+**Branch**: `main`
+
+### Summary
+
+Separated AudiobookShelf current-time clamping from safe payload duration, ensuring zero-duration sessions send currentTime 0.0 while preserving well-formed duration/progress payloads. Added repository regression coverage, updated the ABS contract, and verified compile, unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4029498` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
