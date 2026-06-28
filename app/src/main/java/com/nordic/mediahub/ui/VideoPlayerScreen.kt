@@ -43,6 +43,8 @@ fun VideoPlayerScreen(
     onSurfaceReady: (SurfaceView) -> Unit,
     onSurfaceDisposed: (SurfaceView) -> Unit,
     onSeek: (Int) -> Unit,
+    onSeekBack: () -> Unit = {},
+    onSeekForward: () -> Unit = {},
     onPlayPause: () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
@@ -144,10 +146,22 @@ fun VideoPlayerScreen(
                             overflow = TextOverflow.Ellipsis
                         )
                         VideoPlayerControlButton(
+                            text = "-10",
+                            colorScheme = colorScheme,
+                            enabled = video != null,
+                            onClick = onSeekBack
+                        )
+                        VideoPlayerControlButton(
                             text = if (state.isPlaying) "Ⅱ" else "▶",
                             colorScheme = colorScheme,
                             enabled = video != null,
                             onClick = onPlayPause
+                        )
+                        VideoPlayerControlButton(
+                            text = "+30",
+                            colorScheme = colorScheme,
+                            enabled = video != null,
+                            onClick = onSeekForward
                         )
                     }
                 }
@@ -235,7 +249,7 @@ private fun VideoPlayerControlButton(
         Box(contentAlignment = Alignment.Center) {
             Text(
                 text,
-                fontSize = 20.sp,
+                fontSize = if (text.length > 2) 14.sp else 20.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1
             )

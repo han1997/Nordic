@@ -35,6 +35,42 @@ class VideoPlaybackEngineTest {
         )
     }
 
+    @Test
+    fun resolveVideoRelativeSeekPositionSeconds_movesWithinBounds() {
+        assertEquals(
+            70,
+            resolveVideoRelativeSeekPositionSeconds(
+                positionSeconds = 40,
+                durationSeconds = 120,
+                deltaSeconds = 30
+            )
+        )
+    }
+
+    @Test
+    fun resolveVideoRelativeSeekPositionSeconds_clampsAtStart() {
+        assertEquals(
+            0,
+            resolveVideoRelativeSeekPositionSeconds(
+                positionSeconds = 5,
+                durationSeconds = 120,
+                deltaSeconds = -10
+            )
+        )
+    }
+
+    @Test
+    fun resolveVideoRelativeSeekPositionSeconds_clampsAtEnd() {
+        assertEquals(
+            120,
+            resolveVideoRelativeSeekPositionSeconds(
+                positionSeconds = 100,
+                durationSeconds = 120,
+                deltaSeconds = 30
+            )
+        )
+    }
+
     private fun video(
         playbackPositionSeconds: Int,
         durationSeconds: Int,

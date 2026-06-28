@@ -531,6 +531,8 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             onSurfaceReady = videoPlaybackEngine::attachSurface,
             onSurfaceDisposed = videoPlaybackEngine::detachSurface,
             onSeek = videoPlaybackEngine::seekTo,
+            onSeekBack = { videoPlaybackEngine.seekBackBy() },
+            onSeekForward = { videoPlaybackEngine.seekForwardBy() },
             onPlayPause = videoPlaybackEngine::togglePlayPause,
             onClose = {
                 showVideoPlayer = false

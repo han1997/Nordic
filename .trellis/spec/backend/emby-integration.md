@@ -82,6 +82,10 @@ GET Users/{userId}/Items
   - A newly started unplayed `VideoItem` with `playbackPositionSeconds > 0` must seek to that resume position before playback starts.
   - Items marked `isPlayed == true`, or items with no positive resume position, start at `0`.
   - If `durationSeconds` is known, clamp the initial resume position to `durationSeconds`.
+- Direct playback controls:
+  - Video playback supports fixed relative seek controls: 10 seconds backward and 30 seconds forward.
+  - Relative seek commands must resolve to an absolute player position and use the same `seekTo(positionSeconds)` path as the scrubber.
+  - Clamp relative seek targets to `0..durationSeconds` when duration is known.
 - Series detail UI:
   - A selected `Series` may derive related episodes from the already-loaded library items.
   - Match episodes by `seriesId == selectedSeries.id`, with `seriesName == selectedSeries.title` as a fallback for incomplete responses.
@@ -97,6 +101,7 @@ GET Users/{userId}/Items
 - Missing `UserData.LastPlayedDate` -> continue-watching shelf keeps the item eligible by resume position but sorts it behind dated resume items
 - Missing item `CommunityRating` -> map rating to `null`; top-rated shelves should ignore it
 - `playbackPositionSeconds` greater than known duration -> initial playback seek clamps to the duration instead of seeking beyond the item
+- Relative video skip requested near the start or end -> clamp to `0` or `durationSeconds`
 - Missing episode relationship fields -> keep the episode playable, but only show it under a series detail when `seriesName` fallback matches
 - `Series` item -> `VideoItem.streamUrl == null`; UI must not call playback for the series item directly
 - Unknown repository exceptions -> wrap with user-action context, e.g. `"连接 Emby 失败: ..."`
@@ -107,6 +112,7 @@ GET Users/{userId}/Items
 - Good: Emby returns `UserData.PlaybackPositionTicks` and `CommunityRating`; repository maps resume/rating metadata and UI can show continue-watching/top-rated/unplayed shelves.
 - Good: Emby returns `UserData.LastPlayedDate`; continue watching prioritizes recently watched items over older items with larger resume positions.
 - Good: User starts an unfinished continue-watching item; playback seeks to the Emby resume position before playing.
+- Good: User can use video skip controls to quickly jump 10 seconds back or 30 seconds forward without leaving player bounds.
 - Good: A TV library returns both a `Series` item and its `Episode` items; series detail shows sorted episode rows, and tapping an episode plays the episode stream.
 - Base: Username/password login, one video library, empty item list, UI shows an empty media-library state.
 - Base: Older/incomplete Emby responses omit `UserData` and `CommunityRating`; catalog still loads and spotlight shelves simply omit unavailable groups.
@@ -134,6 +140,7 @@ GET Users/{userId}/Items
   - asserts `UserData.LastPlayedDate` maps to `VideoItem.lastPlayedDate`
   - asserts continue-watching shelf sorting uses last-played recency before resume-position fallback
   - asserts video initial start-position helper uses resume seconds for unfinished items, starts played items at zero, and clamps beyond duration
+  - asserts video relative seek helper clamps at the beginning and end of the item
   - asserts `Fields` requests `SeriesId`, `SeriesName`, `ParentIndexNumber`, and `IndexNumber`
   - asserts `Series` items map `streamUrl` to `null`
   - asserts `Episode` relationship fields map to `VideoItem.seriesId`, `seriesName`, `seasonNumber`, and `episodeNumber`

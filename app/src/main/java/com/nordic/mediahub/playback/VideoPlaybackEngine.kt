@@ -22,6 +22,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+private const val VIDEO_SKIP_BACK_SECONDS = 10
+private const val VIDEO_SKIP_FORWARD_SECONDS = 30
+
 data class VideoPlaybackState(
     val video: VideoItem? = null,
     val isPlaying: Boolean = false,
@@ -137,6 +140,14 @@ class VideoPlaybackEngine(context: Context) {
         publishPlayerState()
     }
 
+    fun seekBackBy(intervalSeconds: Int = VIDEO_SKIP_BACK_SECONDS) {
+        seekBy(-intervalSeconds)
+    }
+
+    fun seekForwardBy(intervalSeconds: Int = VIDEO_SKIP_FORWARD_SECONDS) {
+        seekBy(intervalSeconds)
+    }
+
     fun stop() {
         stopPositionUpdates()
         player.pause()
@@ -188,6 +199,18 @@ class VideoPlaybackEngine(context: Context) {
             )
         }
     }
+
+    private fun seekBy(deltaSeconds: Int) {
+        val state = _state.value
+        if (state.video == null) return
+        seekTo(
+            resolveVideoRelativeSeekPositionSeconds(
+                positionSeconds = state.positionSeconds,
+                durationSeconds = state.durationSeconds,
+                deltaSeconds = deltaSeconds
+            )
+        )
+    }
 }
 
 internal fun resolveVideoInitialStartPositionMs(video: VideoItem): Long {
@@ -203,6 +226,17 @@ internal fun resolveVideoInitialStartPositionMs(video: VideoItem): Long {
         resumeSeconds
     }
     return startSeconds * 1000L
+}
+
+internal fun resolveVideoRelativeSeekPositionSeconds(
+    positionSeconds: Int,
+    durationSeconds: Int,
+    deltaSeconds: Int
+): Int {
+    val maxPosition = durationSeconds.coerceAtLeast(0)
+    val safePosition = positionSeconds.coerceIn(0, maxPosition)
+    val target = safePosition.toLong() + deltaSeconds.toLong()
+    return target.coerceIn(0L, maxPosition.toLong()).toInt()
 }
 
 private fun VideoItem.toMediaItem(): MediaItem {
