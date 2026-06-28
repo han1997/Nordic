@@ -45,6 +45,7 @@
   - `POST /api/session/{sessionId}/sync`
   - `POST /api/session/{sessionId}/close`
 - Domain mapping must keep music and audiobook models separate. Do not map audiobook sessions into `NavidromeSong`.
+- Library refresh must resolve the selected library id against the latest `GET /api/libraries` response. Keep the previous selection only if that id is still present; otherwise fall back to the first returned library, or clear the selection when the response is empty.
 - Audio URLs may need the bearer token appended as `token=<token>` when AudiobookShelf returns relative `contentUrl` values.
 - Progress sync must use current absolute audiobook time, not current track-local time.
 - Absolute audiobook seek positions must be mapped to the Media3 track list as `(mediaItemIndex, localOffsetSeconds)` and the local offset must be clamped to `0..track.durationSeconds`.
@@ -64,6 +65,8 @@
 | Missing server URL or username | Do not construct `AudiobookShelfRepository`; show configuration state |
 | Login HTTP failure | Throw `AudiobookShelfApiException.Kind.HTTP` with status code |
 | Login response lacks token | Throw `AudiobookShelfApiException.Kind.AUTH` |
+| Previously selected library id is absent from the latest library list | Fall back to the first returned library before requesting items |
+| Latest library list is empty | Clear the selected library id and show the empty-library state |
 | Library/item/playback response is empty | Throw `AudiobookShelfApiException.Kind.API` |
 | Playback session has no playable tracks | Keep session visible with a playback error; do not start Media3 |
 | Absolute seek target is before the first track | Seek to media item `0` at offset `0` |
@@ -82,6 +85,7 @@
 ### 5. Good/Base/Bad Cases
 
 - Good: User opens an audiobook, `startPlayback()` returns a session, Media3 plays session tracks, progress sync runs periodically, and `syncAndCloseSession()` is called when leaving the player.
+- Good: User switches AudiobookShelf server/account, refreshes libraries, and the app requests items from a library id returned by that server instead of a stale id from the previous server/account.
 - Good: User can skip back/forward by the fixed audiobook interval; progress sync keeps using the resulting absolute position.
 - Good: User can cycle playback speed from the player, and Media3 playback speed plus UI state stay in sync.
 - Good: User can jump to previous/next chapters from the player; absolute position updates continue to drive progress sync.
@@ -101,6 +105,7 @@
   - progress fraction and current time payload fields
   - HTTP and empty-body errors map to typed `AudiobookShelfApiException` kinds
   - non-2xx progress/session responses throw `AudiobookShelfApiException.Kind.HTTP`
+- UI/helper tests should assert library selection resolution keeps an existing id, falls back from a stale id, and clears selection for an empty library list.
 - Playback tests should assert:
   - absolute audiobook position is track offset plus player position
   - absolute seek target mapping resolves the expected media item index and clamps local offsets at track boundaries

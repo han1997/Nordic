@@ -40,6 +40,15 @@ private enum class AudiobookLibraryPage {
     Detail
 }
 
+internal fun resolveAudiobookSelectedLibraryId(
+    currentLibraryId: String?,
+    libraries: List<AudiobookLibrarySummary>
+): String? {
+    return currentLibraryId
+        ?.takeIf { selectedId -> libraries.any { library -> library.id == selectedId } }
+        ?: libraries.firstOrNull()?.id
+}
+
 @Composable
 fun AudiobookScreen(
     colorScheme: ColorScheme,
@@ -84,9 +93,9 @@ fun AudiobookScreen(
             }
             val loadedLibraries = repo.getLibraries()
             libraries = loadedLibraries
-            val firstLibraryId = selectedLibraryId ?: loadedLibraries.firstOrNull()?.id
-            selectedLibraryId = firstLibraryId
-            items = if (firstLibraryId == null) emptyList() else repo.getLibraryItems(firstLibraryId)
+            val resolvedLibraryId = resolveAudiobookSelectedLibraryId(selectedLibraryId, loadedLibraries)
+            selectedLibraryId = resolvedLibraryId
+            items = if (resolvedLibraryId == null) emptyList() else repo.getLibraryItems(resolvedLibraryId)
         } catch (e: Exception) {
             errorMessage = e.message ?: "连接 AudiobookShelf 失败"
         } finally {
