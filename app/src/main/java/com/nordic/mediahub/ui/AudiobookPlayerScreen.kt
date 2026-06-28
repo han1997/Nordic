@@ -52,6 +52,7 @@ fun AudiobookPlayerScreen(
     onSeekForward: () -> Unit = {},
     onSeekToPreviousChapter: () -> Unit = {},
     onSeekToNextChapter: () -> Unit = {},
+    onCyclePlaybackSpeed: () -> Unit = {},
     onPlayPause: () -> Unit,
     onClose: () -> Unit
 ) {
@@ -140,6 +141,12 @@ fun AudiobookPlayerScreen(
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     AudiobookPlayerMetaChip(formatDuration(duration), colorScheme)
+                    AudiobookPlayerMetaChip(
+                        text = formatPlaybackSpeed(state.playbackSpeed),
+                        colorScheme = colorScheme,
+                        enabled = playbackControlsEnabled,
+                        onClick = onCyclePlaybackSpeed
+                    )
                     val currentChapter = state.chapters.lastOrNull { chapter ->
                         chapter.startSeconds <= state.positionSeconds
                     }
@@ -335,11 +342,23 @@ private fun AudiobookPlayerTopBar(
 }
 
 @Composable
-private fun AudiobookPlayerMetaChip(text: String, colorScheme: ColorScheme) {
+private fun AudiobookPlayerMetaChip(
+    text: String,
+    colorScheme: ColorScheme,
+    enabled: Boolean = true,
+    onClick: (() -> Unit)? = null
+) {
+    val chipModifier = if (onClick != null) {
+        Modifier.clickable(enabled = enabled, onClick = onClick)
+    } else {
+        Modifier
+    }
+
     Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.62f),
+        color = if (enabled) colorScheme.surfaceVariant.copy(alpha = 0.62f) else colorScheme.surface.copy(alpha = 0.30f),
         contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(999.dp)
+        shape = RoundedCornerShape(999.dp),
+        modifier = chipModifier
     ) {
         Text(
             text,
@@ -410,5 +429,16 @@ private fun AudiobookPlayButton(
                 fontWeight = FontWeight.Bold
             )
         }
+    }
+}
+
+private fun formatPlaybackSpeed(speed: Float): String {
+    val safeSpeed = speed.takeIf { it.isFinite() && it > 0f } ?: 1f
+    val rounded = kotlin.math.round(safeSpeed * 100f) / 100f
+    return when (rounded) {
+        1f -> "1x"
+        1.5f -> "1.5x"
+        2f -> "2x"
+        else -> "${rounded}x"
     }
 }

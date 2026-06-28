@@ -6,6 +6,7 @@ import androidx.core.content.ContextCompat
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -28,6 +29,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 private const val AUDIOBOOK_SKIP_INTERVAL_SECONDS = 30
+private val AUDIOBOOK_PLAYBACK_SPEEDS = listOf(0.75f, 1f, 1.25f, 1.5f, 2f)
 
 data class AudiobookPlaybackState(
     val session: AudiobookPlaybackSession? = null,
@@ -35,6 +37,7 @@ data class AudiobookPlaybackState(
     val isBuffering: Boolean = false,
     val positionSeconds: Int = 0,
     val durationSeconds: Int = 0,
+    val playbackSpeed: Float = 1f,
     val chapters: List<AudiobookChapter> = emptyList(),
     val errorMessage: String? = null
 )
@@ -67,6 +70,10 @@ class AudiobookPlaybackEngine(context: Context) {
             if (activeController != null && !activeController.isPlaying) {
                 stopPositionUpdates()
             }
+        }
+
+        override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
+            publishPlayerState()
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -188,6 +195,13 @@ class AudiobookPlaybackEngine(context: Context) {
         seekBy(intervalSeconds)
     }
 
+    fun cyclePlaybackSpeed() {
+        val activeController = controller ?: return
+        val nextSpeed = resolveNextAudiobookPlaybackSpeed(activeController.playbackParameters.speed)
+        activeController.setPlaybackSpeed(nextSpeed)
+        publishPlayerState()
+    }
+
     fun stop() {
         stopPositionUpdates()
         controller?.run {
@@ -240,6 +254,7 @@ class AudiobookPlaybackEngine(context: Context) {
                 durationSeconds = session.durationSeconds.coerceAtLeast(
                     (activeController.duration.takeIf { value -> value != C.TIME_UNSET }?.div(1000L)?.toInt()) ?: 0
                 ),
+                playbackSpeed = activeController.playbackParameters.speed,
                 chapters = session.chapters,
                 errorMessage = when (activeController.playbackState) {
                     Player.STATE_READY, Player.STATE_ENDED -> null
@@ -333,6 +348,20 @@ internal fun resolveAudiobookRelativeSeekPositionSeconds(
     val safePosition = positionSeconds.coerceIn(0, maxPosition)
     val target = safePosition.toLong() + deltaSeconds.toLong()
     return target.coerceIn(0L, maxPosition.toLong()).toInt()
+}
+
+internal fun resolveNextAudiobookPlaybackSpeed(
+    currentSpeed: Float,
+    speeds: List<Float> = AUDIOBOOK_PLAYBACK_SPEEDS
+): Float {
+    if (speeds.isEmpty()) return 1f
+
+    val currentIndex = speeds.indexOfFirst { speed -> kotlin.math.abs(speed - currentSpeed) < 0.001f }
+    return if (currentIndex >= 0) {
+        speeds[(currentIndex + 1) % speeds.size]
+    } else {
+        speeds.firstOrNull { speed -> speed > currentSpeed } ?: speeds.first()
+    }
 }
 
 private fun AudiobookAudioTrack.toMediaItem(session: AudiobookPlaybackSession): MediaItem {

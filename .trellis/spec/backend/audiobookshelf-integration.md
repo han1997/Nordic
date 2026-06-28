@@ -26,6 +26,7 @@
   - `fun seekForwardBy(intervalSeconds: Int = 30)`
   - `fun seekToPreviousChapter()`
   - `fun seekToNextChapter()`
+  - `fun cyclePlaybackSpeed()`
   - `fun togglePlayPause()`
   - `fun stop()`
 - Music playback engine:
@@ -48,6 +49,7 @@
 - Progress sync must use current absolute audiobook time, not current track-local time.
 - Relative skip controls must resolve to an absolute audiobook position and use the same `seekTo(positionSeconds)` path as the scrubber.
 - Relative skip targets must be clamped to `0..durationSeconds`; do not seek negative or beyond the audiobook duration.
+- Playback speed is Media3 player state. `AudiobookPlaybackState.playbackSpeed` must reflect `Player.playbackParameters.speed`, and `cyclePlaybackSpeed()` cycles common audiobook steps: `0.75x`, `1.0x`, `1.25x`, `1.5x`, `2.0x`.
 - Chapter navigation must seek by absolute audiobook seconds, using the same `seekTo(positionSeconds)` path as the scrubber. Do not seek by track-local time when moving between chapters.
 - Previous chapter behavior should restart the current chapter when playback is more than a small threshold into it; near the start of a chapter, it should jump to the previous chapter when one exists.
 - Next chapter behavior should jump to the next chapter start when one exists.
@@ -65,6 +67,7 @@
 | Playback session has no playable tracks | Keep session visible with a playback error; do not start Media3 |
 | 30 second skip back is requested near the book start | Clamp to `0` |
 | 30 second skip forward is requested near the book end | Clamp to `durationSeconds` |
+| Playback speed is on an unknown/off-grid value | Cycle to the next higher supported speed, or wrap to the first speed |
 | Chapter list is empty | Chapter navigation controls are disabled or engine chapter commands no-op |
 | Previous chapter requested near the first chapter start | No-op instead of seeking to a negative position |
 | Next chapter requested from the last chapter | No-op instead of seeking past duration |
@@ -77,6 +80,7 @@
 
 - Good: User opens an audiobook, `startPlayback()` returns a session, Media3 plays session tracks, progress sync runs periodically, and `syncAndCloseSession()` is called when leaving the player.
 - Good: User can skip back/forward by the fixed audiobook interval; progress sync keeps using the resulting absolute position.
+- Good: User can cycle playback speed from the player, and Media3 playback speed plus UI state stay in sync.
 - Good: User can jump to previous/next chapters from the player; absolute position updates continue to drive progress sync.
 - Base: User only browses libraries and details; no playback session is created and no progress endpoint is called.
 - Bad: App extracts a stream URL and plays it without calling `/play`, `/sync`, or `/close`; AudiobookShelf resume state will drift.
@@ -97,6 +101,7 @@
 - Playback tests should assert:
   - absolute audiobook position is track offset plus player position
   - relative skip target calculation clamps at the beginning and end of the audiobook
+  - playback speed cycling covers known values and unknown/off-grid values
   - previous/next chapter helpers resolve absolute chapter start positions, including restart threshold and missing chapter cases
   - `stop()` clears session state and media items
   - closing playback calls repository `closeSession()` with the last absolute position

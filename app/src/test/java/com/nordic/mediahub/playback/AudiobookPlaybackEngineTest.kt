@@ -128,6 +128,18 @@ class AudiobookPlaybackEngineTest {
         )
     }
 
+    @Test
+    fun resolveNextAudiobookPlaybackSpeed_cyclesKnownSpeeds() {
+        assertEquals(1.25f, resolveNextAudiobookPlaybackSpeed(1f), 0.001f)
+        assertEquals(0.75f, resolveNextAudiobookPlaybackSpeed(2f), 0.001f)
+    }
+
+    @Test
+    fun resolveNextAudiobookPlaybackSpeed_movesUnknownSpeedToNextHigherStep() {
+        assertEquals(1.25f, resolveNextAudiobookPlaybackSpeed(1.1f), 0.001f)
+        assertEquals(0.75f, resolveNextAudiobookPlaybackSpeed(2.2f), 0.001f)
+    }
+
     private fun track(index: Int, startOffsetSeconds: Int): AudiobookAudioTrack {
         return AudiobookAudioTrack(
             index = index,

@@ -519,6 +519,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             onSeekForward = { audiobookPlaybackEngine.seekForwardBy() },
             onSeekToPreviousChapter = audiobookPlaybackEngine::seekToPreviousChapter,
             onSeekToNextChapter = audiobookPlaybackEngine::seekToNextChapter,
+            onCyclePlaybackSpeed = audiobookPlaybackEngine::cyclePlaybackSpeed,
             onPlayPause = audiobookPlaybackEngine::togglePlayPause,
             onClose = { closeAudiobookPlaybackAfterSync() }
         )
