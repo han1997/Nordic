@@ -19,6 +19,10 @@ class AudiobookShelfApiException(message: String, val kind: Kind) : Exception(me
     enum class Kind { HTTP, AUTH, API }
 }
 
+internal fun resolveAudiobookSyncCurrentTimeSeconds(currentTimeSeconds: Int, durationSeconds: Int): Int {
+    return currentTimeSeconds.coerceIn(0, durationSeconds.coerceAtLeast(1))
+}
+
 class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
     private val baseUrl = config.normalizedBaseUrl()
     private var cachedBearerToken: String? = null
@@ -179,7 +183,7 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
     suspend fun syncProgress(session: AudiobookPlaybackSession, currentTimeSeconds: Int, deltaSeconds: Int) {
         val auth = bearerToken()
         val duration = session.durationSeconds.coerceAtLeast(1)
-        val safeCurrentTime = currentTimeSeconds.coerceAtLeast(0)
+        val safeCurrentTime = resolveAudiobookSyncCurrentTimeSeconds(currentTimeSeconds, duration)
         val progress = (safeCurrentTime.toDouble() / duration.toDouble()).coerceIn(0.0, 1.0)
         api.updateProgress(
             bearerToken = auth,
@@ -204,14 +208,15 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
 
     suspend fun closeSession(session: AudiobookPlaybackSession, currentTimeSeconds: Int) {
         val auth = bearerToken()
-        val safeCurrentTime = currentTimeSeconds.coerceAtLeast(0)
+        val duration = session.durationSeconds.coerceAtLeast(1)
+        val safeCurrentTime = resolveAudiobookSyncCurrentTimeSeconds(currentTimeSeconds, duration)
         api.closeSession(
             bearerToken = auth,
             sessionId = session.sessionId,
             request = AudiobookShelfSessionSyncRequest(
                 currentTime = safeCurrentTime.toDouble(),
                 timeListened = 0.0,
-                duration = session.durationSeconds.toDouble().coerceAtLeast(1.0)
+                duration = duration.toDouble()
             )
         ).requireUnitResponse("关闭有声书播放会话失败")
     }

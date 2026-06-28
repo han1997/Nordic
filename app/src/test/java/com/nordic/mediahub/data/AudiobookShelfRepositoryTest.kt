@@ -60,18 +60,47 @@ class AudiobookShelfRepositoryTest {
         val progressRequest = server.takeRequest()
         val progressBody = progressRequest.body.readUtf8()
         assertEquals("/api/me/progress/book-1", progressRequest.path)
-        assertTrue(progressBody.contains(""""currentTime":150.0"""))
+        assertTrue(progressBody.contains(""""currentTime":100.0"""))
         assertTrue(progressBody.contains(""""progress":1.0"""))
 
         val syncRequest = server.takeRequest()
         val syncBody = syncRequest.body.readUtf8()
         assertEquals("/api/session/session-1/sync", syncRequest.path)
+        assertTrue(syncBody.contains(""""currentTime":100.0"""))
         assertTrue(syncBody.contains(""""timeListened":12.0"""))
 
         val closeRequest = server.takeRequest()
         val closeBody = closeRequest.body.readUtf8()
         assertEquals("/api/session/session-1/close", closeRequest.path)
-        assertTrue(closeBody.contains(""""currentTime":150.0"""))
+        assertTrue(closeBody.contains(""""currentTime":100.0"""))
+    }
+
+    @Test
+    fun syncAndCloseSession_clampsNegativeCurrentTimeToZero() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","accessToken":"access-123"}}""")
+        server.enqueue(MockResponse().setResponseCode(204))
+        server.enqueue(MockResponse().setResponseCode(204))
+        server.enqueue(MockResponse().setResponseCode(204))
+
+        repository().syncAndCloseSession(sampleSession(durationSeconds = 100), currentTimeSeconds = -20, deltaSeconds = -5)
+
+        server.takeRequest()
+        val progressRequest = server.takeRequest()
+        val progressBody = progressRequest.body.readUtf8()
+        assertEquals("/api/me/progress/book-1", progressRequest.path)
+        assertTrue(progressBody.contains(""""currentTime":0.0"""))
+        assertTrue(progressBody.contains(""""progress":0.0"""))
+
+        val syncRequest = server.takeRequest()
+        val syncBody = syncRequest.body.readUtf8()
+        assertEquals("/api/session/session-1/sync", syncRequest.path)
+        assertTrue(syncBody.contains(""""currentTime":0.0"""))
+        assertTrue(syncBody.contains(""""timeListened":0.0"""))
+
+        val closeRequest = server.takeRequest()
+        val closeBody = closeRequest.body.readUtf8()
+        assertEquals("/api/session/session-1/close", closeRequest.path)
+        assertTrue(closeBody.contains(""""currentTime":0.0"""))
     }
 
     @Test
