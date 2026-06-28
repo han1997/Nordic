@@ -302,3 +302,36 @@ Made AudiobookShelf library discovery convert empty 200 responses, including Ret
 ### Next Steps
 
 - None - task complete
+
+
+## Session 69: Type empty AudiobookShelf body responses
+
+**Date**: 2026-06-29
+**Task**: Type empty AudiobookShelf body responses
+**Branch**: `main`
+
+### Summary
+
+Converted empty AudiobookShelf item-list, item-detail, and playback responses into typed API errors with shared response-body validation and regression tests.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b3a17b0` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
