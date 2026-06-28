@@ -599,3 +599,36 @@ Updated Navidrome cover-art mapping so blank ids remain absent instead of produc
 ### Next Steps
 
 - None - task complete
+
+
+## Session 78: Handle missing Emby access tokens
+
+**Date**: 2026-06-29
+**Task**: Handle missing Emby access tokens
+**Branch**: `main`
+
+### Summary
+
+Updated Emby password-login handling so missing, null, or blank AccessToken values remain typed AUTH failures instead of generic null crashes, with focused repository coverage and contract documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8f251de` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
