@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.nordic.mediahub.data.AudiobookChapter
 import com.nordic.mediahub.playback.AudiobookPlaybackState
 
 @Composable
@@ -147,9 +148,10 @@ fun AudiobookPlayerScreen(
                         enabled = playbackControlsEnabled,
                         onClick = onCyclePlaybackSpeed
                     )
-                    val currentChapter = state.chapters.lastOrNull { chapter ->
-                        chapter.startSeconds <= state.positionSeconds
-                    }
+                    val currentChapter = resolveCurrentAudiobookChapter(
+                        chapters = state.chapters,
+                        positionSeconds = visiblePosition.toInt()
+                    )
                     if (currentChapter != null) {
                         AudiobookPlayerMetaChip(currentChapter.title, colorScheme)
                     }
@@ -441,4 +443,14 @@ private fun formatPlaybackSpeed(speed: Float): String {
         2f -> "2x"
         else -> "${rounded}x"
     }
+}
+
+internal fun resolveCurrentAudiobookChapter(
+    chapters: List<AudiobookChapter>,
+    positionSeconds: Int
+): AudiobookChapter? {
+    val safePosition = positionSeconds.coerceAtLeast(0)
+    return chapters
+        .sortedBy { chapter -> chapter.startSeconds }
+        .lastOrNull { chapter -> chapter.startSeconds <= safePosition }
 }

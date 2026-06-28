@@ -60,6 +60,7 @@
 - Chapter navigation must seek by absolute audiobook seconds, using the same `seekTo(positionSeconds)` path as the scrubber. Do not seek by track-local time when moving between chapters.
 - Previous chapter behavior should restart the current chapter when playback is at or beyond a small threshold into it; before that threshold, it should jump to the previous chapter when one exists.
 - Next chapter behavior should jump to the next chapter start when one exists.
+- Player current-chapter display must resolve by sorted chapter `startSeconds`, not by incoming list order. While scrubbing, use the visible scrub position for display-only chapter resolution.
 - `PATCH /api/me/progress/*`, `POST /api/session/*/sync`, and `POST /api/session/*/close` must validate `Response<Unit>.isSuccessful`. Do not fire-and-forget these session endpoints.
 - UI close flows should call `syncAndCloseSession(...)` so the final position is written before closing the AudiobookShelf session.
 - When starting music or video while an audiobook is active, the app-shell should stop audiobook playback and attempt `syncAndCloseSession(...)` in the background. If that background close fails, do not reopen the stopped audiobook player over the newly selected media.
@@ -125,6 +126,7 @@
   - HTTP and empty-body errors map to typed `AudiobookShelfApiException` kinds
   - non-2xx progress/session responses throw `AudiobookShelfApiException.Kind.HTTP`
 - UI/helper tests should assert library selection resolution keeps an existing id, falls back from a stale id, and clears selection for an empty library list.
+- UI/helper tests should assert current-chapter display resolution uses timestamp order for unsorted chapters and returns no chapter before the first chapter start.
 - App-shell helper tests should assert periodic sync baseline resolution uses the session resume/current time when playback state has not caught up, uses playback state when it is ahead, and clamps negative values to zero.
 - App-shell helper tests should assert manual audiobook close failures present the player/error, while background handoff close failures do not reopen the player.
 - App-shell helper tests should assert audiobook play requests start a new session with no current session, reuse the current session for the same `libraryItemId`, and close the current session before starting a different `libraryItemId`.
