@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 81
+- **Total Sessions**: 82
 - **Last Active**: 2026-06-29
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~733 | Active |
+| `journal-2.md` | ~766 | Active |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 82 | 2026-06-29 | Handle missing AudiobookShelf detail lists | `e4b3c5f` | `main` |
 | 81 | 2026-06-29 | Ignore blank AudiobookShelf cover paths | `db6f444` | `main` |
 | 80 | 2026-06-29 | Harden AudiobookShelf login token handling | `1facbf7` | `main` |
 | 79 | 2026-06-29 | Validate Emby auth user ids | `fe249c2` | `main` |

@@ -731,3 +731,36 @@ Updated AudiobookShelf cover-path mapping so blank summary, detail, and playback
 ### Next Steps
 
 - None - task complete
+
+
+## Session 82: Handle missing AudiobookShelf detail lists
+
+**Date**: 2026-06-29
+**Task**: Handle missing AudiobookShelf detail lists
+**Branch**: `main`
+
+### Summary
+
+Updated AudiobookShelf detail mapping so missing or null metadata and chapter arrays map to empty domain lists, with focused repository coverage and contract documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e4b3c5f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
