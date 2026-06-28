@@ -292,6 +292,26 @@ visibleQueue = visibleQueue.toMutableList().also { it.removeAt(index) }
 onRemoveFromQueue = playbackEngine::removeQueueItem
 ```
 
+### Music play-all start index
+
+**Scope / Trigger**: Any change to Music screen bulk playback entry points, including album quick-play, album detail play-all, artist detail play-all, or playlist detail play-all.
+
+**Signature**:
+- `internal fun firstPlayableSongIndex(songs: List<NavidromeSong>): Int?`
+
+**Contract**:
+- Bulk playback must start at the first song whose `streamUrl` is not null or blank.
+- If no songs in the list are playable, show a contextual UI error and do not call `onSongSelected`.
+- Do not change single song-row click behavior; a direct click still attempts the clicked row so the playback engine can surface the specific song error.
+
+**Good/Base/Bad Cases**:
+- Good: Album or playlist starts at track 2 when track 1 has no stream URL and track 2 is playable.
+- Base: All tracks are playable, so play-all starts at index `0`.
+- Bad: Play-all blindly calls `onSongSelected(songs, 0)` and fails before reaching playable tracks later in the list.
+
+**Tests Required**:
+- Unit tests for `firstPlayableSongIndex(...)` covering playable first match, null/blank stream URLs, and no playable songs.
+
 ---
 
 ## Testing Requirements

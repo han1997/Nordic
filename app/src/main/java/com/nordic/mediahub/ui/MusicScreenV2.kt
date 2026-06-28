@@ -269,6 +269,16 @@ fun MusicScreenV2(
         libraryPage = MusicLibraryPage.Search
     }
 
+    fun playSongList(songs: List<NavidromeSong>, noPlayableMessage: String) {
+        val startIndex = firstPlayableSongIndex(songs)
+        if (startIndex == null) {
+            errorMsg = noPlayableMessage
+        } else {
+            errorMsg = null
+            onSongSelected(songs, startIndex)
+        }
+    }
+
     suspend fun playAlbum(album: NavidromeAlbum) {
         if (loadingAlbumId != null) return
         val repo = navidromeRepository
@@ -281,13 +291,10 @@ fun MusicScreenV2(
         errorMsg = null
         try {
             val albumSongs = repo.getAlbumSongs(album.id)
-            val firstPlayableSong = albumSongs.firstOrNull { !it.streamUrl.isNullOrBlank() }
-                ?: albumSongs.firstOrNull()
-            if (firstPlayableSong == null) {
+            val startIndex = firstPlayableSongIndex(albumSongs)
+            if (startIndex == null) {
                 errorMsg = "这张专辑没有可播放曲目"
             } else {
-                val startIndex = albumSongs.indexOfFirst { !it.streamUrl.isNullOrBlank() }
-                    .takeIf { it >= 0 } ?: 0
                 onSongSelected(albumSongs, startIndex)
             }
         } catch (e: Exception) {
@@ -796,11 +803,11 @@ fun MusicScreenV2(
                                                         val allSongs = artistAlbums.flatMap { album ->
                                                             repo.getAlbumSongs(album.id)
                                                         }
-                                                        if (allSongs.isNotEmpty()) {
-                                                            onSongSelected(allSongs, 0)
-                                                        }
+                                                        playSongList(allSongs, "这位歌手没有可播放曲目")
                                                     }
-                                                } catch (_: Exception) {}
+                                                } catch (error: Exception) {
+                                                    errorMsg = "获取歌手曲目失败: ${error.message}"
+                                                }
                                             }
                                         }
                                 ) {
@@ -874,9 +881,7 @@ fun MusicScreenV2(
                             album = album,
                             colorScheme = colorScheme,
                             onPlayAll = {
-                                if (albumDetailSongs.isNotEmpty()) {
-                                    onSongSelected(albumDetailSongs, 0)
-                                }
+                                playSongList(albumDetailSongs, "这张专辑没有可播放曲目")
                             }
                         )
                     }
@@ -1109,9 +1114,7 @@ fun MusicScreenV2(
                             songCount = playlistSongs.size,
                             colorScheme = colorScheme,
                             onPlayAll = {
-                                if (playlistSongs.isNotEmpty()) {
-                                    onSongSelected(playlistSongs, 0)
-                                }
+                                playSongList(playlistSongs, "这个歌单没有可播放曲目")
                             }
                         )
                     }
@@ -1562,6 +1565,11 @@ internal fun musicHomePreviewSongs(songs: List<NavidromeSong>): List<NavidromeSo
 
 internal fun musicHomePlaybackQueue(songs: List<NavidromeSong>): List<NavidromeSong> {
     return songs
+}
+
+internal fun firstPlayableSongIndex(songs: List<NavidromeSong>): Int? {
+    return songs.indexOfFirst { song -> !song.streamUrl.isNullOrBlank() }
+        .takeIf { index -> index >= 0 }
 }
 
 private fun sortMusicSongs(
