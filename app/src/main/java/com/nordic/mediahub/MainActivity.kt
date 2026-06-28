@@ -430,12 +430,14 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                         isLyricsLoading = isLyricsLoading,
                         lyricsError = lyricsError,
                         repeatMode = playbackState.repeatMode,
+                        shuffleModeEnabled = playbackState.shuffleModeEnabled,
                         onSeek = playbackEngine::seekTo,
                         onPlayPause = onPlayPause,
                         onClose = { showPlayer = false },
                         onSeekToNext = playbackEngine::seekToNext,
                         onSeekToPrevious = playbackEngine::seekToPrevious,
                         onToggleRepeat = playbackEngine::toggleRepeatMode,
+                        onToggleShuffle = playbackEngine::toggleShuffleMode,
                         onOpenQueue = { showQueueSheet = true },
                         modifier = Modifier.fillMaxSize()
                     )

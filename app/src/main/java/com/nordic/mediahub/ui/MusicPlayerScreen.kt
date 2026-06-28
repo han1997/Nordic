@@ -60,12 +60,14 @@ fun MusicPlayerScreen(
     isLyricsLoading: Boolean,
     lyricsError: String?,
     repeatMode: Int = Player.REPEAT_MODE_OFF,
+    shuffleModeEnabled: Boolean = false,
     onSeek: (Int) -> Unit,
     onPlayPause: () -> Unit,
     onClose: () -> Unit,
     onSeekToNext: () -> Unit = {},
     onSeekToPrevious: () -> Unit = {},
     onToggleRepeat: () -> Unit = {},
+    onToggleShuffle: () -> Unit = {},
     onOpenQueue: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -178,9 +180,11 @@ fun MusicPlayerScreen(
                 },
                 onPlayPause = onPlayPause,
                 repeatMode = repeatMode,
+                shuffleModeEnabled = shuffleModeEnabled,
                 onSeekToNext = onSeekToNext,
                 onSeekToPrevious = onSeekToPrevious,
                 onToggleRepeat = onToggleRepeat,
+                onToggleShuffle = onToggleShuffle,
                 onOpenQueue = onOpenQueue
             )
         }
@@ -475,9 +479,11 @@ private fun PlayerConsole(
     onPositionChangeFinished: () -> Unit,
     onPlayPause: () -> Unit,
     repeatMode: Int = Player.REPEAT_MODE_OFF,
+    shuffleModeEnabled: Boolean = false,
     onSeekToNext: () -> Unit = {},
     onSeekToPrevious: () -> Unit = {},
     onToggleRepeat: () -> Unit = {},
+    onToggleShuffle: () -> Unit = {},
     onOpenQueue: () -> Unit = {}
 ) {
     Surface(
@@ -547,8 +553,11 @@ private fun PlayerConsole(
                     else -> "↺"
                 }
                 val repeatActive = repeatMode != Player.REPEAT_MODE_OFF
-                PlayerControlButton(repeatLabel, colorScheme, size = if (compact) 38 else 42, enabled = hasSong, active = repeatActive, onClick = onToggleRepeat)
-                PlayerControlButton("‹", colorScheme, size = if (compact) 46 else 50, enabled = hasSong, onClick = onSeekToPrevious)
+                val sideButtonSize = if (compact) 34 else 38
+                val skipButtonSize = if (compact) 42 else 46
+                PlayerControlButton(repeatLabel, colorScheme, size = sideButtonSize, enabled = hasSong, active = repeatActive, onClick = onToggleRepeat)
+                PlayerControlButton("⇄", colorScheme, size = sideButtonSize, enabled = hasSong, active = shuffleModeEnabled, onClick = onToggleShuffle)
+                PlayerControlButton("‹", colorScheme, size = skipButtonSize, enabled = hasSong, onClick = onSeekToPrevious)
                 PlayerControlButton(
                     label = if (isPlaying) "Ⅱ" else "▶",
                     colorScheme = colorScheme,
@@ -557,8 +566,8 @@ private fun PlayerConsole(
                     enabled = hasSong,
                     onClick = onPlayPause
                 )
-                PlayerControlButton("›", colorScheme, size = if (compact) 46 else 50, enabled = hasSong, onClick = onSeekToNext)
-                PlayerControlButton("≡", colorScheme, size = if (compact) 38 else 42, enabled = hasSong, onClick = onOpenQueue)
+                PlayerControlButton("›", colorScheme, size = skipButtonSize, enabled = hasSong, onClick = onSeekToNext)
+                PlayerControlButton("≡", colorScheme, size = sideButtonSize, enabled = hasSong, onClick = onOpenQueue)
             }
         }
     }

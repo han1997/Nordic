@@ -31,6 +31,7 @@ data class MusicPlaybackState(
     val durationSeconds: Int = 0,
     val errorMessage: String? = null,
     val repeatMode: Int = Player.REPEAT_MODE_OFF,
+    val shuffleModeEnabled: Boolean = false,
     val queue: List<NavidromeSong> = emptyList(),
     val queueIndex: Int = 0
 )
@@ -118,6 +119,10 @@ class MusicPlaybackEngine(context: Context) {
         }
 
         override fun onRepeatModeChanged(repeatMode: Int) {
+            publishPlayerState()
+        }
+
+        override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
             publishPlayerState()
         }
 
@@ -255,6 +260,12 @@ class MusicPlaybackEngine(context: Context) {
             else -> Player.REPEAT_MODE_OFF
         }
         activeController.repeatMode = nextMode
+        publishPlayerState()
+    }
+
+    fun toggleShuffleMode() {
+        val activeController = controller ?: return
+        activeController.shuffleModeEnabled = !activeController.shuffleModeEnabled
         publishPlayerState()
     }
 
@@ -420,6 +431,7 @@ class MusicPlaybackEngine(context: Context) {
                     else -> it.errorMessage
                 },
                 repeatMode = activeController.repeatMode,
+                shuffleModeEnabled = activeController.shuffleModeEnabled,
                 queue = cachedQueue,
                 queueIndex = currentIndex
             )

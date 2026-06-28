@@ -236,10 +236,12 @@ onSongSelected(songs, index)
 
 **Signatures**:
 - `data class MusicPlaybackState(..., val queue: List<NavidromeSong>, val queueIndex: Int)`
+- `data class MusicPlaybackState(..., val shuffleModeEnabled: Boolean)`
 - `fun MusicPlaybackEngine.seekToQueueIndex(index: Int)`
 - `fun MusicPlaybackEngine.moveQueueItemToPlayNext(index: Int)`
 - `fun MusicPlaybackEngine.removeQueueItem(index: Int)`
 - `fun MusicPlaybackEngine.clearUpcomingQueueItems()`
+- `fun MusicPlaybackEngine.toggleShuffleMode()`
 - `internal fun resolvePlayNextTargetIndex(index: Int, currentIndex: Int, itemCount: Int): Int?`
 
 **Contract**:
@@ -251,6 +253,7 @@ onSongSelected(songs, index)
 - Queue UI keys must tolerate duplicate songs in the queue; do not key rows by `song.id` alone.
 - If the Media3 controller is not connected yet, mutate `pendingQueue` and `_state` consistently so the eventual controller start uses the same queue order/index shown in UI.
 - Pending-queue current-index recalculation must be position-based, not `song.id` based. Queues may contain the same song multiple times, so using `indexOfFirst { it.id == currentSong.id }` can highlight or start the wrong duplicate after a pending reorder.
+- Shuffle mode is player state, not a locally shuffled list. `MusicPlaybackEngine.toggleShuffleMode()` must delegate to Media3 `shuffleModeEnabled`, publish `MusicPlaybackState.shuffleModeEnabled`, and listen for `onShuffleModeEnabledChanged`.
 
 **Validation & Error Matrix**:
 - Index outside `0 until mediaItemCount` -> no-op.
@@ -259,12 +262,14 @@ onSongSelected(songs, index)
 - Remove single-item queue -> call `stop()` and clear `MusicPlaybackState`.
 - Duplicate song ids in queue -> use position-aware UI keys such as `"$id:$index"`.
 - Duplicate song ids in a pending queue -> preserve the current position by index math after moves/removals; do not search by song id.
+- Shuffle toggle -> update Media3 `shuffleModeEnabled`; UI should render active state from `MusicPlaybackState.shuffleModeEnabled`.
 
 **Good/Base/Bad Cases**:
 - Good: Queue sheet actions call `MusicPlaybackEngine`, engine mutates Media3, then publishes fresh `queue` and `queueIndex`.
 - Base: Tapping a queue row seeks with `seekToQueueIndex(index)` and closes the sheet.
 - Bad: UI removes a row from a local list while Media3 keeps the original playlist, causing the highlighted item and actual playback item to diverge.
 - Bad: Pending queue reordering finds the current item by `song.id`, causing duplicate queued songs to shift the current index to the first matching duplicate.
+- Bad: UI shuffles its own list while Media3 keeps the original timeline, causing next/previous and queue sheet state to disagree.
 
 **Tests Required**:
 - Unit tests for pure queue index rules, especially future item, previous item, current item, already-next item, and invalid indexes.
