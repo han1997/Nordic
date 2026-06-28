@@ -616,3 +616,36 @@ Mapped Emby series and episode metadata, disabled direct playback for Series ite
 ### Next Steps
 
 - None - task complete
+
+
+## Session 19: Improve music shuffle playback
+
+**Date**: 2026-06-28
+**Task**: Improve music shuffle playback
+**Branch**: `main`
+
+### Summary
+
+Added Media3-backed shuffle mode to music playback state and controls, wired player UI/MainActivity, documented the playback contract, and verified compile/tests/lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b23a936` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
