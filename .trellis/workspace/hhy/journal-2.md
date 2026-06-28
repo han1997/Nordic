@@ -500,3 +500,36 @@ Updated video playback replacement logic so same-id Emby videos refresh ExoPlaye
 ### Next Steps
 
 - None - task complete
+
+
+## Session 75: Match AudiobookShelf book media types
+
+**Date**: 2026-06-29
+**Task**: Match AudiobookShelf book media types
+**Branch**: `main`
+
+### Summary
+
+Updated AudiobookShelf library filtering so book media types are matched case-insensitively, with MockWebServer coverage and contract documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a542189` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
