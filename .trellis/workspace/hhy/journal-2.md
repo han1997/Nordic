@@ -1160,3 +1160,36 @@ Updated Navidrome random-song DTO and recent-song fallback mapping so missing or
 ### Next Steps
 
 - None - task complete
+
+
+## Session 95: Handle incomplete AudiobookShelf libraries
+
+**Date**: 2026-06-29
+**Task**: Handle incomplete AudiobookShelf libraries
+**Branch**: `main`
+
+### Summary
+
+Updated AudiobookShelf library DTO and repository mapping so incomplete library rows with missing, null, or blank id/name/mediaType are skipped while valid book libraries still map, with focused repository coverage and integration-spec documentation.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1db1f00` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
