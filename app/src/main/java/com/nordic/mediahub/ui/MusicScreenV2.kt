@@ -89,7 +89,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicReference
 
-private enum class MusicLibraryPage {
+internal enum class MusicLibraryPage {
     Home,
     Albums,
     Songs,
@@ -110,19 +110,14 @@ private enum class MusicSongSort {
     Duration
 }
 
+private const val BULK_PLAY_ALLOW_UNPLAYABLE_START_FALLBACK = true
+private const val DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK = false
+
 @Composable
 fun MusicScreenV2(
     isDark: Boolean,
     onThemeToggle: (Boolean) -> Unit,
-    onSongSelected: (List<NavidromeSong>, Int) -> Unit = { _, _ -> },
-    downloadManager: MusicDownloadManager = MusicDownloadManager(LocalContext.current),
-    onAddToQueue: ((NavidromeSong) -> Unit)? = null,
-    currentPlayingSong: NavidromeSong? = null,
-    isMusicPlaying: Boolean = false,
-    onPlayPause: (() -> Unit)? = null,
-    onNext: (() -> Unit)? = null,
-    onOpenPlayer: (() -> Unit)? = null,
-    playHistoryEntries: List<PlayHistoryEntry> = emptyList()
+    onSongSelected: (List<NavidromeSong>, Int, Boolean) -> Unit = { _, _, _ -> }
 ) {
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
@@ -170,27 +165,46 @@ fun MusicScreenV2(
     var searchError by remember { mutableStateOf<String?>(null) }
     val searchJob = remember { AtomicReference<Job?>(null) }
     var cacheUpdatedAtMillis by remember { mutableStateOf<Long?>(null) }
+    var musicConfigStateVersion by remember { mutableStateOf(0) }
     val scope = rememberCoroutineScope()
 
-    // Starred content state
-    var starredContent by remember { mutableStateOf(StarredContent()) }
-    var isLoadingStarred by remember { mutableStateOf(false) }
+    fun isCurrentMusicConfigRequest(requestVersion: Int?): Boolean {
+        return requestVersion == null || musicConfigStateVersion == requestVersion
+    }
 
-    // Playlist management dialog state
-    var showCreatePlaylistDialog by remember { mutableStateOf(false) }
-    var createPlaylistName by remember { mutableStateOf("") }
-    var showRenamePlaylistDialog by remember { mutableStateOf(false) }
-    var renamePlaylistTarget by remember { mutableStateOf<NavidromePlaylist?>(null) }
-    var renamePlaylistName by remember { mutableStateOf("") }
-    var showDeletePlaylistConfirm by remember { mutableStateOf(false) }
-    var deletePlaylistTarget by remember { mutableStateOf<NavidromePlaylist?>(null) }
+    fun resetMusicStateAfterConfigChange() {
+        musicConfigStateVersion += 1
+        selectedTab = 0
+        libraryPage = resolveMusicLibraryPageAfterConfigChange(libraryPage)
+        sortedAlbums = emptyList()
+        playlists = emptyList()
+        selectedAlbum = null
+        albumDetailSongs = emptyList()
+        selectedArtist = null
+        artistAlbums = emptyList()
+        selectedPlaylist = null
+        playlistSongs = emptyList()
+        isLoading = false
+        isLoadingAlbumList = false
+        isLoadingPlaylists = false
+        isLoadingAlbumDetail = false
+        isLoadingArtistDetail = false
+        isLoadingPlaylistDetail = false
+        searchJob?.cancel()
+        searchJob = null
+        searchQuery = ""
+        searchResult = null
+        searchError = null
+        isSearching = false
+        albumSort = NavidromeAlbumSort.RecentlyAdded
+    }
 
-    // Add to playlist dialog state
-    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
-    var addToPlaylistSongId by remember { mutableStateOf<String?>(null) }
-
-    suspend fun applyCachedMusicData(targetConfig: NavidromeConfig): Boolean {
+    suspend fun applyCachedMusicData(targetConfig: NavidromeConfig, requestVersion: Int? = null): Boolean {
         val cached = cacheRepository.load(targetConfig)
+        if (!isCurrentMusicConfigRequest(requestVersion)) {
+            return false
+        }
+
         if (cached == null) {
             albums = emptyList()
             songs = emptyList()
@@ -209,7 +223,7 @@ fun MusicScreenV2(
         return true
     }
 
-    suspend fun refreshMusicData(targetConfig: NavidromeConfig): Boolean {
+    suspend fun refreshMusicData(targetConfig: NavidromeConfig, requestVersion: Int? = null): Boolean {
         if (!targetConfig.isReadyForMusicSync() || isLoading) return false
 
         isLoading = true
@@ -220,6 +234,10 @@ fun MusicScreenV2(
                 savedConfig = savedConfig,
                 savedRepository = navidromeRepository
             ) ?: return false
+            if (!isCurrentMusicConfigRequest(requestVersion)) {
+                return false
+            }
+
             val freshCache = cacheRepository.buildCache(
                 config = targetConfig,
                 albums = freshData.albums,
@@ -236,19 +254,24 @@ fun MusicScreenV2(
             cacheRepository.save(targetConfig, freshCache)
             true
         } catch (e: Exception) {
-            val hasCachedContent = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty()
-            errorMsg = if (hasCachedContent) {
-                "正在显示上次缓存：${e.message}"
-            } else {
-                "连接失败: ${e.message}"
+            if (isCurrentMusicConfigRequest(requestVersion)) {
+                val hasCachedContent = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty()
+                errorMsg = if (hasCachedContent) {
+                    "正在显示上次缓存：${e.message}"
+                } else {
+                    "连接失败: ${e.message}"
+                }
             }
             false
         } finally {
-            isLoading = false
+            if (isCurrentMusicConfigRequest(requestVersion)) {
+                isLoading = false
+            }
         }
     }
 
     suspend fun loadAlbumList(sort: NavidromeAlbumSort): Boolean {
+        val requestVersion = musicConfigStateVersion
         if (isLoadingAlbumList) return false
         val repo = navidromeRepository
         if (repo == null) {
@@ -260,13 +283,22 @@ fun MusicScreenV2(
         isLoadingAlbumList = true
         errorMsg = null
         return try {
-            sortedAlbums = repo.getAlbums(sort)
-            true
+            val albums = repo.getAlbums(sort)
+            if (musicConfigStateVersion == requestVersion) {
+                sortedAlbums = albums
+                true
+            } else {
+                false
+            }
         } catch (e: Exception) {
-            errorMsg = "获取专辑列表失败: ${e.message}"
+            if (musicConfigStateVersion == requestVersion) {
+                errorMsg = "获取专辑列表失败: ${e.message}"
+            }
             false
         } finally {
-            isLoadingAlbumList = false
+            if (musicConfigStateVersion == requestVersion) {
+                isLoadingAlbumList = false
+            }
         }
     }
 
@@ -278,6 +310,7 @@ fun MusicScreenV2(
     }
 
     suspend fun loadPlaylists(): Boolean {
+        val requestVersion = musicConfigStateVersion
         if (isLoadingPlaylists) return false
         val repo = navidromeRepository
         if (repo == null) {
@@ -288,13 +321,22 @@ fun MusicScreenV2(
         isLoadingPlaylists = true
         errorMsg = null
         return try {
-            playlists = repo.getPlaylists()
-            true
+            val loadedPlaylists = repo.getPlaylists()
+            if (musicConfigStateVersion == requestVersion) {
+                playlists = loadedPlaylists
+                true
+            } else {
+                false
+            }
         } catch (e: Exception) {
-            errorMsg = "获取歌单失败: ${e.message}"
+            if (musicConfigStateVersion == requestVersion) {
+                errorMsg = "获取歌单失败: ${e.message}"
+            }
             false
         } finally {
-            isLoadingPlaylists = false
+            if (musicConfigStateVersion == requestVersion) {
+                isLoadingPlaylists = false
+            }
         }
     }
 
@@ -401,6 +443,16 @@ fun MusicScreenV2(
         libraryPage = MusicLibraryPage.Search
     }
 
+    fun playSongList(songs: List<NavidromeSong>, noPlayableMessage: String) {
+        val startIndex = firstPlayableSongIndex(songs)
+        if (startIndex == null) {
+            errorMsg = noPlayableMessage
+        } else {
+            errorMsg = null
+            onSongSelected(songs, startIndex, BULK_PLAY_ALLOW_UNPLAYABLE_START_FALLBACK)
+        }
+    }
+
     suspend fun playAlbum(album: NavidromeAlbum) {
         if (loadingAlbumId != null) return
         val repo = navidromeRepository
@@ -413,12 +465,11 @@ fun MusicScreenV2(
         errorMsg = null
         try {
             val albumSongs = repo.getAlbumSongs(album.id)
-            val firstPlayableSong = albumSongs.firstOrNull { !it.streamUrl.isNullOrBlank() }
-                ?: albumSongs.firstOrNull()
-            if (firstPlayableSong == null) {
+            val startIndex = firstPlayableSongIndex(albumSongs)
+            if (startIndex == null) {
                 errorMsg = "这张专辑没有可播放曲目"
             } else {
-                onSongSelected(albumSongs, albumSongs.indexOf(firstPlayableSong).coerceAtLeast(0))
+                onSongSelected(albumSongs, startIndex, BULK_PLAY_ALLOW_UNPLAYABLE_START_FALLBACK)
             }
         } catch (e: Exception) {
             errorMsg = "获取专辑曲目失败: ${e.message}"
@@ -428,36 +479,59 @@ fun MusicScreenV2(
     }
 
     fun openAlbumDetail(album: NavidromeAlbum) {
+        val requestVersion = musicConfigStateVersion
         selectedAlbum = album
         albumDetailSongs = emptyList()
         isLoadingAlbumDetail = true
+        errorMsg = null
         libraryPage = MusicLibraryPage.AlbumDetail
         scope.launch {
             try {
                 navidromeRepository?.let { repo ->
-                    albumDetailSongs = repo.getAlbumSongs(album.id)
+                    val songs = repo.getAlbumSongs(album.id)
+                    if (musicConfigStateVersion == requestVersion && selectedAlbum?.id == album.id) {
+                        albumDetailSongs = songs
+                    }
                 }
-            } catch (_: Exception) {}
-            isLoadingAlbumDetail = false
+            } catch (e: Exception) {
+                if (musicConfigStateVersion == requestVersion && selectedAlbum?.id == album.id) {
+                    errorMsg = musicAlbumDetailLoadErrorMessage(e)
+                }
+            }
+            if (musicConfigStateVersion == requestVersion && selectedAlbum?.id == album.id) {
+                isLoadingAlbumDetail = false
+            }
         }
     }
 
     fun openArtistDetail(artist: NavidromeArtist) {
+        val requestVersion = musicConfigStateVersion
         selectedArtist = artist
         artistAlbums = emptyList()
         isLoadingArtistDetail = true
+        errorMsg = null
         libraryPage = MusicLibraryPage.ArtistDetail
         scope.launch {
             try {
                 navidromeRepository?.let { repo ->
-                    artistAlbums = repo.getArtistAlbums(artist.id)
+                    val albums = repo.getArtistAlbums(artist.id)
+                    if (musicConfigStateVersion == requestVersion && selectedArtist?.id == artist.id) {
+                        artistAlbums = albums
+                    }
                 }
-            } catch (_: Exception) {}
-            isLoadingArtistDetail = false
+            } catch (e: Exception) {
+                if (musicConfigStateVersion == requestVersion && selectedArtist?.id == artist.id) {
+                    errorMsg = musicArtistDetailLoadErrorMessage(e)
+                }
+            }
+            if (musicConfigStateVersion == requestVersion && selectedArtist?.id == artist.id) {
+                isLoadingArtistDetail = false
+            }
         }
     }
 
     fun openPlaylistDetail(playlist: NavidromePlaylist) {
+        val requestVersion = musicConfigStateVersion
         selectedPlaylist = playlist
         playlistSongFilterQuery = ""
         playlistSongs = emptyList()
@@ -467,12 +541,19 @@ fun MusicScreenV2(
         scope.launch {
             try {
                 navidromeRepository?.let { repo ->
-                    playlistSongs = repo.getPlaylistSongs(playlist.id)
+                    val songs = repo.getPlaylistSongs(playlist.id)
+                    if (musicConfigStateVersion == requestVersion && selectedPlaylist?.id == playlist.id) {
+                        playlistSongs = songs
+                    }
                 }
             } catch (e: Exception) {
-                errorMsg = "获取歌单曲目失败: ${e.message}"
+                if (musicConfigStateVersion == requestVersion && selectedPlaylist?.id == playlist.id) {
+                    errorMsg = "获取歌单曲目失败: ${e.message}"
+                }
             } finally {
-                isLoadingPlaylistDetail = false
+                if (musicConfigStateVersion == requestVersion && selectedPlaylist?.id == playlist.id) {
+                    isLoadingPlaylistDetail = false
+                }
             }
         }
     }
@@ -490,28 +571,16 @@ fun MusicScreenV2(
 
     LaunchedEffect(savedConfig) {
         config = savedConfig
-        sortedAlbums = emptyList()
-        playlists = emptyList()
-        playlistSongs = emptyList()
-        selectedPlaylist = null
-        searchJob.get()?.cancel()
-        searchResult = null
-        searchError = null
-        isSearching = false
-        albumSort = NavidromeAlbumSort.RecentlyAdded
+        resetMusicStateAfterConfigChange()
+        val requestVersion = musicConfigStateVersion
         if (savedConfig.isReadyForMusicSync()) {
-            applyCachedMusicData(savedConfig)
-            refreshMusicData(savedConfig)
+            applyCachedMusicData(savedConfig, requestVersion)
+            refreshMusicData(savedConfig, requestVersion)
         } else {
             albums = emptyList()
             songs = emptyList()
             recentlyAddedSongs = emptyList()
             artists = emptyList()
-            sortedAlbums = emptyList()
-            playlists = emptyList()
-            playlistSongs = emptyList()
-            selectedPlaylist = null
-            libraryPage = MusicLibraryPage.Home
             cacheUpdatedAtMillis = null
             errorMsg = null
         }
@@ -537,22 +606,8 @@ fun MusicScreenV2(
     val visibleSongs = remember(songs, songSort) {
         sortMusicSongs(songs, songSort)
     }
-    val filteredAlbums = remember(sortedAlbums, albumFilterQuery) {
-        sortedAlbums.filterAlbums(albumFilterQuery)
-    }
-    val filteredSongs = remember(visibleSongs, songFilterQuery) {
-        visibleSongs.filterSongs(songFilterQuery)
-    }
-    val filteredArtists = remember(artists, artistFilterQuery) {
-        artists.filterArtists(artistFilterQuery)
-    }
-    val filteredPlaylists = remember(playlists, playlistFilterQuery) {
-        playlists.filterPlaylists(playlistFilterQuery)
-    }
-    val filteredPlaylistSongs = remember(playlistSongs, playlistSongFilterQuery) {
-        playlistSongs.filterSongs(playlistSongFilterQuery)
-    }
-    val homeSongs = remember(recentlyAddedSongs) { recentlyAddedSongs.take(12) }
+    val homeSongs = remember(recentlyAddedSongs) { musicHomePreviewSongs(recentlyAddedSongs) }
+    val homePlaybackQueue = remember(recentlyAddedSongs) { musicHomePlaybackQueue(recentlyAddedSongs) }
     val homeAlbums = remember(albums) { albums.take(10) }
     val homeArtists = remember(artists) { artists.take(10) }
     val downloadedSongs = remember(downloadStatesMap, songs, recentlyAddedSongs) {
@@ -929,12 +984,12 @@ fun MusicScreenV2(
                                     song = song,
                                     colorScheme = colorScheme,
                                     onClick = {
-                                        onSongSelected(homeSongs, index)
-                                    },
-                                    onToggleStar = { toggleSongStar(song) },
-                                    downloadState = downloadStatesMap[song.id]?.state ?: DownloadState.NOT_DOWNLOADED,
-                                    downloadProgress = downloadStatesMap[song.id]?.progress ?: 0f,
-                                    onToggleDownload = { toggleSongDownload(song) }
+                                        onSongSelected(
+                                            homePlaybackQueue,
+                                            index,
+                                            DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK
+                                        )
+                                    }
                                 )
                             }
                         }
@@ -1032,7 +1087,6 @@ fun MusicScreenV2(
                         MusicDetailEmptyState(
                             title = "暂无专辑",
                             subtitle = "刷新音乐库后，Navidrome 专辑会显示在这里。",
-                            colorScheme = colorScheme
                         )
                     }
                 } else if (filteredAlbums.isEmpty()) {
@@ -1061,7 +1115,6 @@ fun MusicScreenV2(
                         MusicDetailEmptyState(
                             title = "暂无歌曲",
                             subtitle = "刷新音乐库后，Navidrome 中的全部歌曲会显示在这里。",
-                            colorScheme = colorScheme
                         )
                     }
                 } else {
@@ -1072,40 +1125,21 @@ fun MusicScreenV2(
                             onSortSelected = { songSort = it }
                         )
                     }
-                    item {
-                        MusicLocalFilterField(
-                            value = songFilterQuery,
-                            onValueChange = { songFilterQuery = it },
-                            placeholder = "筛选歌曲、歌手或专辑",
-                            colorScheme = colorScheme
-                        )
-                    }
-                    if (filteredSongs.isEmpty()) {
-                        item {
-                            MusicDetailEmptyState(
-                                title = "没有匹配的歌曲",
-                                subtitle = "换个关键词筛选当前列表。",
-                                colorScheme = colorScheme
-                            )
-                        }
-                    }
-                    items(filteredSongs, key = { it.id }, contentType = { "song-row" }) { song ->
+                    itemsIndexed(
+                        items = visibleSongs,
+                        key = { index, song -> "song-${song.id}-$index" },
+                        contentType = { _, _ -> "song-row" }
+                    ) { index, song ->
                         SongListRow(
                             song = song,
                             colorScheme = colorScheme,
                             onClick = {
-                                val index = filteredSongs.indexOf(song)
-                                onSongSelected(filteredSongs, index)
-                            },
-                            onToggleStar = { toggleSongStar(song) },
-                            onAddToPlaylist = {
-                                addToPlaylistSongId = song.id
-                                showAddToPlaylistDialog = true
-                            },
-                            onAddToQueue = if (onAddToQueue != null) {{ onAddToQueue(song) }} else null,
-                            downloadState = downloadStatesMap[song.id]?.state ?: DownloadState.NOT_DOWNLOADED,
-                            downloadProgress = downloadStatesMap[song.id]?.progress ?: 0f,
-                            onToggleDownload = { toggleSongDownload(song) }
+                                onSongSelected(
+                                    visibleSongs,
+                                    index,
+                                    DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK
+                                )
+                            }
                         )
                     }
                 }
@@ -1117,7 +1151,6 @@ fun MusicScreenV2(
                         MusicDetailEmptyState(
                             title = "暂无歌手",
                             subtitle = "同步 Navidrome 后，歌手会按列表展示在这里。",
-                            colorScheme = colorScheme
                         )
                     }
                 } else {
@@ -1155,7 +1188,6 @@ fun MusicScreenV2(
                         MusicDetailEmptyState(
                             title = "未选择歌手",
                             subtitle = "返回首页选择一位歌手。",
-                            colorScheme = colorScheme
                         )
                     }
                 } else {
@@ -1179,11 +1211,11 @@ fun MusicScreenV2(
                                                         val allSongs = artistAlbums.flatMap { album ->
                                                             repo.getAlbumSongs(album.id)
                                                         }
-                                                        if (allSongs.isNotEmpty()) {
-                                                            onSongSelected(allSongs, 0)
-                                                        }
+                                                        playSongList(allSongs, "这位歌手没有可播放曲目")
                                                     }
-                                                } catch (_: Exception) {}
+                                                } catch (error: Exception) {
+                                                    errorMsg = "获取歌手曲目失败: ${error.message}"
+                                                }
                                             }
                                         }
                                 ) {
@@ -1217,7 +1249,6 @@ fun MusicScreenV2(
                             MusicDetailEmptyState(
                                 title = "暂无专辑",
                                 subtitle = "该歌手暂无可用专辑。",
-                                colorScheme = colorScheme
                             )
                         }
                     } else {
@@ -1239,7 +1270,6 @@ fun MusicScreenV2(
                         MusicDetailEmptyState(
                             title = "未选择专辑",
                             subtitle = "返回首页选择一张专辑。",
-                            colorScheme = colorScheme
                         )
                     }
                 } else if (isLoadingAlbumDetail) {
@@ -1259,29 +1289,25 @@ fun MusicScreenV2(
                             album = album,
                             colorScheme = colorScheme,
                             onPlayAll = {
-                                if (albumDetailSongs.isNotEmpty()) {
-                                    onSongSelected(albumDetailSongs, 0)
-                                }
+                                playSongList(albumDetailSongs, "这张专辑没有可播放曲目")
                             }
                         )
                     }
-                    items(albumDetailSongs, key = { it.id }, contentType = { "album-song-row" }) { song ->
+                    itemsIndexed(
+                        items = albumDetailSongs,
+                        key = { index, song -> "album-song-${song.id}-$index" },
+                        contentType = { _, _ -> "album-song-row" }
+                    ) { index, song ->
                         SongListRow(
                             song = song,
                             colorScheme = colorScheme,
                             onClick = {
-                                val index = albumDetailSongs.indexOf(song)
-                                onSongSelected(albumDetailSongs, index)
-                            },
-                            onToggleStar = { toggleSongStar(song) },
-                            onAddToPlaylist = {
-                                addToPlaylistSongId = song.id
-                                showAddToPlaylistDialog = true
-                            },
-                            onAddToQueue = if (onAddToQueue != null) {{ onAddToQueue(song) }} else null,
-                            downloadState = downloadStatesMap[song.id]?.state ?: DownloadState.NOT_DOWNLOADED,
-                            downloadProgress = downloadStatesMap[song.id]?.progress ?: 0f,
-                            onToggleDownload = { toggleSongDownload(song) }
+                                onSongSelected(
+                                    albumDetailSongs,
+                                    index,
+                                    DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK
+                                )
+                            }
                         )
                     }
                 }
@@ -1301,20 +1327,21 @@ fun MusicScreenV2(
                                 isSearching = false
                             } else {
                                 isSearching = true
-                                searchJob.set(scope.launch {
+                                val requestVersion = musicConfigStateVersion
+                                searchJob = scope.launch {
                                     delay(300)
                                     try {
                                         val result = navidromeRepository?.search(query) ?: SearchMusicResult()
-                                        if (searchQuery.trim() == query) {
+                                        if (musicConfigStateVersion == requestVersion && searchQuery.trim() == query) {
                                             searchResult = result
                                         }
                                     } catch (e: Exception) {
-                                        if (searchQuery.trim() == query) {
+                                        if (musicConfigStateVersion == requestVersion && searchQuery.trim() == query) {
                                             searchResult = null
                                             searchError = e.message ?: "请稍后重试。"
                                         }
                                     } finally {
-                                        if (searchQuery.trim() == query) {
+                                        if (musicConfigStateVersion == requestVersion && searchQuery.trim() == query) {
                                             isSearching = false
                                         }
                                     }
@@ -1341,11 +1368,14 @@ fun MusicScreenV2(
                             artists = artists,
                             colorScheme = colorScheme,
                             onAlbumClick = { album -> openAlbumDetail(album) },
-                            onSongClick = { song ->
+                            onSongClick = { index ->
                                 val source = recentlyAddedSongs.ifEmpty { songs }
-                                val index = source.indexOf(song).coerceAtLeast(0)
                                 if (source.isNotEmpty()) {
-                                    onSongSelected(source, index)
+                                    onSongSelected(
+                                        source,
+                                        index,
+                                        DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK
+                                    )
                                 }
                             },
                             onArtistClick = { artist -> openArtistDetail(artist) },
@@ -1425,23 +1455,21 @@ fun MusicScreenV2(
                                 colorScheme = colorScheme
                             )
                         }
-                        items(result.songs, key = { "song-${it.id}" }, contentType = { "search-song-row" }) { song ->
+                        itemsIndexed(
+                            items = result.songs,
+                            key = { index, song -> "search-song-${song.id}-$index" },
+                            contentType = { _, _ -> "search-song-row" }
+                        ) { index, song ->
                             SongListRow(
                                 song = song,
                                 colorScheme = colorScheme,
                                 onClick = {
-                                    val index = result.songs.indexOf(song)
-                                    onSongSelected(result.songs, index)
-                                },
-                                onToggleStar = { toggleSongStar(song) },
-                                onAddToPlaylist = {
-                                    addToPlaylistSongId = song.id
-                                    showAddToPlaylistDialog = true
-                                },
-                                onAddToQueue = if (onAddToQueue != null) {{ onAddToQueue(song) }} else null,
-                                downloadState = downloadStatesMap[song.id]?.state ?: DownloadState.NOT_DOWNLOADED,
-                                downloadProgress = downloadStatesMap[song.id]?.progress ?: 0f,
-                                onToggleDownload = { toggleSongDownload(song) }
+                                    onSongSelected(
+                                        result.songs,
+                                        index,
+                                        DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK
+                                    )
+                                }
                             )
                         }
                     }
@@ -1450,7 +1478,6 @@ fun MusicScreenV2(
                             MusicDetailEmptyState(
                                 title = "没有找到结果",
                                 subtitle = "试试其他关键词。",
-                                colorScheme = colorScheme
                             )
                         }
                     }
@@ -1521,7 +1548,6 @@ fun MusicScreenV2(
                         MusicDetailEmptyState(
                             title = "暂无歌单",
                             subtitle = "Navidrome 中的歌单会显示在这里。",
-                            colorScheme = colorScheme
                         )
                     }
                 } else {
@@ -1568,7 +1594,6 @@ fun MusicScreenV2(
                         MusicDetailEmptyState(
                             title = "未选择歌单",
                             subtitle = "返回歌单列表选择一个歌单。",
-                            colorScheme = colorScheme
                         )
                     }
                 } else if (isLoadingPlaylistDetail) {
@@ -1589,9 +1614,7 @@ fun MusicScreenV2(
                             songCount = filteredPlaylistSongs.size,
                             colorScheme = colorScheme,
                             onPlayAll = {
-                                if (filteredPlaylistSongs.isNotEmpty()) {
-                                    onSongSelected(filteredPlaylistSongs, 0)
-                                }
+                                playSongList(playlistSongs, "这个歌单没有可播放曲目")
                             }
                         )
                     }
@@ -1600,44 +1623,24 @@ fun MusicScreenV2(
                             MusicDetailEmptyState(
                                 title = "暂无曲目",
                                 subtitle = "这个歌单暂时没有可播放曲目。",
-                                colorScheme = colorScheme
                             )
                         }
                     } else {
-                        item {
-                            MusicLocalFilterField(
-                                value = playlistSongFilterQuery,
-                                onValueChange = { playlistSongFilterQuery = it },
-                                placeholder = "筛选歌单内歌曲",
-                                colorScheme = colorScheme
-                            )
-                        }
-                        if (filteredPlaylistSongs.isEmpty()) {
-                            item {
-                                MusicDetailEmptyState(
-                                    title = "没有匹配的歌曲",
-                                    subtitle = "换个关键词筛选当前歌单。",
-                                    colorScheme = colorScheme
-                                )
-                            }
-                        }
-                        items(filteredPlaylistSongs, key = { it.id }, contentType = { "playlist-song-row" }) { song ->
+                        itemsIndexed(
+                            items = playlistSongs,
+                            key = { index, song -> "playlist-song-${song.id}-$index" },
+                            contentType = { _, _ -> "playlist-song-row" }
+                        ) { index, song ->
                             SongListRow(
-                            song = song,
-                            colorScheme = colorScheme,
-                            onClick = {
-                                    val index = filteredPlaylistSongs.indexOf(song)
-                                    onSongSelected(filteredPlaylistSongs, index)
-                            },
-                                onToggleStar = { toggleSongStar(song) },
-                                onAddToPlaylist = {
-                                    addToPlaylistSongId = song.id
-                                    showAddToPlaylistDialog = true
-                                },
-                                onAddToQueue = if (onAddToQueue != null) {{ onAddToQueue(song) }} else null,
-                                downloadState = downloadStatesMap[song.id]?.state ?: DownloadState.NOT_DOWNLOADED,
-                                downloadProgress = downloadStatesMap[song.id]?.progress ?: 0f,
-                                onToggleDownload = { toggleSongDownload(song) }
+                                song = song,
+                                colorScheme = colorScheme,
+                                onClick = {
+                                    onSongSelected(
+                                        playlistSongs,
+                                        index,
+                                        DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK
+                                    )
+                                }
                             )
                         }
                     }
@@ -1875,10 +1878,8 @@ private fun MusicSearchLanding(
     artists: List<NavidromeArtist>,
     colorScheme: ColorScheme,
     onAlbumClick: (NavidromeAlbum) -> Unit,
-    onSongClick: (NavidromeSong) -> Unit,
-    onArtistClick: (NavidromeArtist) -> Unit,
-    downloadStatesMap: Map<String, DownloadStateEntry> = emptyMap(),
-    onToggleDownload: ((NavidromeSong) -> Unit)? = null
+    onSongClick: (Int) -> Unit,
+    onArtistClick: (NavidromeArtist) -> Unit
 ) {
     val hasSuggestions = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty()
     val suggestedAlbums = remember(albums) { albums.take(8) }
@@ -1929,18 +1930,15 @@ private fun MusicSearchLanding(
                 colorScheme = colorScheme
             )
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(
+                itemsIndexed(
                     items = suggestedSongs,
-                    key = { "search-home-song-${it.id}" },
-                    contentType = { "search-home-song-card" }
-                ) { song ->
+                    key = { index, song -> "search-home-song-${song.id}-$index" },
+                    contentType = { _, _ -> "search-home-song-card" }
+                ) { index, song ->
                     SongShelfCard(
                         song = song,
                         colorScheme = colorScheme,
-                        onClick = { onSongClick(song) },
-                        downloadState = downloadStatesMap[song.id]?.state ?: DownloadState.NOT_DOWNLOADED,
-                        downloadProgress = downloadStatesMap[song.id]?.progress ?: 0f,
-                        onToggleDownload = if (onToggleDownload != null) {{ onToggleDownload(song) }} else null
+                        onClick = { onSongClick(index) }
                     )
                 }
             }
@@ -2215,8 +2213,7 @@ private fun MusicBackButton(
 @Composable
 private fun MusicDetailEmptyState(
     title: String,
-    subtitle: String,
-    colorScheme: ColorScheme
+    subtitle: String
 ) {
     MediaStateCard(
         title = title,
@@ -2315,6 +2312,41 @@ private fun MusicSongSort.displayLabel(): String {
     }
 }
 
+internal fun musicHomePreviewSongs(songs: List<NavidromeSong>): List<NavidromeSong> {
+    return songs.take(HOME_SONG_PREVIEW_LIMIT)
+}
+
+internal fun musicHomePlaybackQueue(songs: List<NavidromeSong>): List<NavidromeSong> {
+    return songs
+}
+
+internal fun resolveMusicLibraryPageAfterConfigChange(currentPage: MusicLibraryPage): MusicLibraryPage {
+    return when (currentPage) {
+        MusicLibraryPage.Home,
+        MusicLibraryPage.Albums,
+        MusicLibraryPage.Songs,
+        MusicLibraryPage.Artists,
+        MusicLibraryPage.ArtistDetail,
+        MusicLibraryPage.AlbumDetail,
+        MusicLibraryPage.Search,
+        MusicLibraryPage.Playlists,
+        MusicLibraryPage.PlaylistDetail -> MusicLibraryPage.Home
+    }
+}
+
+internal fun firstPlayableSongIndex(songs: List<NavidromeSong>): Int? {
+    return songs.indexOfFirst { song -> !song.streamUrl.isNullOrBlank() }
+        .takeIf { index -> index >= 0 }
+}
+
+internal fun musicAlbumDetailLoadErrorMessage(error: Throwable): String {
+    return "获取专辑曲目失败: ${error.message ?: "未知错误"}"
+}
+
+internal fun musicArtistDetailLoadErrorMessage(error: Throwable): String {
+    return "获取歌手专辑失败: ${error.message ?: "未知错误"}"
+}
+
 private fun sortMusicSongs(
     songs: List<NavidromeSong>,
     sort: MusicSongSort
@@ -2343,65 +2375,7 @@ private fun sortMusicSongs(
     }
 }
 
-private fun List<NavidromeSong>.filterSongs(query: String): List<NavidromeSong> {
-    val normalized = query.trim()
-    if (normalized.isBlank()) return this
-    return filter { song ->
-        song.title.contains(normalized, ignoreCase = true) ||
-            song.artist.orEmpty().contains(normalized, ignoreCase = true) ||
-            song.album.orEmpty().contains(normalized, ignoreCase = true)
-    }
-}
-
-private fun List<NavidromeAlbum>.filterAlbums(query: String): List<NavidromeAlbum> {
-    val normalized = query.trim()
-    if (normalized.isBlank()) return this
-    return filter { album ->
-        album.name.contains(normalized, ignoreCase = true) ||
-            album.artist.orEmpty().contains(normalized, ignoreCase = true) ||
-            album.year?.toString().orEmpty().contains(normalized, ignoreCase = true)
-    }
-}
-
-private fun List<NavidromeArtist>.filterArtists(query: String): List<NavidromeArtist> {
-    val normalized = query.trim()
-    if (normalized.isBlank()) return this
-    return filter { artist ->
-        artist.name.contains(normalized, ignoreCase = true)
-    }
-}
-
-private fun List<NavidromePlaylist>.filterPlaylists(query: String): List<NavidromePlaylist> {
-    val normalized = query.trim()
-    if (normalized.isBlank()) return this
-    return filter { playlist ->
-        playlist.name.contains(normalized, ignoreCase = true) ||
-            playlist.owner.orEmpty().contains(normalized, ignoreCase = true) ||
-            playlist.comment.orEmpty().contains(normalized, ignoreCase = true)
-    }
-}
-
-@Composable
-private fun MusicLocalFilterField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String,
-    colorScheme: ColorScheme
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        placeholder = { Text(placeholder, color = colorScheme.onSurface.copy(alpha = 0.4f)) },
-        singleLine = true,
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = colorScheme.primary,
-            unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.16f)
-        ),
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth(),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
-    )
-}
+private const val HOME_SONG_PREVIEW_LIMIT = 12
 
 @Composable
 private fun SongSortSegmentedControl(

@@ -19,32 +19,30 @@ data class EmbyAuthenticateRequest(
 
 data class EmbyAuthenticateResponse(
     @SerializedName("User")
-    val user: EmbyUserDto,
+    val user: EmbyUserDto? = null,
     @SerializedName("AccessToken")
-    val accessToken: String
+    val accessToken: String? = null
 )
 
 data class EmbyUserDto(
     @SerializedName("Id")
-    val id: String,
+    val id: String? = null,
     @SerializedName("Name")
     val name: String? = null
 )
 
 data class EmbyItemsResponse(
     @SerializedName("Items")
-    val items: List<EmbyItemDto> = emptyList(),
+    val items: List<EmbyItemDto>? = null,
     @SerializedName("TotalRecordCount")
     val totalRecordCount: Int = 0
 )
 
 data class EmbyItemDto(
     @SerializedName("Id")
-    val id: String,
+    val id: String? = null,
     @SerializedName("Name")
-    val name: String,
-    @SerializedName("ParentId")
-    val parentId: String? = null,
+    val name: String? = null,
     @SerializedName("Type")
     val type: String? = null,
     @SerializedName("CollectionType")
@@ -53,8 +51,18 @@ data class EmbyItemDto(
     val overview: String? = null,
     @SerializedName("ProductionYear")
     val productionYear: Int? = null,
+    @SerializedName("SeriesId")
+    val seriesId: String? = null,
+    @SerializedName("SeriesName")
+    val seriesName: String? = null,
+    @SerializedName("ParentIndexNumber")
+    val parentIndexNumber: Int? = null,
+    @SerializedName("IndexNumber")
+    val indexNumber: Int? = null,
     @SerializedName("RunTimeTicks")
     val runTimeTicks: Long? = null,
+    @SerializedName("CommunityRating")
+    val communityRating: Float? = null,
     @SerializedName("ChildCount")
     val childCount: Int? = null,
     @SerializedName("IndexNumber")
@@ -67,141 +75,22 @@ data class EmbyItemDto(
     val userData: EmbyUserDataDto? = null
 )
 
-data class EmbySearchHintsResponse(
-    @SerializedName("SearchHints")
-    val searchHints: List<EmbySearchHintDto> = emptyList(),
-    @SerializedName("TotalRecordCount")
-    val totalRecordCount: Int = 0
-)
-
-data class EmbySearchHintDto(
-    @SerializedName("ItemId")
-    val itemId: String? = null,
-    @SerializedName("Id")
-    val id: String? = null,
-    @SerializedName("Name")
-    val name: String? = null,
-    @SerializedName("ParentId")
-    val parentId: String? = null,
-    @SerializedName("Type")
-    val type: String? = null,
-    @SerializedName("MediaType")
-    val mediaType: String? = null,
-    @SerializedName("Overview")
-    val overview: String? = null,
-    @SerializedName("ProductionYear")
-    val productionYear: Int? = null,
-    @SerializedName("RunTimeTicks")
-    val runTimeTicks: Long? = null,
-    @SerializedName("IndexNumber")
-    val indexNumber: Int? = null,
-    @SerializedName("ParentIndexNumber")
-    val parentIndexNumber: Int? = null,
-    @SerializedName("PrimaryImageTag")
-    val primaryImageTag: String? = null,
-    @SerializedName("ImageTags")
-    val imageTags: Map<String, String>? = emptyMap(),
-    @SerializedName("UserData")
-    val userData: EmbyUserDataDto? = null
-)
-
 data class EmbyUserDataDto(
-    @SerializedName("PlayedPercentage")
-    val playedPercentage: Double? = null,
+    @SerializedName("Played")
+    val played: Boolean? = null,
     @SerializedName("PlaybackPositionTicks")
     val playbackPositionTicks: Long? = null,
-    @SerializedName("Played")
-    val played: Boolean = false,
-    @SerializedName("IsFavorite")
-    val isFavorite: Boolean = false,
     @SerializedName("LastPlayedDate")
     val lastPlayedDate: String? = null
-)
-
-data class EmbyPlaybackInfoResponse(
-    @SerializedName("MediaSources")
-    val mediaSources: List<EmbyMediaSourceDto> = emptyList(),
-    @SerializedName("PlaySessionId")
-    val playSessionId: String? = null
-)
-
-data class EmbyMediaSourceDto(
-    @SerializedName("Id")
-    val id: String? = null,
-    @SerializedName("Name")
-    val name: String? = null,
-    @SerializedName("Container")
-    val container: String? = null,
-    @SerializedName("RunTimeTicks")
-    val runTimeTicks: Long? = null,
-    @SerializedName("SupportsDirectPlay")
-    val supportsDirectPlay: Boolean? = null,
-    @SerializedName("SupportsDirectStream")
-    val supportsDirectStream: Boolean? = null,
-    @SerializedName("MediaStreams")
-    val mediaStreams: List<EmbyMediaStreamDto> = emptyList()
-)
-
-data class EmbyMediaStreamDto(
-    @SerializedName("Index")
-    val index: Int = -1,
-    @SerializedName("Type")
-    val type: String? = null,
-    @SerializedName("Codec")
-    val codec: String? = null,
-    @SerializedName("Language")
-    val language: String? = null,
-    @SerializedName("DisplayTitle")
-    val displayTitle: String? = null,
-    @SerializedName("Title")
-    val title: String? = null,
-    @SerializedName("IsDefault")
-    val isDefault: Boolean = false,
-    @SerializedName("IsForced")
-    val isForced: Boolean = false,
-    @SerializedName("IsExternal")
-    val isExternal: Boolean = false,
-    @SerializedName("DeliveryUrl")
-    val deliveryUrl: String? = null
-)
-
-data class EmbyPlaybackStartRequest(
-    @SerializedName("ItemId")
-    val itemId: String,
-    @SerializedName("SessionId")
-    val sessionId: String,
-    @SerializedName("MediaSourceId")
-    val mediaSourceId: String,
-    @SerializedName("IsPaused")
-    val isPaused: Boolean = false,
-    @SerializedName("IsMuted")
-    val isMuted: Boolean = false,
-    @SerializedName("PositionTicks")
-    val positionTicks: Long = 0L
 )
 
 data class EmbyPlaybackProgressRequest(
     @SerializedName("ItemId")
     val itemId: String,
-    @SerializedName("SessionId")
-    val sessionId: String,
-    @SerializedName("MediaSourceId")
-    val mediaSourceId: String,
+    @SerializedName("PositionTicks")
+    val positionTicks: Long,
     @SerializedName("IsPaused")
-    val isPaused: Boolean = false,
-    @SerializedName("PositionTicks")
-    val positionTicks: Long = 0L
-)
-
-data class EmbyPlaybackStopRequest(
-    @SerializedName("ItemId")
-    val itemId: String,
-    @SerializedName("SessionId")
-    val sessionId: String,
-    @SerializedName("MediaSourceId")
-    val mediaSourceId: String,
-    @SerializedName("PositionTicks")
-    val positionTicks: Long = 0L
+    val isPaused: Boolean
 )
 
 interface EmbyApi {
@@ -229,119 +118,24 @@ interface EmbyApi {
         @Query("ParentId") parentId: String,
         @Query("Recursive") recursive: Boolean = true,
         @Query("IncludeItemTypes") includeItemTypes: String = "Movie,Series,Episode,Video",
-        @Query("Fields") fields: String = "Overview,ProductionYear,RunTimeTicks,ChildCount,ImageTags,UserData",
+        @Query("Fields") fields: String = "Overview,ProductionYear,SeriesId,SeriesName,ParentIndexNumber,IndexNumber,RunTimeTicks,ChildCount,ImageTags,CommunityRating,UserData",
         @Query("SortBy") sortBy: String = "DateCreated",
         @Query("SortOrder") sortOrder: String = "Descending",
-        @Query("Filters") filters: String? = null,
-        @Query("Genres") genres: String? = null,
-        @Query("Years") years: String? = null,
+        @Query("StartIndex") startIndex: Int = 0,
         @Query("Limit") limit: Int = 50
     ): Response<EmbyItemsResponse>
 
-    @GET("Users/{userId}/Items/Resume")
-    suspend fun getResumeItems(
-        @Path("userId") userId: String,
-        @Header("X-Emby-Token") token: String,
-        @Query("MediaTypes") mediaTypes: String = "Video",
-        @Query("IncludeItemTypes") includeItemTypes: String = "Movie,Episode,Video",
-        @Query("Fields") fields: String = "Overview,ProductionYear,RunTimeTicks,ChildCount,ImageTags",
-        @Query("Limit") limit: Int = 12
-    ): Response<EmbyItemsResponse>
-
-    @GET("Shows/NextUp")
-    suspend fun getNextUp(
-        @Header("X-Emby-Token") token: String,
-        @Query("UserId") userId: String,
-        @Query("Fields") fields: String = "Overview,ProductionYear,RunTimeTicks,ChildCount,ImageTags,UserData",
-        @Query("Limit") limit: Int = 12
-    ): Response<EmbyItemsResponse>
-
-    @GET("Search/Hints")
-    suspend fun searchHints(
-        @Header("X-Emby-Token") token: String,
-        @Query("UserId") userId: String,
-        @Query("SearchTerm") searchTerm: String,
-        @Query("MediaTypes") mediaTypes: String = "Video",
-        @Query("IncludeItemTypes") includeItemTypes: String = "Movie,Series,Episode,Video",
-        @Query("Fields") fields: String = "Overview,ProductionYear,RunTimeTicks,ChildCount,ImageTags,UserData",
-        @Query("Limit") limit: Int = 20
-    ): Response<EmbySearchHintsResponse>
-
-    @GET("Items/{itemId}/PlaybackInfo")
-    suspend fun getPlaybackInfo(
-        @Path("itemId") itemId: String,
-        @Header("X-Emby-Token") token: String,
-        @Query("UserId") userId: String
-    ): Response<EmbyPlaybackInfoResponse>
-
-    @POST("Sessions/Playing")
-    suspend fun reportPlaybackStart(
-        @Body request: EmbyPlaybackStartRequest,
-        @Header("X-Emby-Token") token: String
-    ): Response<Unit>
-
     @POST("Sessions/Playing/Progress")
     suspend fun reportPlaybackProgress(
-        @Body request: EmbyPlaybackProgressRequest,
-        @Header("X-Emby-Token") token: String
+        @Header("X-Emby-Token") token: String,
+        @Body request: EmbyPlaybackProgressRequest
     ): Response<Unit>
 
     @POST("Sessions/Playing/Stopped")
     suspend fun reportPlaybackStopped(
-        @Body request: EmbyPlaybackStopRequest,
-        @Header("X-Emby-Token") token: String
-    ): Response<Unit>
-
-    @POST("Users/{userId}/PlayedItems/{itemId}")
-    suspend fun markPlayed(
-        @Path("userId") userId: String,
-        @Path("itemId") itemId: String,
-        @Header("X-Emby-Token") token: String
-    ): Response<Unit>
-
-    @DELETE("Users/{userId}/PlayedItems/{itemId}")
-    suspend fun markUnplayed(
-        @Path("userId") userId: String,
-        @Path("itemId") itemId: String,
-        @Header("X-Emby-Token") token: String
-    ): Response<Unit>
-
-    @POST("Users/{userId}/FavoriteItems/{itemId}")
-    suspend fun markFavorite(
-        @Path("userId") userId: String,
-        @Path("itemId") itemId: String,
-        @Header("X-Emby-Token") token: String
-    ): Response<Unit>
-
-    @DELETE("Users/{userId}/FavoriteItems/{itemId}")
-    suspend fun markUnfavorite(
-        @Path("userId") userId: String,
-        @Path("itemId") itemId: String,
-        @Header("X-Emby-Token") token: String
-    ): Response<Unit>
-
-    @GET("Users/{userId}/Items")
-    suspend fun getSeasons(
-        @Path("userId") userId: String,
         @Header("X-Emby-Token") token: String,
-        @Query("ParentId") parentId: String,
-        @Query("Recursive") recursive: Boolean = true,
-        @Query("IncludeItemTypes") includeItemTypes: String = "Season",
-        @Query("SortBy") sortBy: String = "SortName",
-        @Query("SortOrder") sortOrder: String = "Ascending"
-    ): Response<EmbyItemsResponse>
-
-    @GET("Users/{userId}/Items")
-    suspend fun getEpisodes(
-        @Path("userId") userId: String,
-        @Header("X-Emby-Token") token: String,
-        @Query("ParentId") parentId: String,
-        @Query("Recursive") recursive: Boolean = true,
-        @Query("IncludeItemTypes") includeItemTypes: String = "Episode",
-        @Query("Fields") fields: String = "Overview,ProductionYear,RunTimeTicks,ChildCount,ImageTags,UserData",
-        @Query("SortBy") sortBy: String = "SortName",
-        @Query("SortOrder") sortOrder: String = "Ascending"
-    ): Response<EmbyItemsResponse>
+        @Body request: EmbyPlaybackProgressRequest
+    ): Response<Unit>
 }
 
 private const val EMBY_CLIENT_AUTHORIZATION =

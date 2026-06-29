@@ -5,12 +5,21 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
 class AudiobookShelfRepositoryTest {
     private lateinit var server: MockWebServer
+
+    @Test
+    fun resolveAudiobookSyncCurrentTimeSeconds_clampsZeroDurationToZero() {
+        assertEquals(
+            0,
+            resolveAudiobookSyncCurrentTimeSeconds(currentTimeSeconds = 10, durationSeconds = 0)
+        )
+    }
 
     @Before
     fun setUp() {
@@ -32,6 +41,11 @@ class AudiobookShelfRepositoryTest {
 
         assertEquals("session-1", session.sessionId)
         assertEquals("Book One", session.displayTitle)
+        assertEquals("${server.url("/")}api/items/book-1/cover", session.coverUrl)
+        assertEquals(
+            AudiobookChapter(id = 1, title = "Chapter One", startSeconds = 0, endSeconds = 120),
+            session.chapters.single()
+        )
         assertEquals(1, session.audioTracks.size)
         assertEquals(
             "${server.url("/")}audio/book-1.mp3?download=0&token=token-123",
@@ -48,35 +62,315 @@ class AudiobookShelfRepositoryTest {
     }
 
     @Test
-    fun getLibraryItems_requestsProgressAndMapsContinueListeningFields() = runTest {
+    fun startPlayback_appendsTokenWhenTokenTextIsOnlyInAudioPath() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(playbackSessionJson(contentUrl = "/audio/token=placeholder/book-1.mp3?download=0"))
+
+        val session = repository().startPlayback("book-1")
+
+        assertEquals(
+            "${server.url("/")}audio/token=placeholder/book-1.mp3?download=0&token=token-123",
+            session.audioTracks.single().contentUrl
+        )
+    }
+
+    @Test
+    fun startPlayback_doesNotDuplicateExistingAudioTokenQueryParameter() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(playbackSessionJson(contentUrl = "/audio/book-1.mp3?token=upstream-token"))
+
+        val session = repository().startPlayback("book-1")
+
+        assertEquals(
+            "${server.url("/")}audio/book-1.mp3?token=upstream-token",
+            session.audioTracks.single().contentUrl
+        )
+    }
+
+    @Test
+    fun getLibraries_usesAccessTokenWhenLoginTokenIsBlank() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"   ","accessToken":"access-123"}}""")
+        server.enqueueJson(
+            """
+                {
+                  "libraries": [
+                    {"id":"lib-1","name":"Books","mediaType":"book"}
+                  ]
+                }
+            """.trimIndent()
+        )
+
+        val libraries = repository().getLibraries()
+
+        assertEquals(listOf("lib-1"), libraries.map { it.id })
+        server.takeRequest()
+        val librariesRequest = server.takeRequest()
+        assertEquals("Bearer access-123", librariesRequest.getHeader("Authorization"))
+    }
+
+    @Test
+    fun getLibraries_throwsTypedAuthExceptionForMissingLoginUsers() = runTest {
+        listOf(
+            """{}""",
+            """{"user":null}"""
+        ).forEach { response ->
+            server.enqueueJson(response)
+
+            assertAudiobookShelfApiError(AudiobookShelfApiException.Kind.AUTH) {
+                repository().getLibraries()
+            }
+        }
+
+        repeat(2) {
+            assertEquals("/login", server.takeRequest().path)
+        }
+    }
+
+    @Test
+    fun getLibraries_throwsTypedAuthExceptionWhenLoginTokensAreMissingOrBlank() = runTest {
+        listOf(
+            """{"user":{"id":"u1","username":"demo"}}""",
+            """{"user":{"id":"u1","username":"demo","token":null,"accessToken":null}}""",
+            """{"user":{"id":"u1","username":"demo","token":"","accessToken":"   "}}"""
+        ).forEach { response ->
+            server.enqueueJson(response)
+
+            assertAudiobookShelfApiError(AudiobookShelfApiException.Kind.AUTH) {
+                repository().getLibraries()
+            }
+        }
+
+        repeat(3) {
+            assertEquals("/login", server.takeRequest().path)
+        }
+    }
+
+    @Test
+    fun getLibraries_filtersBookMediaTypeCaseInsensitively() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(
+            """
+                {
+                  "libraries": [
+                    {"id":"lib-lower","name":"Lower","mediaType":"book"},
+                    {"id":"lib-title","name":"Title","mediaType":"Book"},
+                    {"id":"lib-upper","name":"Upper","mediaType":"BOOK"},
+                    {"id":"lib-podcast","name":"Podcasts","mediaType":"podcast"}
+                  ]
+                }
+            """.trimIndent()
+        )
+
+        val libraries = repository().getLibraries()
+
+        assertEquals(listOf("lib-lower", "lib-title", "lib-upper"), libraries.map { it.id })
+
+        server.takeRequest()
+        val librariesRequest = server.takeRequest()
+        assertEquals("/api/libraries", librariesRequest.path)
+        assertEquals("Bearer token-123", librariesRequest.getHeader("Authorization"))
+    }
+
+    @Test
+    fun getLibraries_mapsMissingAndNullLibraryArraysToEmptyList() = runTest {
+        listOf(
+            """{}""",
+            """{"libraries": null}"""
+        ).forEach { librariesResponse ->
+            server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+            server.enqueueJson(librariesResponse)
+
+            val libraries = repository().getLibraries()
+
+            assertEquals(emptyList<AudiobookLibrarySummary>(), libraries)
+            server.takeRequest()
+            val librariesRequest = server.takeRequest()
+            assertEquals("/api/libraries", librariesRequest.path)
+            assertEquals("Bearer token-123", librariesRequest.getHeader("Authorization"))
+        }
+    }
+
+    @Test
+    fun getLibraries_skipsRowsWithMissingNullOrBlankRequiredFields() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(
+            """
+                {
+                  "libraries": [
+                    {"name":"Missing Id","mediaType":"book"},
+                    {"id":null,"name":"Null Id","mediaType":"book"},
+                    {"id":"   ","name":"Blank Id","mediaType":"book"},
+                    {"id":"missing-name","mediaType":"book"},
+                    {"id":"null-name","name":null,"mediaType":"book"},
+                    {"id":"blank-name","name":"   ","mediaType":"book"},
+                    {"id":"missing-type","name":"Missing Type"},
+                    {"id":"null-type","name":"Null Type","mediaType":null},
+                    {"id":"blank-type","name":"Blank Type","mediaType":"   "},
+                    {"id":"valid-book","name":"Valid Books","mediaType":"Book"}
+                  ]
+                }
+            """.trimIndent()
+        )
+
+        val libraries = repository().getLibraries()
+
+        assertEquals(listOf("valid-book"), libraries.map { it.id })
+        assertEquals(listOf("Valid Books"), libraries.map { it.name })
+        assertEquals(listOf("Book"), libraries.map { it.mediaType })
+    }
+
+    @Test
+    fun getLibraryItems_pagesUntilServerTotalIsLoaded() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(libraryItemsJson(itemRange = 1..50, total = 51))
+        server.enqueueJson(libraryItemsJson(itemRange = 51..51, total = 51))
+
+        val items = repository().getLibraryItems("lib-1")
+
+        assertEquals(51, items.size)
+        assertEquals("Book 1", items.first().title)
+        assertEquals("Book 51", items.last().title)
+
+        server.takeRequest()
+        val firstPageRequest = server.takeRequest()
+        assertEquals("Bearer token-123", firstPageRequest.getHeader("Authorization"))
+        assertTrue(firstPageRequest.path.orEmpty().startsWith("/api/libraries/lib-1/items?"))
+        assertTrue(firstPageRequest.path.orEmpty().contains("limit=50"))
+        assertTrue(firstPageRequest.path.orEmpty().contains("page=0"))
+
+        val secondPageRequest = server.takeRequest()
+        assertEquals("Bearer token-123", secondPageRequest.getHeader("Authorization"))
+        assertTrue(secondPageRequest.path.orEmpty().contains("limit=50"))
+        assertTrue(secondPageRequest.path.orEmpty().contains("page=1"))
+    }
+
+    @Test
+    fun getLibraryItems_mapsMissingAndNullResultArraysToEmptyList() = runTest {
+        listOf(
+            """{"total": 0, "limit": 50, "page": 0, "mediaType": "book", "minified": true}""",
+            """{"results": null, "total": 0, "limit": 50, "page": 0, "mediaType": "book", "minified": true}"""
+        ).forEach { itemsResponse ->
+            server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+            server.enqueueJson(itemsResponse)
+
+            val items = repository().getLibraryItems("lib-1")
+
+            assertEquals(emptyList<AudiobookItemSummary>(), items)
+            server.takeRequest()
+            val itemsRequest = server.takeRequest()
+            assertTrue(itemsRequest.path.orEmpty().contains("page=0"))
+        }
+    }
+
+    @Test
+    fun getLibraryItems_stopsOnNullLaterPageAndKeepsAccumulatedItems() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(libraryItemsJson(itemRange = 1..50, total = 51))
+        server.enqueueJson(
+            """{"results": null, "total": 51, "limit": 50, "page": 1, "mediaType": "book", "minified": true}"""
+        )
+
+        val items = repository().getLibraryItems("lib-1")
+
+        assertEquals(50, items.size)
+        assertEquals("Book 1", items.first().title)
+        assertEquals("Book 50", items.last().title)
+
+        server.takeRequest()
+        val firstPageRequest = server.takeRequest()
+        val secondPageRequest = server.takeRequest()
+        assertTrue(firstPageRequest.path.orEmpty().contains("page=0"))
+        assertTrue(secondPageRequest.path.orEmpty().contains("page=1"))
+    }
+
+    @Test
+    fun getLibraryItems_skipsRowsWithMissingNullOrBlankRequiredFields() = runTest {
         server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
         server.enqueueJson(
             """
                 {
                   "results": [
                     {
-                      "id": "book-1",
                       "libraryId": "lib-1",
                       "mediaType": "book",
-                      "updatedAt": 1234,
+                      "media": {"metadata": {"title": "Missing Id"}}
+                    },
+                    {
+                      "id": null,
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {"metadata": {"title": "Null Id"}}
+                    },
+                    {
+                      "id": "   ",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {"metadata": {"title": "Blank Id"}}
+                    },
+                    {
+                      "id": "missing-media",
+                      "libraryId": "lib-1",
+                      "mediaType": "book"
+                    },
+                    {
+                      "id": "null-media",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": null
+                    },
+                    {
+                      "id": "missing-metadata",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {"id": "media-missing-metadata"}
+                    },
+                    {
+                      "id": "null-metadata",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {"id": "media-null-metadata", "metadata": null}
+                    },
+                    {
+                      "id": "missing-title",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {"metadata": {}}
+                    },
+                    {
+                      "id": "null-title",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {"metadata": {"title": null}}
+                    },
+                    {
+                      "id": "blank-title",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {"metadata": {"title": "   "}}
+                    },
+                    {
+                      "id": " valid-book ",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "updatedAt": 42,
                       "media": {
-                        "id": "media-1",
-                        "metadata": {"title": "Book One", "authorName": "Author"},
-                        "duration": 300.0,
-                        "numChapters": 12
-                      },
-                      "userMediaProgress": {
-                        "id": "progress-1",
-                        "libraryItemId": "book-1",
-                        "duration": 300.0,
-                        "currentTime": 90.0,
-                        "progress": 0.3,
-                        "isFinished": false,
-                        "lastUpdate": 9999
+                        "id": "media-valid",
+                        "metadata": {
+                          "title": " Valid Book ",
+                          "authorName": "Author",
+                          "narratorName": "Narrator",
+                          "seriesName": "Series"
+                        },
+                        "duration": 60.0,
+                        "numChapters": 1
                       }
                     }
                   ],
-                  "total": 1
+                  "total": 11,
+                  "limit": 50,
+                  "page": 0,
+                  "mediaType": "book",
+                  "minified": true
                 }
             """.trimIndent()
         )
@@ -84,16 +378,307 @@ class AudiobookShelfRepositoryTest {
         val items = repository().getLibraryItems("lib-1")
 
         assertEquals(1, items.size)
-        val progress = requireNotNull(items.single().progress)
-        assertEquals(90, progress.currentTimeSeconds)
-        assertEquals(300, progress.durationSeconds)
-        assertEquals(0.3f, progress.progressFraction)
-        assertEquals(9999L, progress.lastUpdateMillis)
+        val item = items.single()
+        assertEquals("valid-book", item.id)
+        assertEquals("lib-1", item.libraryId)
+        assertEquals("Valid Book", item.title)
+        assertEquals("Author", item.author)
+        assertEquals("Narrator", item.narrator)
+        assertEquals("Series", item.series)
+        assertEquals(60, item.durationSeconds)
+        assertEquals(1, item.chapterCount)
+        assertEquals(42, item.updatedAtMillis)
+    }
+
+    @Test
+    fun getLibraryItems_usesRequestedLibraryIdWhenItemLibraryIdIsMissingNullOrBlank() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(
+            """
+                {
+                  "results": [
+                    {
+                      "id": "book-missing-library",
+                      "mediaType": "book",
+                      "media": {"metadata": {"title": "Missing Library"}}
+                    },
+                    {
+                      "id": "book-null-library",
+                      "libraryId": null,
+                      "mediaType": "book",
+                      "media": {"metadata": {"title": "Null Library"}}
+                    },
+                    {
+                      "id": "book-blank-library",
+                      "libraryId": "   ",
+                      "mediaType": "book",
+                      "media": {"metadata": {"title": "Blank Library"}}
+                    }
+                  ],
+                  "total": 3,
+                  "limit": 50,
+                  "page": 0,
+                  "mediaType": "book",
+                  "minified": true
+                }
+            """.trimIndent()
+        )
+
+        val items = repository().getLibraryItems("requested-lib")
+
+        assertEquals(listOf("Missing Library", "Null Library", "Blank Library"), items.map { it.title })
+        assertEquals(listOf("requested-lib", "requested-lib", "requested-lib"), items.map { it.libraryId })
+    }
+
+    @Test
+    fun getLibraryItems_stopsWhenFetchedRowsReachTotalEvenIfRowsAreSkipped() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        val validRows = (1..49).joinToString(",") { index ->
+            """
+                {
+                  "id": "book-$index",
+                  "libraryId": "lib-1",
+                  "mediaType": "book",
+                  "media": {
+                    "id": "media-$index",
+                    "metadata": {"title": "Book $index"},
+                    "duration": 60.0,
+                    "numChapters": 1
+                  }
+                }
+            """.trimIndent()
+        }
+        server.enqueueJson(
+            """
+                {
+                  "results": [
+                    $validRows,
+                    {"media": {"metadata": {"title": "Missing Id"}}}
+                  ],
+                  "total": 50,
+                  "limit": 50,
+                  "page": 0,
+                  "mediaType": "book",
+                  "minified": true
+                }
+            """.trimIndent()
+        )
+
+        val items = repository().getLibraryItems("lib-1")
+
+        assertEquals(49, items.size)
+        assertEquals("Book 1", items.first().title)
+        assertEquals("Book 49", items.last().title)
 
         server.takeRequest()
-        val listRequest = server.takeRequest()
-        assertTrue(listRequest.path.orEmpty().contains("/api/libraries/lib-1/items"))
-        assertTrue(listRequest.path.orEmpty().contains("include=progress"))
+        val firstPageRequest = server.takeRequest()
+        assertTrue(firstPageRequest.path.orEmpty().contains("page=0"))
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
+    fun getLibraryItems_mapsBlankAndNonBlankCoverPaths() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(
+            """
+                {
+                  "results": [
+                    {
+                      "id": "book-blank",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {
+                        "id": "media-blank",
+                        "metadata": {"title": "Blank Cover"},
+                        "coverPath": "   ",
+                        "duration": 60.0,
+                        "numChapters": 1
+                      }
+                    },
+                    {
+                      "id": "book-relative",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {
+                        "id": "media-relative",
+                        "metadata": {"title": "Relative Cover"},
+                        "coverPath": "/api/items/book-relative/cover",
+                        "duration": 60.0,
+                        "numChapters": 1
+                      }
+                    },
+                    {
+                      "id": "book-absolute",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {
+                        "id": "media-absolute",
+                        "metadata": {"title": "Absolute Cover"},
+                        "coverPath": "https://cdn.example.test/cover.jpg",
+                        "duration": 60.0,
+                        "numChapters": 1
+                      }
+                    }
+                  ],
+                  "total": 3,
+                  "limit": 50,
+                  "page": 0,
+                  "mediaType": "book",
+                  "minified": true
+                }
+            """.trimIndent()
+        )
+
+        val items = repository().getLibraryItems("lib-1")
+
+        assertNull(items[0].coverUrl)
+        assertEquals("${server.url("/")}api/items/book-relative/cover", items[1].coverUrl)
+        assertEquals("https://cdn.example.test/cover.jpg", items[2].coverUrl)
+    }
+
+    @Test
+    fun getLibraryItem_ignoresBlankCoverPath() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(libraryItemDetailJson(coverPath = "   "))
+
+        val detail = repository().getLibraryItem("book-1")
+
+        assertNull(detail.coverUrl)
+    }
+
+    @Test
+    fun getLibraryItem_mapsMissingAndNullDetailListsToEmptyLists() = runTest {
+        listOf(
+            libraryItemDetailWithMissingListsJson(),
+            libraryItemDetailWithNullListsJson()
+        ).forEach { response ->
+            server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+            server.enqueueJson(response)
+
+            val detail = repository().getLibraryItem("book-1")
+
+            assertEquals(emptyList<String>(), detail.authors)
+            assertEquals(emptyList<String>(), detail.narrators)
+            assertEquals(emptyList<String>(), detail.series)
+            assertEquals(emptyList<AudiobookChapter>(), detail.chapters)
+        }
+    }
+
+    @Test
+    fun getLibraryItem_mapsPresentDetailLists() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(libraryItemDetailWithPresentListsJson())
+
+        val detail = repository().getLibraryItem("book-1")
+
+        assertEquals(listOf("Author One", "Author Two"), detail.authors)
+        assertEquals(listOf("Narrator One", "Narrator Two"), detail.narrators)
+        assertEquals(listOf("Saga #1", "Standalone"), detail.series)
+        assertEquals(2, detail.chapters.size)
+        assertEquals(
+            AudiobookChapter(id = 1, title = "Opening", startSeconds = 0, endSeconds = 90),
+            detail.chapters[0]
+        )
+        assertEquals(
+            AudiobookChapter(id = 2, title = "Middle", startSeconds = 90, endSeconds = 180),
+            detail.chapters[1]
+        )
+    }
+
+    @Test
+    fun startPlayback_ignoresBlankSessionCoverPath() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(
+            playbackSessionJson(
+                contentUrl = "/audio/book-1.mp3?download=0",
+                coverPath = "   "
+            )
+        )
+
+        val session = repository().startPlayback("book-1")
+
+        assertNull(session.coverUrl)
+    }
+
+    @Test
+    fun startPlayback_mapsMissingAndNullSessionListsToEmptyLists() = runTest {
+        listOf(
+            playbackSessionWithMissingListsJson(),
+            playbackSessionWithNullListsJson()
+        ).forEach { response ->
+            server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+            server.enqueueJson(response)
+
+            val session = repository().startPlayback("book-1")
+
+            assertEquals(emptyList<AudiobookChapter>(), session.chapters)
+            assertEquals(emptyList<AudiobookAudioTrack>(), session.audioTracks)
+        }
+    }
+
+    @Test
+    fun getLibraries_throwsTypedExceptionForEmptyResponseBody() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val error = try {
+            repository().getLibraries()
+            null
+        } catch (error: AudiobookShelfApiException) {
+            error
+        }
+
+        requireNotNull(error)
+        assertEquals(AudiobookShelfApiException.Kind.API, error.kind)
+        assertTrue(error.message.orEmpty().contains("响应为空"))
+    }
+
+    @Test
+    fun getLibraryItems_throwsTypedExceptionForEmptyResponseBody() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val error = try {
+            repository().getLibraryItems("lib-1")
+            null
+        } catch (error: AudiobookShelfApiException) {
+            error
+        }
+
+        requireNotNull(error)
+        assertEquals(AudiobookShelfApiException.Kind.API, error.kind)
+    }
+
+    @Test
+    fun getLibraryItem_throwsTypedExceptionForEmptyResponseBody() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val error = try {
+            repository().getLibraryItem("book-1")
+            null
+        } catch (error: AudiobookShelfApiException) {
+            error
+        }
+
+        requireNotNull(error)
+        assertEquals(AudiobookShelfApiException.Kind.API, error.kind)
+    }
+
+    @Test
+    fun startPlayback_throwsTypedExceptionForEmptyResponseBody() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val error = try {
+            repository().startPlayback("book-1")
+            null
+        } catch (error: AudiobookShelfApiException) {
+            error
+        }
+
+        requireNotNull(error)
+        assertEquals(AudiobookShelfApiException.Kind.API, error.kind)
     }
 
     @Test
@@ -109,18 +694,78 @@ class AudiobookShelfRepositoryTest {
         val progressRequest = server.takeRequest()
         val progressBody = progressRequest.body.readUtf8()
         assertEquals("/api/me/progress/book-1", progressRequest.path)
-        assertTrue(progressBody.contains(""""currentTime":150.0"""))
+        assertTrue(progressBody.contains(""""currentTime":100.0"""))
         assertTrue(progressBody.contains(""""progress":1.0"""))
 
         val syncRequest = server.takeRequest()
         val syncBody = syncRequest.body.readUtf8()
         assertEquals("/api/session/session-1/sync", syncRequest.path)
+        assertTrue(syncBody.contains(""""currentTime":100.0"""))
         assertTrue(syncBody.contains(""""timeListened":12.0"""))
 
         val closeRequest = server.takeRequest()
         val closeBody = closeRequest.body.readUtf8()
         assertEquals("/api/session/session-1/close", closeRequest.path)
-        assertTrue(closeBody.contains(""""currentTime":150.0"""))
+        assertTrue(closeBody.contains(""""currentTime":100.0"""))
+    }
+
+    @Test
+    fun syncAndCloseSession_clampsNegativeCurrentTimeToZero() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","accessToken":"access-123"}}""")
+        server.enqueue(MockResponse().setResponseCode(204))
+        server.enqueue(MockResponse().setResponseCode(204))
+        server.enqueue(MockResponse().setResponseCode(204))
+
+        repository().syncAndCloseSession(sampleSession(durationSeconds = 100), currentTimeSeconds = -20, deltaSeconds = -5)
+
+        server.takeRequest()
+        val progressRequest = server.takeRequest()
+        val progressBody = progressRequest.body.readUtf8()
+        assertEquals("/api/me/progress/book-1", progressRequest.path)
+        assertTrue(progressBody.contains(""""currentTime":0.0"""))
+        assertTrue(progressBody.contains(""""progress":0.0"""))
+
+        val syncRequest = server.takeRequest()
+        val syncBody = syncRequest.body.readUtf8()
+        assertEquals("/api/session/session-1/sync", syncRequest.path)
+        assertTrue(syncBody.contains(""""currentTime":0.0"""))
+        assertTrue(syncBody.contains(""""timeListened":0.0"""))
+
+        val closeRequest = server.takeRequest()
+        val closeBody = closeRequest.body.readUtf8()
+        assertEquals("/api/session/session-1/close", closeRequest.path)
+        assertTrue(closeBody.contains(""""currentTime":0.0"""))
+    }
+
+    @Test
+    fun syncAndCloseSession_clampsZeroDurationCurrentTimeToZero() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","accessToken":"access-123"}}""")
+        server.enqueue(MockResponse().setResponseCode(204))
+        server.enqueue(MockResponse().setResponseCode(204))
+        server.enqueue(MockResponse().setResponseCode(204))
+
+        repository().syncAndCloseSession(sampleSession(durationSeconds = 0), currentTimeSeconds = 10, deltaSeconds = 8)
+
+        server.takeRequest()
+        val progressRequest = server.takeRequest()
+        val progressBody = progressRequest.body.readUtf8()
+        assertEquals("/api/me/progress/book-1", progressRequest.path)
+        assertTrue(progressBody.contains(""""duration":1.0"""))
+        assertTrue(progressBody.contains(""""currentTime":0.0"""))
+        assertTrue(progressBody.contains(""""progress":0.0"""))
+
+        val syncRequest = server.takeRequest()
+        val syncBody = syncRequest.body.readUtf8()
+        assertEquals("/api/session/session-1/sync", syncRequest.path)
+        assertTrue(syncBody.contains(""""duration":1.0"""))
+        assertTrue(syncBody.contains(""""currentTime":0.0"""))
+        assertTrue(syncBody.contains(""""timeListened":8.0"""))
+
+        val closeRequest = server.takeRequest()
+        val closeBody = closeRequest.body.readUtf8()
+        assertEquals("/api/session/session-1/close", closeRequest.path)
+        assertTrue(closeBody.contains(""""duration":1.0"""))
+        assertTrue(closeBody.contains(""""currentTime":0.0"""))
     }
 
     @Test
@@ -150,6 +795,22 @@ class AudiobookShelfRepositoryTest {
         )
     }
 
+    private suspend fun assertAudiobookShelfApiError(
+        kind: AudiobookShelfApiException.Kind,
+        block: suspend () -> Unit
+    ): AudiobookShelfApiException {
+        val error = try {
+            block()
+            null
+        } catch (error: AudiobookShelfApiException) {
+            error
+        }
+
+        requireNotNull(error)
+        assertEquals(kind, error.kind)
+        return error
+    }
+
     private fun sampleSession(durationSeconds: Int = 300): AudiobookPlaybackSession {
         return AudiobookPlaybackSession(
             sessionId = "session-1",
@@ -165,7 +826,129 @@ class AudiobookShelfRepositoryTest {
         )
     }
 
-    private fun playbackSessionJson(contentUrl: String): String {
+    private fun libraryItemsJson(itemRange: IntRange, total: Int): String {
+        val results = itemRange.joinToString(",") { index ->
+            """
+                {
+                  "id": "book-$index",
+                  "libraryId": "lib-1",
+                  "mediaType": "book",
+                  "updatedAt": $index,
+                  "media": {
+                    "id": "media-$index",
+                    "metadata": {"title": "Book $index"},
+                    "duration": 60.0,
+                    "numChapters": 1
+                  }
+                }
+            """.trimIndent()
+        }
+        return """
+            {
+              "results": [$results],
+              "total": $total,
+              "limit": 50,
+              "page": 0,
+              "mediaType": "book",
+              "minified": true
+            }
+        """.trimIndent()
+    }
+
+    private fun libraryItemDetailJson(coverPath: String): String {
+        return """
+            {
+              "id": "book-1",
+              "libraryId": "lib-1",
+              "mediaType": "book",
+              "media": {
+                "id": "media-1",
+                "metadata": {
+                  "title": "Book One",
+                  "authors": [],
+                  "narrators": [],
+                  "series": []
+                },
+                "coverPath": "$coverPath",
+                "duration": 300.0,
+                "chapters": []
+              }
+            }
+        """.trimIndent()
+    }
+
+    private fun libraryItemDetailWithMissingListsJson(): String {
+        return """
+            {
+              "id": "book-1",
+              "libraryId": "lib-1",
+              "mediaType": "book",
+              "media": {
+                "id": "media-1",
+                "metadata": {
+                  "title": "Book One"
+                },
+                "duration": 300.0
+              }
+            }
+        """.trimIndent()
+    }
+
+    private fun libraryItemDetailWithNullListsJson(): String {
+        return """
+            {
+              "id": "book-1",
+              "libraryId": "lib-1",
+              "mediaType": "book",
+              "media": {
+                "id": "media-1",
+                "metadata": {
+                  "title": "Book One",
+                  "authors": null,
+                  "narrators": null,
+                  "series": null
+                },
+                "duration": 300.0,
+                "chapters": null
+              }
+            }
+        """.trimIndent()
+    }
+
+    private fun libraryItemDetailWithPresentListsJson(): String {
+        return """
+            {
+              "id": "book-1",
+              "libraryId": "lib-1",
+              "mediaType": "book",
+              "media": {
+                "id": "media-1",
+                "metadata": {
+                  "title": "Book One",
+                  "authors": [
+                    {"id": "author-1", "name": "Author One"},
+                    {"id": "author-2", "name": "Author Two"}
+                  ],
+                  "narrators": ["Narrator One", "Narrator Two"],
+                  "series": [
+                    {"id": "series-1", "name": "Saga", "sequence": "1"},
+                    {"id": "series-2", "name": "Standalone"}
+                  ]
+                },
+                "duration": 300.0,
+                "chapters": [
+                  {"id": 1, "start": 0.0, "end": 90.0, "title": "Opening"},
+                  {"id": 2, "start": 90.0, "end": 180.0, "title": "Middle"}
+                ]
+              }
+            }
+        """.trimIndent()
+    }
+
+    private fun playbackSessionJson(
+        contentUrl: String,
+        coverPath: String = "/api/items/book-1/cover"
+    ): String {
         return """
             {
               "id": "session-1",
@@ -174,7 +957,7 @@ class AudiobookShelfRepositoryTest {
               "mediaType": "book",
               "displayTitle": "Book One",
               "displayAuthor": "Author",
-              "coverPath": "/api/items/book-1/cover",
+              "coverPath": "$coverPath",
               "duration": 300.0,
               "startTime": 12.0,
               "currentTime": 12.0,
@@ -190,6 +973,42 @@ class AudiobookShelfRepositoryTest {
                   "contentUrl": "$contentUrl"
                 }
               ]
+            }
+        """.trimIndent()
+    }
+
+    private fun playbackSessionWithMissingListsJson(): String {
+        return """
+            {
+              "id": "session-1",
+              "libraryId": "lib-1",
+              "libraryItemId": "book-1",
+              "mediaType": "book",
+              "displayTitle": "Book One",
+              "displayAuthor": "Author",
+              "coverPath": "/api/items/book-1/cover",
+              "duration": 300.0,
+              "startTime": 12.0,
+              "currentTime": 12.0
+            }
+        """.trimIndent()
+    }
+
+    private fun playbackSessionWithNullListsJson(): String {
+        return """
+            {
+              "id": "session-1",
+              "libraryId": "lib-1",
+              "libraryItemId": "book-1",
+              "mediaType": "book",
+              "displayTitle": "Book One",
+              "displayAuthor": "Author",
+              "coverPath": "/api/items/book-1/cover",
+              "duration": 300.0,
+              "startTime": 12.0,
+              "currentTime": 12.0,
+              "chapters": null,
+              "audioTracks": null
             }
         """.trimIndent()
     }

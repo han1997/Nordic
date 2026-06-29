@@ -1,11 +1,15 @@
 package com.nordic.mediahub.data
 
+import com.nordic.mediahub.api.NavidromeAlbum
+import com.nordic.mediahub.api.NavidromePlaylist
+import com.nordic.mediahub.api.NavidromeSong
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -85,6 +89,110 @@ class NavidromeRepositoryTest {
     }
 
     @Test
+    fun getAllSongs_mapsMissingAndNullAlbumDetailSongsToEmptyList() = runTest {
+        listOf(
+            "",
+            ""","song": null"""
+        ).forEach { songField ->
+            server.enqueueJson(
+                subsonicResponse(
+                    """
+                    "albumList2": {
+                      "album": [
+                        {"id": "album-1", "name": "Album One", "coverArt": "cover-1", "songCount": 1}
+                      ]
+                    }
+                    """.trimIndent()
+                )
+            )
+            server.enqueueJson(albumDetailResponse(songField))
+
+            val songs = repository().getAllSongs()
+
+            assertEquals(emptyList<NavidromeSong>(), songs)
+        }
+    }
+
+    @Test
+    fun getRecentSongs_mapsRandomSongsToPlayableSongs() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "randomSongs": {
+                  "song": [
+                    {
+                      "id": "random-song-1",
+                      "title": "Random Song",
+                      "artist": "Artist One",
+                      "album": "Album One",
+                      "coverArt": "random-cover"
+                    }
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val songs = repository().getRecentSongs()
+
+        assertEquals(listOf("Random Song"), songs.map { it.title })
+        assertTrue(songs.single().streamUrl.orEmpty().contains("/rest/stream.view?id=random-song-1"))
+        assertTrue(songs.single().coverArt.orEmpty().contains("/rest/getCoverArt.view?id=random-cover"))
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/getRandomSongs.view?"))
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun getRecentSongs_fallsBackToAlbumSongsWhenRandomSongArrayIsMissingOrNull() = runTest {
+        listOf(
+            """"randomSongs": {}""",
+            """"randomSongs": {"song": null}"""
+        ).forEach { randomSongsField ->
+            server.enqueueJson(subsonicResponse(randomSongsField))
+            server.enqueueJson(
+                subsonicResponse(
+                    """
+                    "albumList2": {
+                      "album": [
+                        {"id": "album-1", "name": "Album One", "coverArt": "cover-1", "songCount": 1}
+                      ]
+                    }
+                    """.trimIndent()
+                )
+            )
+            server.enqueueJson(
+                albumDetailResponse(
+                    """
+                    ,"song": [
+                      {"id": "fallback-song-1", "title": "Fallback Song", "artist": "Artist One", "album": "Album One"}
+                    ]
+                    """.trimIndent()
+                )
+            )
+
+            val songs = repository().getRecentSongs()
+
+            assertEquals(listOf("Fallback Song"), songs.map { it.title })
+            assertTrue(songs.single().streamUrl.orEmpty().contains("/rest/stream.view?id=fallback-song-1"))
+            assertTrue(songs.single().coverArt.orEmpty().contains("/rest/getCoverArt.view?id=cover-1"))
+
+            val randomRequest = server.takeRequest().path.orEmpty()
+            assertTrue(randomRequest.startsWith("/rest/getRandomSongs.view?"))
+
+            val albumListRequest = server.takeRequest().path.orEmpty()
+            assertTrue(albumListRequest.startsWith("/rest/getAlbumList2.view?"))
+            assertTrue(albumListRequest.contains("type=newest"))
+            assertTrue(albumListRequest.contains("size=20"))
+
+            val albumRequest = server.takeRequest().path.orEmpty()
+            assertTrue(albumRequest.startsWith("/rest/getAlbum.view?"))
+            assertTrue(albumRequest.contains("id=album-1"))
+        }
+    }
+
+    @Test
     fun getAlbums_mapsSortModesToAlbumListRequests() = runTest {
         server.enqueueJson(emptyAlbumListResponse())
         server.enqueueJson(emptyAlbumListResponse())
@@ -109,6 +217,175 @@ class NavidromeRepositoryTest {
         assertTrue(nameRequest.contains("type=alphabeticalByName"))
         assertFalse(nameRequest.contains("fromYear="))
         assertFalse(nameRequest.contains("toYear="))
+    }
+
+    @Test
+    fun getAlbums_mapsMissingAndNullAlbumArraysToEmptyList() = runTest {
+        listOf(
+            """
+            "albumList2": {}
+            """.trimIndent(),
+            """
+            "albumList2": {"album": null}
+            """.trimIndent()
+        ).forEach { albumListField ->
+            server.enqueueJson(subsonicResponse(albumListField))
+
+            val albums = repository().getAlbums(NavidromeAlbumSort.Name)
+
+            assertEquals(emptyList<NavidromeAlbum>(), albums)
+        }
+    }
+
+    @Test
+    fun getAlbums_ignoresBlankCoverArtIds() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "albumList2": {
+                  "album": [
+                    {"id": "album-empty", "name": "Empty Cover", "coverArt": "", "songCount": 1},
+                    {"id": "album-blank", "name": "Blank Cover", "coverArt": "   ", "songCount": 1},
+                    {"id": "album-valid", "name": "Valid Cover", "coverArt": "valid-cover", "songCount": 1}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val albums = repository().getAlbums(NavidromeAlbumSort.RecentlyAdded)
+
+        assertNull(albums[0].coverArt)
+        assertNull(albums[1].coverArt)
+        assertTrue(albums[2].coverArt.orEmpty().contains("/rest/getCoverArt.view?id=valid-cover"))
+    }
+
+    @Test
+    fun getAlbumSongs_mapsMissingAndNullSongListsToEmptyList() = runTest {
+        listOf(
+            "",
+            ""","song": null"""
+        ).forEach { songField ->
+            server.enqueueJson(albumDetailResponse(songField))
+
+            val songs = repository().getAlbumSongs("album-1")
+
+            assertEquals(emptyList<NavidromeSong>(), songs)
+        }
+    }
+
+    @Test
+    fun getArtists_flattensIndexesAndComputesInitials() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "artists": {
+                  "index": [
+                    {
+                      "name": "A",
+                      "artist": [
+                        {"id": "artist-1", "name": "Artist One", "albumCount": 2}
+                      ]
+                    },
+                    {
+                      "name": "B",
+                      "artist": [
+                        {"id": "artist-2", "name": "Beta", "albumCount": 3}
+                      ]
+                    }
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val artists = repository().getArtists()
+
+        assertEquals(listOf("Artist One", "Beta"), artists.map { it.name })
+        assertEquals(listOf("AO", "B"), artists.map { it.initials })
+        assertEquals(listOf(2, 3), artists.map { it.albumCount })
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/getArtists.view?"))
+    }
+
+    @Test
+    fun getArtists_mapsMissingAndNullIndexArraysToEmptyList() = runTest {
+        listOf(
+            """
+            "artists": {}
+            """.trimIndent(),
+            """
+            "artists": {"index": null}
+            """.trimIndent()
+        ).forEach { artistsField ->
+            server.enqueueJson(subsonicResponse(artistsField))
+
+            val artists = repository().getArtists()
+
+            assertTrue(artists.isEmpty())
+        }
+    }
+
+    @Test
+    fun getArtists_skipsMissingAndNullNestedArtistArrays() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "artists": {
+                  "index": [
+                    {"name": "A"},
+                    {"name": "B", "artist": null},
+                    {
+                      "name": "C",
+                      "artist": [
+                        {"id": "artist-3", "name": "Charlie Delta", "albumCount": 4}
+                      ]
+                    }
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val artists = repository().getArtists()
+
+        assertEquals(listOf("Charlie Delta"), artists.map { it.name })
+        assertEquals(listOf("CD"), artists.map { it.initials })
+    }
+
+    @Test
+    fun getArtistAlbums_mapsPresentAlbumsAndCoverArtUrls() = runTest {
+        server.enqueueJson(
+            artistDetailResponse(
+                """
+                ,"album": [
+                  {"id": "album-1", "name": "Album One", "artist": "Artist One", "coverArt": "cover-1"}
+                ]
+                """.trimIndent()
+            )
+        )
+
+        val albums = repository().getArtistAlbums("artist-1")
+
+        assertEquals(1, albums.size)
+        assertEquals("Album One", albums.single().name)
+        assertTrue(albums.single().coverArt.orEmpty().contains("/rest/getCoverArt.view?id=cover-1"))
+        assertTrue(server.takeRequest().path.orEmpty().contains("id=artist-1"))
+    }
+
+    @Test
+    fun getArtistAlbums_mapsMissingAndNullAlbumListsToEmptyList() = runTest {
+        listOf(
+            "",
+            ""","album": null"""
+        ).forEach { albumField ->
+            server.enqueueJson(artistDetailResponse(albumField))
+
+            val albums = repository().getArtistAlbums("artist-1")
+
+            assertEquals(emptyList<NavidromeAlbum>(), albums)
+        }
     }
 
     @Test
@@ -147,6 +424,58 @@ class NavidromeRepositoryTest {
     }
 
     @Test
+    fun getPlaylists_mapsMissingAndNullPlaylistArraysToEmptyList() = runTest {
+        listOf(
+            """"playlists": {}""",
+            """"playlists": {"playlist": null}"""
+        ).forEach { playlistsField ->
+            server.enqueueJson(subsonicResponse(playlistsField))
+
+            val playlists = repository().getPlaylists()
+
+            assertEquals(emptyList<NavidromePlaylist>(), playlists)
+        }
+    }
+
+    @Test
+    fun getPlaylists_throwsTypedApiExceptionForEmptyResponseBody() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val error = assertNavidromeApiError(NavidromeApiException.Kind.API) {
+            repository().getPlaylists()
+        }
+
+        assertTrue(error.message.orEmpty().contains("响应为空"))
+    }
+
+    @Test
+    fun getPlaylists_throwsTypedExceptionForHttpErrors() = runTest {
+        server.enqueue(MockResponse().setResponseCode(500))
+
+        val error = assertNavidromeApiError(NavidromeApiException.Kind.HTTP) {
+            repository().getPlaylists()
+        }
+
+        assertTrue(error.message.orEmpty().contains("HTTP"))
+    }
+
+    @Test
+    fun getPlaylists_throwsTypedExceptionForSubsonicErrors() = runTest {
+        server.enqueueJson(
+            subsonicFailedResponse(
+                code = 40,
+                message = "Wrong username or password"
+            )
+        )
+
+        val error = assertNavidromeApiError(NavidromeApiException.Kind.SUBSONIC) {
+            repository().getPlaylists()
+        }
+
+        assertTrue(error.message.orEmpty().contains("[40]"))
+    }
+
+    @Test
     fun getPlaylistSongs_mapsEntriesToPlayableSongs() = runTest {
         server.enqueueJson(
             subsonicResponse(
@@ -177,78 +506,530 @@ class NavidromeRepositoryTest {
     }
 
     @Test
-    fun getSimilarSongs_callsEndpointAndMapsSongs() = runTest {
+    fun getPlaylistSongs_mapsMissingAndNullEntriesToEmptyList() = runTest {
+        listOf(
+            """
+            "playlist": {
+              "id": "playlist-1",
+              "name": "Road Mix",
+              "coverArt": "playlist-cover"
+            }
+            """.trimIndent(),
+            """
+            "playlist": {
+              "id": "playlist-1",
+              "name": "Road Mix",
+              "coverArt": "playlist-cover",
+              "entry": null
+            }
+            """.trimIndent()
+        ).forEach { playlistField ->
+            server.enqueueJson(subsonicResponse(playlistField))
+
+            val songs = repository().getPlaylistSongs("playlist-1")
+
+            assertEquals(emptyList<NavidromeSong>(), songs)
+        }
+    }
+
+    @Test
+    fun getPlaylistSongs_ignoresBlankPlaylistFallbackCoverArt() = runTest {
         server.enqueueJson(
             subsonicResponse(
                 """
-                "similarSongs": {
-                  "song": [
-                    {"id": "sim-1", "title": "Similar One", "artist": "Artist A"},
-                    {"id": "sim-2", "title": "Similar Two", "artist": "Artist B"}
+                "playlist": {
+                  "id": "playlist-1",
+                  "name": "Road Mix",
+                  "coverArt": "   ",
+                  "entry": [
+                    {"id": "song-1", "title": "Song One", "artist": "Artist One", "album": "Playlist Album"},
+                    {"id": "song-2", "title": "Song Two", "artist": "Artist Two", "album": "Playlist Album", "coverArt": ""}
                   ]
                 }
                 """.trimIndent()
             )
         )
 
-        val songs = repository().getSimilarSongs("song-1")
+        val songs = repository().getPlaylistSongs("playlist-1")
 
-        assertEquals(listOf("Similar One", "Similar Two"), songs.map { it.title })
-        assertTrue(songs[0].streamUrl.orEmpty().contains("/rest/stream.view?id=sim-1"))
-
-        val request = server.takeRequest().path.orEmpty()
-        assertTrue(request.startsWith("/rest/getSimilarSongs.view?"))
-        assertTrue(request.contains("id=song-1"))
-        assertTrue(request.contains("count=50"))
+        assertNull(songs[0].coverArt)
+        assertNull(songs[1].coverArt)
+        assertTrue(songs[0].streamUrl.orEmpty().contains("/rest/stream.view?id=song-1"))
     }
 
     @Test
-    fun getRandomSongs_callsEndpointAndMapsSongs() = runTest {
+    fun getPlaylistSongs_usesFallbackWhenSongCoverArtIsBlank() = runTest {
         server.enqueueJson(
             subsonicResponse(
                 """
-                "randomSongs": {
-                  "song": [
-                    {"id": "rand-1", "title": "Random One", "artist": "Artist X"},
-                    {"id": "rand-2", "title": "Random Two", "artist": "Artist Y"}
+                "playlist": {
+                  "id": "playlist-1",
+                  "name": "Road Mix",
+                  "coverArt": "playlist-cover",
+                  "entry": [
+                    {"id": "song-1", "title": "Song One", "artist": "Artist One", "album": "Playlist Album", "coverArt": "   "}
                   ]
                 }
                 """.trimIndent()
             )
         )
 
-        val songs = repository().getRandomSongs(10)
+        val songs = repository().getPlaylistSongs("playlist-1")
 
-        assertEquals(listOf("Random One", "Random Two"), songs.map { it.title })
-        assertTrue(songs[0].streamUrl.orEmpty().contains("/rest/stream.view?id=rand-1"))
-
-        val request = server.takeRequest().path.orEmpty()
-        assertTrue(request.startsWith("/rest/getRandomSongs.view?"))
-        assertTrue(request.contains("size=10"))
+        assertTrue(songs[0].coverArt.orEmpty().contains("/rest/getCoverArt.view?id=playlist-cover"))
     }
 
     @Test
-    fun scrobble_callsEndpointWithSubmissionTrue() = runTest {
-        server.enqueueJson(subsonicResponse("\"scrobble\": true"))
+    fun search_mapsArtistsAlbumsAndSongs() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "searchResult3": {
+                  "artist": [
+                    {"id": "artist-1", "name": "Artist One", "albumCount": 3}
+                  ],
+                  "album": [
+                    {"id": "album-1", "name": "Album One", "artist": "Artist One", "coverArt": "album-cover", "songCount": 2}
+                  ],
+                  "song": [
+                    {"id": "song-1", "title": "Song One", "artist": "Artist One", "album": "Album One", "coverArt": "song-cover"}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
 
-        repository().scrobble("song-1", submission = true)
+        val result = repository().search(" road ")
+
+        assertEquals(listOf("Artist One"), result.artists.map { it.name })
+        assertEquals("AO", result.artists[0].initials)
+        assertEquals(3, result.artists[0].albumCount)
+        assertEquals(listOf("Album One"), result.albums.map { it.name })
+        assertTrue(result.albums[0].coverArt.orEmpty().contains("/rest/getCoverArt.view?id=album-cover"))
+        assertEquals(listOf("Song One"), result.songs.map { it.title })
+        assertTrue(result.songs[0].coverArt.orEmpty().contains("/rest/getCoverArt.view?id=song-cover"))
+        assertTrue(result.songs[0].streamUrl.orEmpty().contains("/rest/stream.view?id=song-1"))
 
         val request = server.takeRequest().path.orEmpty()
-        assertTrue(request.startsWith("/rest/scrobble.view?"))
+        assertTrue(request.startsWith("/rest/search3.view?"))
+        assertTrue(request.contains("query=road"))
+    }
+
+    @Test
+    fun search_mapsMissingAndNullResultArraysToEmptyLists() = runTest {
+        listOf(
+            """
+            "searchResult3": {}
+            """.trimIndent(),
+            """
+            "searchResult3": {
+              "artist": null,
+              "album": null,
+              "song": null
+            }
+            """.trimIndent()
+        ).forEach { searchResultField ->
+            server.enqueueJson(subsonicResponse(searchResultField))
+
+            val result = repository().search("road")
+
+            assertEquals(SearchMusicResult(), result)
+        }
+    }
+
+    @Test
+    fun getLyrics_preservesStructuredLyricMillisecondStartsWithoutOffset() = runTest {
+        server.enqueueJson(
+            structuredLyricsResponse(
+                """
+                {
+                  "synced": true,
+                  "line": [
+                    {"start": 2000, "value": "First structured line"},
+                    {"start": 3001, "value": "Second structured line"}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+            )
+        )
+
+        assertTrue(lyrics.synced)
+        assertEquals(listOf("First structured line", "Second structured line"), lyrics.lines.map { it.text })
+        assertEquals(listOf(2000, 3001), lyrics.lines.map { it.startMillis })
+    }
+
+    @Test
+    fun getLyrics_fallsBackToPlainLyricsWhenStructuredLyricsArrayIsMissingOrNull() = runTest {
+        listOf(
+            """"lyricsList": {}""",
+            """"lyricsList": {"structuredLyrics": null}"""
+        ).forEach { lyricsListField ->
+            server.enqueueJson(
+                subsonicResponse(
+                    """
+                    $lyricsListField,
+                    "lyrics": {
+                      "value": "Plain fallback lyric"
+                    }
+                    """.trimIndent()
+                )
+            )
+
+            val lyrics = requireNotNull(
+                repository().getLyrics(
+                    NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+                )
+            )
+
+            assertFalse(lyrics.synced)
+            assertEquals(listOf("Plain fallback lyric"), lyrics.lines.map { it.text })
+        }
+    }
+
+    @Test
+    fun getLyrics_fallsBackToPlainLyricsWhenStructuredLineArraysAreMissingOrNull() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "lyricsList": {
+                  "structuredLyrics": [
+                    {"synced": true},
+                    {"synced": true, "line": null}
+                  ]
+                },
+                "lyrics": {
+                  "value": "Plain fallback lyric"
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+            )
+        )
+
+        assertFalse(lyrics.synced)
+        assertEquals(listOf("Plain fallback lyric"), lyrics.lines.map { it.text })
+    }
+
+    @Test
+    fun getLyrics_skipsStructuredLinesWithMissingNullOrBlankValues() = runTest {
+        server.enqueueJson(
+            structuredLyricsResponse(
+                """
+                {
+                  "synced": true,
+                  "line": [
+                    {"start": 1000},
+                    {"start": 2000, "value": null},
+                    {"start": 3000, "value": ""},
+                    {"start": 4000, "value": "   "},
+                    {"start": 5000, "value": " Kept structured line "}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+            )
+        )
+
+        assertTrue(lyrics.synced)
+        assertEquals(listOf("Kept structured line"), lyrics.lines.map { it.text })
+        assertEquals(listOf(5000), lyrics.lines.map { it.startMillis })
+    }
+
+    @Test
+    fun getLyrics_fallsBackToPlainLyricsWhenStructuredLineValuesAreMissingNullOrBlank() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "lyricsList": {
+                  "structuredLyrics": [
+                    {
+                      "synced": true,
+                      "line": [
+                        {"start": 1000},
+                        {"start": 2000, "value": null},
+                        {"start": 3000, "value": ""},
+                        {"start": 4000, "value": "   "}
+                      ]
+                    }
+                  ]
+                },
+                "lyrics": {
+                  "value": "Plain fallback lyric"
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+            )
+        )
+
+        assertFalse(lyrics.synced)
+        assertEquals(listOf("Plain fallback lyric"), lyrics.lines.map { it.text })
+    }
+
+    @Test
+    fun getLyrics_preservesSmallStructuredLyricMillisecondStarts() = runTest {
+        server.enqueueJson(
+            structuredLyricsResponse(
+                """
+                {
+                  "synced": true,
+                  "line": [
+                    {"start": 120, "value": "Early structured line"}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(
+                    id = "song-1",
+                    title = "Song One",
+                    artist = "Artist One",
+                    duration = 300
+                )
+            )
+        )
+
+        assertTrue(lyrics.synced)
+        assertEquals(listOf("Early structured line"), lyrics.lines.map { it.text })
+        assertEquals(listOf(120), lyrics.lines.map { it.startMillis })
+    }
+
+    @Test
+    fun getLyrics_appliesPositiveStructuredLyricOffsetToShowLyricsSooner() = runTest {
+        server.enqueueJson(
+            structuredLyricsResponse(
+                """
+                {
+                  "synced": true,
+                  "offset": 250,
+                  "line": [
+                    {"start": 2000, "value": "Shifted earlier"}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+            )
+        )
+
+        assertEquals(listOf("Shifted earlier"), lyrics.lines.map { it.text })
+        assertEquals(listOf(1750), lyrics.lines.map { it.startMillis })
+    }
+
+    @Test
+    fun getLyrics_appliesNegativeStructuredLyricOffsetToShowLyricsLater() = runTest {
+        server.enqueueJson(
+            structuredLyricsResponse(
+                """
+                {
+                  "synced": true,
+                  "offset": -250,
+                  "line": [
+                    {"start": 2000, "value": "Shifted later"}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+            )
+        )
+
+        assertEquals(listOf("Shifted later"), lyrics.lines.map { it.text })
+        assertEquals(listOf(2250), lyrics.lines.map { it.startMillis })
+    }
+
+    @Test
+    fun getLyrics_clampsPositiveStructuredLyricOffsetBeforeZero() = runTest {
+        server.enqueueJson(
+            structuredLyricsResponse(
+                """
+                {
+                  "synced": true,
+                  "offset": 250,
+                  "line": [
+                    {"start": 100, "value": "Clamped start"},
+                    {"start": 500, "value": "Still shifted"}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+            )
+        )
+
+        assertEquals(listOf("Clamped start", "Still shifted"), lyrics.lines.map { it.text })
+        assertEquals(listOf(0, 250), lyrics.lines.map { it.startMillis })
+    }
+
+    @Test
+    fun getLyrics_skipsKnownLrcMetadataRows() = runTest {
+        val value = listOf(
+            "[ar:Artist One]",
+            "[ti:Song One]",
+            "[al:Album One]",
+            "[length:03:30]",
+            "[offset:+500]",
+            "[00:10.00]First lyric",
+            "[00:20.50]Second lyric"
+        ).joinToString("\\n")
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "lyrics": {
+                  "artist": "Artist One",
+                  "title": "Song One",
+                  "value": "$value"
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One", duration = 180)
+            )
+        )
+
+        assertTrue(lyrics.synced)
+        assertEquals(listOf("First lyric", "Second lyric"), lyrics.lines.map { it.text })
+        assertEquals(listOf(9_500, 20_000), lyrics.lines.map { it.startMillis })
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/getLyricsBySongId.view?"))
         assertTrue(request.contains("id=song-1"))
-        assertTrue(request.contains("submission=true"))
     }
 
     @Test
-    fun scrobble_callsEndpointWithSubmissionFalse() = runTest {
-        server.enqueueJson(subsonicResponse("\"scrobble\": true"))
+    fun getLyrics_appliesNegativeLrcOffsetToShowLyricsLater() = runTest {
+        val value = listOf(
+            "[offset:-750]",
+            "[00:10.00]Delayed lyric"
+        ).joinToString("\\n")
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "lyrics": {
+                  "value": "$value"
+                }
+                """.trimIndent()
+            )
+        )
 
-        repository().scrobble("song-2", submission = false)
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+            )
+        )
 
-        val request = server.takeRequest().path.orEmpty()
-        assertTrue(request.startsWith("/rest/scrobble.view?"))
-        assertTrue(request.contains("id=song-2"))
-        assertTrue(request.contains("submission=false"))
+        assertEquals(listOf("Delayed lyric"), lyrics.lines.map { it.text })
+        assertEquals(listOf(10_750), lyrics.lines.map { it.startMillis })
+    }
+
+    @Test
+    fun getLyrics_clampsPositiveLrcOffsetBeforeZero() = runTest {
+        val value = listOf(
+            "[offset:+1500]",
+            "[00:01.00]Intro lyric",
+            "[00:02.00]Second lyric"
+        ).joinToString("\\n")
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "lyrics": {
+                  "value": "$value"
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+            )
+        )
+
+        assertEquals(listOf("Intro lyric", "Second lyric"), lyrics.lines.map { it.text })
+        assertEquals(listOf(0, 500), lyrics.lines.map { it.startMillis })
+    }
+
+    @Test
+    fun getLyrics_preservesNonMetadataBracketedPlainRows() = runTest {
+        val value = listOf(
+            "[Chorus]",
+            "[custom:Keep this line]",
+            "Plain lyric"
+        ).joinToString("\\n")
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "lyrics": {
+                  "value": "$value"
+                }
+                """.trimIndent()
+            )
+        )
+
+        val lyrics = requireNotNull(
+            repository().getLyrics(
+                NavidromeSong(id = "song-1", title = "Song One", artist = "Artist One")
+            )
+        )
+
+        assertFalse(lyrics.synced)
+        assertEquals(
+            listOf("[Chorus]", "[custom:Keep this line]", "Plain lyric"),
+            lyrics.lines.map { it.text }
+        )
+    }
+
+    private suspend fun assertNavidromeApiError(
+        kind: NavidromeApiException.Kind,
+        block: suspend () -> Unit
+    ): NavidromeApiException {
+        val error = try {
+            block()
+            null
+        } catch (error: NavidromeApiException) {
+            error
+        }
+
+        requireNotNull(error)
+        assertEquals(kind, error.kind)
+        return error
     }
 
     private fun repository(): NavidromeRepository {
@@ -273,11 +1054,63 @@ class NavidromeRepositoryTest {
         """.trimIndent()
     }
 
+    private fun subsonicFailedResponse(code: Int, message: String): String {
+        return """
+            {
+              "subsonic-response": {
+                "status": "failed",
+                "version": "1.16.1",
+                "error": {
+                  "code": $code,
+                  "message": "$message"
+                }
+              }
+            }
+        """.trimIndent()
+    }
+
     private fun emptyAlbumListResponse(): String {
         return subsonicResponse(
             """
             "albumList2": {
               "album": []
+            }
+            """.trimIndent()
+        )
+    }
+
+    private fun albumDetailResponse(songField: String): String {
+        return subsonicResponse(
+            """
+            "album": {
+              "id": "album-1",
+              "name": "Album One",
+              "coverArt": "cover-1"
+              $songField
+            }
+            """.trimIndent()
+        )
+    }
+
+    private fun artistDetailResponse(albumField: String): String {
+        return subsonicResponse(
+            """
+            "artist": {
+              "id": "artist-1",
+              "name": "Artist One"
+              $albumField
+            }
+            """.trimIndent()
+        )
+    }
+
+    private fun structuredLyricsResponse(structuredLyrics: String): String {
+        return subsonicResponse(
+            """
+            "lyricsList": {
+              "structuredLyrics": [
+                $structuredLyrics
+              ]
             }
             """.trimIndent()
         )

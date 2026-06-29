@@ -17,12 +17,30 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.io.EOFException
 
 private const val RECENT_ALBUM_LIMIT = 20
 private const val RECENT_SONG_LIMIT = 20
 private const val ALBUM_PAGE_SIZE = 100
 private const val RELEASE_YEAR_SORT_FROM_YEAR = 2100
 private const val RELEASE_YEAR_SORT_TO_YEAR = 1900
+private val lrcTimestampPattern = Regex("""\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?]""")
+private val lrcOffsetPattern = Regex("""^\[offset:([+-]?\d+)]$""", RegexOption.IGNORE_CASE)
+private val lrcMetadataLinePattern = Regex("""^\[([A-Za-z][A-Za-z0-9_-]*):.*]$""")
+private val lrcMetadataKeys = setOf(
+    "al",
+    "album",
+    "ar",
+    "artist",
+    "au",
+    "by",
+    "length",
+    "offset",
+    "re",
+    "ti",
+    "title",
+    "ve"
+)
 
 enum class NavidromeAlbumSort {
     RecentlyAdded,
@@ -37,7 +55,7 @@ private data class AlbumListRequest(
 )
 
 class NavidromeApiException(message: String, val kind: Kind) : Exception(message) {
-    enum class Kind { HTTP, SUBSONIC }
+    enum class Kind { HTTP, SUBSONIC, API }
 }
 
 class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicDataSource {
@@ -87,14 +105,28 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
         return buildAuthedMediaUrl("getCoverArt", id, params)
     }
 
+    private fun String?.toCoverArtUrlOrNull(): String? {
+        return this?.takeIf { it.isNotBlank() }?.let(::buildCoverArtUrl)
+    }
+
     private fun buildStreamUrl(id: String): String = buildAuthedMediaUrl("stream", id)
+
+    private suspend fun requestSubsonic(request: suspend () -> Response<SubsonicResponse>): SubsonicData {
+        val response = try {
+            request()
+        } catch (error: EOFException) {
+            throw NavidromeApiException("响应为空", NavidromeApiException.Kind.API)
+        }
+
+        return response.requireResponse()
+    }
 
     private fun Response<SubsonicResponse>.requireResponse(): SubsonicData {
         if (!isSuccessful) {
             throw NavidromeApiException("HTTP错误: ${code()}", NavidromeApiException.Kind.HTTP)
         }
 
-        val body = body() ?: throw NavidromeApiException("响应为空", NavidromeApiException.Kind.HTTP)
+        val body = body() ?: throw NavidromeApiException("响应为空", NavidromeApiException.Kind.API)
         if (body.response.status == "ok") {
             return body.response
         }
@@ -104,11 +136,11 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
     }
 
     private fun NavidromeAlbum.withCoverArtUrl(): NavidromeAlbum {
-        return copy(coverArt = coverArt?.let(::buildCoverArtUrl))
+        return copy(coverArt = coverArt.toCoverArtUrlOrNull())
     }
 
     private fun NavidromePlaylist.withCoverArtUrl(): NavidromePlaylist {
-        return copy(coverArt = coverArt?.let(::buildCoverArtUrl))
+        return copy(coverArt = coverArt.toCoverArtUrlOrNull())
     }
 
     private fun NavidromeArtist.withInitials(): NavidromeArtist {
@@ -123,7 +155,7 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
 
     private fun NavidromeSong.withCoverArtUrl(fallbackCoverArt: String? = null): NavidromeSong {
         return copy(
-            coverArt = (coverArt ?: fallbackCoverArt)?.let(::buildCoverArtUrl),
+            coverArt = coverArt.toCoverArtUrlOrNull() ?: fallbackCoverArt.toCoverArtUrlOrNull(),
             streamUrl = buildStreamUrl(id)
         )
     }
@@ -136,17 +168,19 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
         toYear: Int? = null
     ): List<NavidromeAlbum> {
         val auth = config.authParams()
-        val subsonic = api.getAlbumList2(
-            username = config.username,
-            token = auth.token,
-            salt = auth.salt,
-            type = type,
-            size = size,
-            offset = offset,
-            fromYear = fromYear,
-            toYear = toYear
-        ).requireResponse()
-        return subsonic.albumList2?.album?.map { it.withCoverArtUrl() } ?: emptyList()
+        val subsonic = requestSubsonic {
+            api.getAlbumList2(
+                username = config.username,
+                token = auth.token,
+                salt = auth.salt,
+                type = type,
+                size = size,
+                offset = offset,
+                fromYear = fromYear,
+                toYear = toYear
+            )
+        }
+        return subsonic.albumList2?.album.orEmpty().map { it.withCoverArtUrl() }
     }
 
     private fun NavidromeAlbumSort.toAlbumListRequest(): AlbumListRequest {
@@ -196,11 +230,13 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
             if (limit != null && songs.size >= limit) break
 
             val auth = config.authParams()
-            val subsonic = api.getAlbum(config.username, auth.token, auth.salt, albumId = album.id).requireResponse()
+            val subsonic = requestSubsonic {
+                api.getAlbum(config.username, auth.token, auth.salt, albumId = album.id)
+            }
             val albumDetail = subsonic.album ?: continue
             val fallbackCoverArt = albumDetail.coverArt
 
-            songs += albumDetail.song.map { song ->
+            songs += albumDetail.song.orEmpty().map { song ->
                 song.withCoverArtUrl(fallbackCoverArt)
             }
         }
@@ -210,9 +246,11 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
 
     suspend fun getAlbumSongs(albumId: String) = try {
         val auth = config.authParams()
-        val subsonic = api.getAlbum(config.username, auth.token, auth.salt, albumId = albumId).requireResponse()
+        val subsonic = requestSubsonic {
+            api.getAlbum(config.username, auth.token, auth.salt, albumId = albumId)
+        }
         subsonic.album?.let { albumDetail ->
-            albumDetail.song.map { song ->
+            albumDetail.song.orEmpty().map { song ->
                 song.withCoverArtUrl(albumDetail.coverArt)
             }
         } ?: emptyList()
@@ -256,8 +294,10 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
 
     suspend fun getPlaylists() = try {
         val auth = config.authParams()
-        val subsonic = api.getPlaylists(config.username, auth.token, auth.salt).requireResponse()
-        subsonic.playlists?.playlist?.map { it.withCoverArtUrl() } ?: emptyList()
+        val subsonic = requestSubsonic {
+            api.getPlaylists(config.username, auth.token, auth.salt)
+        }
+        subsonic.playlists?.playlist.orEmpty().map { it.withCoverArtUrl() }
     } catch (e: NavidromeApiException) {
         throw e
     } catch (e: Exception) {
@@ -266,11 +306,13 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
 
     suspend fun getPlaylistSongs(playlistId: String) = try {
         val auth = config.authParams()
-        val playlist = api.getPlaylist(config.username, auth.token, auth.salt, playlistId = playlistId)
-            .requireResponse()
-            .playlist
-        playlist?.entry?.map { song ->
-            song.withCoverArtUrl(playlist.coverArt)
+        val playlist = requestSubsonic {
+            api.getPlaylist(config.username, auth.token, auth.salt, playlistId = playlistId)
+        }.playlist
+        playlist?.let { detail ->
+            detail.entry.orEmpty().map { song ->
+                song.withCoverArtUrl(detail.coverArt)
+            }
         } ?: emptyList()
     } catch (e: NavidromeApiException) {
         throw e
@@ -286,16 +328,23 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
         throw Exception("获取全部歌曲失败: ${e.message}")
     }
 
+    private suspend fun getRecentSongsFromAlbums(): List<NavidromeSong> {
+        val albums = getAlbumList(type = "newest", size = RECENT_ALBUM_LIMIT)
+        return getSongsFromAlbums(albums)
+    }
+
     suspend fun getRecentSongs() = try {
         val auth = config.authParams()
         val songs = runCatching {
-            val subsonic = api.getRandomSongs(config.username, auth.token, auth.salt).requireResponse()
-            subsonic.randomSongs?.song?.map { it.withCoverArtUrl() } ?: emptyList()
+            val subsonic = requestSubsonic {
+                api.getRandomSongs(config.username, auth.token, auth.salt)
+            }
+            subsonic.randomSongs?.song.orEmpty().map { it.withCoverArtUrl() }
         }.getOrElse {
-            getSongsFromAlbums(getRecentAlbums())
+            getRecentSongsFromAlbums()
         }
 
-        if (songs.isNotEmpty()) songs else getSongsFromAlbums(getRecentAlbums())
+        if (songs.isNotEmpty()) songs else getRecentSongsFromAlbums()
     } catch (e: NavidromeApiException) {
         throw e
     } catch (e: Exception) {
@@ -304,13 +353,14 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
 
     override suspend fun getArtists() = try {
         val auth = config.authParams()
-        val subsonic = api.getArtists(config.username, auth.token, auth.salt).requireResponse()
-        val artists = subsonic.artists?.index?.flatMap { index ->
-            index.artist
-        } ?: emptyList()
+        val subsonic = requestSubsonic {
+            api.getArtists(config.username, auth.token, auth.salt)
+        }
+        val artists = subsonic.artists?.index.orEmpty().flatMap { index ->
+            index.artist.orEmpty()
+        }
 
         val resolvedArtists = artists.map { it.withInitials() }
-        Log.d("NavidromeRepo", "Prepared ${resolvedArtists.size} artists")
         resolvedArtists
     } catch (e: NavidromeApiException) {
         throw e
@@ -321,9 +371,10 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
     suspend fun getLyrics(song: NavidromeSong): MusicLyrics? {
         val bySongId = runCatching {
             val auth = config.authParams()
-            api.getLyricsBySongId(config.username, auth.token, auth.salt, songId = song.id)
-                .requireResponse()
-                .toMusicLyrics(song)
+            requestSubsonic {
+                api.getLyricsBySongId(config.username, auth.token, auth.salt, songId = song.id)
+            }
+                .toMusicLyrics()
         }.getOrNull()
 
         if (bySongId != null) return bySongId
@@ -331,17 +382,20 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
         val artist = song.artist?.takeIf { it.isNotBlank() } ?: return null
         return runCatching {
             val auth = config.authParams()
-            api.getLyrics(config.username, auth.token, auth.salt, artist = artist, title = song.title)
-                .requireResponse()
-                .toMusicLyrics(song)
+            requestSubsonic {
+                api.getLyrics(config.username, auth.token, auth.salt, artist = artist, title = song.title)
+            }
+                .toMusicLyrics()
         }.getOrNull()
     }
 
-    private fun SubsonicData.toMusicLyrics(song: NavidromeSong): MusicLyrics? {
-        val structuredLyrics = lyricsList?.structuredLyrics
-            ?.filter { lyrics -> lyrics.line.any { it.value.isNotBlank() } }
-            ?.mapNotNull { it.toMusicLyrics(song) }
+    private fun SubsonicData.toMusicLyrics(): MusicLyrics? {
+        val structured = lyricsList?.structuredLyrics
             .orEmpty()
+            .filter { lyrics -> lyrics.line.orEmpty().any { it.value.orEmpty().isNotBlank() } }
+            .sortedByDescending { it.synced }
+            .firstOrNull()
+            ?.toMusicLyrics()
 
         val syncedLyrics = structuredLyrics.firstOrNull { it.synced }
         val plainLyrics = structuredLyrics.firstOrNull { !it.synced }
@@ -365,13 +419,17 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
             ?.parsePlainLyrics()
     }
 
-    private fun NavidromeStructuredLyrics.toMusicLyrics(song: NavidromeSong): MusicLyrics? {
-        val parsedLines = line.mapNotNull { lyricLine ->
-            val text = lyricLine.value.trim()
+    private fun NavidromeStructuredLyrics.toMusicLyrics(): MusicLyrics? {
+        val offsetMillis = offset?.toInt() ?: 0
+        val parsedLines = line.orEmpty().mapNotNull { lyricLine ->
+            val text = lyricLine.value.orEmpty().trim()
             if (text.isBlank()) return@mapNotNull null
 
             MusicLyricsLine(
-                startMillis = lyricLine.start?.toLyricStartMillis(song.duration),
+                startMillis = lyricLine.start
+                    ?.toInt()
+                    ?.coerceAtLeast(0)
+                    ?.let { startMillis -> resolveLyricStartMillisWithOffset(startMillis, offsetMillis) },
                 text = text
             )
         }
@@ -385,14 +443,21 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
     }
 
     private fun String.parsePlainLyrics(): MusicLyrics? {
-        val lrcPattern = Regex("""\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?]""")
-        val parsedLines = lines().flatMap { rawLine ->
-            val matches = lrcPattern.findAll(rawLine).toList()
-            val text = rawLine.replace(lrcPattern, "").trim()
+        val rawLines = lines()
+        val offsetMillis = rawLines.firstNotNullOfOrNull { rawLine ->
+            rawLine.toLrcOffsetMillisOrNull()
+        } ?: 0
+        val parsedLines = rawLines.flatMap { rawLine ->
+            val matches = lrcTimestampPattern.findAll(rawLine).toList()
+            val text = rawLine.replace(lrcTimestampPattern, "").trim()
             if (text.isBlank()) return@flatMap emptyList()
 
             if (matches.isEmpty()) {
-                listOf(MusicLyricsLine(text = text))
+                if (rawLine.isLrcMetadataLine()) {
+                    emptyList()
+                } else {
+                    listOf(MusicLyricsLine(text = text))
+                }
             } else {
                 matches.map { match ->
                     val minutes = match.groupValues[1].toIntOrNull() ?: 0
@@ -405,7 +470,7 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
                         else -> 0
                     }
                     MusicLyricsLine(
-                        startMillis = minutes * 60_000 + seconds * 1000 + millis,
+                        startMillis = resolveLrcStartMillis(minutes, seconds, millis, offsetMillis),
                         text = text
                     )
                 }
@@ -421,25 +486,43 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
         )
     }
 
-    private fun Double.toLyricStartMillis(songDurationSeconds: Int): Int {
-        val looksLikeSeconds = songDurationSeconds > 0 && this <= songDurationSeconds + 1
-        return if (looksLikeSeconds) {
-            (this * 1000).toInt()
-        } else {
-            toInt()
-        }.coerceAtLeast(0)
+    private fun String.isLrcMetadataLine(): Boolean {
+        val key = lrcMetadataLinePattern.matchEntire(trim())
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.lowercase()
+            ?: return false
+        return key in lrcMetadataKeys
+    }
+
+    private fun String.toLrcOffsetMillisOrNull(): Int? {
+        return lrcOffsetPattern.matchEntire(trim())
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.toIntOrNull()
+    }
+
+    private fun resolveLrcStartMillis(minutes: Int, seconds: Int, millis: Int, offsetMillis: Int): Int {
+        val startMillis = minutes * 60_000 + seconds * 1000 + millis
+        return resolveLyricStartMillisWithOffset(startMillis, offsetMillis)
+    }
+
+    private fun resolveLyricStartMillisWithOffset(startMillis: Int, offsetMillis: Int): Int {
+        return (startMillis - offsetMillis).coerceAtLeast(0)
     }
 
     suspend fun search(query: String): SearchMusicResult {
         if (query.isBlank()) return SearchMusicResult()
         return try {
             val auth = config.authParams()
-            val response = api.search3(config.username, auth.token, auth.salt, query = query.trim()).requireResponse()
+            val response = requestSubsonic {
+                api.search3(config.username, auth.token, auth.salt, query = query.trim())
+            }
             val result = response.searchResult3 ?: return SearchMusicResult()
             SearchMusicResult(
-                artists = result.artist.map { it.withInitials() },
-                albums = result.album.map { it.withCoverArtUrl() },
-                songs = result.song.map { it.withCoverArtUrl() }
+                artists = result.artist.orEmpty().map { it.withInitials() },
+                albums = result.album.orEmpty().map { it.withCoverArtUrl() },
+                songs = result.song.orEmpty().map { it.withCoverArtUrl() }
             )
         } catch (e: NavidromeApiException) {
             throw e
@@ -451,10 +534,11 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
     suspend fun getArtistAlbums(artistId: String): List<NavidromeAlbum> {
         return try {
             val auth = config.authParams()
-            val detail = api.getArtist(config.username, auth.token, auth.salt, artistId = artistId)
-                .requireResponse().artistDetail
+            val detail = requestSubsonic {
+                api.getArtist(config.username, auth.token, auth.salt, artistId = artistId)
+            }.artistDetail
                 ?: return emptyList()
-            detail.album.map { it.withCoverArtUrl() }
+            detail.album.orEmpty().map { it.withCoverArtUrl() }
         } catch (e: NavidromeApiException) {
             throw e
         } catch (e: Exception) {

@@ -7,6 +7,7 @@ import androidx.compose.runtime.Stable
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
@@ -29,13 +30,21 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-@Stable
+private const val AUDIOBOOK_SKIP_INTERVAL_SECONDS = 30
+private val AUDIOBOOK_PLAYBACK_SPEEDS = listOf(0.75f, 1f, 1.25f, 1.5f, 2f)
+
+internal data class AudiobookTrackSeekPosition(
+    val mediaItemIndex: Int,
+    val localOffsetSeconds: Int
+)
+
 data class AudiobookPlaybackState(
     val session: AudiobookPlaybackSession? = null,
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,
     val positionSeconds: Int = 0,
     val durationSeconds: Int = 0,
+    val playbackSpeed: Float = 1f,
     val chapters: List<AudiobookChapter> = emptyList(),
     val currentChapterIndex: Int = -1,
     val speed: Float = 1.0f,
@@ -103,6 +112,10 @@ class AudiobookPlaybackEngine(context: Context) {
             if (activeController != null && !activeController.isPlaying) {
                 stopPositionUpdates()
             }
+        }
+
+        override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
+            publishPlayerState()
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -198,100 +211,37 @@ class AudiobookPlaybackEngine(context: Context) {
         publishPlayerState()
     }
 
-    fun setSpeed(speed: Float) {
-        val activeController = controller ?: return
-        val safeSpeed = speed.coerceIn(0.25f, 5f)
-        activeController.playbackParameters = PlaybackParameters(safeSpeed)
-        _speed.value = safeSpeed
-        _state.update { it.copy(speed = safeSpeed) }
+    fun seekToPreviousChapter() {
+        val state = _state.value
+        val targetPosition = resolvePreviousAudiobookChapterStartSeconds(
+            chapters = state.chapters,
+            positionSeconds = state.positionSeconds
+        ) ?: return
+        seekTo(targetPosition)
     }
 
-    fun skipForward(seconds: Int) {
+    fun seekToNextChapter() {
+        val state = _state.value
+        val targetPosition = resolveNextAudiobookChapterStartSeconds(
+            chapters = state.chapters,
+            positionSeconds = state.positionSeconds
+        ) ?: return
+        seekTo(targetPosition)
+    }
+
+    fun seekBackBy(intervalSeconds: Int = AUDIOBOOK_SKIP_INTERVAL_SECONDS) {
+        seekBy(-intervalSeconds)
+    }
+
+    fun seekForwardBy(intervalSeconds: Int = AUDIOBOOK_SKIP_INTERVAL_SECONDS) {
+        seekBy(intervalSeconds)
+    }
+
+    fun cyclePlaybackSpeed() {
         val activeController = controller ?: return
-        val targetMs = activeController.currentPosition + seconds * 1000L
-        activeController.seekTo(targetMs)
+        val nextSpeed = resolveNextAudiobookPlaybackSpeed(activeController.playbackParameters.speed)
+        activeController.setPlaybackSpeed(nextSpeed)
         publishPlayerState()
-    }
-
-    fun skipBackward(seconds: Int) {
-        val activeController = controller ?: return
-        val targetMs = (activeController.currentPosition - seconds * 1000L).coerceAtLeast(0L)
-        activeController.seekTo(targetMs)
-        publishPlayerState()
-    }
-
-    fun jumpToNextChapter() {
-        val chapters = _state.value.chapters
-        val currentIndex = _state.value.currentChapterIndex
-        if (chapters.isEmpty() || currentIndex < 0) return
-        val nextIndex = (currentIndex + 1).coerceAtMost(chapters.size - 1)
-        seekTo(chapters[nextIndex].startSeconds)
-    }
-
-    fun jumpToPreviousChapter() {
-        val chapters = _state.value.chapters
-        val currentIndex = _state.value.currentChapterIndex
-        if (chapters.isEmpty() || currentIndex < 0) return
-        val prevIndex = (currentIndex - 1).coerceAtLeast(0)
-        seekTo(chapters[prevIndex].startSeconds)
-    }
-
-    fun jumpToChapter(chapterIndex: Int) {
-        val chapters = _state.value.chapters
-        if (chapterIndex !in chapters.indices) return
-        seekTo(chapters[chapterIndex].startSeconds)
-    }
-
-    fun startSleepTimer(durationMinutes: Int) {
-        cancelSleepTimer()
-        val durationSeconds = durationMinutes * 60
-        var remaining = durationSeconds
-        _state.update { it.copy(sleepTimerRemainingSeconds = remaining) }
-        sleepTimerJob = scope.launch {
-            while (isActive && remaining > 0) {
-                delay(1000L)
-                remaining -= 1
-                _state.update { it.copy(sleepTimerRemainingSeconds = remaining) }
-            }
-            if (remaining <= 0) {
-                controller?.pause()
-                cancelSleepTimer()
-                publishPlayerState()
-            }
-        }
-    }
-
-    fun startSleepTimerEndOfChapter() {
-        cancelSleepTimer()
-        val chapters = _state.value.chapters
-        val currentIndex = _state.value.currentChapterIndex
-        if (chapters.isEmpty() || currentIndex < 0 || currentIndex >= chapters.size - 1) {
-            return
-        }
-        lastChapterIndexBeforeChapterMonitor = currentIndex
-        _state.update { it.copy(sleepTimerRemainingSeconds = -1) }
-        sleepTimerEndOfChapterJob = scope.launch {
-            while (isActive) {
-                delay(1000L)
-                val currentChapterIdx = _state.value.currentChapterIndex
-                if (currentChapterIdx > lastChapterIndexBeforeChapterMonitor && currentChapterIdx >= 0) {
-                    controller?.pause()
-                    cancelSleepTimer()
-                    publishPlayerState()
-                    break
-                }
-                lastChapterIndexBeforeChapterMonitor = currentChapterIdx
-            }
-        }
-    }
-
-    fun cancelSleepTimer() {
-        sleepTimerJob?.cancel()
-        sleepTimerJob = null
-        sleepTimerEndOfChapterJob?.cancel()
-        sleepTimerEndOfChapterJob = null
-        lastChapterIndexBeforeChapterMonitor = -1
-        _state.update { it.copy(sleepTimerRemainingSeconds = null) }
     }
 
     fun stop() {
@@ -348,6 +298,7 @@ class AudiobookPlaybackEngine(context: Context) {
                 durationSeconds = session.durationSeconds.coerceAtLeast(
                     (activeController.duration.takeIf { value -> value != C.TIME_UNSET }?.div(1000L)?.toInt()) ?: 0
                 ),
+                playbackSpeed = activeController.playbackParameters.speed,
                 chapters = session.chapters,
                 currentChapterIndex = resolveCurrentChapterIndex(session.chapters, currentAbsolutePosition),
                 errorMessage = when (activeController.playbackState) {
@@ -363,13 +314,8 @@ class AudiobookPlaybackEngine(context: Context) {
         tracks: List<AudiobookAudioTrack>,
         absolutePositionSeconds: Int
     ) {
-        val safePosition = absolutePositionSeconds.coerceAtLeast(0)
-        val targetTrack = tracks.lastOrNull { track ->
-            track.startOffsetSeconds <= safePosition
-        } ?: tracks.first()
-        val index = tracks.indexOf(targetTrack).coerceAtLeast(0)
-        val localOffset = (safePosition - targetTrack.startOffsetSeconds).coerceAtLeast(0)
-        controller.seekTo(index, localOffset * 1000L)
+        val target = resolveAudiobookTrackSeekPosition(tracks, absolutePositionSeconds) ?: return
+        controller.seekTo(target.mediaItemIndex, target.localOffsetSeconds * 1000L)
     }
 
     private fun resolveAbsolutePositionSeconds(
@@ -377,6 +323,18 @@ class AudiobookPlaybackEngine(context: Context) {
         currentIndex: Int,
         currentPositionMs: Long
     ): Int = resolveAudiobookAbsolutePositionSeconds(tracks, currentIndex, currentPositionMs)
+
+    private fun seekBy(deltaSeconds: Int) {
+        val state = _state.value
+        if (state.session == null) return
+        seekTo(
+            resolveAudiobookRelativeSeekPositionSeconds(
+                positionSeconds = state.positionSeconds,
+                durationSeconds = state.durationSeconds,
+                deltaSeconds = deltaSeconds
+            )
+        )
+    }
 }
 
 internal fun resolveAudiobookAbsolutePositionSeconds(
@@ -385,7 +343,88 @@ internal fun resolveAudiobookAbsolutePositionSeconds(
     currentPositionMs: Long
 ): Int {
     val currentTrack = tracks.getOrNull(currentIndex) ?: return (currentPositionMs.coerceAtLeast(0L) / 1000L).toInt()
-    return currentTrack.startOffsetSeconds + (currentPositionMs.coerceAtLeast(0L) / 1000L).toInt()
+    val localPositionSeconds = (currentPositionMs.coerceAtLeast(0L) / 1000L)
+        .coerceIn(0L, currentTrack.durationSeconds.coerceAtLeast(0).toLong())
+        .toInt()
+    return currentTrack.startOffsetSeconds + localPositionSeconds
+}
+
+internal fun resolveAudiobookTrackSeekPosition(
+    tracks: List<AudiobookAudioTrack>,
+    absolutePositionSeconds: Int
+): AudiobookTrackSeekPosition? {
+    if (tracks.isEmpty()) return null
+
+    val safePosition = absolutePositionSeconds.coerceAtLeast(0)
+    val targetIndex = tracks.indexOfLast { track ->
+        track.startOffsetSeconds <= safePosition
+    }.takeIf { it >= 0 } ?: 0
+    val targetTrack = tracks[targetIndex]
+    val maxLocalOffset = targetTrack.durationSeconds.coerceAtLeast(0)
+    val localOffset = (safePosition - targetTrack.startOffsetSeconds).coerceIn(0, maxLocalOffset)
+
+    return AudiobookTrackSeekPosition(
+        mediaItemIndex = targetIndex,
+        localOffsetSeconds = localOffset
+    )
+}
+
+internal fun resolvePreviousAudiobookChapterStartSeconds(
+    chapters: List<AudiobookChapter>,
+    positionSeconds: Int,
+    restartThresholdSeconds: Int = 5
+): Int? {
+    if (chapters.isEmpty()) return null
+
+    val orderedChapters = chapters.sortedBy { it.startSeconds }
+    val safePosition = positionSeconds.coerceAtLeast(0)
+    val currentIndex = orderedChapters.indexOfLast { chapter -> chapter.startSeconds <= safePosition }
+    if (currentIndex < 0) return null
+
+    val currentChapter = orderedChapters[currentIndex]
+    if (safePosition - currentChapter.startSeconds >= restartThresholdSeconds) {
+        return currentChapter.startSeconds
+    }
+
+    return orderedChapters.getOrNull(currentIndex - 1)?.startSeconds
+}
+
+internal fun resolveNextAudiobookChapterStartSeconds(
+    chapters: List<AudiobookChapter>,
+    positionSeconds: Int
+): Int? {
+    if (chapters.isEmpty()) return null
+
+    val safePosition = positionSeconds.coerceAtLeast(0)
+    return chapters
+        .sortedBy { it.startSeconds }
+        .firstOrNull { chapter -> chapter.startSeconds > safePosition }
+        ?.startSeconds
+}
+
+internal fun resolveAudiobookRelativeSeekPositionSeconds(
+    positionSeconds: Int,
+    durationSeconds: Int,
+    deltaSeconds: Int
+): Int {
+    val maxPosition = durationSeconds.coerceAtLeast(0)
+    val safePosition = positionSeconds.coerceIn(0, maxPosition)
+    val target = safePosition.toLong() + deltaSeconds.toLong()
+    return target.coerceIn(0L, maxPosition.toLong()).toInt()
+}
+
+internal fun resolveNextAudiobookPlaybackSpeed(
+    currentSpeed: Float,
+    speeds: List<Float> = AUDIOBOOK_PLAYBACK_SPEEDS
+): Float {
+    if (speeds.isEmpty()) return 1f
+
+    val currentIndex = speeds.indexOfFirst { speed -> kotlin.math.abs(speed - currentSpeed) < 0.001f }
+    return if (currentIndex >= 0) {
+        speeds[(currentIndex + 1) % speeds.size]
+    } else {
+        speeds.firstOrNull { speed -> speed > currentSpeed } ?: speeds.first()
+    }
 }
 
 private fun AudiobookAudioTrack.toMediaItem(session: AudiobookPlaybackSession): MediaItem {

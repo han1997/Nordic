@@ -46,7 +46,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.nordic.mediahub.data.AudiobookBookmark
+import com.nordic.mediahub.data.AudiobookChapter
 import com.nordic.mediahub.playback.AudiobookPlaybackState
 
 private val SPEED_OPTIONS = floatArrayOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f)
@@ -60,6 +60,11 @@ fun AudiobookPlayerScreen(
     currentChapterIndex: Int = -1,
     sleepTimerRemainingSeconds: Int? = null,
     onSeek: (Int) -> Unit,
+    onSeekBack: () -> Unit = {},
+    onSeekForward: () -> Unit = {},
+    onSeekToPreviousChapter: () -> Unit = {},
+    onSeekToNextChapter: () -> Unit = {},
+    onCyclePlaybackSpeed: () -> Unit = {},
     onPlayPause: () -> Unit,
     onClose: () -> Unit,
     onSpeedChange: (Float) -> Unit = {},
@@ -80,7 +85,8 @@ fun AudiobookPlayerScreen(
     var scrubPosition by remember(session?.sessionId) { mutableStateOf<Float?>(null) }
     val visiblePosition = scrubPosition ?: state.positionSeconds.toFloat()
     val errorMessage = externalError ?: state.errorMessage
-    val hasChapters = state.chapters.isNotEmpty()
+    val chapterNavigationEnabled = session != null && state.chapters.isNotEmpty()
+    val playbackControlsEnabled = session != null
     val statusText = when {
         errorMessage != null -> errorMessage
         state.isBuffering -> "正在缓冲"
@@ -166,8 +172,18 @@ fun AudiobookPlayerScreen(
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     AudiobookPlayerMetaChip(formatDuration(duration), colorScheme)
-                    if (currentChapterIndex in state.chapters.indices) {
-                        AudiobookPlayerMetaChip(state.chapters[currentChapterIndex].title, colorScheme)
+                    AudiobookPlayerMetaChip(
+                        text = formatPlaybackSpeed(state.playbackSpeed),
+                        colorScheme = colorScheme,
+                        enabled = playbackControlsEnabled,
+                        onClick = onCyclePlaybackSpeed
+                    )
+                    val currentChapter = resolveCurrentAudiobookChapter(
+                        chapters = state.chapters,
+                        positionSeconds = visiblePosition.toInt()
+                    )
+                    if (currentChapter != null) {
+                        AudiobookPlayerMetaChip(currentChapter.title, colorScheme)
                     }
                 }
             }
@@ -222,49 +238,45 @@ fun AudiobookPlayerScreen(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (hasChapters) {
-                            AudiobookControlButton(
-                                label = "|◁",
-                                colorScheme = colorScheme,
-                                compact = compact,
-                                enabled = currentChapterIndex > 0,
-                                onClick = onPreviousChapter
-                            )
-                            Spacer(Modifier.width(8.dp))
-                        }
                         AudiobookControlButton(
-                            label = "◁10",
+                            label = "≪",
                             colorScheme = colorScheme,
                             compact = compact,
-                            enabled = session != null,
-                            onClick = onSkipBackward
+                            enabled = chapterNavigationEnabled,
+                            onClick = onSeekToPreviousChapter
                         )
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.size(if (compact) 6.dp else 8.dp))
+                        AudiobookControlButton(
+                            label = "-30",
+                            colorScheme = colorScheme,
+                            compact = compact,
+                            enabled = playbackControlsEnabled,
+                            onClick = onSeekBack
+                        )
+                        Spacer(Modifier.size(if (compact) 6.dp else 8.dp))
                         AudiobookPlayButton(
                             label = if (state.isPlaying) "II" else "▶",
                             colorScheme = colorScheme,
                             compact = compact,
-                            enabled = session != null,
+                            enabled = playbackControlsEnabled,
                             onClick = onPlayPause
                         )
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.size(if (compact) 6.dp else 8.dp))
                         AudiobookControlButton(
-                            label = "30▷",
+                            label = "+30",
                             colorScheme = colorScheme,
                             compact = compact,
-                            enabled = session != null,
-                            onClick = onSkipForward
+                            enabled = playbackControlsEnabled,
+                            onClick = onSeekForward
                         )
-                        if (hasChapters) {
-                            Spacer(Modifier.width(8.dp))
-                            AudiobookControlButton(
-                                label = "▷|",
-                                colorScheme = colorScheme,
-                                compact = compact,
-                                enabled = currentChapterIndex < state.chapters.size - 1,
-                                onClick = onNextChapter
-                            )
-                        }
+                        Spacer(Modifier.size(if (compact) 6.dp else 8.dp))
+                        AudiobookControlButton(
+                            label = "≫",
+                            colorScheme = colorScheme,
+                            compact = compact,
+                            enabled = chapterNavigationEnabled,
+                            onClick = onSeekToNextChapter
+                        )
                     }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -569,11 +581,23 @@ private fun AudiobookPlayerTopBar(
 }
 
 @Composable
-private fun AudiobookPlayerMetaChip(text: String, colorScheme: ColorScheme) {
+private fun AudiobookPlayerMetaChip(
+    text: String,
+    colorScheme: ColorScheme,
+    enabled: Boolean = true,
+    onClick: (() -> Unit)? = null
+) {
+    val chipModifier = if (onClick != null) {
+        Modifier.clickable(enabled = enabled, onClick = onClick)
+    } else {
+        Modifier
+    }
+
     Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.62f),
+        color = if (enabled) colorScheme.surfaceVariant.copy(alpha = 0.62f) else colorScheme.surface.copy(alpha = 0.30f),
         contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(999.dp)
+        shape = RoundedCornerShape(999.dp),
+        modifier = chipModifier
     ) {
         Text(
             text,
@@ -583,6 +607,39 @@ private fun AudiobookPlayerMetaChip(text: String, colorScheme: ColorScheme) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+@Composable
+private fun AudiobookControlButton(
+    label: String,
+    colorScheme: ColorScheme,
+    compact: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    val foreground = if (enabled) {
+        colorScheme.primary
+    } else {
+        colorScheme.onSurface.copy(alpha = 0.28f)
+    }
+
+    Surface(
+        color = if (enabled) colorScheme.primary.copy(alpha = 0.16f) else colorScheme.surface.copy(alpha = 0.30f),
+        contentColor = foreground,
+        shape = RoundedCornerShape(999.dp),
+        modifier = Modifier
+            .size(if (compact) 42.dp else 46.dp)
+            .clickable(enabled = enabled, onClick = onClick)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                label,
+                fontSize = if (label.length > 2) 15.sp else 20.sp,
+                color = foreground,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
 
@@ -600,7 +657,7 @@ private fun AudiobookPlayButton(
         shape = RoundedCornerShape(999.dp),
         shadowElevation = if (enabled) 4.dp else 0.dp,
         modifier = Modifier
-            .size(if (compact) 62.dp else 68.dp)
+            .size(if (compact) 58.dp else 62.dp)
             .clickable(enabled = enabled, onClick = onClick)
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -614,29 +671,23 @@ private fun AudiobookPlayButton(
     }
 }
 
-@Composable
-private fun AudiobookControlButton(
-    label: String,
-    colorScheme: ColorScheme,
-    compact: Boolean,
-    enabled: Boolean,
-    onClick: () -> Unit
-) {
-    Surface(
-        color = if (enabled) colorScheme.surface.copy(alpha = 0.58f) else colorScheme.surface.copy(alpha = 0.30f),
-        contentColor = if (enabled) colorScheme.onSurface.copy(alpha = 0.76f) else colorScheme.onSurface.copy(alpha = 0.28f),
-        shape = RoundedCornerShape(999.dp),
-        modifier = Modifier
-            .size(if (compact) 46.dp else 50.dp)
-            .clickable(enabled = enabled, onClick = onClick)
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Text(
-                label,
-                fontSize = 16.sp,
-                color = if (enabled) colorScheme.onSurface.copy(alpha = 0.76f) else colorScheme.onSurface.copy(alpha = 0.28f),
-                fontWeight = FontWeight.SemiBold
-            )
-        }
+private fun formatPlaybackSpeed(speed: Float): String {
+    val safeSpeed = speed.takeIf { it.isFinite() && it > 0f } ?: 1f
+    val rounded = kotlin.math.round(safeSpeed * 100f) / 100f
+    return when (rounded) {
+        1f -> "1x"
+        1.5f -> "1.5x"
+        2f -> "2x"
+        else -> "${rounded}x"
     }
+}
+
+internal fun resolveCurrentAudiobookChapter(
+    chapters: List<AudiobookChapter>,
+    positionSeconds: Int
+): AudiobookChapter? {
+    val safePosition = positionSeconds.coerceAtLeast(0)
+    return chapters
+        .sortedBy { chapter -> chapter.startSeconds }
+        .lastOrNull { chapter -> chapter.startSeconds <= safePosition }
 }

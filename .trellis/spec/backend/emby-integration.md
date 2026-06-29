@@ -1,12 +1,11 @@
 # Emby Integration Contract
 
-## Scenario: Read-Only Video Browsing MVP
+## Scenario: Emby Video Browsing and Direct Playback
 
 ### 1. Scope / Trigger
 - Trigger: The Android app now exposes Emby as the first real video provider instead of placeholder cards.
-- Scope: Authentication, user media-library discovery, video item listing, thumbnail URL generation, typed errors, and repository tests.
-- Out of scope for the browsing MVP: Plex, WebDAV browsing, persistent Emby token storage, and provider-wide account management.
-- Video playback is covered by the later "Direct Video Playback MVP" scenario below.
+- Scope: Authentication, user media-library discovery, video item listing, thumbnail URL generation, direct stream URL generation, watched/resume/rating metadata, playback progress reporting, typed errors, and repository tests.
+- Out of scope: Plex, WebDAV browsing, persistent Emby token storage, and provider-wide account management.
 
 ### 2. Signatures
 - Config readiness:
@@ -23,7 +22,16 @@ internal fun VideoServerConfig.normalizedBaseUrl(): String
 class EmbyRepository(private val config: VideoServerConfig) {
     suspend fun getCatalog(selectedLibraryId: String? = null): VideoCatalog
     suspend fun getLibraryItems(libraryId: String): List<VideoItem>
+    suspend fun syncPlaybackProgress(video: VideoItem, positionSeconds: Int, isPaused: Boolean)
+    suspend fun stopPlaybackProgress(video: VideoItem, positionSeconds: Int)
 }
+internal fun resolveEmbyPlaybackPositionTicks(positionSeconds: Int, durationSeconds: Int): Long
+internal fun resolveVideoProgressSyncBaselineSeconds(statePositionSeconds: Int, video: VideoItem): Int
+internal fun videoMatchesSearch(video: VideoItem, query: String): Boolean
+internal fun resolveVideoTypeFilterAfterCatalogRefresh(selectedTypeFilter: VideoTypeFilter, videos: List<VideoItem>): VideoTypeFilter
+internal fun resolveVideoSelectionAfterConfigChange(selectedVideo: VideoItem?): VideoItem?
+internal fun resolveVideoTypeFilterAfterConfigChange(selectedTypeFilter: VideoTypeFilter): VideoTypeFilter
+internal fun shouldReplaceCurrentVideoItem(currentVideo: VideoItem?, requestedVideo: VideoItem): Boolean
 ```
 - Retrofit API:
 ```kotlin
@@ -31,6 +39,19 @@ POST Users/AuthenticateByName
 GET Users
 GET Users/{userId}/Views
 GET Users/{userId}/Items
+POST Sessions/Playing/Progress
+POST Sessions/Playing/Stopped
+```
+- DTOs:
+```kotlin
+data class EmbyItemsResponse(
+    val items: List<EmbyItemDto>? = null
+)
+
+data class EmbyItemDto(
+    val id: String? = null,
+    val name: String? = null
+)
 ```
 
 ### 3. Contracts
@@ -40,38 +61,165 @@ GET Users/{userId}/Items
   - either `apiKey` is not blank, or both `username` and `password` are not blank
 - API key flow:
   - `GET Users` with `X-Emby-Token: <apiKey>`
-  - choose the user whose `Name` matches `config.username` ignoring case, otherwise choose the first returned user
+  - ignore returned users whose `Id` is missing, null, empty, or blank
+  - choose the remaining user whose `Name` matches `config.username` ignoring case, otherwise choose the first remaining user
   - use the API key as the session token for later requests
 - Username/password flow:
   - `POST Users/AuthenticateByName`
   - request body: `{"Username": "...", "Pw": "..."}`
   - header: `X-Emby-Authorization` with Nordic Android client metadata
-  - response must include `User.Id` and non-blank `AccessToken`
+  - response must include `User.Id` and a non-null, non-blank `AccessToken`
 - Library filtering:
-  - Include libraries whose `CollectionType` is one of `movies`, `tvshows`, `homevideos`, or `mixed`
-  - Include `Type == "CollectionFolder"` only as a fallback when `CollectionType` is blank
+  - Include libraries whose `CollectionType` matches one of `movies`, `tvshows`, `homevideos`, or `mixed`, case-insensitively
+  - Include `Type == "CollectionFolder"` case-insensitively only as a fallback when `CollectionType` is blank
   - Do not include known non-video collections such as `music`
 - Item listing:
   - `GET Users/{userId}/Items`
-  - query includes `ParentId`, `Recursive=true`, `IncludeItemTypes=Movie,Series,Video`
-  - Main library browsing excludes `Episode`; episode rows stay available through search, continue-watching, Next Up, and Series detail season/episode drill-down.
+  - query includes `ParentId`, `Recursive=true`, `IncludeItemTypes=Movie,Series,Episode,Video`
+  - query `Fields` includes `Overview`, `ProductionYear`, `SeriesId`, `SeriesName`, `ParentIndexNumber`, `IndexNumber`, `RunTimeTicks`, `ChildCount`, `ImageTags`, `CommunityRating`, and `UserData`
+  - `GET Users/{userId}/Views` and `GET Users/{userId}/Items` responses may omit `Items` or send it as null; DTOs must allow nullable lists and repositories must map them to empty app lists
+  - Emby item row `Id` and `Name` are optional wire fields. DTOs must model both as nullable strings.
+  - Library discovery must skip view rows whose trimmed `Id` or `Name` is blank, while keeping other valid video libraries from the same response.
+  - Video item listing must skip item rows whose trimmed `Id` or `Name` is blank, while keeping other valid videos from the same page.
+  - Returned `VideoLibrary.id`, `VideoLibrary.name`, `VideoItem.id`, and `VideoItem.title` values should be trimmed so UI state, image URLs, stream URLs, and follow-up item requests do not carry accidental surrounding whitespace.
+  - Item pagination must advance `StartIndex` by fetched row count, not mapped video count, so skipped unusable rows do not force extra requests after `TotalRecordCount` has already been fetched.
   - map `RunTimeTicks` to seconds using `10_000_000` ticks per second
+- Video metadata:
+  - `VideoItem.playbackPositionSeconds` maps from `UserData.PlaybackPositionTicks` using `10_000_000` ticks per second
+  - `VideoItem.lastPlayedDate` maps from `UserData.LastPlayedDate` and stays nullable for older/incomplete Emby responses
+  - `VideoItem.isPlayed` maps from `UserData.Played == true`
+  - `VideoItem.communityRating` maps from `CommunityRating`
+  - `VideoItem.seriesId`, `seriesName`, `seasonNumber`, and `episodeNumber` map from `SeriesId`, `SeriesName`, `ParentIndexNumber`, and `IndexNumber`
+  - Missing `UserData` or `CommunityRating` must fall back to `0`/`false`/`null` rather than excluding the item
+- Video browsing UI:
+  - Yamby-style spotlight shelves may be derived from the already-loaded Emby item list:
+    - Continue watching: `playbackPositionSeconds > 0 && !isPlayed`, and when `durationSeconds > 0` the resume position must be less than duration; sort by `lastPlayedDate` descending when present, then `playbackPositionSeconds` descending as the compatibility fallback
+    - Top rated: non-null positive `communityRating`, sorted descending
+    - Unplayed: `!isPlayed && playbackPositionSeconds <= 0`
+  - These shelves are view state only. Do not persist local video history unless the PRD explicitly adds that scope.
+  - After a catalog refresh, selected video detail state must resolve against the refreshed item list. Keep the selection only when the same item id still exists in the selected library, and replace it with the refreshed `VideoItem`; otherwise clear the detail state.
+  - After a catalog refresh, selected type filter state must resolve against the refreshed item list. Keep `All`, keep a specific type only when at least one refreshed item still matches it, and reset unavailable specific filters to `All`.
+  - Saved video config changes are catalog boundaries. Clear libraries, selected library id, catalog items, selected detail video, local search text, stale loading state, and stale errors before loading the new account.
+  - Saved video config changes must reset the type filter to `All` and load the ready new config without passing a previous config's selected library id.
+  - In-flight catalog refresh or library-selection responses from a previous saved config must not write catalog/detail/filter/error/loading state after the config boundary. Guard these writes with a config-state version or equivalent request identity.
+  - Same-config manual refresh keeps existing catalog reconciliation behavior: selected detail and type filters may be preserved only when they still exist in the refreshed same-catalog response.
+  - Search is local to the already-loaded catalog and composes with the selected type filter; do not add server-side search unless the PRD explicitly includes it.
+  - Blank or whitespace-only queries must match all currently visible videos.
+  - Search must match title, overview, type, year, and non-blank `seriesName`.
+  - When `seasonNumber` or `episodeNumber` is positive, search must match common episode tokens such as `S1`, `E2`, `S1E2`, `S1 E2`, and zero-padded variants such as `S01E02`.
+  - Keep token matching in a testable helper such as `videoMatchesSearch(...)`; Compose filtering should call the helper rather than duplicating token rules inline.
 - Thumbnail URL:
   - Build `/Items/{itemId}/Images/Primary`
   - Include `maxWidth=640`, `quality=90`, `tag=<ImageTags.Primary>`, and `api_key=<session token>`
-  - Return `null` when `ImageTags.Primary` is absent
+  - Return `null` when `ImageTags` is absent or `ImageTags.Primary` is absent
+- Direct playback URL:
+  - Build `/Videos/{itemId}/stream`
+  - Include `Static=true` and `api_key=<session token>`
+  - Generate direct stream URLs only for directly playable item types: `Movie`, `Episode`, and `Video`
+  - Do not generate a `streamUrl` for `Series`; series detail pages should route playback through episode rows
+  - Keep playback URL generation in `EmbyRepository`; UI must consume `VideoItem.streamUrl` instead of reconstructing authenticated URLs.
+  - `VideoPlaybackEngine.play(video)` must replace the ExoPlayer item when either the current video id differs or the current `VideoItem.streamUrl` differs from the requested `VideoItem.streamUrl`. Emby stream URLs carry server/token context, so same-id/different-stream requests must refresh ExoPlayer instead of reusing a stale URL.
+- Direct playback start position:
+  - A newly started unplayed `VideoItem` with `playbackPositionSeconds > 0` must seek to that resume position before playback starts.
+  - Items marked `isPlayed == true`, or items with no positive resume position, start at `0`.
+  - If `durationSeconds` is known, use a resume position only when it is less than duration. Resume positions at or beyond duration are effectively complete and start at `0`.
+  - If `durationSeconds` is unknown, keep positive resume positions because there is no reliable completion boundary.
+- Direct playback controls:
+  - Video playback supports fixed relative seek controls: 10 seconds backward and 30 seconds forward.
+  - Relative seek commands must resolve to an absolute player position and use the same `seekTo(positionSeconds)` path as the scrubber.
+  - Clamp relative seek targets to `0..durationSeconds` when duration is known. When duration is zero or negative, treat it as unknown: clamp only to `>= 0` so skip-forward still advances from the current position.
+  - Player timeline UI must not clamp unknown-duration playback to a one-second range. When duration is unknown, the slider maximum should grow to at least the current player position and the duration label should show `--:--`.
+- Playback progress reporting:
+  - `syncPlaybackProgress(...)` posts to `Sessions/Playing/Progress`; `stopPlaybackProgress(...)` posts to `Sessions/Playing/Stopped`.
+  - Requests must include `X-Emby-Token`, `ItemId`, `PositionTicks`, and `IsPaused`.
+  - Convert seconds to ticks with the same `10_000_000` ticks-per-second convention used for item duration and resume metadata.
+  - Clamp reported positions to `0..durationSeconds` when duration is known, and to at least `0` when duration is unknown.
+  - The app shell must snapshot the current `VideoPlaybackState.video` and `positionSeconds` before clearing playback, then use `stopPlaybackProgress(...)` on video close, music handoff, audiobook handoff, and switching to a different video item.
+  - The app shell must run a 30-second periodic progress loop while the same playable video remains active and an Emby repository is available.
+  - Periodic progress uses `syncPlaybackProgress(video, positionSeconds, isPaused = !state.isPlaying)`.
+  - Periodic progress initializes its local baseline with `maxOf(0, state.positionSeconds, video.playbackPositionSeconds)` and reports at least that baseline so an early zero-position player state cannot regress Emby resume metadata.
+  - Periodic progress advances the local baseline only after a successful sync. Failed periodic syncs leave the baseline unchanged.
+  - Background progress-sync failures must not reopen the video player or block local media handoff.
+- Series detail UI:
+  - A selected `Series` may derive related episodes from the already-loaded library items.
+  - Match episodes by `seriesId == selectedSeries.id`. Use `seriesName == selectedSeries.title` only when the episode `seriesId` is missing or blank, as a fallback for incomplete responses.
+  - Sort derived episodes by `seasonNumber`, then `episodeNumber`, then title.
+  - Episode rows play the episode item; the series header primary play action remains disabled when `streamUrl == null`.
 
 ### 4. Validation & Error Matrix
 - Non-2xx response -> throw `EmbyApiException(kind = HTTP, message contains "HTTP <code>")`
 - Empty response body -> throw `EmbyApiException(kind = API)`
-- API key flow returns no users -> throw `EmbyApiException(kind = AUTH)`
-- Password flow returns blank `AccessToken` -> throw `EmbyApiException(kind = AUTH)`
+- Empty 200 JSON responses that fail during Retrofit/Gson conversion must also throw `EmbyApiException(kind = API)`, not a generic wrapped exception.
+- API key flow returns no users with a non-blank `Id` -> throw `EmbyApiException(kind = AUTH)`
+- Password flow returns missing, null, or blank `AccessToken` -> throw `EmbyApiException(kind = AUTH)`
+- Password flow returns missing, null, or blank `User.Id` -> throw `EmbyApiException(kind = AUTH)`
+- View response `Items` is missing or null -> map libraries to `emptyList()`, selected library id to `null`, and catalog items to `emptyList()`
+- View response item row omits `Id` or `Name`, or sends either as null, empty, or blank -> skip that library row and keep mapping other valid rows
+- Library item response `Items` is missing or null -> map that page to `emptyList()` and stop pagination
+- Library item response row omits `Id` or `Name`, or sends either as null, empty, or blank -> skip that video row and keep mapping other valid rows
+- Library/item row sends `Id` or `Name` with surrounding whitespace -> trim the value before building domain models, image URLs, stream URLs, or follow-up requests
+- Library item response fetched row count reaches `TotalRecordCount` while mapped videos are fewer because rows were skipped -> stop pagination without requesting another page
+- Missing item `UserData` -> map resume position to `0` and played state to `false`
+- Missing `UserData.LastPlayedDate` -> continue-watching shelf keeps the item eligible by resume position but sorts it behind dated resume items
+- Resume position at or beyond known duration while `Played == false` -> exclude from continue-watching shelf as effectively complete
+- Catalog refresh omits the currently selected video id -> clear selected video detail state
+- Catalog refresh still contains the selected video id -> keep detail state using the refreshed `VideoItem`
+- Catalog refresh still contains at least one item for the selected type filter -> keep that filter
+- Catalog refresh no longer contains any item for the selected type filter -> reset the filter to `All`
+- Catalog refresh has an empty item list while `All` is selected -> keep `All`
+- Saved config changes while a detail page or browser filter is active -> clear selected detail, search text, and reset type filter to `All` before loading the new config
+- Ready saved config replaces another ready config -> call catalog refresh without the previous config's selected library id
+- Previous-config catalog or library response completes after saved config changed -> ignore the stale response and keep the new config's state
+- Missing item `CommunityRating` -> map rating to `null`; top-rated shelves should ignore it
+- `playbackPositionSeconds` at or beyond known duration -> initial playback starts at `0` instead of seeking to the end
+- Same current video id and same stream URL -> do not replace the ExoPlayer item.
+- Same current video id and different stream URL -> replace the ExoPlayer item and prepare it.
+- Different video id -> replace the ExoPlayer item regardless of stream URL.
+- Relative video skip requested near the start or end of a known-duration item -> clamp to `0` or `durationSeconds`
+- Relative video skip requested while duration is unknown -> clamp negative targets to `0`, but allow positive forward targets
+- Video player timeline rendered while duration is unknown -> show the real non-negative position, use a non-empty slider range, and show `--:--` for total duration
+- Progress report position below zero -> report `0` ticks
+- Progress report position beyond known duration -> report duration ticks
+- Progress report position with unknown duration -> keep positive position ticks
+- Progress/stopped report non-2xx response -> throw `EmbyApiException(kind = HTTP)`
+- Periodic sync current player position behind local baseline -> report the baseline, not the lower player position
+- Periodic sync failure -> keep playback UI unchanged and do not advance the baseline
+- Missing episode relationship fields -> keep the episode playable, but only show it under a series detail when `seriesId` is missing/blank and the `seriesName` fallback matches
+- `Series` item -> `VideoItem.streamUrl == null`; UI must not call playback for the series item directly
+- Video search query is blank or whitespace -> return `true` so clearing search restores the full filtered catalog
+- Video search query is a series title and an episode has matching `seriesName` -> include the episode even when the episode title does not contain the series title
+- Video search query is a compact or zero-padded episode code and season/episode numbers are present -> include the episode
+- Video search query needs missing season/episode fields -> do not synthesize misleading `S`/`E` tokens
 - Unknown repository exceptions -> wrap with user-action context, e.g. `"连接 Emby 失败: ..."`
 - Do not classify errors by `message.contains(...)`; callers should catch `EmbyApiException` by type/kind.
 
 ### 5. Good/Base/Bad Cases
 - Good: API key + username, multiple users, matching user selected, video libraries and items load.
+- Good: An Emby-compatible server omits or nulls a view or item-list `Items` array; Nordic returns empty app lists instead of crashing.
+- Good: An Emby-compatible server includes partial view or item rows, and the repository skips unusable rows while preserving valid libraries and videos from the same response.
+- Good: Emby sends valid `Id` or `Name` values with surrounding whitespace, and Nordic trims them before storing domain ids/titles or building URLs.
+- Good: Emby returns `UserData.PlaybackPositionTicks` and `CommunityRating`; repository maps resume/rating metadata and UI can show continue-watching/top-rated/unplayed shelves.
+- Good: Emby returns `UserData.LastPlayedDate`; continue watching prioritizes recently watched items over older items with larger resume positions.
+- Good: User starts an unfinished continue-watching item; playback seeks to the Emby resume position before playing.
+- Good: User replays a refreshed Emby item with the same id but a changed stream URL; playback replaces ExoPlayer so the fresh URL is used.
+- Good: User refreshes a video library while viewing details; if the item still exists, detail metadata updates from the refreshed catalog, and if it disappeared the app returns to the catalog instead of showing stale detail.
+- Good: User refreshes while filtered to Episodes and the refreshed catalog still has episodes; the Episodes filter remains active.
+- Good: User refreshes while filtered to Episodes and the refreshed catalog no longer has episodes; the browser resets to All instead of leaving a hidden active filter.
+- Good: User switches Emby server/account from a detail page with an active search/filter; the app clears the old detail/search/filter state and loads the new account from its default library selection.
+- Good: User can use video skip controls to quickly jump 10 seconds back or 30 seconds forward without leaving player bounds.
+- Good: User closes or switches away from video playback; Nordic sends the stopped position to Emby so the next catalog refresh has current resume metadata.
+- Good: User watches a long video session; Nordic periodically sends progress so Emby resume metadata stays fresh before close.
+- Good: A TV library returns both a `Series` item and its `Episode` items; series detail shows sorted episode rows, and tapping an episode plays the episode stream.
+- Good: Searching a show name in the video browser returns matching episode rows via `seriesName`.
+- Good: Searching `S01E02` returns the episode whose season is `1` and episode is `2`.
 - Base: Username/password login, one video library, empty item list, UI shows an empty media-library state.
+- Base: Older/incomplete Emby responses omit `UserData` and `CommunityRating`; catalog still loads and spotlight shelves simply omit unavailable groups.
+- Base: A `Series` item has no matching loaded episodes; detail still shows metadata/overview and disables primary playback.
+- Bad: Video browser search checks only episode title/overview and hides loaded episodes when the user searches the show name.
+- Bad: `EmbyItemsResponse.Items` is modeled as a non-null Kotlin list and repository mapping calls `.filter`/`.map` directly, allowing Gson-omitted fields to become runtime nulls.
+- Bad: `EmbyItemDto.Id` or `Name` is modeled as a non-null Kotlin string and mapped directly, allowing compatible partial rows to crash catalog browsing.
+- Bad: Item pagination compares `TotalRecordCount` to mapped video count after filtering, causing extra page requests when unusable rows were already included in the fetched total.
+- Bad: Video playback compares only `VideoItem.id` and keeps an expired same-item stream URL.
 - Bad: Emby returns HTTP 500 for views, repository throws `EmbyApiException.Kind.HTTP` and UI shows the error card.
 - Bad: Server has music and movie collections, repository filters out music by `CollectionType`.
 - Bad: TV library browsing requests or renders `Episode` items, flattening a show into individual episode cards instead of Series cards.
@@ -84,19 +232,94 @@ GET Users/{userId}/Items
 - API key flow:
   - asserts `GET /Users` and `X-Emby-Token`
   - asserts matching/first user behavior when applicable
+  - asserts returned users with missing, null, empty, or blank `Id` are not selected
+  - asserts responses with no usable user ids throw `EmbyApiException.Kind.AUTH`
 - Password flow:
   - asserts `POST /Users/AuthenticateByName`
   - asserts `Username` and `Pw` body fields
   - asserts later requests use `AccessToken`
+  - asserts missing, null, and blank `AccessToken` responses throw `EmbyApiException.Kind.AUTH`
+  - asserts missing, null, and blank `User.Id` responses throw `EmbyApiException.Kind.AUTH`
 - Mapping:
   - asserts non-video libraries are filtered
-  - asserts main library browsing excludes `Episode` item types
+  - asserts missing and null view response `Items` map to an empty library list, null selected library id, and empty catalog item list
+  - asserts missing and null library item response `Items` map to an empty item list and stop pagination
+  - asserts view rows with missing/null/blank `Id` or `Name` are skipped without dropping valid video library rows
+  - asserts item rows with missing/null/blank `Id` or `Name` are skipped without dropping valid video item rows
+  - asserts valid library and item rows with surrounding whitespace in `Id` or `Name` map to trimmed domain values
+  - asserts item pagination stops when fetched row count reaches `TotalRecordCount`, even when mapped videos are fewer because rows were skipped
+  - asserts video library `CollectionType` and blank-collection `CollectionFolder` fallback matching are case-insensitive
   - asserts duration ticks become seconds
+  - asserts `Fields` requests `UserData` and `CommunityRating`
+  - asserts `UserData.PlaybackPositionTicks`, `UserData.Played`, and `CommunityRating` map to `VideoItem`
+  - asserts `UserData.LastPlayedDate` maps to `VideoItem.lastPlayedDate`
+  - asserts continue-watching shelf sorting uses last-played recency before resume-position fallback
+  - asserts continue-watching shelf excludes resume positions at or beyond known duration, while keeping unknown-duration resume items eligible
+  - asserts selected video detail resolution keeps a refreshed matching item and clears selection when the library changes or the item disappears
+  - asserts selected video type filter resolution keeps still-present filters, resets unavailable filters to `All`, and keeps `All` for empty catalogs
+  - asserts saved config changes clear selected video detail state and reset every type filter to `All`
+  - asserts video initial start-position helper uses resume seconds for unfinished items, starts played items at zero, starts at zero for resume positions at/beyond known duration, and preserves positive resume positions when duration is unknown
+  - asserts video relative seek helper clamps at the beginning and end of known-duration items, and allows forward seek when duration is unknown
+  - asserts video player timeline helpers keep unknown-duration positions visible, keep a non-empty slider range at zero, and format unknown duration as `--:--`
+  - asserts playback progress helpers convert seconds to ticks and clamp negative, over-duration, and unknown-duration positions
+  - asserts progress/stopped reporting requests use `/Sessions/Playing/Progress` and `/Sessions/Playing/Stopped`, include `X-Emby-Token`, and serialize `ItemId`, `PositionTicks`, and `IsPaused`
+  - asserts video periodic progress baseline uses current player position, Emby resume position, and zero without regressing
+  - asserts `Fields` requests `SeriesId`, `SeriesName`, `ParentIndexNumber`, and `IndexNumber`
+  - asserts `Series` items map `streamUrl` to `null`
+  - asserts `Episode` relationship fields map to `VideoItem.seriesId`, `seriesName`, `seasonNumber`, and `episodeNumber`
+  - asserts series detail episode derivation uses `seriesName` fallback only when `seriesId` is missing or blank
+  - asserts local video search matches an episode by `seriesName`
+  - asserts local video search matches compact and zero-padded season/episode tokens
+  - asserts local video search treats blank queries as match-all
   - asserts thumbnail URL contains item path, primary tag, and token query
+  - asserts missing `ImageTags` maps to a `null` thumbnail instead of crashing catalog loading
+  - asserts stream URL contains video stream path, `Static=true`, and token query
+  - asserts current video replacement decisions: same id/same stream does not replace, same id/different stream replaces, different id replaces
 - Error:
   - asserts non-2xx responses throw typed `EmbyApiException.Kind.HTTP`
+  - asserts empty body responses from body-bearing Emby endpoints throw typed `EmbyApiException.Kind.API`
 
 ### 7. Wrong vs Correct
+
+#### Wrong
+```kotlin
+val pageItems = response.items
+items += pageItems.map { it.toVideoItem(libraryId, token) }
+```
+
+Gson can set omitted `Items` fields to `null`, so direct mapping can crash on empty-compatible Emby responses.
+
+#### Correct
+```kotlin
+val pageItems = response.items.orEmpty()
+items += pageItems.map { it.toVideoItem(libraryId, token) }
+```
+
+#### Wrong
+```kotlin
+data class EmbyItemDto(
+    val id: String,
+    val name: String
+)
+
+items += pageItems.map { item -> item.toVideoItem(libraryId, token) }
+startIndex += items.size
+```
+
+Non-null row fields and mapped-count pagination let partial rows crash catalog loading or trigger extra page requests after filtering.
+
+#### Correct
+```kotlin
+data class EmbyItemDto(
+    val id: String? = null,
+    val name: String? = null
+)
+
+items += pageItems.mapNotNull { item -> item.toVideoItem(libraryId, token) }
+startIndex += pageItems.size
+```
+
+Validate row identity at the repository boundary and keep pagination tied to the server rows fetched.
 
 #### Wrong
 ```kotlin
@@ -117,643 +340,18 @@ This keeps video-first behavior while retaining a compatibility fallback for old
 
 #### Wrong
 ```kotlin
-api.getItems(userId, token, parentId = libraryId)
-```
-
-Using the `getItems` broad default can include `Episode` and make TV libraries render as a flat episode list.
-
-#### Correct
-```kotlin
-api.getItems(
-    userId = userId,
-    token = token,
-    parentId = libraryId,
-    includeItemTypes = "Movie,Series,Video"
-)
-```
-
-Main library browsing should request series-level TV entries. Keep `Episode` only in search, resume, Next Up, and season drill-down requests.
-
----
-
-## Scenario: Direct Video Playback MVP
-
-### 1. Scope / Trigger
-- Trigger: User taps a playable Emby video item; the app must launch a Media3 video playback surface.
-- Scope: `GET /Items/{Id}/PlaybackInfo`, direct/static stream URL construction, domain playback model, ExoPlayer wrapper, video player screen.
-- Out of scope: HLS/transcoding fallback, subtitles, PIP, gesture controls, Live TV.
-
-### 2. Signatures
-- API endpoint:
-```kotlin
-@GET("Items/{itemId}/PlaybackInfo")
-suspend fun getPlaybackInfo(
-    @Path("itemId") itemId: String,
-    @Header("X-Emby-Token") token: String,
-    @Query("UserId") userId: String
-): Response<EmbyPlaybackInfoResponse>
-```
-- Repository:
-```kotlin
-suspend fun getPlaybackInfo(item: VideoItem): VideoPlaybackInfo
-```
-- Domain model:
-```kotlin
-@Stable data class VideoPlaybackInfo(
-    val itemId: String, val title: String, val streamUrl: String,
-    val mediaSourceId: String, val playSessionId: String,
-    val overview: String = "", val durationSeconds: Int = 0, val imageUrl: String? = null
-)
-```
-- Playback engine:
-```kotlin
-class VideoPlaybackEngine(context: Context) {
-    val state: StateFlow<VideoPlaybackState>
-    val player: Player
-    fun play(playbackInfo: VideoPlaybackInfo)
-    fun togglePlayPause()
-    fun seekTo(positionSeconds: Int)
-    fun stop()
-    fun release()
+if (state.value.video?.id != video.id) {
+    player.setMediaItem(video.toMediaItem())
 }
 ```
 
-### 3. Contracts
-- `GET /Items/{itemId}/PlaybackInfo` requires `X-Emby-Token` header and `UserId` query parameter.
-- Response `EmbyPlaybackInfoResponse` contains `MediaSources` list and `PlaySessionId`.
-- Media source selection: first source where `id` is not blank and `supportsDirectStream` is not `false`.
-- Direct stream URL pattern: `/Videos/{itemId}/stream?static=true&MediaSourceId={id}&PlaySessionId={sid}&api_key={token}`
-- Duration fallback: use `mediaSource.runTimeTicks` first, then fall back to `item.durationSeconds`.
-- `VideoPlaybackEngine` owns the ExoPlayer instance; UI reads `VideoPlaybackState` and sends commands (`play`, `togglePlayPause`, `seekTo`, `stop`).
-- On player error, `VideoPlaybackState.errorMessage` is populated and surfaced in the UI; the app never silently ignores playback failures.
-
-### 4. Validation & Error Matrix
-- Non-2xx from PlaybackInfo -> `EmbyApiException(kind = HTTP, message contains "HTTP <code>")`
-- No direct-playable media source -> `EmbyApiException(kind = API, message mentions "没有可直接播放的媒体源")`
-- Blank `PlaySessionId` -> `EmbyApiException(kind = API, message mentions "缺少播放会话")`
-- Generic exception during playback-info fetch -> wrap with context: `"启动 Emby 播放失败: ..."`
-- ExoPlayer `onPlayerError` -> `VideoPlaybackState.errorMessage = "视频播放失败: ..."`
-
-### 5. Good/Base/Bad Cases
-- Good: PlaybackInfo returns a direct-stream source and play session; stream URL plays in ExoPlayer.
-- Base: Item with no `RunTimeTicks` falls back to `VideoItem.durationSeconds`.
-- Bad: PlaybackInfo returns no `SupportsDirectStream != false` source; `EmbyApiException.Kind.API` thrown, UI shows error card.
-- Bad: Emby returns HTTP 500 for PlaybackInfo; `EmbyApiException.Kind.HTTP` thrown.
-
-### 6. Tests Required
-- `getPlaybackInfo_mapsDirectStreamUrlFromPlaybackInfo`: asserts `PlaybackInfo` endpoint called with correct path/header/query, stream URL contains `static=true`, `MediaSourceId`, `PlaySessionId`, `api_key`, and duration mapped from ticks.
-- `getPlaybackInfo_throwsTypedApiErrorWhenNoDirectSourceExists`: asserts `EmbyApiException.Kind.API` when all sources have `SupportsDirectStream = false`.
-- `getPlaybackInfo_throwsTypedHttpErrorForNon2xx`: asserts `EmbyApiException.Kind.HTTP` with "HTTP 500" on server error.
-- `getPlaybackInfo_throwsTypedApiErrorWhenPlaySessionIdIsMissing`: asserts `EmbyApiException.Kind.API` mentioning "播放会话" when `PlaySessionId` is blank.
-
-### 7. Wrong vs Correct
-
-#### Wrong
-```kotlin
-val streamUrl = "$baseUrl/Videos/${itemId}/stream?api_key=$token"
-```
-Omitting `static=true`, `MediaSourceId`, and `PlaySessionId` causes Emby to return a transcode playlist or reject the request.
+This can keep playing a stale Emby URL when the same item id is refreshed with a new server/token stream URL.
 
 #### Correct
 ```kotlin
-val streamUrl = baseUrl.toHttpUrl().newBuilder()
-    .addPathSegment("Videos").addPathSegment(itemId).addPathSegment("stream")
-    .addQueryParameter("static", "true")
-    .addQueryParameter("MediaSourceId", mediaSourceId)
-    .addQueryParameter("PlaySessionId", playSessionId)
-    .addQueryParameter("api_key", token)
-    .build().toString()
-```
-`static=true` requests the original file bytes; the session and source IDs let Emby track and serve the correct media.
-
----
-
-## Scenario: Video Progress Reporting & Season/Episode Browsing
-
-### 1. Scope / Trigger
-- Trigger: User plays a video item (progress reporting) or browses a Series item (season/episode drill-down).
-- Scope: `POST Sessions/Playing`, `POST Sessions/Playing/Progress`, `POST Sessions/Playing/Stopped`; `GET` seasons and episodes via `getItems` with `ParentId`, `IncludeItemTypes`, and episode `UserData` fields; domain models `VideoSeason` and `VideoEpisode`.
-- Out of scope: Now-playing session management UI, transcoding URL construction.
-
-### 2. Signatures
-- Progress reporting endpoints:
-```kotlin
-@POST("Sessions/Playing")
-suspend fun reportPlaybackStart(@Body body: EmbyPlaybackReportBody, @Header("X-Emby-Token") token: String): Response<Unit>
-
-@POST("Sessions/Playing/Progress")
-suspend fun reportPlaybackProgress(@Body body: EmbyPlaybackReportBody, @Header("X-Emby-Token") token: String): Response<Unit>
-
-@POST("Sessions/Playing/Stopped")
-suspend fun reportPlaybackStopped(@Body body: EmbyPlaybackReportBody, @Header("X-Emby-Token") token: String): Response<Unit>
-```
-- Report body: `EmbyPlaybackReportBody(itemId, sessionId, mediaSourceId, isPaused, positionTicks)`
-- Repository:
-```kotlin
-suspend fun reportPlaybackStart(itemId: String, mediaSourceId: String, playSessionId: String)
-suspend fun reportPlaybackProgress(itemId: String, mediaSourceId: String, playSessionId: String, positionSeconds: Int)
-suspend fun reportPlaybackStopped(itemId: String, mediaSourceId: String, playSessionId: String, positionSeconds: Int)
-suspend fun getSeasons(seriesId: String): List<VideoSeason>
-suspend fun getEpisodes(seasonId: String): List<VideoEpisode>
-```
-- Domain models:
-```kotlin
-@Stable data class VideoSeason(val id: String, val name: String, val indexNumber: Int, val episodeCount: Int, val imageUrl: String? = null)
-@Stable data class VideoEpisode(
-    val id: String,
-    val name: String,
-    val seasonNumber: Int,
-    val episodeNumber: Int,
-    val overview: String,
-    val durationSeconds: Int,
-    val imageUrl: String? = null,
-    val progress: VideoProgress? = null
-)
-```
-
-### 3. Contracts
-- Progress reporting: `positionTicks = positionSeconds * 10_000_000L`. Reports at play start, every 10 seconds during playback, and on stop/release.
-- Seasons: fetched via `getItems(parentId=seriesId, includeItemTypes=Season)`.
-- Episodes: fetched via `getItems(parentId=seasonId, includeItemTypes=Episode)` with fields including `Overview,ProductionYear,RunTimeTicks,ChildCount,ImageTags,UserData`.
-- Episode `UserData.PlaybackPositionTicks`, `PlayedPercentage`, `Played`, and `LastPlayedDate` map through the same `VideoProgress` contract used by resume items.
-- Series detail episode cards should render watched/resume state from `VideoEpisode.progress`. When starting an episode from the card, copy `episode.progress` into the temporary `VideoItem` passed to `getPlaybackInfo(...)` so playback resumes from the episode-specific position.
-- `VideoPlaybackEngine` calls progress callbacks from coroutine scope; callbacks are `suspend` functions.
-- Video detail screen intercepts card taps to show metadata before playback; Series items show season chips and episode lists.
-
-### 4. Validation & Error Matrix
-- Non-2xx from reporting endpoints → fire-and-forget (wrapped in `runCatching` in engine callbacks, does not block playback)
-- Non-2xx from seasons/episodes → `EmbyApiException(kind = HTTP)` per existing pattern
-- Empty seasons list → UI shows "暂无季信息"
-- Episode without `RunTimeTicks` → `durationSeconds` falls back to 0
-- Episode without `UserData` → `VideoEpisode.progress == null`; card renders the existing simple metadata.
-- Episode with `Played == true` → card may show watched state, but continue-watching behavior should not override playback start with an arbitrary nonzero progress unless `getPlaybackInfo(...)` receives that progress explicitly.
-
-### 5. Good/Base/Bad Cases
-- Good: Series has 3 seasons, each with 8 episodes; tapping a season loads episodes; tapping an episode plays it.
-- Good: Episode includes `UserData.PlaybackPositionTicks`; series detail shows resume state and playback starts from that position.
-- Base: Movie item shows detail page with play button; no season/episode data loaded.
-- Base: Episode has no `UserData`; card remains simple and playback starts from 0.
-- Bad: Emby returns 500 for seasons; error surfaced in UI; play button still works for the series itself.
-- Bad: Repository maps episode overview/duration but drops `UserData`, so playback from a season list restarts from 0 even though Emby knows the position.
-
-### 6. Tests Required
-- `reportPlaybackStart_sendsCorrectBodyWithTicks`: verify positionTicks=0 and correct itemId/mediaSourceId/playSessionId
-- `getSeasons_mapsDtoToVideoSeason`: verify season name, indexNumber, episodeCount, image URL
-- `getEpisodes_mapsDtoToVideoEpisode`: verify episode name, season/episode numbers, duration from ticks, image URL, episode `VideoProgress`, and request fields include `UserData`
-
-### 7. Wrong vs Correct
-
-#### Wrong
-```kotlin
-// Not reporting progress means Emby server has no idea where you stopped
-// Tapping a Series card immediately plays it (no detail screen)
-// Constructing an episode VideoItem without episode.progress loses resume position.
-```
-
-#### Correct
-```kotlin
-// VideoPlaybackEngine reports start/progress/stop via suspend callbacks
-// Card tap → detail screen → play button → playback
-scope.launch { onPlaybackStart?.invoke(info.itemId, info.mediaSourceId, info.playSessionId, 0) }
-
-val episodeVideoItem = VideoItem(
-    id = episode.id,
-    libraryId = series.libraryId,
-    title = episode.name,
-    type = "Episode",
-    durationSeconds = episode.durationSeconds,
-    progress = episode.progress
-)
-```
-
-## Scenario: Video Continue Watching
-
-### 1. Scope / Trigger
-
-- Trigger: Any change to Emby continue-watching shelves, `GET /Users/{userId}/Items/Resume`, `VideoProgress`, or resume-position playback.
-- This is cross-layer work: Emby user progress fields are mapped in the repository, rendered in `VideoScreen`, carried through `VideoPlaybackInfo`, and consumed by `VideoPlaybackEngine`.
-
-### 2. Signatures
-
-- API:
-```kotlin
-@GET("Users/{userId}/Items/Resume")
-suspend fun getResumeItems(
-    @Path("userId") userId: String,
-    @Header("X-Emby-Token") token: String,
-    @Query("MediaTypes") mediaTypes: String = "Video",
-    @Query("IncludeItemTypes") includeItemTypes: String = "Movie,Episode,Video",
-    @Query("Fields") fields: String = "Overview,ProductionYear,RunTimeTicks,ChildCount,ImageTags",
-    @Query("Limit") limit: Int = 12
-): Response<EmbyItemsResponse>
-```
-- DTO/domain:
-```kotlin
-data class EmbyItemDto(..., val parentId: String? = null, val userData: EmbyUserDataDto? = null)
-data class EmbyUserDataDto(
-    val playedPercentage: Double? = null,
-    val playbackPositionTicks: Long? = null,
-    val played: Boolean = false,
-    val lastPlayedDate: String? = null
-)
-
-@Stable data class VideoProgress(
-    val currentTimeSeconds: Int = 0,
-    val playedPercentage: Float = 0f,
-    val isPlayed: Boolean = false,
-    val lastPlayedDate: String? = null
-)
-@Stable data class VideoItem(..., val progress: VideoProgress? = null)
-@Stable data class VideoCatalog(..., val resumeItems: List<VideoItem> = emptyList())
-@Stable data class VideoPlaybackInfo(..., val resumePositionSeconds: Int = 0)
-```
-- Repository/playback:
-```kotlin
-suspend fun EmbyRepository.getResumeItems(): List<VideoItem>
-fun VideoPlaybackEngine.play(playbackInfo: VideoPlaybackInfo)
-```
-
-### 3. Contracts
-
-- `getCatalog()` fetches resume items with the same authenticated session as libraries/items and stores them in `VideoCatalog.resumeItems`.
-- Resume requests use `GET /Users/{userId}/Items/Resume` with `MediaTypes=Video` and `IncludeItemTypes=Movie,Episode,Video`.
-- `UserData.PlaybackPositionTicks` maps to `VideoProgress.currentTimeSeconds` using `10_000_000` ticks per second.
-- `UserData.PlayedPercentage` maps to `VideoProgress.playedPercentage` and is clamped to `0f..100f`.
-- Continue-watching shelves include only items where `currentTimeSeconds > 0` and `isPlayed == false`.
-- `EmbyRepository.getPlaybackInfo(item)` copies `item.progress.currentTimeSeconds` into `VideoPlaybackInfo.resumePositionSeconds`, clamped to the item duration when known.
-- `VideoPlaybackEngine.play()` seeks to `resumePositionSeconds` before playback starts and reports playback start at that same position.
-
-### 4. Validation & Error Matrix
-
-| Condition | Behavior |
-|---|---|
-| Resume endpoint returns no items | `VideoCatalog.resumeItems` is empty and the shelf is hidden |
-| Resume item has missing `UserData` | Exclude it from continue watching |
-| `PlaybackPositionTicks <= 0` | Exclude it from continue watching |
-| `Played == true` | Exclude it from continue watching |
-| `PlayedPercentage` is out of range | Clamp to `0f..100f` |
-| Resume position exceeds known duration | Clamp playback start to duration |
-| Resume endpoint returns non-2xx | Throw `EmbyApiException.Kind.HTTP` through the repository pattern |
-
-### 5. Good/Base/Bad Cases
-
-- Good: Emby returns an unfinished movie with `PlaybackPositionTicks`; Video home shows it in "继续观看", and playback starts at that position.
-- Base: Emby returns an empty resume list; normal library browsing and playback remain unchanged.
-- Bad: UI derives continue watching by scanning only the current library list and misses resumable items from other video libraries.
-
-### 6. Tests Required
-
-- Repository test asserting `getResumeItems()` requests `/Users/{userId}/Items/Resume`, passes token, `MediaTypes=Video`, and `IncludeItemTypes=Movie,Episode,Video`.
-- Repository test asserting `UserData.PlaybackPositionTicks`, `PlayedPercentage`, `Played`, and `LastPlayedDate` map to `VideoProgress`.
-- Repository test asserting played or zero-position items are filtered out.
-- Repository test asserting `getPlaybackInfo()` carries `VideoItem.progress.currentTimeSeconds` into `VideoPlaybackInfo.resumePositionSeconds`.
-- Compile/lint checks for `VideoScreen` shelf rendering and `VideoPlaybackEngine.play()` callback wiring.
-
-### 7. Wrong vs Correct
-
-#### Wrong
-```kotlin
-// Wrong: this only sees the currently selected library and does not use Emby's resume contract.
-val resumeItems = currentLibraryItems.filter { it.progress?.currentTimeSeconds ?: 0 > 0 }
-```
-
-#### Correct
-```kotlin
-// Correct: ask Emby for the user's cross-library resumable video items.
-val resumeItems = api.getResumeItems(
-    userId = session.userId,
-    token = session.token,
-    mediaTypes = "Video",
-    includeItemTypes = "Movie,Episode,Video"
-)
-```
-
-## Scenario: PlaybackInfo Media Streams and Player Track Controls
-
-### 1. Scope / Trigger
-
-- Trigger: Any change to Emby `PlaybackInfo` stream DTOs, `VideoPlaybackInfo`, `VideoPlaybackEngine` track selection, or video player audio/subtitle controls.
-- This is cross-layer work: Emby media stream payloads are mapped in the repository, attached to Media3 items, selected by the playback engine, and exposed by Compose controls.
-
-### 2. Signatures
-
-- DTO/domain:
-```kotlin
-data class EmbyMediaSourceDto(
-    ..., val mediaStreams: List<EmbyMediaStreamDto> = emptyList()
-)
-
-data class EmbyMediaStreamDto(
-    val index: Int = -1,
-    val type: String? = null,
-    val codec: String? = null,
-    val language: String? = null,
-    val displayTitle: String? = null,
-    val title: String? = null,
-    val isDefault: Boolean = false,
-    val isForced: Boolean = false,
-    val isExternal: Boolean = false,
-    val deliveryUrl: String? = null
-)
-
-data class VideoPlaybackInfo(
-    ..., val audioTracks: List<VideoMediaTrack> = emptyList(),
-    val subtitleTracks: List<VideoMediaTrack> = emptyList()
-)
-
-data class VideoMediaTrack(
-    val index: Int,
-    val label: String,
-    val language: String? = null,
-    val codec: String? = null,
-    val isDefault: Boolean = false,
-    val isForced: Boolean = false,
-    val isExternal: Boolean = false,
-    val deliveryUrl: String? = null
-)
-```
-- Playback engine:
-```kotlin
-fun VideoPlaybackEngine.selectAudioTrack(trackIndex: Int?)
-fun VideoPlaybackEngine.selectSubtitleTrack(trackIndex: Int?)
-fun VideoPlaybackEngine.setSubtitleScale(scale: Float)
-```
-
-### 3. Contracts
-
-- `EmbyRepository.getPlaybackInfo()` maps `MediaSources[].MediaStreams` into separate audio and subtitle track lists.
-- Audio tracks are streams where `Type == "Audio"` ignoring case; subtitle tracks are streams where `Type == "Subtitle"` ignoring case.
-- Track labels prefer `DisplayTitle`, then `Title`, then uppercased language/codec, then `"<kind> <index>"`.
-- External subtitle `DeliveryUrl` values must be converted to absolute URLs and include `api_key=<session token>` unless the URL already contains an API key.
-- `VideoPlaybackEngine.play()` selects the default audio track when present, otherwise the first audio track. It selects a default or forced subtitle when present.
-- Embedded Media3 subtitle/audio selection may be language-based when the API does not expose a stable renderer-track id. UI state must still reflect the user's selected Emby stream index.
-- Subtitle scale is applied to `PlayerView.subtitleView`.
-- Do not expose subtitle offset controls unless the implementation actually retimes subtitle cues in the current Media3 playback path. A state-only offset is misleading and must be removed or disabled.
-
-### 4. Validation & Error Matrix
-
-| Condition | Behavior |
-|---|---|
-| PlaybackInfo has no media streams | Video playback still starts; track controls are hidden or disabled |
-| Track has blank display/title/language/codec | Use the fallback `Audio <index>` or `Subtitle <index>` label |
-| External subtitle URL is relative | Resolve against the normalized Emby base URL and append `api_key` |
-| User selects `null` subtitle track | Disable text track selection and update state to no selected subtitle |
-| User selects unknown track index | Ignore the unavailable track and keep playback stable |
-| Media3 cannot apply a subtitle timing offset | Do not show active offset controls |
-
-### 5. Good/Base/Bad Cases
-
-- Good: PlaybackInfo returns English AAC and Chinese SRT; UI shows both labels, default audio is selected, external subtitle URL includes the token, and scale changes affect rendered captions.
-- Base: Movie has one embedded audio track and no subtitles; controls stay minimal and playback works.
-- Bad: UI builds track labels from raw codec only, or repository exposes Emby DTOs directly to Compose.
-
-### 6. Tests Required
-
-- Repository test asserting audio/subtitle streams from `MediaStreams` map to `VideoMediaTrack` with index, label, language, default/forced/external flags.
-- Repository test asserting external subtitle `DeliveryUrl` is absolute and tokenized.
-- Compile/lint checks for Media3 subtitle configuration and player callback wiring.
-- Add pure helper tests if track selection grows beyond simple language/default preference.
-
-### 7. Wrong vs Correct
-
-#### Wrong
-```kotlin
-// UI reaches into Emby DTOs and tries to render raw stream payloads.
-playbackInfo.mediaSources.first().mediaStreams.filter { it.Type == "Audio" }
-```
-
-#### Correct
-```kotlin
-// Repository exposes app-facing tracks; playback/UI consume the domain model.
-VideoPlaybackInfo(
-    audioTracks = mediaSource.mediaStreams.filterAudioTracks(),
-    subtitleTracks = mediaSource.mediaStreams.filterSubtitleTracks()
-)
-```
-
-## Scenario: Episode Queue Navigation and Auto-Advance
-
-### 1. Scope / Trigger
-
-- Trigger: Any change to video player next/previous episode controls, auto-advance on ended playback, `VideoEpisodeQueue`, episode playback from `VideoDetailScreen`, or Activity-level video playback state.
-- This is UI/playback orchestration over existing Emby APIs: do not introduce a new Retrofit endpoint when the current season's episode list already contains the ordering needed for same-season previous/next buttons.
-
-### 2. Signatures
-
-```kotlin
-@Stable data class VideoEpisodeQueue(
-    val libraryId: String,
-    val episodes: List<VideoEpisode>,
-    val currentIndex: Int
-)
-
-fun resolveNextVideoEpisodeIndex(currentIndex: Int, itemCount: Int): Int?
-fun resolvePreviousVideoEpisodeIndex(currentIndex: Int, itemCount: Int): Int?
-fun VideoEpisode.toPlaybackVideoItem(libraryId: String): VideoItem
-
-data class VideoPlaybackState(..., val seekIntervalSeconds: Int = 10, val isEnded: Boolean = false)
-fun VideoPlaybackEngine.seekBy(deltaSeconds: Int)
-fun VideoPlaybackEngine.setSeekInterval(intervalSeconds: Int)
-
-fun VideoPlayerScreen(
-    ..., hasNextEpisode: Boolean = false,
-    hasPreviousEpisode: Boolean = false,
-    isLoadingNextEpisode: Boolean = false,
-    externalError: String? = null,
-    onPlayNextEpisode: () -> Unit = {},
-    onPlayPreviousEpisode: () -> Unit = {}
-)
-```
-
-### 3. Contracts
-
-- Only episode playback launched from a Series detail season list should create a `VideoEpisodeQueue`.
-- Queue context is same-season only; `currentIndex` refers to the loaded `episodes` list from `VideoDetailScreen`.
-- `resolveNextVideoEpisodeIndex(...)` returns `currentIndex + 1` only when `currentIndex >= 0` and there is an item after it; otherwise it returns `null`.
-- `resolvePreviousVideoEpisodeIndex(...)` returns `currentIndex - 1` only when `currentIndex > 0` and `currentIndex < itemCount`; otherwise it returns `null`.
-- `VideoEpisode.toPlaybackVideoItem(...)` must preserve episode id, title, overview, duration, image URL, and `progress` so resume playback still works.
-- `VideoPlayerScreen` must render previous/next episode actions as disabled or absent when `hasPreviousEpisode == false` or `hasNextEpisode == false`.
-- Clicking Previous or Next loads `EmbyRepository.getPlaybackInfo(targetEpisode.toPlaybackVideoItem(...))`, then calls `VideoPlaybackEngine.play(...)` and updates the queue only after success.
-- Loading another episode must not stop or clear the current video on failure; surface the failure through `externalError`.
-- `VideoPlaybackState.isEnded` is the app-shell signal for auto-advance. Activity-level code should guard it so each ended episode triggers at most one next-episode load.
-- When the current episode reaches `Player.STATE_ENDED` and the queue has a next item, auto-play the next episode immediately without a countdown dialog.
-- Video seek controls use `VideoPlaybackState.seekIntervalSeconds`; allowed UI choices are 10, 15, and 30 seconds, and relative seeks must clamp to the playable range when duration is known.
-- Movie playback, standalone video playback, search-result episode playback, Continue Watching, and Next Up entries do not get queue context unless they are routed through the Series detail episode list.
-
-### 4. Validation & Error Matrix
-
-| Condition | Behavior |
-|---|---|
-| Queue is null | Next action disabled/absent; click is a no-op |
-| Current episode is first in queue | Previous action disabled/absent |
-| Current episode is last in queue | Next action disabled/absent |
-| `currentIndex` is invalid | `resolveNextVideoEpisodeIndex(...) == null` |
-| `currentIndex` is invalid | `resolvePreviousVideoEpisodeIndex(...) == null` |
-| Next episode PlaybackInfo succeeds | Start next episode and advance `VideoEpisodeQueue.currentIndex` |
-| Previous episode PlaybackInfo succeeds | Start previous episode and decrement `VideoEpisodeQueue.currentIndex` |
-| Previous/next episode PlaybackInfo fails | Keep current playback, preserve queue index, and show `externalError` |
-| Playback ends with next episode available | Trigger one immediate next-episode load |
-| Playback ends without next episode | Stay ended; do not loop or clear queue context |
-| User closes video player | Clear queue context and transient next-episode error |
-
-### 5. Good/Base/Bad Cases
-
-- Good: User opens a Series, plays S1E2, then taps Next and S1E3 starts without returning to the detail screen.
-- Good: User opens a Series, plays S1E2, then taps Previous and S1E1 starts with episode progress reporting stopped/started for the correct Emby item.
-- Good: S1E2 reaches the end and S1E3 starts immediately without a modal or countdown.
-- Base: User plays the last episode in a season; the player remains usable but Next is disabled.
-- Base: User plays the first episode in a season; Previous is disabled and Next remains available when applicable.
-- Bad: User plays a movie after watching an episode and still sees a stale Next button from the previous episode queue.
-- Bad: Previous/Next PlaybackInfo fails and the app stops the current episode, losing the user's current playback surface.
-- Bad: Ended playback repeatedly launches the same next episode because the app shell observes `isEnded` without a one-shot guard.
-
-### 6. Tests Required
-
-- Pure helper test for `resolveNextVideoEpisodeIndex(...)` covering normal, last-item, empty, and invalid-index cases.
-- Pure helper test for `resolvePreviousVideoEpisodeIndex(...)` covering normal, first-item, empty, and invalid-index cases.
-- Pure helper/queue test asserting `VideoEpisodeQueue.advanceToNext()` moves one item at a time and stops at the end.
-- Pure helper/queue test asserting `VideoEpisodeQueue.goToPrevious()` moves one item at a time and stops at the beginning.
-- Pure helper test asserting `VideoEpisode.toPlaybackVideoItem(...)` preserves `VideoProgress`.
-- Compile/lint checks for `VideoDetailScreen`, `VideoPlayerScreen`, `VideoPlaybackEngine`, and `MainActivity` callback wiring, including `VideoPlaybackState.isEnded` auto-advance observation.
-
-### 7. Wrong vs Correct
-
-#### Wrong
-```kotlin
-// Wrong: stale queue remains active for non-episode playback.
-videoPlaybackEngine.play(moviePlaybackInfo)
-showVideoPlayer = true
-```
-
-#### Correct
-```kotlin
-videoEpisodeQueue = null
-videoPlaybackError = null
-videoPlaybackEngine.play(moviePlaybackInfo)
-showVideoPlayer = true
-```
-
-#### Wrong
-```kotlin
-// Wrong: advancing before PlaybackInfo succeeds loses the current queue position.
-videoEpisodeQueue = videoEpisodeQueue?.advanceToNext()
-repo.getPlaybackInfo(nextEpisode.toPlaybackVideoItem(libraryId))
-```
-
-#### Correct
-```kotlin
-val nextQueue = queue.advanceToNext() ?: return
-val info = repo.getPlaybackInfo(nextEpisode.toPlaybackVideoItem(nextQueue.libraryId))
-videoPlaybackEngine.play(info)
-videoEpisodeQueue = nextQueue
-```
-
-#### Wrong
-```kotlin
-// Wrong: an ended-state observer without a guard can enqueue repeated next loads.
-if (videoPlaybackState.isEnded && videoEpisodeQueue?.hasNext == true) {
-    playNextVideoEpisode()
+if (shouldReplaceCurrentVideoItem(state.value.video, video)) {
+    player.setMediaItem(video.toMediaItem())
 }
 ```
 
-#### Correct
-```kotlin
-if (videoPlaybackState.isEnded && videoEpisodeQueue?.hasNext == true && !autoPlayNextTriggered) {
-    autoPlayNextTriggered = true
-    playNextVideoEpisode()
-}
-```
-
-## Scenario: Video Search, Discovery Controls, and User Item State
-
-### 1. Scope / Trigger
-
-- Trigger: Any change to global Emby video search, library sort/filter controls, Next Up shelves, favorite toggles, or watched/unwatched toggles.
-- This is cross-layer work: Emby endpoint payloads are declared in `api/`, mapped to `VideoItem` and `VideoCatalog` in `EmbyRepository`, rendered in `VideoScreen` / `VideoDetailScreen`, and verified with `MockWebServer` request assertions.
-
-### 2. Signatures
-
-- API:
-```kotlin
-@GET("Search/Hints")
-suspend fun searchHints(..., @Query("SearchTerm") searchTerm: String): Response<EmbySearchHintsResponse>
-
-@GET("Shows/NextUp")
-suspend fun getNextUp(@Query("UserId") userId: String, ...): Response<EmbyItemsResponse>
-
-@GET("Users/{userId}/Items")
-suspend fun getItems(..., @Query("SortBy") sortBy: String, @Query("SortOrder") sortOrder: String, @Query("Filters") filters: String?): Response<EmbyItemsResponse>
-
-@POST("Users/{userId}/PlayedItems/{itemId}") suspend fun markPlayed(...)
-@DELETE("Users/{userId}/PlayedItems/{itemId}") suspend fun markUnplayed(...)
-@POST("Users/{userId}/FavoriteItems/{itemId}") suspend fun markFavorite(...)
-@DELETE("Users/{userId}/FavoriteItems/{itemId}") suspend fun markUnfavorite(...)
-```
-- Domain/repository:
-```kotlin
-data class VideoItem(..., val progress: VideoProgress? = null, val isFavorite: Boolean = false)
-data class VideoCatalog(..., val resumeItems: List<VideoItem> = emptyList(), val nextUpItems: List<VideoItem> = emptyList())
-data class VideoItemQuery(val sort: VideoSortOption = DateAdded, val filter: VideoItemFilter = All)
-
-suspend fun EmbyRepository.searchVideos(searchTerm: String, limit: Int = 20): List<VideoItem>
-suspend fun EmbyRepository.getNextUpItems(): List<VideoItem>
-suspend fun EmbyRepository.setItemPlayed(itemId: String, played: Boolean)
-suspend fun EmbyRepository.setItemFavorite(itemId: String, favorite: Boolean)
-```
-
-### 3. Contracts
-
-- Library list requests include `Fields=Overview,ProductionYear,RunTimeTicks,ChildCount,ImageTags,UserData` so watched and favorite state can be rendered without extra per-item calls.
-- `VideoSortOption` maps UI choices to server-side `SortBy` / `SortOrder`; do not locally sort a truncated Emby page and call it server sort parity.
-- `VideoItemFilter.Favorite`, `Played`, and `Unplayed` map to Emby `Filters=IsFavorite`, `IsPlayed`, and `IsUnplayed`.
-- `searchVideos()` calls `Search/Hints` with `MediaTypes=Video` and `IncludeItemTypes=Movie,Series,Episode,Video`; repository maps hints into normal `VideoItem` instances.
-- Search hint identity prefers `ItemId`, then `Id`; hints with no resolved id are ignored.
-- Next Up uses `Shows/NextUp?UserId=<userId>` and maps returned episodes into `VideoItem`; `VideoCatalog.nextUpItems` is loaded alongside libraries, current-library items, and resume items.
-- Favorite state maps from `UserData.IsFavorite` into `VideoItem.isFavorite`.
-- Watched state maps from `UserData.Played` through `VideoProgress.isPlayed`; manual toggles update Emby through the PlayedItems endpoints and update local UI state after success.
-- UI must call repository methods only. Compose must not call Retrofit APIs or inspect Emby DTOs directly.
-
-### 4. Validation & Error Matrix
-
-| Condition | Behavior |
-|---|---|
-| Blank search term | Return an empty search result list without an API request |
-| Search hint has no `ItemId` or `Id` | Drop that hint |
-| Search/NextUp/library query returns non-2xx | Throw `EmbyApiException.Kind.HTTP` through `requireBody()` |
-| Mutation endpoint returns non-2xx | Throw `EmbyApiException.Kind.HTTP` through `requireSuccess()` |
-| Favorite/watched mutation succeeds | Update local `VideoItem` state in visible lists/detail surfaces |
-| Favorite/watched mutation fails | Preserve local state and surface an error message |
-
-### 5. Good/Base/Bad Cases
-
-- Good: Search for a title returns movies, series, and episodes grouped by type; cards reuse `VideoItem` rendering and detail navigation.
-- Good: Favorites filter sends `Filters=IsFavorite`; item cards and detail chips toggle `FavoriteItems` endpoints.
-- Good: Marking a resume item watched removes it from the continue-watching shelf after the server call succeeds.
-- Base: Search returns no hints; UI shows an empty search state while library browsing remains usable.
-- Bad: UI filters favorites locally after fetching only the first page of non-favorite items, missing server-side matches.
-- Bad: UI flips favorite/watched state before the mutation succeeds and leaves stale state after a server error.
-
-### 6. Tests Required
-
-- Repository test asserting `getLibraryItems(..., VideoItemQuery)` sends `SortBy`, `SortOrder`, `Filters`, and `Fields` including `UserData`.
-- Repository test asserting `searchVideos()` requests `/Search/Hints`, sends `SearchTerm`, `MediaTypes=Video`, item types, token, and maps `PrimaryImageTag`, `UserData.IsFavorite`, and `UserData.Played`.
-- Repository test asserting `getNextUpItems()` requests `/Shows/NextUp?UserId=<userId>` with token and maps returned episodes.
-- Repository test asserting `setItemPlayed()` calls POST/DELETE `PlayedItems`, and `setItemFavorite()` calls POST/DELETE `FavoriteItems`.
-- Compile/lint checks for `VideoScreen` and `VideoDetailScreen` state wiring.
-
-### 7. Wrong vs Correct
-
-#### Wrong
-```kotlin
-// Wrong: local-only filtering can miss favorites outside the current page.
-val favorites = repo.getLibraryItems(libraryId).filter { it.isFavorite }
-```
-
-#### Correct
-```kotlin
-// Correct: ask Emby for the requested server-side filter.
-val favorites = repo.getLibraryItems(
-    libraryId,
-    VideoItemQuery(filter = VideoItemFilter.Favorite)
-)
-```
+This preserves lightweight replay for the same stream while refreshing ExoPlayer when the stream URL changes.

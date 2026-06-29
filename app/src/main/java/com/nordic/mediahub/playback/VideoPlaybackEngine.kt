@@ -1,18 +1,14 @@
 package com.nordic.mediahub.playback
 
-import android.net.Uri
 import android.content.Context
-import androidx.compose.runtime.Stable
+import android.view.SurfaceView
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
-import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
-import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import com.nordic.mediahub.data.VideoMediaTrack
-import com.nordic.mediahub.data.VideoPlaybackInfo
+import com.nordic.mediahub.data.VideoItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -26,37 +22,36 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-@Stable
+private const val VIDEO_SKIP_BACK_SECONDS = 10
+private const val VIDEO_SKIP_FORWARD_SECONDS = 30
+
+internal fun shouldReplaceCurrentVideoItem(
+    currentVideo: VideoItem?,
+    requestedVideo: VideoItem
+): Boolean {
+    if (currentVideo == null) return true
+
+    return currentVideo.id != requestedVideo.id ||
+        currentVideo.streamUrl.orEmpty() != requestedVideo.streamUrl.orEmpty()
+}
+
 data class VideoPlaybackState(
-    val playbackInfo: VideoPlaybackInfo? = null,
+    val video: VideoItem? = null,
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,
     val positionSeconds: Int = 0,
     val durationSeconds: Int = 0,
-    val speed: Float = 1.0f,
-    val selectedAudioTrackIndex: Int? = null,
-    val selectedSubtitleTrackIndex: Int? = null,
-    val subtitleScale: Float = 1.0f,
-    val seekIntervalSeconds: Int = 10,
-    val isEnded: Boolean = false,
     val errorMessage: String? = null
 )
 
-class VideoPlaybackEngine(
-    context: Context,
-    private val onPlaybackStart: (suspend (itemId: String, mediaSourceId: String, playSessionId: String, positionSeconds: Int) -> Unit)? = null,
-    private val onPlaybackProgress: (suspend (itemId: String, mediaSourceId: String, playSessionId: String, positionSeconds: Int) -> Unit)? = null,
-    private val onPlaybackStopped: (suspend (itemId: String, mediaSourceId: String, playSessionId: String, positionSeconds: Int) -> Unit)? = null
-) {
+class VideoPlaybackEngine(context: Context) {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val exoPlayer = ExoPlayer.Builder(appContext).build()
+    private val player = ExoPlayer.Builder(appContext).build()
     private var positionUpdateJob: Job? = null
-    private var progressReportJob: Job? = null
 
     private val _state = MutableStateFlow(VideoPlaybackState())
     val state: StateFlow<VideoPlaybackState> = _state.asStateFlow()
-    val player: Player = exoPlayer
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -66,10 +61,7 @@ class VideoPlaybackEngine(
 
         override fun onPlaybackStateChanged(playbackState: Int) {
             publishPlayerState()
-            if (playbackState == Player.STATE_ENDED) {
-                stopPositionUpdates()
-                stopProgressReporting()
-            } else if (!exoPlayer.isPlaying) {
+            if (!player.isPlaying) {
                 stopPositionUpdates()
             }
         }
@@ -87,128 +79,98 @@ class VideoPlaybackEngine(
     }
 
     init {
-        exoPlayer.addListener(playerListener)
+        player.addListener(playerListener)
     }
 
-    fun play(playbackInfo: VideoPlaybackInfo) {
-        val defaultAudioTrack = playbackInfo.audioTracks.firstOrNull { it.isDefault }
-            ?: playbackInfo.audioTracks.firstOrNull()
-        val defaultSubtitleTrack = playbackInfo.subtitleTracks.firstOrNull { it.isDefault || it.isForced }
-        val startPositionSeconds = playbackInfo.resumePositionSeconds
-            .coerceAtLeast(0)
-            .coerceAtMost(playbackInfo.durationSeconds.takeIf { it > 0 } ?: Int.MAX_VALUE)
-        _state.value = VideoPlaybackState(
-            playbackInfo = playbackInfo,
-            isBuffering = true,
-            durationSeconds = playbackInfo.durationSeconds,
-            positionSeconds = startPositionSeconds,
-            selectedAudioTrackIndex = defaultAudioTrack?.index,
-            selectedSubtitleTrackIndex = defaultSubtitleTrack?.index
-        )
-        exoPlayer.setMediaItem(playbackInfo.toMediaItem())
-        exoPlayer.prepare()
-        if (startPositionSeconds > 0) {
-            exoPlayer.seekTo(startPositionSeconds * 1000L)
+    fun attachSurface(surfaceView: SurfaceView) {
+        player.setVideoSurfaceView(surfaceView)
+    }
+
+    fun detachSurface(surfaceView: SurfaceView) {
+        player.clearVideoSurfaceView(surfaceView)
+    }
+
+    fun play(video: VideoItem) {
+        if (video.streamUrl.isNullOrBlank()) {
+            _state.value = VideoPlaybackState(
+                video = video,
+                durationSeconds = video.durationSeconds,
+                errorMessage = "这个视频缺少播放地址"
+            )
+            return
         }
-        applyTrackSelection(defaultAudioTrack, defaultSubtitleTrack)
-        exoPlayer.play()
-        publishPlayerState()
-        val info = playbackInfo
-        scope.launch {
-            runCatching {
-                onPlaybackStart?.invoke(info.itemId, info.mediaSourceId, info.playSessionId, startPositionSeconds)
+
+        if (shouldReplaceCurrentVideoItem(_state.value.video, video)) {
+            _state.value = VideoPlaybackState(
+                video = video,
+                durationSeconds = video.durationSeconds,
+                isBuffering = true
+            )
+            player.setMediaItem(video.toMediaItem())
+            player.prepare()
+            val startPositionMs = resolveVideoInitialStartPositionMs(video)
+            if (startPositionMs > 0L) {
+                player.seekTo(startPositionMs)
             }
+        } else {
+            _state.update { it.copy(errorMessage = null) }
         }
-        startProgressReporting()
+
+        if (player.playbackState == Player.STATE_ENDED) {
+            player.seekTo(0L)
+        }
+        if (player.playbackState == Player.STATE_IDLE) {
+            player.prepare()
+        }
+        player.play()
+        publishPlayerState()
     }
 
     fun togglePlayPause() {
-        if (exoPlayer.currentMediaItem == null) return
+        val video = _state.value.video ?: return
+        if (video.streamUrl.isNullOrBlank()) return
 
-        if (exoPlayer.isPlaying) {
-            exoPlayer.pause()
+        if (player.isPlaying) {
+            player.pause()
         } else {
-            if (exoPlayer.playbackState == Player.STATE_ENDED) {
-                exoPlayer.seekTo(0L)
+            if (player.playbackState == Player.STATE_ENDED) {
+                player.seekTo(0L)
             }
-            if (exoPlayer.playbackState == Player.STATE_IDLE) {
-                exoPlayer.prepare()
+            if (player.playbackState == Player.STATE_IDLE) {
+                player.setMediaItem(video.toMediaItem())
+                player.prepare()
             }
-            exoPlayer.play()
+            player.play()
         }
         publishPlayerState()
     }
 
     fun seekTo(positionSeconds: Int) {
-        exoPlayer.seekTo(positionSeconds.coerceAtLeast(0) * 1000L)
+        player.seekTo(positionSeconds.coerceAtLeast(0) * 1000L)
         publishPlayerState()
     }
 
-    fun seekBy(deltaSeconds: Int) {
-        val currentMs = exoPlayer.currentPosition
-        val durationMs = exoPlayer.duration.let { if (it == C.TIME_UNSET) 0L else it }
-        val requestedMs = currentMs + deltaSeconds * 1000L
-        val targetMs = if (durationMs > 0L) {
-            requestedMs.coerceIn(0L, durationMs)
-        } else {
-            requestedMs.coerceAtLeast(0L)
-        }
-        exoPlayer.seekTo(targetMs)
-        publishPlayerState()
+    fun seekBackBy(intervalSeconds: Int = VIDEO_SKIP_BACK_SECONDS) {
+        seekBy(-intervalSeconds)
     }
 
-    fun setSeekInterval(intervalSeconds: Int) {
-        _state.update { it.copy(seekIntervalSeconds = intervalSeconds) }
-    }
-
-    fun setSpeed(speed: Float) {
-        exoPlayer.playbackParameters = PlaybackParameters(speed)
-        publishPlayerState()
-    }
-
-    fun selectAudioTrack(trackIndex: Int?) {
-        val info = _state.value.playbackInfo ?: return
-        val track = trackIndex?.let { index -> info.audioTracks.firstOrNull { it.index == index } }
-        applyTrackSelection(track, info.subtitleTracks.firstOrNull { it.index == _state.value.selectedSubtitleTrackIndex })
-        _state.update { it.copy(selectedAudioTrackIndex = track?.index) }
-    }
-
-    fun selectSubtitleTrack(trackIndex: Int?) {
-        val info = _state.value.playbackInfo ?: return
-        val track = trackIndex?.let { index -> info.subtitleTracks.firstOrNull { it.index == index } }
-        applyTrackSelection(info.audioTracks.firstOrNull { it.index == _state.value.selectedAudioTrackIndex }, track)
-        _state.update { it.copy(selectedSubtitleTrackIndex = track?.index) }
-    }
-
-    fun setSubtitleScale(scale: Float) {
-        _state.update { it.copy(subtitleScale = scale.coerceIn(0.75f, 1.75f)) }
+    fun seekForwardBy(intervalSeconds: Int = VIDEO_SKIP_FORWARD_SECONDS) {
+        seekBy(intervalSeconds)
     }
 
     fun stop() {
         stopPositionUpdates()
-        stopProgressReporting()
-        val info = _state.value.playbackInfo
-        val position = _state.value.positionSeconds
-        exoPlayer.pause()
-        exoPlayer.stop()
-        exoPlayer.clearMediaItems()
-        if (info != null) {
-            scope.launch { runCatching { onPlaybackStopped?.invoke(info.itemId, info.mediaSourceId, info.playSessionId, position) } }
-        }
+        player.pause()
+        player.stop()
+        player.clearMediaItems()
         _state.value = VideoPlaybackState()
     }
 
     fun release() {
         stopPositionUpdates()
-        stopProgressReporting()
-        val info = _state.value.playbackInfo
-        val position = _state.value.positionSeconds
-        if (info != null) {
-            scope.launch { runCatching { onPlaybackStopped?.invoke(info.itemId, info.mediaSourceId, info.playSessionId, position) } }
-        }
         scope.cancel()
-        exoPlayer.removeListener(playerListener)
-        exoPlayer.release()
+        player.removeListener(playerListener)
+        player.release()
     }
 
     private fun startPositionUpdates() {
@@ -226,47 +188,21 @@ class VideoPlaybackEngine(
         positionUpdateJob = null
     }
 
-    private fun startProgressReporting() {
-        stopProgressReporting()
-        if (_state.value.playbackInfo == null) return
-        progressReportJob = scope.launch {
-            while (isActive) {
-                delay(10_000)
-                val currentInfo = _state.value.playbackInfo ?: break
-                runCatching {
-                    onPlaybackProgress?.invoke(
-                        currentInfo.itemId, currentInfo.mediaSourceId, currentInfo.playSessionId,
-                        _state.value.positionSeconds
-                    )
-                }
-            }
-        }
-    }
-
-    private fun stopProgressReporting() {
-        progressReportJob?.cancel()
-        progressReportJob = null
-    }
-
     private fun publishPlayerState() {
-        val playbackInfo = _state.value.playbackInfo ?: return
-        val playerDuration = exoPlayer.duration
-            .takeIf { it != C.TIME_UNSET }
+        val video = _state.value.video ?: return
+        val playerDuration = player.duration
+            .takeIf { duration -> duration != C.TIME_UNSET }
             ?.coerceAtLeast(0L)
-            ?.div(1000L)
-            ?.toInt()
-        val fallbackDuration = playbackInfo.durationSeconds.coerceAtLeast(0)
 
         _state.update {
             it.copy(
-                playbackInfo = playbackInfo,
-                isPlaying = exoPlayer.isPlaying,
-                isBuffering = exoPlayer.playbackState == Player.STATE_BUFFERING,
-                positionSeconds = (exoPlayer.currentPosition.coerceAtLeast(0L) / 1000L).toInt(),
-                durationSeconds = (playerDuration ?: fallbackDuration).coerceAtLeast(fallbackDuration),
-                speed = exoPlayer.playbackParameters.speed,
-                isEnded = exoPlayer.playbackState == Player.STATE_ENDED,
-                errorMessage = when (exoPlayer.playbackState) {
+                video = video,
+                isPlaying = player.isPlaying,
+                isBuffering = player.playbackState == Player.STATE_BUFFERING,
+                positionSeconds = (player.currentPosition.coerceAtLeast(0L) / 1000L).toInt(),
+                durationSeconds = (playerDuration?.div(1000L)?.toInt() ?: video.durationSeconds)
+                    .coerceAtLeast(video.durationSeconds),
+                errorMessage = when (player.playbackState) {
                     Player.STATE_READY, Player.STATE_ENDED -> null
                     else -> it.errorMessage
                 }
@@ -274,46 +210,57 @@ class VideoPlaybackEngine(
         }
     }
 
-    private fun VideoPlaybackInfo.toMediaItem(): MediaItem {
-        return MediaItem.Builder()
-            .setUri(streamUrl)
-            .setMediaId(itemId)
-            .setSubtitleConfigurations(subtitleTracks.mapNotNull { it.toSubtitleConfiguration() })
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setTitle(title)
-                    .setDescription(overview)
-                    .build()
+    private fun seekBy(deltaSeconds: Int) {
+        val state = _state.value
+        if (state.video == null) return
+        seekTo(
+            resolveVideoRelativeSeekPositionSeconds(
+                positionSeconds = state.positionSeconds,
+                durationSeconds = state.durationSeconds,
+                deltaSeconds = deltaSeconds
             )
-            .build()
+        )
+    }
+}
+
+internal fun resolveVideoInitialStartPositionMs(video: VideoItem): Long {
+    if (video.isPlayed) return 0L
+
+    val resumeSeconds = video.playbackPositionSeconds.coerceAtLeast(0)
+    if (resumeSeconds <= 0) return 0L
+
+    val durationSeconds = video.durationSeconds.coerceAtLeast(0)
+    if (durationSeconds > 0 && resumeSeconds >= durationSeconds) return 0L
+
+    return resumeSeconds * 1000L
+}
+
+internal fun resolveVideoRelativeSeekPositionSeconds(
+    positionSeconds: Int,
+    durationSeconds: Int,
+    deltaSeconds: Int
+): Int {
+    if (durationSeconds > 0) {
+        val maxPosition = durationSeconds
+        val safePosition = positionSeconds.coerceIn(0, maxPosition)
+        val target = safePosition.toLong() + deltaSeconds.toLong()
+        return target.coerceIn(0L, maxPosition.toLong()).toInt()
     }
 
-    private fun VideoMediaTrack.toSubtitleConfiguration(): MediaItem.SubtitleConfiguration? {
-        val url = deliveryUrl ?: return null
-        return MediaItem.SubtitleConfiguration.Builder(Uri.parse(url))
-            .setMimeType(resolveSubtitleMimeType(codec))
-            .setLanguage(language)
-            .setSelectionFlags(if (isDefault || isForced) C.SELECTION_FLAG_DEFAULT else 0)
-            .build()
-    }
+    val safePosition = positionSeconds.coerceAtLeast(0)
+    val target = safePosition.toLong() + deltaSeconds.toLong()
+    return target.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+}
 
-    private fun applyTrackSelection(audioTrack: VideoMediaTrack?, subtitleTrack: VideoMediaTrack?) {
-        val params = exoPlayer.trackSelectionParameters
-            .buildUpon()
-            .setPreferredAudioLanguage(audioTrack?.language)
-            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, subtitleTrack == null)
-            .setPreferredTextLanguage(subtitleTrack?.language)
-            .build()
-        exoPlayer.trackSelectionParameters = params
-    }
-
-    private fun resolveSubtitleMimeType(codec: String?): String {
-        return when (codec?.lowercase()) {
-            "ass", "ssa" -> MimeTypes.TEXT_SSA
-            "vtt", "webvtt" -> MimeTypes.TEXT_VTT
-            "pgs" -> MimeTypes.APPLICATION_PGS
-            "subrip", "srt" -> MimeTypes.APPLICATION_SUBRIP
-            else -> MimeTypes.APPLICATION_SUBRIP
-        }
-    }
+private fun VideoItem.toMediaItem(): MediaItem {
+    return MediaItem.Builder()
+        .setUri(streamUrl)
+        .setMediaId(id)
+        .setMediaMetadata(
+            MediaMetadata.Builder()
+                .setTitle(title)
+                .setDescription(overview)
+                .build()
+        )
+        .build()
 }

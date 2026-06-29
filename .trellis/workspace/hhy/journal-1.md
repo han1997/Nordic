@@ -486,15 +486,15 @@ Optimized video and audiobook scrolling (lazy column/row, key-based recompositio
 - None - task complete
 
 
-## Session 15: UI performance review and optimization
+## Session 15: Emby video browsing and playback
 
-**Date**: 2026-06-25
-**Task**: UI performance review and optimization
+**Date**: 2026-06-28
+**Task**: Emby video browsing and playback
 **Branch**: `main`
 
 ### Summary
 
-Optimized Compose UI recomposition and playback smoothness paths, fixed search debounce state handling, reused dock controls, documented Compose operational-state isolation, and verified compile, unit tests, lint, and debug assemble.
+Added Yamby-style Emby video grid browsing, search and type filters, paginated catalog loading, stream URL mapping, and in-app video playback.
 
 ### Main Changes
 
@@ -504,7 +504,7 @@ Optimized Compose UI recomposition and playback smoothness paths, fixed search d
 
 | Hash | Message |
 |------|---------|
-| `4d1bea4` | (see git log) |
+| `35df606` | (see git log) |
 
 ### Testing
 
@@ -519,15 +519,15 @@ Optimized Compose UI recomposition and playback smoothness paths, fixed search d
 - None - task complete
 
 
-## Session 16: Comprehensive playback review fixes
+## Session 16: Full-screen video detail page
 
-**Date**: 2026-06-26
-**Task**: Comprehensive playback review fixes
+**Date**: 2026-06-28
+**Task**: Full-screen video detail page
 **Branch**: `main`
 
 ### Summary
 
-Fixed audiobook close/sync edge cases and pending music queue index preservation, added playback regression tests, and captured the resulting playback contracts in specs.
+Added Yamby-style full-screen video detail route with poster, metadata, overview, back action, and playback entry point.
 
 ### Main Changes
 
@@ -537,8 +537,7 @@ Fixed audiobook close/sync edge cases and pending music queue index preservation
 
 | Hash | Message |
 |------|---------|
-| `017f2a7` | (see git log) |
-| `9b28cd3` | (see git log) |
+| `94833a3` | (see git log) |
 
 ### Testing
 
@@ -553,15 +552,15 @@ Fixed audiobook close/sync edge cases and pending music queue index preservation
 - None - task complete
 
 
-## Session 17: Emby video playback MVP
+## Session 17: Improve media reference playback flows
 
-**Date**: 2026-06-26
-**Task**: Emby video playback MVP
+**Date**: 2026-06-28
+**Task**: Improve media reference playback flows
 **Branch**: `main`
 
 ### Summary
 
-Added Emby direct video playback via PlaybackInfo + Media3 ExoPlayer: API endpoint, repository method with direct stream URL construction, VideoPlaybackEngine, VideoPlayerScreen with controls/error surfacing, wiring in MainActivity/VideoScreen, repository tests, and emby-integration spec update.
+Added Emby resume/rating metadata for Yamby-style video shelves, improved audiobook close-session behavior, fixed pending music queue current-index tracking, updated specs, and verified tests/compile/lint.
 
 ### Main Changes
 
@@ -571,8 +570,7 @@ Added Emby direct video playback via PlaybackInfo + Media3 ExoPlayer: API endpoi
 
 | Hash | Message |
 |------|---------|
-| `0f10443` | (see git log) |
-| `723bf0f` | (see git log) |
+| `629e7c0` | (see git log) |
 
 ### Testing
 
@@ -587,15 +585,15 @@ Added Emby direct video playback via PlaybackInfo + Media3 ExoPlayer: API endpoi
 - None - task complete
 
 
-## Session 18: Media feature parity round 2: music, audiobook, video
+## Session 18: Improve Emby series episode detail
 
-**Date**: 2026-06-26
-**Task**: Media feature parity round 2: music, audiobook, video
+**Date**: 2026-06-28
+**Task**: Improve Emby series episode detail
 **Branch**: `main`
 
 ### Summary
 
-Added 11 features across three batches: music (star/favorite, shuffle, playlist CRUD), audiobook (playback speed, skip controls, chapter jump, sleep timer), video (detail page, playback speed, progress reporting, TV season/episode browsing). Also added Navidrome integration spec and updated Emby integration spec.
+Mapped Emby series and episode metadata, disabled direct playback for Series items, added episode rows to series detail pages, covered repository mapping with tests, and verified tests/compile/lint.
 
 ### Main Changes
 
@@ -605,11 +603,7 @@ Added 11 features across three batches: music (star/favorite, shuffle, playlist 
 
 | Hash | Message |
 |------|---------|
-| `17dca1e` | (see git log) |
-| `0b5516a` | (see git log) |
-| `27ca0e5` | (see git log) |
-| `5e86c8b` | (see git log) |
-| `a406d2f` | (see git log) |
+| `313b750` | (see git log) |
 
 ### Testing
 
@@ -624,15 +618,15 @@ Added 11 features across three batches: music (star/favorite, shuffle, playlist 
 - None - task complete
 
 
-## Session 19: Music feature parity round 3
+## Session 19: Improve music shuffle playback
 
-**Date**: 2026-06-26
-**Task**: Music feature parity round 3
+**Date**: 2026-06-28
+**Task**: Improve music shuffle playback
 **Branch**: `main`
 
 ### Summary
 
-Completed music parity round 3: smart radio and scrobble APIs, queue actions with drag reorder, equalizer controls, local play history, and updated Navidrome spec. Verified compile, unit tests, lint, and diff check.
+Added Media3-backed shuffle mode to music playback state and controls, wired player UI/MainActivity, documented the playback contract, and verified compile/tests/lint.
 
 ### Main Changes
 
@@ -642,8 +636,7 @@ Completed music parity round 3: smart radio and scrobble APIs, queue actions wit
 
 | Hash | Message |
 |------|---------|
-| `fed50a6` | (see git log) |
-| `132d629` | (see git log) |
+| `b23a936` | (see git log) |
 
 ### Testing
 
@@ -658,15 +651,15 @@ Completed music parity round 3: smart radio and scrobble APIs, queue actions wit
 - None - task complete
 
 
-## Session 20: Media feature parity round four
+## Session 20: Improve audiobook chapter navigation
 
-**Date**: 2026-06-27
-**Task**: Media feature parity round four
+**Date**: 2026-06-28
+**Task**: Improve audiobook chapter navigation
 **Branch**: `main`
 
 ### Summary
 
-Implemented round-four media polish across music local filtering and lyrics controls, AudiobookShelf continue listening and last resume, and Emby media stream track/subtitle controls; recorded the new resume and track contracts in specs.
+Added AudiobookShelf-style previous/next chapter navigation using absolute audiobook positions, wired player controls, updated integration spec, and verified compile/tests/lint.
 
 ### Main Changes
 
@@ -676,8 +669,7 @@ Implemented round-four media polish across music local filtering and lyrics cont
 
 | Hash | Message |
 |------|---------|
-| `8738be3` | (see git log) |
-| `3bb3d71` | (see git log) |
+| `b208f81` | (see git log) |
 
 ### Testing
 
@@ -692,15 +684,15 @@ Implemented round-four media polish across music local filtering and lyrics cont
 - None - task complete
 
 
-## Session 21: Media feature parity round five
+## Session 21: Optimize music playback list indexing
 
-**Date**: 2026-06-27
-**Task**: Media feature parity round five
+**Date**: 2026-06-28
+**Task**: Optimize music playback list indexing
 **Branch**: `main`
 
 ### Summary
 
-Implemented round-five media polish: persisted Navidrome downloaded song metadata for offline restore, removed inactive Emby subtitle-offset controls, and documented the download metadata and subtitle-control contracts.
+Replaced MusicScreenV2 playback indexOf lookups with itemsIndexed and position-aware keys, documented the list indexing rule, and verified compile/tests/lint.
 
 ### Main Changes
 
@@ -710,9 +702,7 @@ Implemented round-five media polish: persisted Navidrome downloaded song metadat
 
 | Hash | Message |
 |------|---------|
-| `b5e6bf0` | (see git log) |
-| `e768235` | (see git log) |
-| `fa653ab` | (see git log) |
+| `b49d11a` | (see git log) |
 
 ### Testing
 
@@ -727,15 +717,15 @@ Implemented round-five media polish: persisted Navidrome downloaded song metadat
 - None - task complete
 
 
-## Session 22: Media feature parity round 6
+## Session 22: Improve video continue watching recency
 
-**Date**: 2026-06-27
-**Task**: Media feature parity round 6
+**Date**: 2026-06-28
+**Task**: Improve video continue watching recency
 **Branch**: `main`
 
 ### Summary
 
-Added local-first AudiobookShelf playback bookmarks with DataStore persistence, player UI controls, focused tests, verification gates, and a backend persistence contract.
+Mapped Emby LastPlayedDate into video items and sorted the continue-watching shelf by recent playback with resume-position fallback.
 
 ### Main Changes
 
@@ -745,8 +735,7 @@ Added local-first AudiobookShelf playback bookmarks with DataStore persistence, 
 
 | Hash | Message |
 |------|---------|
-| `134c7e8` | (see git log) |
-| `ea0c410` | (see git log) |
+| `c79f481` | (see git log) |
 
 ### Testing
 
@@ -761,15 +750,15 @@ Added local-first AudiobookShelf playback bookmarks with DataStore persistence, 
 - None - task complete
 
 
-## Session 23: Media feature parity round 7
+## Session 23: Add audiobook skip interval controls
 
-**Date**: 2026-06-27
-**Task**: Media feature parity round 7
+**Date**: 2026-06-28
+**Task**: Add audiobook skip interval controls
 **Branch**: `main`
 
 ### Summary
 
-Added Emby server-backed continue watching with resume API mapping, video home shelf, resume-position playback, repository tests, verification gates, and the Emby integration contract.
+Added 30 second audiobook skip back/forward controls, routed them through absolute seek, covered clamping with playback unit tests, and updated the AudiobookShelf playback contract.
 
 ### Main Changes
 
@@ -779,8 +768,7 @@ Added Emby server-backed continue watching with resume API mapping, video home s
 
 | Hash | Message |
 |------|---------|
-| `083bac8` | (see git log) |
-| `6d4ae11` | (see git log) |
+| `1c2ad52` | (see git log) |
 
 ### Testing
 
@@ -795,15 +783,15 @@ Added Emby server-backed continue watching with resume API mapping, video home s
 - None - task complete
 
 
-## Session 24: Media feature parity round 8
+## Session 24: Extend music home playback queue
 
-**Date**: 2026-06-27
-**Task**: Media feature parity round 8
+**Date**: 2026-06-28
+**Task**: Extend music home playback queue
 **Branch**: `main`
 
 ### Summary
 
-Added synced lyric tap-to-seek in the music player, covered visible lyric timing behavior with JVM tests, and passed compile, unit test, and lint gates.
+Kept the Music home recently-added shelf as a 12-song preview while using the full recently-added backing list as the playback queue for continuous listening.
 
 ### Main Changes
 
@@ -813,7 +801,7 @@ Added synced lyric tap-to-seek in the music player, covered visible lyric timing
 
 | Hash | Message |
 |------|---------|
-| `3a65380` | (see git log) |
+| `88b7dd2` | (see git log) |
 
 ### Testing
 
@@ -828,15 +816,15 @@ Added synced lyric tap-to-seek in the music player, covered visible lyric timing
 - None - task complete
 
 
-## Session 25: Episode watch progress on series detail page
+## Session 25: Resume video playback from Emby position
 
-**Date**: 2026-06-27
-**Task**: Episode watch progress on series detail page
+**Date**: 2026-06-28
+**Task**: Resume video playback from Emby position
 **Branch**: `main`
 
 ### Summary
 
-Added episode-level watch progress: VideoEpisode.progress field, UserData Fields query in getEpisodes, episode card watched/resume state display, resume-position passthrough to playback, repository tests, and Emby integration spec update.
+Made VideoPlaybackEngine seek to Emby resume metadata for unfinished videos, added pure start-position tests, and updated the Emby playback contract.
 
 ### Main Changes
 
@@ -846,7 +834,7 @@ Added episode-level watch progress: VideoEpisode.progress field, UserData Fields
 
 | Hash | Message |
 |------|---------|
-| `42cfef0` | (see git log) |
+| `ffef544` | (see git log) |
 
 ### Testing
 
@@ -861,15 +849,15 @@ Added episode-level watch progress: VideoEpisode.progress field, UserData Fields
 - None - task complete
 
 
-## Session 26: Emby video parity controls
+## Session 26: Add video skip interval controls
 
-**Date**: 2026-06-27
-**Task**: Emby video parity controls
+**Date**: 2026-06-28
+**Task**: Add video skip interval controls
 **Branch**: `main`
 
 ### Summary
 
-Added Emby global video search, server-side sort/filter controls, Next Up shelf, favorite and watched toggles, repository tests, and Emby integration spec coverage.
+Added 10 second back and 30 second forward controls to the video player, routed them through playback-layer relative seek helpers, covered clamp behavior with unit tests, and updated the Emby playback contract.
 
 ### Main Changes
 
@@ -879,7 +867,7 @@ Added Emby global video search, server-side sort/filter controls, Next Up shelf,
 
 | Hash | Message |
 |------|---------|
-| `ebbc501` | (see git log) |
+| `29b7ecf` | (see git log) |
 
 ### Testing
 
@@ -894,15 +882,15 @@ Added Emby global video search, server-side sort/filter controls, Next Up shelf,
 - None - task complete
 
 
-## Session 27: Emby series library grouping
+## Session 27: Add audiobook playback speed control
 
-**Date**: 2026-06-27
-**Task**: Emby series library grouping
+**Date**: 2026-06-28
+**Task**: Add audiobook playback speed control
 **Branch**: `main`
 
 ### Summary
 
-Changed Emby library browsing to request and render TV shows at Series level instead of flattening Episode cards, while preserving episode results for search, continue watching, Next Up, and season drill-down; updated repository tests and Emby integration contract.
+Added Media3-backed audiobook playback speed state and a fixed speed cycle, exposed a player speed chip, covered speed cycling with unit tests, and updated the AudiobookShelf playback contract.
 
 ### Main Changes
 
@@ -912,7 +900,7 @@ Changed Emby library browsing to request and render TV shows at Series level ins
 
 | Hash | Message |
 |------|---------|
-| `2fa7ffe` | (see git log) |
+| `e549297` | (see git log) |
 
 ### Testing
 
@@ -927,15 +915,15 @@ Changed Emby library browsing to request and render TV shows at Series level ins
 - None - task complete
 
 
-## Session 28: Next episode control in video player
+## Session 28: Remove unused media state parameters
 
-**Date**: 2026-06-27
-**Task**: Next episode control in video player
+**Date**: 2026-06-28
+**Task**: Remove unused media state parameters
 **Branch**: `main`
 
 ### Summary
 
-Added manual Next Episode button to video player: VideoEpisodeQueue model for same-season navigation, queue wiring from VideoDetailScreen through MainActivity, disabled state when no queue, error-safe next-episode loading, unit tests for boundary cases, and Emby integration spec update.
+Removed unused colorScheme parameters from local audiobook and music empty-state wrappers, clearing the compile-time warnings while preserving rendered media state UI.
 
 ### Main Changes
 
@@ -945,7 +933,7 @@ Added manual Next Episode button to video player: VideoEpisodeQueue model for sa
 
 | Hash | Message |
 |------|---------|
-| `e9dce40` | (see git log) |
+| `46e6a1d` | (see git log) |
 
 ### Testing
 
@@ -960,15 +948,609 @@ Added manual Next Episode button to video player: VideoEpisodeQueue model for sa
 - None - task complete
 
 
-## Session 29: Video playback parity controls
+## Session 29: Defer video scrubber seeks
+
+**Date**: 2026-06-28
+**Task**: Defer video scrubber seeks
+**Branch**: `main`
+
+### Summary
+
+Changed the video scrubber to keep local drag state and seek only on release, matching the music/audiobook scrubber pattern and documenting the playback UI convention.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `88756f8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 30: Fix music lyric active line selection
+
+**Date**: 2026-06-28
+**Task**: Fix music lyric active line selection
+**Branch**: `main`
+
+### Summary
+
+Fixed synced music lyric highlighting so no line is active before the first timed lyric starts; added focused unit coverage and verified compile, unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5ee6489` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 31: Verify music scrubber deferred seeks
+
+**Date**: 2026-06-28
+**Task**: Verify music scrubber deferred seeks
+**Branch**: `main`
+
+### Summary
+
+Verified MusicPlayerScreen already matches the deferred scrubber seek convention: local scrub state is updated during drag and onSeek is called only on release. No source changes were needed.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ab1550f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 32: Clamp audiobook track seek offsets
+
+**Date**: 2026-06-28
+**Task**: Clamp audiobook track seek offsets
+**Branch**: `main`
+
+### Summary
+
+Added a pure audiobook track seek resolver that maps absolute audiobook seconds to Media3 media item indexes with local offsets clamped to each track duration; covered in unit tests and recorded the contract in the AudiobookShelf spec.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `edcbc51` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 33: Filter completed video resume items
+
+**Date**: 2026-06-28
+**Task**: Filter completed video resume items
+**Branch**: `main`
+
+### Summary
+
+Updated the video continue-watching shelf to exclude resume items whose saved position reaches or exceeds known duration, kept unknown-duration resume items eligible, added unit tests, and documented the Emby UI contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b706df4` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 34: Stabilize pending music queue starts
+
+**Date**: 2026-06-28
+**Task**: Stabilize pending music queue starts
+**Branch**: `main`
+
+### Summary
+
+Resolved music queue start indexes before pending playback state is published, kept pending single-song and queue requests mutually exclusive, prevented controller-unavailable play/pause from replacing a pending queue, and added queue start-index unit tests.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8301999` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 35: Stabilize audiobook library selection
+
+**Date**: 2026-06-28
+**Task**: Stabilize audiobook library selection
+**Branch**: `main`
+
+### Summary
+
+Resolved AudiobookShelf library refresh selection against the latest library list so stale ids from prior server or account state are not requested; added focused UI helper tests and documented the contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b976892` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 36: Clear stale video selection after refresh
+
+**Date**: 2026-06-28
+**Task**: Clear stale video selection after refresh
+**Branch**: `main`
+
+### Summary
+
+Cleared video detail selection when refreshed Emby catalog data no longer contains the selected item, and replaced retained selections with the refreshed item; added focused UI helper tests and documented the Emby UI contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `98b0f51` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 37: Start music play all at first playable song
+
+**Date**: 2026-06-28
+**Task**: Start music play all at first playable song
+**Branch**: `main`
+
+### Summary
+
+Updated music bulk play actions to start at the first song with a usable stream URL, surface contextual errors when no songs are playable, added focused helper tests, and documented the play-all contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a5b2f93` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 38: Filter unplayable songs from music queues
+
+**Date**: 2026-06-28
+**Task**: Filter unplayable songs from music queues
+**Branch**: `main`
+
+### Summary
+
+Filtered missing-stream songs out of MusicPlaybackEngine queues before Media3 playlist creation, mapped requested start indexes to playable songs, added focused resolver tests, and documented the queue contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1aeb892` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 39: Clamp audiobook progress sync time
+
+**Date**: 2026-06-28
+**Task**: Clamp audiobook progress sync time
+**Branch**: `main`
+
+### Summary
+
+Clamped AudiobookShelf progress, session sync, and close currentTime payloads to 0..duration, updated repository tests for over-duration and negative values, and documented the contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8e6d353` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 40: Restrict video series episode fallback matching
+
+**Date**: 2026-06-28
+**Task**: Restrict video series episode fallback matching
+**Branch**: `main`
+
+### Summary
+
+Tightened Emby series-detail episode derivation so seriesName fallback only applies when episode seriesId is missing, added focused matching and sorting tests, and updated the Emby contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `353f29e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 41: Clamp audiobook absolute playback position
+
+**Date**: 2026-06-28
+**Task**: Clamp audiobook absolute playback position
+**Branch**: `main`
+
+### Summary
+
+Clamped AudiobookShelf absolute playback state to the known audio track duration, added regression coverage, updated the AudiobookShelf playback contract, and verified compile, unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a263580` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 42: Start complete-resume videos from beginning
+
+**Date**: 2026-06-28
+**Task**: Start complete-resume videos from beginning
+**Branch**: `main`
+
+### Summary
+
+Aligned Emby video initial playback with continue-watching completion rules: known-duration resume points at or beyond runtime now start from zero, unknown-duration resumes are preserved, tests were updated, and compile, unit tests, and lint passed.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c78774a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 43: Clamp zero-duration audiobook sync current time
+
+**Date**: 2026-06-28
+**Task**: Clamp zero-duration audiobook sync current time
+**Branch**: `main`
+
+### Summary
+
+Separated AudiobookShelf current-time clamping from safe payload duration, ensuring zero-duration sessions send currentTime 0.0 while preserving well-formed duration/progress payloads. Added repository regression coverage, updated the ABS contract, and verified compile, unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4029498` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 44: Use audiobook resume position as sync baseline
+
+**Date**: 2026-06-28
+**Task**: Use audiobook resume position as sync baseline
+**Branch**: `main`
+
+### Summary
+
+Prevented inflated AudiobookShelf timeListened deltas on resumed sessions by seeding periodic sync from the session resume/current time when playback state has not caught up. Added app-shell helper tests, updated the ABS contract, and verified compile, unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0182314` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 45: Avoid reopening audiobook player after background close failure
+
+**Date**: 2026-06-28
+**Task**: Avoid reopening audiobook player after background close failure
+**Branch**: `main`
+
+### Summary
+
+Kept music/video handoff stable when AudiobookShelf background close fails by resolving background failures to no player presentation while preserving manual close failure errors. Added app-shell tests, updated the ABS contract, and verified compile, unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `dbb7465` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 46: Respect direct unplayable music row selection
+
+**Date**: 2026-06-28
+**Task**: Respect direct unplayable music row selection
+**Branch**: `main`
+
+### Summary
+
+Added strict direct-selection music playback mode so unavailable clicked songs surface a missing-stream error, while bulk play-all keeps first-playable fallback. Updated tests and quality spec.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2749688` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 47: Sync Emby video progress on playback close
 
 **Date**: 2026-06-29
-**Task**: Video playback parity controls
+**Task**: Sync Emby video progress on playback close
 **Branch**: `main`
 
 ### Summary
 
-Added video seek interval controls, previous episode navigation, one-shot auto-play next episode on end, double-tap play pause, queue tests, and Emby playback spec updates.
+Added Emby video progress/stopped reporting, clamped seconds-to-ticks conversion, and app-shell video close/handoff sync. Verified compile, unit tests, and lint.
 
 ### Main Changes
 
@@ -978,7 +1560,403 @@ Added video seek interval controls, previous episode navigation, one-shot auto-p
 
 | Hash | Message |
 |------|---------|
-| `58cf268` | (see git log) |
+| `92514cf` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 48: Sync Emby video progress periodically
+
+**Date**: 2026-06-29
+**Task**: Sync Emby video progress periodically
+**Branch**: `main`
+
+### Summary
+
+Added periodic Emby video progress sync with a non-regressing baseline, close-time baseline reuse, focused MainActivity tests, and Emby spec updates. Verified compile, unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b1aa50c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 49: Reuse current audiobook session before starting playback
+
+**Date**: 2026-06-29
+**Task**: Reuse current audiobook session before starting playback
+**Branch**: `main`
+
+### Summary
+
+Prevented duplicate AudiobookShelf sessions by reusing same-book active sessions and closing the old session before starting a different audiobook. Added app-shell helper tests and updated the ABS integration spec.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d8d45f8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 50: Skip LRC metadata in music lyrics
+
+**Date**: 2026-06-29
+**Task**: Skip LRC metadata in music lyrics
+**Branch**: `main`
+
+### Summary
+
+Improved Navidrome plain LRC parsing so known metadata tags are omitted from music lyrics while timed lines and non-metadata bracketed lyric text remain visible; added repository regression tests and documented the lyrics parsing contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `88a7e3d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 51: Apply LRC offset to music lyrics
+
+**Date**: 2026-06-29
+**Task**: Apply LRC offset to music lyrics
+**Branch**: `main`
+
+### Summary
+
+Applied plain LRC offset metadata to parsed Navidrome lyric timestamps using convention semantics where positive offsets make lines earlier; added positive, negative, and clamp regression tests and updated the lyric parsing spec.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0ad2c3c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 52: Apply structured lyric offsets
+
+**Date**: 2026-06-29
+**Task**: Apply structured lyric offsets
+**Branch**: `main`
+
+### Summary
+
+Mapped OpenSubsonic structured lyric offsets from Navidrome responses and applied them to structured lyric line start times, preserving millisecond starts, handling positive/negative offsets, clamping before zero, and documenting the contract with focused repository tests.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2975fd2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 53: Fix audiobook chapter restart threshold
+
+**Date**: 2026-06-29
+**Task**: Fix audiobook chapter restart threshold
+**Branch**: `main`
+
+### Summary
+
+Made previous-chapter navigation restart the current audiobook chapter at the exact restart threshold, added a boundary regression test, updated the AudiobookShelf playback contract, and verified focused tests plus compile, full unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c28b889` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 54: Allow video skip with unknown duration
+
+**Date**: 2026-06-29
+**Task**: Allow video skip with unknown duration
+**Branch**: `main`
+
+### Summary
+
+Fixed video relative seek so unknown-duration streams can skip forward instead of clamping to zero, added focused playback helper tests, clarified the Emby contract, and verified focused tests plus compile, full unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d377b40` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 55: Resolve audiobook chapter display by time
+
+**Date**: 2026-06-29
+**Task**: Resolve audiobook chapter display by time
+**Branch**: `main`
+
+### Summary
+
+Made the audiobook player current-chapter chip resolve from sorted chapter start times and visible scrub position, added UI helper tests for unsorted and pre-start chapters, updated the AudiobookShelf contract, and verified focused tests plus compile, full unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2bc9fd4` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 56: Prevent audiobook progress regression
+
+**Date**: 2026-06-29
+**Task**: Prevent audiobook progress regression
+**Branch**: `main`
+
+### Summary
+
+Made audiobook periodic sync report at least the last synced resume baseline, made audiobook close flows use the resume-aware baseline, added app-shell helper tests, updated the AudiobookShelf contract, and verified focused tests plus compile, full unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7341b2d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 57: Sort audiobook detail chapters
+
+**Date**: 2026-06-29
+**Task**: Sort audiobook detail chapters
+**Branch**: `main`
+
+### Summary
+
+Sorted audiobook detail chapters by start time so detail pages match playback timeline order even when AudiobookShelf returns unordered chapters, added helper tests for ordering, equal-start stability, and empty lists, updated the AudiobookShelf contract, and verified focused tests plus compile, full unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `86ecf3a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 58: Fix video timeline for unknown duration
+
+**Date**: 2026-06-29
+**Task**: Fix video timeline for unknown duration
+**Branch**: `main`
+
+### Summary
+
+Kept the video player timeline usable for unknown-duration streams by growing the slider range with current playback position, showing --:-- for unknown total duration, adding focused UI helper tests, updating the Emby contract, and verifying focused tests plus compile, full unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b37f356` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
+
+
+## Session 59: Improve video episode search
+
+**Date**: 2026-06-29
+**Task**: Improve video episode search
+**Branch**: `main`
+
+### Summary
+
+Extended local Emby video browser search to match episode series names and season/episode codes, with focused tests and updated Emby integration contract.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7bc66ab` | (see git log) |
 
 ### Testing
 

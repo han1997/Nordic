@@ -75,48 +75,13 @@ class EmbyRepositoryTest {
                       "Overview":"First contact story.",
                       "ProductionYear":2016,
                       "RunTimeTicks":69600000000,
-                      "ImageTags":{"Primary":"tag-1"},
-                      "UserData":{"IsFavorite":true,"Played":false}
-                    }
-                  ],
-                  "TotalRecordCount": 1
-                }
-            """.trimIndent()
-        )
-        server.enqueueJson(
-            """
-                {
-                  "Items": [
-                    {
-                      "Id":"resume-1",
-                      "Name":"Half Watched",
-                      "ParentId":"lib-movie",
-                      "Type":"Movie",
-                      "RunTimeTicks":60000000000,
-                      "ImageTags":{"Primary":"resume-tag"},
+                      "CommunityRating":8.6,
                       "UserData":{
-                        "PlaybackPositionTicks":24000000000,
-                        "PlayedPercentage":40.0,
                         "Played":false,
-                        "LastPlayedDate":"2026-06-27T10:00:00Z"
-                      }
-                    }
-                  ],
-                  "TotalRecordCount": 1
-                }
-            """.trimIndent()
-        )
-        server.enqueueJson(
-            """
-                {
-                  "Items": [
-                    {
-                      "Id":"next-1",
-                      "Name":"Next Episode",
-                      "ParentId":"series-1",
-                      "Type":"Episode",
-                      "RunTimeTicks":18000000000,
-                      "ImageTags":{"Primary":"next-tag"}
+                        "PlaybackPositionTicks":1200000000,
+                        "LastPlayedDate":"2026-06-28T08:15:30.0000000Z"
+                      },
+                      "ImageTags":{"Primary":"tag-1"}
                     }
                   ],
                   "TotalRecordCount": 1
@@ -133,17 +98,16 @@ class EmbyRepositoryTest {
         val item = catalog.items.single()
         assertEquals("Arrival", item.title)
         assertEquals(6960, item.durationSeconds)
-        assertTrue(item.isFavorite)
+        assertEquals(120, item.playbackPositionSeconds)
+        assertEquals("2026-06-28T08:15:30.0000000Z", item.lastPlayedDate)
+        assertFalse(item.isPlayed)
+        assertEquals(8.6f, item.communityRating ?: 0f, 0.001f)
         assertTrue(item.imageUrl.orEmpty().contains("/Items/movie-1/Images/Primary"))
         assertTrue(item.imageUrl.orEmpty().contains("api_key=api-key"))
         assertTrue(item.imageUrl.orEmpty().contains("tag=tag-1"))
-        assertEquals(1, catalog.resumeItems.size)
-        val resumeItem = catalog.resumeItems.single()
-        assertEquals("resume-1", resumeItem.id)
-        assertEquals(2400, resumeItem.progress?.currentTimeSeconds)
-        assertEquals(40f, resumeItem.progress?.playedPercentage ?: 0f, 0.001f)
-        assertEquals(1, catalog.nextUpItems.size)
-        assertEquals("next-1", catalog.nextUpItems.single().id)
+        assertTrue(item.streamUrl.orEmpty().contains("/Videos/movie-1/stream"))
+        assertTrue(item.streamUrl.orEmpty().contains("Static=true"))
+        assertTrue(item.streamUrl.orEmpty().contains("api_key=api-key"))
 
         val usersRequest = server.takeRequest()
         assertEquals("/Users", usersRequest.path)
@@ -156,6 +120,8 @@ class EmbyRepositoryTest {
         val itemsRequest = server.takeRequest()
         assertTrue(itemsRequest.path.orEmpty().startsWith("/Users/u1/Items?"))
         assertTrue(itemsRequest.path.orEmpty().contains("ParentId=lib-movie"))
+        assertTrue(itemsRequest.path.orEmpty().contains("UserData"))
+        assertTrue(itemsRequest.path.orEmpty().contains("CommunityRating"))
         assertEquals("api-key", itemsRequest.getHeader("X-Emby-Token"))
 
         val resumeRequest = server.takeRequest()
@@ -168,6 +134,48 @@ class EmbyRepositoryTest {
         assertTrue(nextUpRequest.path.orEmpty().startsWith("/Shows/NextUp?"))
         assertTrue(nextUpRequest.path.orEmpty().contains("UserId=u1"))
         assertEquals("api-key", nextUpRequest.getHeader("X-Emby-Token"))
+    }
+
+    @Test
+    fun getCatalog_usesFirstUsableApiKeyUserWhenMatchingUserIdIsMissing() = runTest {
+        server.enqueueJson("""[{"Name":"demo"},{"Id":"u-fallback","Name":"fallback"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson("""{"Items":[],"TotalRecordCount":0}""")
+
+        val catalog = repository(apiKey = "api-key").getCatalog()
+
+        assertEquals("lib-movie", catalog.selectedLibraryId)
+        server.takeRequest()
+        assertEquals("/Users/u-fallback/Views", server.takeRequest().path)
+    }
+
+    @Test
+    fun getCatalog_throwsTypedAuthExceptionWhenApiKeyUsersHaveNoUsableIds() = runTest {
+        server.enqueueJson(
+            """
+                [
+                  {"Name":"demo"},
+                  {"Id":null,"Name":"null-id"},
+                  {"Id":"","Name":"empty-id"},
+                  {"Id":"   ","Name":"blank-id"}
+                ]
+            """.trimIndent()
+        )
+
+        assertEmbyApiError(EmbyApiException.Kind.AUTH) {
+            repository(apiKey = "api-key").getCatalog()
+        }
+
+        assertEquals("/Users", server.takeRequest().path)
     }
 
     @Test
@@ -208,220 +216,398 @@ class EmbyRepositoryTest {
     }
 
     @Test
-    fun getResumeItems_mapsOnlyUnfinishedResumableItems() = runTest {
+    fun getCatalog_throwsTypedAuthExceptionForInvalidPasswordAccessTokens() = runTest {
+        listOf(
+            """
+                {
+                  "User": {"Id":"u-auth","Name":"demo"}
+                }
+            """.trimIndent(),
+            """
+                {
+                  "User": {"Id":"u-auth","Name":"demo"},
+                  "AccessToken": null
+                }
+            """.trimIndent(),
+            """
+                {
+                  "User": {"Id":"u-auth","Name":"demo"},
+                  "AccessToken": "   "
+                }
+            """.trimIndent()
+        ).forEach { response ->
+            server.enqueueJson(response)
+
+            assertEmbyApiError(EmbyApiException.Kind.AUTH) {
+                repository(apiKey = "").getCatalog()
+            }
+        }
+
+        repeat(3) {
+            assertEquals("/Users/AuthenticateByName", server.takeRequest().path)
+        }
+    }
+
+    @Test
+    fun getCatalog_throwsTypedAuthExceptionForInvalidPasswordUserIds() = runTest {
+        listOf(
+            """
+                {
+                  "AccessToken": "token-123"
+                }
+            """.trimIndent(),
+            """
+                {
+                  "User": null,
+                  "AccessToken": "token-123"
+                }
+            """.trimIndent(),
+            """
+                {
+                  "User": {"Name":"demo"},
+                  "AccessToken": "token-123"
+                }
+            """.trimIndent(),
+            """
+                {
+                  "User": {"Id":null,"Name":"demo"},
+                  "AccessToken": "token-123"
+                }
+            """.trimIndent(),
+            """
+                {
+                  "User": {"Id":"   ","Name":"demo"},
+                  "AccessToken": "token-123"
+                }
+            """.trimIndent()
+        ).forEach { response ->
+            server.enqueueJson(response)
+
+            assertEmbyApiError(EmbyApiException.Kind.AUTH) {
+                repository(apiKey = "").getCatalog()
+            }
+        }
+
+        repeat(5) {
+            assertEquals("/Users/AuthenticateByName", server.takeRequest().path)
+        }
+    }
+
+    @Test
+    fun getCatalog_filtersVideoLibrariesCaseInsensitively() = runTest {
         server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
         server.enqueueJson(
             """
                 {
                   "Items": [
-                    {
-                      "Id":"movie-resume",
-                      "Name":"Resume Movie",
-                      "ParentId":"lib-movie",
-                      "Type":"Movie",
-                      "Overview":"Continue this.",
-                      "ProductionYear":2024,
-                      "RunTimeTicks":72000000000,
-                      "ImageTags":{"Primary":"resume-tag"},
-                      "UserData":{
-                        "PlaybackPositionTicks":18000000000,
-                        "PlayedPercentage":25.0,
-                        "Played":false,
-                        "LastPlayedDate":"2026-06-27T10:00:00Z"
-                      }
-                    },
-                    {
-                      "Id":"movie-played",
-                      "Name":"Already Played",
-                      "Type":"Movie",
-                      "RunTimeTicks":72000000000,
-                      "UserData":{
-                        "PlaybackPositionTicks":72000000000,
-                        "PlayedPercentage":100.0,
-                        "Played":true
-                      }
-                    },
-                    {
-                      "Id":"movie-zero",
-                      "Name":"No Progress",
-                      "Type":"Movie",
-                      "RunTimeTicks":72000000000,
-                      "UserData":{
-                        "PlaybackPositionTicks":0,
-                        "PlayedPercentage":0.0,
-                        "Played":false
-                      }
-                    }
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"Movies"},
+                    {"Id":"lib-fallback","Name":"Videos","Type":"collectionfolder","CollectionType":""},
+                    {"Id":"lib-music","Name":"Music","Type":"CollectionFolder","CollectionType":"Music"}
                   ],
                   "TotalRecordCount": 3
                 }
             """.trimIndent()
         )
+        server.enqueueJson("""{"Items":[],"TotalRecordCount":0}""")
 
-        val resumeItems = repository(apiKey = "api-key").getResumeItems()
+        val catalog = repository(apiKey = "api-key").getCatalog()
 
-        assertEquals(1, resumeItems.size)
-        val item = resumeItems.single()
-        assertEquals("movie-resume", item.id)
-        assertEquals("lib-movie", item.libraryId)
-        assertEquals("Resume Movie", item.title)
-        assertEquals(7200, item.durationSeconds)
-        assertEquals(1800, item.progress?.currentTimeSeconds)
-        assertEquals(25f, item.progress?.playedPercentage ?: 0f, 0.001f)
-        assertEquals(false, item.progress?.isPlayed)
-        assertEquals("2026-06-27T10:00:00Z", item.progress?.lastPlayedDate)
-        assertTrue(item.imageUrl.orEmpty().contains("/Items/movie-resume/Images/Primary"))
-
-        server.takeRequest()
-        val resumeRequest = server.takeRequest()
-        assertTrue(resumeRequest.path.orEmpty().startsWith("/Users/u1/Items/Resume?"))
-        assertTrue(resumeRequest.path.orEmpty().contains("MediaTypes=Video"))
-        assertTrue(resumeRequest.path.orEmpty().contains("IncludeItemTypes=Movie%2CEpisode%2CVideo"))
-        assertEquals("api-key", resumeRequest.getHeader("X-Emby-Token"))
+        assertEquals(listOf("lib-movie", "lib-fallback"), catalog.libraries.map { it.id })
+        assertEquals("lib-movie", catalog.selectedLibraryId)
     }
 
     @Test
-    fun getLibraryItems_sendsSortAndFilterParameters() = runTest {
+    fun getCatalog_mapsMissingAndNullViewItemsToEmptyLibraries() = runTest {
+        listOf(
+            """{"TotalRecordCount":0}""",
+            """{"Items":null,"TotalRecordCount":0}"""
+        ).forEach { viewsResponse ->
+            server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+            server.enqueueJson(viewsResponse)
+
+            val catalog = repository(apiKey = "api-key").getCatalog()
+
+            assertEquals(emptyList<VideoLibrary>(), catalog.libraries)
+            assertNull(catalog.selectedLibraryId)
+            assertEquals(emptyList<VideoItem>(), catalog.items)
+        }
+    }
+
+    @Test
+    fun getCatalog_skipsLibraryRowsWithMissingNullOrBlankIdentity() = runTest {
         server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
         server.enqueueJson(
             """
                 {
                   "Items": [
-                    {"Id":"series-1","Name":"The Expanse","Type":"Series","ChildCount":62},
-                    {"Id":"episode-1","Name":"Episode 1","Type":"Episode","ParentId":"series-1"}
+                    {"Name":"Missing Id","Type":"CollectionFolder","CollectionType":"movies"},
+                    {"Id":null,"Name":"Null Id","Type":"CollectionFolder","CollectionType":"movies"},
+                    {"Id":"","Name":"Empty Id","Type":"CollectionFolder","CollectionType":"movies"},
+                    {"Id":"   ","Name":"Blank Id","Type":"CollectionFolder","CollectionType":"movies"},
+                    {"Id":"lib-missing-name","Type":"CollectionFolder","CollectionType":"movies"},
+                    {"Id":"lib-null-name","Name":null,"Type":"CollectionFolder","CollectionType":"movies"},
+                    {"Id":"lib-empty-name","Name":"","Type":"CollectionFolder","CollectionType":"movies"},
+                    {"Id":"lib-blank-name","Name":"   ","Type":"CollectionFolder","CollectionType":"movies"},
+                    {"Id":" lib-valid ","Name":" Valid Movies ","Type":"CollectionFolder","CollectionType":"Movies","ChildCount":4}
+                  ],
+                  "TotalRecordCount": 9
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson("""{"Items":[],"TotalRecordCount":0}""")
+
+        val catalog = repository(apiKey = "api-key").getCatalog()
+
+        assertEquals(listOf("lib-valid"), catalog.libraries.map { it.id })
+        assertEquals(listOf("Valid Movies"), catalog.libraries.map { it.name })
+        assertEquals("lib-valid", catalog.selectedLibraryId)
+        assertEquals(4, catalog.libraries.single().itemCount)
+
+        server.takeRequest()
+        server.takeRequest()
+        val itemsRequest = server.takeRequest()
+        assertTrue(itemsRequest.path.orEmpty().contains("ParentId=lib-valid"))
+    }
+
+    @Test
+    fun getCatalog_pagesThroughLibraryItemsUntilTotalCountIsLoaded() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"movie-1","Name":"Arrival","Type":"Movie"}
+                  ],
+                  "TotalRecordCount": 2
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"movie-2","Name":"Dune","Type":"Movie"}
                   ],
                   "TotalRecordCount": 2
                 }
             """.trimIndent()
         )
 
-        val items = repository(apiKey = "api-key").getLibraryItems(
-            libraryId = "lib-movie",
-            query = VideoItemQuery(
-                sort = VideoSortOption.Name,
-                filter = VideoItemFilter.Favorite
-            )
-        )
+        val catalog = repository(apiKey = "api-key").getCatalog()
 
-        assertEquals(1, items.size)
-        assertEquals("series-1", items.single().id)
-        assertEquals("Series", items.single().type)
+        assertEquals(listOf("Arrival", "Dune"), catalog.items.map { it.title })
+        assertEquals(listOf(null, null), catalog.items.map { it.imageUrl })
+
         server.takeRequest()
-        val request = server.takeRequest()
-        assertTrue(request.path.orEmpty().startsWith("/Users/u1/Items?"))
-        assertTrue(request.path.orEmpty().contains("ParentId=lib-movie"))
-        assertTrue(request.path.orEmpty().contains("IncludeItemTypes=Movie%2CSeries%2CVideo"))
-        assertFalse(request.path.orEmpty().contains("IncludeItemTypes=Movie%2CSeries%2CEpisode%2CVideo"))
-        assertTrue(request.path.orEmpty().contains("SortBy=SortName"))
-        assertTrue(request.path.orEmpty().contains("SortOrder=Ascending"))
-        assertTrue(request.path.orEmpty().contains("Filters=IsFavorite"))
-        assertTrue(request.path.orEmpty().contains("Fields=Overview%2CProductionYear%2CRunTimeTicks%2CChildCount%2CImageTags%2CUserData"))
-        assertEquals("api-key", request.getHeader("X-Emby-Token"))
+        server.takeRequest()
+        val firstItemsRequest = server.takeRequest()
+        val secondItemsRequest = server.takeRequest()
+        assertTrue(firstItemsRequest.path.orEmpty().contains("StartIndex=0"))
+        assertTrue(firstItemsRequest.path.orEmpty().contains("Limit=100"))
+        assertTrue(secondItemsRequest.path.orEmpty().contains("StartIndex=1"))
+        assertTrue(secondItemsRequest.path.orEmpty().contains("Limit=100"))
     }
 
     @Test
-    fun searchVideos_mapsSearchHints() = runTest {
-        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
-        server.enqueueJson(
-            """
-                {
-                  "SearchHints": [
+    fun getCatalog_mapsMissingAndNullLibraryItemsToEmptyItems() = runTest {
+        listOf(
+            """{"TotalRecordCount":0}""",
+            """{"Items":null,"TotalRecordCount":0}"""
+        ).forEach { itemsResponse ->
+            server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+            server.enqueueJson(
+                """
                     {
-                      "ItemId": "movie-1",
-                      "Name": "Arrival",
-                      "Type": "Movie",
-                      "ProductionYear": 2016,
-                      "RunTimeTicks": 69600000000,
-                      "PrimaryImageTag": "search-tag",
-                      "UserData": {"IsFavorite": true, "Played": true}
+                      "Items": [
+                        {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
+                      ],
+                      "TotalRecordCount": 1
                     }
-                  ],
-                  "TotalRecordCount": 1
-                }
-            """.trimIndent()
-        )
+                """.trimIndent()
+            )
+            server.enqueueJson(itemsResponse)
 
-        val results = repository(apiKey = "api-key").searchVideos("arr")
+            val catalog = repository(apiKey = "api-key").getCatalog()
 
-        assertEquals(1, results.size)
-        val result = results.single()
-        assertEquals("movie-1", result.id)
-        assertEquals("Arrival", result.title)
-        assertEquals("Movie", result.type)
-        assertEquals(6960, result.durationSeconds)
-        assertTrue(result.isFavorite)
-        assertEquals(true, result.progress?.isPlayed)
-        assertTrue(result.imageUrl.orEmpty().contains("/Items/movie-1/Images/Primary"))
-        assertTrue(result.imageUrl.orEmpty().contains("tag=search-tag"))
-
-        server.takeRequest()
-        val request = server.takeRequest()
-        assertTrue(request.path.orEmpty().startsWith("/Search/Hints?"))
-        assertTrue(request.path.orEmpty().contains("UserId=u1"))
-        assertTrue(request.path.orEmpty().contains("SearchTerm=arr"))
-        assertTrue(request.path.orEmpty().contains("MediaTypes=Video"))
-        assertTrue(request.path.orEmpty().contains("IncludeItemTypes=Movie%2CSeries%2CEpisode%2CVideo"))
-        assertEquals("api-key", request.getHeader("X-Emby-Token"))
+            assertEquals("lib-movie", catalog.selectedLibraryId)
+            assertEquals(emptyList<VideoItem>(), catalog.items)
+        }
     }
 
     @Test
-    fun getNextUpItems_requestsShowsNextUp() = runTest {
+    fun getCatalog_skipsItemRowsWithMissingNullOrBlankIdentity() = runTest {
         server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
         server.enqueueJson(
             """
                 {
                   "Items": [
-                    {"Id":"ep-next","Name":"Episode 2","ParentId":"series-1","Type":"Episode","RunTimeTicks":24000000000}
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
                   ],
                   "TotalRecordCount": 1
                 }
             """.trimIndent()
         )
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Name":"Missing Id","Type":"Movie"},
+                    {"Id":null,"Name":"Null Id","Type":"Movie"},
+                    {"Id":"","Name":"Empty Id","Type":"Movie"},
+                    {"Id":"   ","Name":"Blank Id","Type":"Movie"},
+                    {"Id":"missing-name","Type":"Movie"},
+                    {"Id":"null-name","Name":null,"Type":"Movie"},
+                    {"Id":"empty-name","Name":"","Type":"Movie"},
+                    {"Id":"blank-name","Name":"   ","Type":"Movie"},
+                    {
+                      "Id":" movie-1 ",
+                      "Name":" Arrival ",
+                      "Type":"Movie",
+                      "Overview":"First contact story.",
+                      "ProductionYear":2016,
+                      "RunTimeTicks":69600000000,
+                      "CommunityRating":8.6,
+                      "UserData":{
+                        "Played":false,
+                        "PlaybackPositionTicks":1200000000,
+                        "LastPlayedDate":"2026-06-28T08:15:30.0000000Z"
+                      },
+                      "ImageTags":{"Primary":"tag-1"}
+                    }
+                  ],
+                  "TotalRecordCount": 9
+                }
+            """.trimIndent()
+        )
 
-        val items = repository(apiKey = "api-key").getNextUpItems()
+        val catalog = repository(apiKey = "api-key").getCatalog()
 
-        assertEquals(1, items.size)
-        assertEquals("ep-next", items.single().id)
-        assertEquals("series-1", items.single().libraryId)
-
-        server.takeRequest()
-        val request = server.takeRequest()
-        assertTrue(request.path.orEmpty().startsWith("/Shows/NextUp?"))
-        assertTrue(request.path.orEmpty().contains("UserId=u1"))
-        assertEquals("api-key", request.getHeader("X-Emby-Token"))
+        assertEquals(1, catalog.items.size)
+        val item = catalog.items.single()
+        assertEquals("movie-1", item.id)
+        assertEquals("Arrival", item.title)
+        assertEquals("Movie", item.type)
+        assertEquals("First contact story.", item.overview)
+        assertEquals(2016, item.year)
+        assertEquals(6960, item.durationSeconds)
+        assertEquals(120, item.playbackPositionSeconds)
+        assertFalse(item.isPlayed)
+        assertEquals(8.6f, item.communityRating ?: 0f, 0.001f)
+        assertTrue(item.imageUrl.orEmpty().contains("/Items/movie-1/Images/Primary"))
+        assertTrue(item.streamUrl.orEmpty().contains("/Videos/movie-1/stream"))
     }
 
     @Test
-    fun setItemPlayedAndFavorite_callEmbyMutationEndpoints() = runTest {
+    fun getCatalog_stopsWhenFetchedItemRowsReachTotalEvenIfRowsAreSkipped() = runTest {
         server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
-        server.enqueue(MockResponse().setResponseCode(204))
-        server.enqueue(MockResponse().setResponseCode(204))
-        server.enqueue(MockResponse().setResponseCode(204))
-        server.enqueue(MockResponse().setResponseCode(204))
-        val repo = repository(apiKey = "api-key")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        val validRows = (1..99).joinToString(",") { index ->
+            validEmbyMovieJson(index)
+        }
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    $validRows,
+                    {"Name":"Missing Id","Type":"Movie"}
+                  ],
+                  "TotalRecordCount": 100
+                }
+            """.trimIndent()
+        )
 
-        repo.setItemPlayed("movie-1", true)
-        repo.setItemPlayed("movie-1", false)
-        repo.setItemFavorite("movie-1", true)
-        repo.setItemFavorite("movie-1", false)
+        val catalog = repository(apiKey = "api-key").getCatalog()
+
+        assertEquals(99, catalog.items.size)
+        assertEquals("Movie 1", catalog.items.first().title)
+        assertEquals("Movie 99", catalog.items.last().title)
 
         server.takeRequest()
-        val markPlayed = server.takeRequest()
-        assertEquals("POST", markPlayed.method)
-        assertEquals("/Users/u1/PlayedItems/movie-1", markPlayed.path)
-        assertEquals("api-key", markPlayed.getHeader("X-Emby-Token"))
+        server.takeRequest()
+        val itemsRequest = server.takeRequest()
+        assertTrue(itemsRequest.path.orEmpty().contains("StartIndex=0"))
+        assertEquals(3, server.requestCount)
+    }
 
-        val markUnplayed = server.takeRequest()
-        assertEquals("DELETE", markUnplayed.method)
-        assertEquals("/Users/u1/PlayedItems/movie-1", markUnplayed.path)
+    @Test
+    fun getCatalog_mapsSeriesEpisodeMetadataAndOnlyEpisodesArePlayable() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-tv","Name":"TV","Type":"CollectionFolder","CollectionType":"tvshows"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {
+                      "Id":"series-1",
+                      "Name":"Together",
+                      "Type":"Series",
+                      "Overview":"A campus story.",
+                      "ImageTags":{"Primary":"series-tag"}
+                    },
+                    {
+                      "Id":"episode-1",
+                      "Name":"Episode 2",
+                      "Type":"Episode",
+                      "SeriesId":"series-1",
+                      "SeriesName":"Together",
+                      "ParentIndexNumber":1,
+                      "IndexNumber":2,
+                      "RunTimeTicks":18000000000,
+                      "ImageTags":{"Primary":"episode-tag"}
+                    }
+                  ],
+                  "TotalRecordCount": 2
+                }
+            """.trimIndent()
+        )
 
-        val markFavorite = server.takeRequest()
-        assertEquals("POST", markFavorite.method)
-        assertEquals("/Users/u1/FavoriteItems/movie-1", markFavorite.path)
+        val catalog = repository(apiKey = "api-key").getCatalog()
 
-        val markUnfavorite = server.takeRequest()
-        assertEquals("DELETE", markUnfavorite.method)
-        assertEquals("/Users/u1/FavoriteItems/movie-1", markUnfavorite.path)
+        val series = catalog.items.first { it.id == "series-1" }
+        assertNull(series.streamUrl)
+
+        val episode = catalog.items.first { it.id == "episode-1" }
+        assertEquals("series-1", episode.seriesId)
+        assertEquals("Together", episode.seriesName)
+        assertEquals(1, episode.seasonNumber)
+        assertEquals(2, episode.episodeNumber)
+        assertEquals(1800, episode.durationSeconds)
+        assertTrue(episode.streamUrl.orEmpty().contains("/Videos/episode-1/stream"))
+
+        server.takeRequest()
+        server.takeRequest()
+        val itemsRequest = server.takeRequest()
+        assertTrue(itemsRequest.path.orEmpty().contains("SeriesId"))
+        assertTrue(itemsRequest.path.orEmpty().contains("ParentIndexNumber"))
+        assertTrue(itemsRequest.path.orEmpty().contains("IndexNumber"))
     }
 
     @Test
@@ -429,16 +615,132 @@ class EmbyRepositoryTest {
         server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
         server.enqueue(MockResponse().setResponseCode(500))
 
-        val error = try {
+        val error = assertEmbyApiError(EmbyApiException.Kind.HTTP) {
             repository(apiKey = "api-key").getCatalog()
+        }
+
+        assertTrue(error.message.orEmpty().contains("HTTP 500"))
+    }
+
+    @Test
+    fun getCatalog_throwsTypedExceptionForEmptyApiKeyUserResponse() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        assertEmbyApiError(EmbyApiException.Kind.API) {
+            repository(apiKey = "api-key").getCatalog()
+        }
+    }
+
+    @Test
+    fun getCatalog_throwsTypedExceptionForEmptyPasswordAuthenticationResponse() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        assertEmbyApiError(EmbyApiException.Kind.API) {
+            repository(apiKey = "").getCatalog()
+        }
+    }
+
+    @Test
+    fun getCatalog_throwsTypedExceptionForEmptyLibraryResponse() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        assertEmbyApiError(EmbyApiException.Kind.API) {
+            repository(apiKey = "api-key").getCatalog()
+        }
+    }
+
+    @Test
+    fun getCatalog_throwsTypedExceptionForEmptyItemListResponse() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        assertEmbyApiError(EmbyApiException.Kind.API) {
+            repository(apiKey = "api-key").getCatalog()
+        }
+    }
+
+    @Test
+    fun syncPlaybackProgress_sendsProgressRequestWithPositionTicksAndPausedState() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueue(MockResponse().setResponseCode(204))
+
+        repository(apiKey = "api-key").syncPlaybackProgress(
+            video = video(id = "movie-1", durationSeconds = 120),
+            positionSeconds = 45,
+            isPaused = false
+        )
+
+        server.takeRequest()
+        val progressRequest = server.takeRequest()
+        val progressBody = progressRequest.body.readUtf8()
+        assertEquals("/Sessions/Playing/Progress", progressRequest.path)
+        assertEquals("api-key", progressRequest.getHeader("X-Emby-Token"))
+        assertTrue(progressBody.contains(""""ItemId":"movie-1""""))
+        assertTrue(progressBody.contains(""""PositionTicks":450000000"""))
+        assertTrue(progressBody.contains(""""IsPaused":false"""))
+    }
+
+    @Test
+    fun stopPlaybackProgress_sendsStoppedRequestWithClampedPositionTicks() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueue(MockResponse().setResponseCode(204))
+
+        repository(apiKey = "api-key").stopPlaybackProgress(
+            video = video(id = "movie-1", durationSeconds = 120),
+            positionSeconds = 150
+        )
+
+        server.takeRequest()
+        val stoppedRequest = server.takeRequest()
+        val stoppedBody = stoppedRequest.body.readUtf8()
+        assertEquals("/Sessions/Playing/Stopped", stoppedRequest.path)
+        assertEquals("api-key", stoppedRequest.getHeader("X-Emby-Token"))
+        assertTrue(stoppedBody.contains(""""ItemId":"movie-1""""))
+        assertTrue(stoppedBody.contains(""""PositionTicks":1200000000"""))
+        assertTrue(stoppedBody.contains(""""IsPaused":true"""))
+    }
+
+    @Test
+    fun resolveEmbyPlaybackPositionTicks_clampsKnownDurationAndKeepsUnknownDurationPositions() {
+        assertEquals(
+            0L,
+            resolveEmbyPlaybackPositionTicks(positionSeconds = -10, durationSeconds = 120)
+        )
+        assertEquals(
+            1_200_000_000L,
+            resolveEmbyPlaybackPositionTicks(positionSeconds = 150, durationSeconds = 120)
+        )
+        assertEquals(
+            3_000_000_000L,
+            resolveEmbyPlaybackPositionTicks(positionSeconds = 300, durationSeconds = 0)
+        )
+    }
+
+    private suspend fun assertEmbyApiError(
+        kind: EmbyApiException.Kind,
+        block: suspend () -> Unit
+    ): EmbyApiException {
+        val error = try {
+            block()
             null
         } catch (error: EmbyApiException) {
             error
         }
 
         requireNotNull(error)
-        assertEquals(EmbyApiException.Kind.HTTP, error.kind)
-        assertTrue(error.message.orEmpty().contains("HTTP 500"))
+        assertEquals(kind, error.kind)
+        return error
     }
 
     @Test
@@ -815,17 +1117,27 @@ class EmbyRepositoryTest {
         )
     }
 
-    private fun sampleVideoItem(): VideoItem {
+    private fun video(id: String, durationSeconds: Int): VideoItem {
         return VideoItem(
-            id = "movie-1",
-            libraryId = "lib-movie",
-            title = "Arrival",
+            id = id,
+            libraryId = "library-1",
+            title = "Video",
             type = "Movie",
-            overview = "First contact story.",
-            year = 2016,
-            durationSeconds = 6960,
-            imageUrl = server.url("/Items/movie-1/Images/Primary").toString()
+            durationSeconds = durationSeconds,
+            streamUrl = "https://example.test/video.mp4"
         )
+    }
+
+    private fun validEmbyMovieJson(index: Int): String {
+        return """
+            {
+              "Id":"movie-$index",
+              "Name":"Movie $index",
+              "Type":"Movie",
+              "RunTimeTicks":600000000,
+              "ImageTags":{"Primary":"tag-$index"}
+            }
+        """.trimIndent()
     }
 }
 

@@ -15,12 +15,13 @@ class NavidromeApiException(
     val kind: Kind,
     message: String
 ) : Exception(message) {
-    enum class Kind { HTTP, SUBSONIC }
+    enum class Kind { HTTP, SUBSONIC, API }
 }
 ```
 
 - `Kind.HTTP` — HTTP-level failure (non-2xx status)
 - `Kind.SUBSONIC` — Subsonic protocol error (status != "ok")
+- `Kind.API` — Subsonic response body failure such as an empty 200 JSON body or a null parsed body
 
 **Why**: String-based error classification (`e.message?.contains("Subsonic错误")`) is fragile — any message rewording silently breaks error handling. Typed exceptions make the contract explicit and compiler-enforced.
 
@@ -45,14 +46,16 @@ suspend fun getRecentAlbums() = try {
 
 **Rule**: Every public `NavidromeRepository` method must include both catch blocks. Leaving out the `NavidromeApiException` catch causes API errors to lose their typed classification when wrapped a second time.
 
-### requireResponse() Contract
+### requestSubsonic() / requireResponse() Contract
 
 ```kotlin
+private suspend fun requestSubsonic(request: suspend () -> Response<SubsonicResponse>): SubsonicData
 private fun Response<SubsonicResponse>.requireResponse(): SubsonicData
 ```
 
 - HTTP failure → throws `NavidromeApiException(Kind.HTTP, ...)`
 - Subsonic error → throws `NavidromeApiException(Kind.SUBSONIC, ...)`
+- Empty body failure, including Retrofit/Gson `EOFException` before a `Response` is returned → throws `NavidromeApiException(Kind.API, ...)`
 - Success → returns `SubsonicData`
 
 ---

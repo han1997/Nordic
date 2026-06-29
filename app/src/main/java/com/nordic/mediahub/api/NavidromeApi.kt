@@ -37,14 +37,14 @@ data class NavidromeArtistDetail(
     val id: String,
     val name: String,
     val albumCount: Int = 0,
-    val album: List<NavidromeAlbum> = emptyList()
+    val album: List<NavidromeAlbum>? = null
 )
 
 @Stable
 data class SearchResult3(
-    val artist: List<NavidromeArtist> = emptyList(),
-    val album: List<NavidromeAlbum> = emptyList(),
-    val song: List<NavidromeSong> = emptyList()
+    val artist: List<NavidromeArtist>? = null,
+    val album: List<NavidromeAlbum>? = null,
+    val song: List<NavidromeSong>? = null
 )
 
 @Stable
@@ -55,28 +55,28 @@ data class SubsonicError(
 
 @Stable
 data class AlbumList(
-    val album: List<NavidromeAlbum> = emptyList()
+    val album: List<NavidromeAlbum>? = null
 )
 
 @Stable
 data class SongList(
-    val song: List<NavidromeSong> = emptyList()
+    val song: List<NavidromeSong>? = null
 )
 
 @Stable
 data class NavidromePlaylistList(
-    val playlist: List<NavidromePlaylist> = emptyList()
+    val playlist: List<NavidromePlaylist>? = null
 )
 
 @Stable
 data class ArtistsIndex(
-    val index: List<ArtistIndex> = emptyList()
+    val index: List<ArtistIndex>? = null
 )
 
 @Stable
 data class ArtistIndex(
     val name: String,
-    val artist: List<NavidromeArtist> = emptyList()
+    val artist: List<NavidromeArtist>? = null
 )
 
 @Stable
@@ -96,7 +96,7 @@ data class NavidromeAlbumDetail(
     val name: String,
     val artist: String? = null,
     val coverArt: String? = null,
-    val song: List<NavidromeSong> = emptyList()
+    val song: List<NavidromeSong>? = null
 )
 
 @Stable
@@ -125,7 +125,7 @@ data class NavidromePlaylistDetail(
     val songCount: Int = 0,
     val duration: Int = 0,
     val coverArt: String? = null,
-    val entry: List<NavidromeSong> = emptyList()
+    val entry: List<NavidromeSong>? = null
 )
 
 @Stable
@@ -159,7 +159,7 @@ data class NavidromePlainLyrics(
 
 @Stable
 data class NavidromeLyricsList(
-    val structuredLyrics: List<NavidromeStructuredLyrics> = emptyList()
+    val structuredLyrics: List<NavidromeStructuredLyrics>? = null
 )
 
 @Stable
@@ -167,14 +167,15 @@ data class NavidromeStructuredLyrics(
     val displayArtist: String? = null,
     val displayTitle: String? = null,
     val lang: String? = null,
+    val offset: Double? = null,
     val synced: Boolean = false,
-    val line: List<NavidromeStructuredLyricLine> = emptyList()
+    val line: List<NavidromeStructuredLyricLine>? = null
 )
 
 @Stable
 data class NavidromeStructuredLyricLine(
     val start: Double? = null,
-    val value: String = ""
+    val value: String? = null
 )
 
 @Stable

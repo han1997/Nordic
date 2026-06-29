@@ -197,9 +197,7 @@ fun MusicPlayerScreen(
                 onSeekToPrevious = onSeekToPrevious,
                 onToggleRepeat = onToggleRepeat,
                 onToggleShuffle = onToggleShuffle,
-                onOpenQueue = onOpenQueue,
-                onOpenEqualizer = onOpenEqualizer,
-                onSmartRadio = onSmartRadio
+                onOpenQueue = onOpenQueue
             )
         }
     }
@@ -629,9 +627,7 @@ private fun PlayerConsole(
     onSeekToPrevious: () -> Unit = {},
     onToggleRepeat: () -> Unit = {},
     onToggleShuffle: () -> Unit = {},
-    onOpenQueue: () -> Unit = {},
-    onOpenEqualizer: () -> Unit = {},
-    onSmartRadio: () -> Unit = {}
+    onOpenQueue: () -> Unit = {}
 ) {
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
@@ -700,11 +696,11 @@ private fun PlayerConsole(
                     else -> "↺"
                 }
                 val repeatActive = repeatMode != Player.REPEAT_MODE_OFF
-                PlayerControlButton(repeatLabel, colorScheme, size = if (compact) 38 else 42, enabled = hasSong, active = repeatActive, onClick = onToggleRepeat)
-                val shuffleLabel = if (shuffleModeEnabled) "⇄" else "⇄"
-                PlayerControlButton(shuffleLabel, colorScheme, size = if (compact) 38 else 42, enabled = hasSong, active = shuffleModeEnabled, onClick = onToggleShuffle)
-                PlayerControlButton("EQ", colorScheme, size = if (compact) 38 else 42, enabled = hasSong, onClick = onOpenEqualizer)
-                PlayerControlButton("‹", colorScheme, size = if (compact) 46 else 50, enabled = hasSong, onClick = onSeekToPrevious)
+                val sideButtonSize = if (compact) 34 else 38
+                val skipButtonSize = if (compact) 42 else 46
+                PlayerControlButton(repeatLabel, colorScheme, size = sideButtonSize, enabled = hasSong, active = repeatActive, onClick = onToggleRepeat)
+                PlayerControlButton("⇄", colorScheme, size = sideButtonSize, enabled = hasSong, active = shuffleModeEnabled, onClick = onToggleShuffle)
+                PlayerControlButton("‹", colorScheme, size = skipButtonSize, enabled = hasSong, onClick = onSeekToPrevious)
                 PlayerControlButton(
                     label = if (isPlaying) "Ⅱ" else "▶",
                     colorScheme = colorScheme,
@@ -713,9 +709,8 @@ private fun PlayerConsole(
                     enabled = hasSong,
                     onClick = onPlayPause
                 )
-                PlayerControlButton("›", colorScheme, size = if (compact) 46 else 50, enabled = hasSong, onClick = onSeekToNext)
-                PlayerControlButton("≡", colorScheme, size = if (compact) 38 else 42, enabled = hasSong, onClick = onOpenQueue)
-                PlayerControlButton("∞", colorScheme, size = if (compact) 38 else 42, enabled = hasSong, onClick = onSmartRadio)
+                PlayerControlButton("›", colorScheme, size = skipButtonSize, enabled = hasSong, onClick = onSeekToNext)
+                PlayerControlButton("≡", colorScheme, size = sideButtonSize, enabled = hasSong, onClick = onOpenQueue)
             }
         }
     }
@@ -806,9 +801,10 @@ internal fun selectVisibleLyricLines(
     val positionMillis = positionSeconds.coerceAtLeast(0) * 1000
     val activeIndex = lines.indexOfLast { line ->
         line.startMillis != null && line.startMillis <= positionMillis
-    }.coerceAtLeast(0)
+    }.takeIf { it >= 0 }
     val halfWindow = maxLineCount / 2
     val startIndex = when {
+        activeIndex == null -> 0
         activeIndex + halfWindow >= lines.size -> (lines.size - maxLineCount).coerceAtLeast(0)
         else -> (activeIndex - halfWindow).coerceAtLeast(0)
     }
@@ -819,8 +815,7 @@ internal fun selectVisibleLyricLines(
         .mapIndexed { index, line ->
             VisibleLyricLine(
                 text = line.text,
-                active = startIndex + index == activeIndex,
-                startMillis = line.startMillis
+                active = activeIndex != null && startIndex + index == activeIndex
             )
         }
 }
