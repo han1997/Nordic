@@ -1,20 +1,27 @@
 package com.nordic.mediahub.ui
 
 import android.view.SurfaceView
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,11 +32,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -59,6 +67,11 @@ fun VideoPlayerScreen(
     val visiblePosition = (scrubPosition ?: timeline.positionSeconds.toFloat())
         .coerceIn(0f, timeline.sliderMaxSeconds.toFloat())
     var attachedSurface by remember { mutableStateOf<SurfaceView?>(null) }
+    val statusText = videoPlayerStatusText(
+        hasVideo = video != null,
+        isBuffering = state.isBuffering,
+        errorMessage = state.errorMessage
+    )
 
     DisposableEffect(attachedSurface) {
         val surface = attachedSurface
@@ -76,145 +89,292 @@ fun VideoPlayerScreen(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
-            .padding(16.dp)
     ) {
+        AndroidView(
+            factory = { context ->
+                SurfaceView(context).also { view ->
+                    attachedSurface = view
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        VideoPlayerScrim()
+
+        if (video == null) {
+            VideoPlayerCenterMessage(
+                title = "No video loaded",
+                subtitle = "Select a video from the library to start playback."
+            )
+        } else if (state.errorMessage != null) {
+            VideoPlayerCenterMessage(
+                title = "Playback issue",
+                subtitle = state.errorMessage
+            )
+        } else if (state.isBuffering) {
+            VideoPlayerCenterMessage(
+                title = "Buffering",
+                subtitle = "Preparing the stream."
+            )
+        }
+
         Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
             VideoPlayerTopBar(
-                title = video?.title ?: "视频播放",
-                subtitle = when {
-                    state.errorMessage != null -> state.errorMessage
-                    state.isBuffering -> "正在缓冲"
-                    video != null -> video.metaTextForPlayer()
-                    else -> "没有正在播放的视频"
-                },
+                title = video?.title ?: "Video player",
+                subtitle = video?.metaTextForPlayer(),
+                statusText = statusText,
                 colorScheme = colorScheme,
                 onClose = onClose
             )
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(Color.Black),
-                contentAlignment = Alignment.Center
-            ) {
-                AndroidView(
-                    factory = { context ->
-                        SurfaceView(context).also { view ->
-                            attachedSurface = view
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-
-                if (video == null) {
-                    Text(
-                        "选择一个视频开始播放",
-                        color = Color.White.copy(alpha = 0.72f),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-            }
-
-            Surface(
-                color = colorScheme.surface.copy(alpha = 0.94f),
-                contentColor = colorScheme.onSurface,
-                shape = RoundedCornerShape(28.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Slider(
-                        value = visiblePosition,
-                        onValueChange = { value -> scrubPosition = value },
-                        onValueChangeFinished = {
-                            val target = scrubPosition ?: visiblePosition
-                            onSeek(target.roundToInt())
-                            scrubPosition = null
-                        },
-                        valueRange = 0f..timeline.sliderMaxSeconds.toFloat(),
-                        enabled = video != null
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "${formatDuration(visiblePosition.roundToInt())} / ${formatVideoPlayerDurationLabel(durationSeconds)}",
-                            fontSize = 12.sp,
-                            color = colorScheme.onSurface.copy(alpha = 0.58f),
-                            modifier = Modifier.weight(1f),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        VideoPlayerControlButton(
-                            text = "-10",
-                            colorScheme = colorScheme,
-                            enabled = video != null,
-                            onClick = onSeekBack
-                        )
-                        VideoPlayerControlButton(
-                            text = if (state.isPlaying) "Ⅱ" else "▶",
-                            colorScheme = colorScheme,
-                            enabled = video != null,
-                            onClick = onPlayPause
-                        )
-                        VideoPlayerControlButton(
-                            text = "+30",
-                            colorScheme = colorScheme,
-                            enabled = video != null,
-                            onClick = onSeekForward
-                        )
-                    }
-                }
-            }
+            VideoPlayerControls(
+                visiblePosition = visiblePosition,
+                durationSeconds = durationSeconds,
+                timeline = timeline,
+                scrubPosition = scrubPosition,
+                isPlaying = state.isPlaying,
+                hasVideo = video != null,
+                colorScheme = colorScheme,
+                onScrubChange = { scrubPosition = it },
+                onScrubFinished = {
+                    val target = scrubPosition ?: visiblePosition
+                    onSeek(target.roundToInt())
+                    scrubPosition = null
+                },
+                onSeekBack = onSeekBack,
+                onPlayPause = onPlayPause,
+                onSeekForward = onSeekForward
+            )
         }
     }
+}
+
+@Composable
+private fun VideoPlayerScrim() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colorStops = arrayOf(
+                        0f to Color.Black.copy(alpha = 0.66f),
+                        0.18f to Color.Transparent,
+                        0.55f to Color.Transparent,
+                        1f to Color.Black.copy(alpha = 0.82f)
+                    )
+                )
+            )
+    )
 }
 
 @Composable
 private fun VideoPlayerTopBar(
     title: String,
     subtitle: String?,
+    statusText: String?,
     colorScheme: ColorScheme,
     onClose: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.Top
     ) {
-        VideoPlayerControlButton(
-            text = "×",
+        VideoPlayerChromeButton(
+            text = "X",
             colorScheme = colorScheme,
             primary = false,
             onClick = onClose
         )
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(
                 title,
                 fontSize = 18.sp,
+                lineHeight = 22.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     subtitle,
                     fontSize = 12.sp,
-                    color = Color.White.copy(alpha = 0.62f),
+                    color = Color.White.copy(alpha = 0.66f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        if (!statusText.isNullOrBlank()) {
+            VideoPlayerStatusPill(text = statusText, colorScheme = colorScheme)
+        }
+    }
+}
+
+@Composable
+private fun VideoPlayerStatusPill(text: String, colorScheme: ColorScheme) {
+    Surface(
+        color = if (text == "Buffering") {
+            colorScheme.primary.copy(alpha = 0.18f)
+        } else {
+            Color.Black.copy(alpha = 0.42f)
+        },
+        contentColor = Color.White,
+        shape = RoundedCornerShape(999.dp),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f))
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White.copy(alpha = 0.86f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun BoxScope.VideoPlayerCenterMessage(title: String, subtitle: String?) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 28.dp)
+            .align(Alignment.Center),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            title,
+            color = Color.White.copy(alpha = 0.84f),
+            fontSize = 17.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+        if (!subtitle.isNullOrBlank()) {
+            Text(
+                subtitle,
+                color = Color.White.copy(alpha = 0.60f),
+                fontSize = 13.sp,
+                lineHeight = 18.sp,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun VideoPlayerControls(
+    visiblePosition: Float,
+    durationSeconds: Int,
+    timeline: VideoPlayerTimeline,
+    scrubPosition: Float?,
+    isPlaying: Boolean,
+    hasVideo: Boolean,
+    colorScheme: ColorScheme,
+    onScrubChange: (Float) -> Unit,
+    onScrubFinished: () -> Unit,
+    onSeekBack: () -> Unit,
+    onPlayPause: () -> Unit,
+    onSeekForward: () -> Unit
+) {
+    Surface(
+        color = Color.Black.copy(alpha = 0.56f),
+        contentColor = Color.White,
+        shape = RoundedCornerShape(28.dp),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Slider(
+                value = visiblePosition,
+                onValueChange = onScrubChange,
+                onValueChangeFinished = onScrubFinished,
+                valueRange = 0f..timeline.sliderMaxSeconds.toFloat(),
+                enabled = hasVideo,
+                colors = SliderDefaults.colors(
+                    thumbColor = colorScheme.primary,
+                    activeTrackColor = colorScheme.primary,
+                    inactiveTrackColor = Color.White.copy(alpha = 0.22f),
+                    disabledThumbColor = Color.White.copy(alpha = 0.28f),
+                    disabledActiveTrackColor = Color.White.copy(alpha = 0.20f),
+                    disabledInactiveTrackColor = Color.White.copy(alpha = 0.12f)
+                )
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    formatDuration(visiblePosition.roundToInt()),
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.68f),
+                    maxLines = 1
+                )
+                Text(
+                    formatVideoPlayerDurationLabel(durationSeconds),
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.52f),
+                    maxLines = 1
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                VideoPlayerChromeButton(
+                    text = "-10",
+                    colorScheme = colorScheme,
+                    enabled = hasVideo,
+                    size = 48.dp,
+                    onClick = onSeekBack
+                )
+                Spacer(modifier = Modifier.width(18.dp))
+                VideoPlayerChromeButton(
+                    text = if (isPlaying) "||" else ">",
+                    colorScheme = colorScheme,
+                    primary = true,
+                    enabled = hasVideo,
+                    size = 58.dp,
+                    onClick = onPlayPause
+                )
+                Spacer(modifier = Modifier.width(18.dp))
+                VideoPlayerChromeButton(
+                    text = "+30",
+                    colorScheme = colorScheme,
+                    enabled = hasVideo,
+                    size = 48.dp,
+                    onClick = onSeekForward
+                )
+            }
+
+            if (scrubPosition != null) {
+                Text(
+                    "Release to seek to ${formatDuration(scrubPosition.roundToInt())}",
+                    modifier = Modifier.fillMaxWidth(),
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.58f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -224,11 +384,12 @@ private fun VideoPlayerTopBar(
 }
 
 @Composable
-private fun VideoPlayerControlButton(
+private fun VideoPlayerChromeButton(
     text: String,
     colorScheme: ColorScheme,
-    primary: Boolean = true,
+    primary: Boolean = false,
     enabled: Boolean = true,
+    size: Dp = 44.dp,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -237,17 +398,26 @@ private fun VideoPlayerControlButton(
         pressedScale = 0.94f,
         enabled = enabled
     )
+    val containerColor = when {
+        primary && enabled -> colorScheme.primary
+        primary -> colorScheme.primary.copy(alpha = 0.30f)
+        enabled -> Color.Black.copy(alpha = 0.46f)
+        else -> Color.Black.copy(alpha = 0.24f)
+    }
+    val contentColor = when {
+        primary -> colorScheme.onPrimary
+        enabled -> Color.White
+        else -> Color.White.copy(alpha = 0.34f)
+    }
 
     Surface(
-        color = if (primary) {
-            colorScheme.primary.copy(alpha = if (enabled) 1f else 0.32f)
-        } else {
-            Color.White.copy(alpha = 0.14f)
-        },
-        contentColor = if (primary) colorScheme.onPrimary else Color.White,
+        color = containerColor,
+        contentColor = contentColor,
         shape = RoundedCornerShape(999.dp),
+        border = if (primary) null else BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
+        shadowElevation = if (primary && enabled) 4.dp else 0.dp,
         modifier = Modifier
-            .size(44.dp)
+            .size(size)
             .scale(scale)
             .clickable(
                 enabled = enabled,
@@ -259,9 +429,15 @@ private fun VideoPlayerControlButton(
         Box(contentAlignment = Alignment.Center) {
             Text(
                 text,
-                fontSize = if (text.length > 2) 14.sp else 20.sp,
+                fontSize = when {
+                    text.length > 2 -> 13.sp
+                    size > 50.dp -> 24.sp
+                    else -> 18.sp
+                },
                 fontWeight = FontWeight.Bold,
-                maxLines = 1
+                color = contentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Clip
             )
         }
     }
@@ -299,4 +475,17 @@ internal fun resolveVideoPlayerTimeline(
 
 internal fun formatVideoPlayerDurationLabel(durationSeconds: Int): String {
     return if (durationSeconds > 0) formatDuration(durationSeconds) else "--:--"
+}
+
+internal fun videoPlayerStatusText(
+    hasVideo: Boolean,
+    isBuffering: Boolean,
+    errorMessage: String?
+): String? {
+    return when {
+        !errorMessage.isNullOrBlank() -> "Issue"
+        isBuffering -> "Buffering"
+        !hasVideo -> "Idle"
+        else -> null
+    }
 }

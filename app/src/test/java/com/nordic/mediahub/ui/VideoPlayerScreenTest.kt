@@ -1,6 +1,7 @@
 package com.nordic.mediahub.ui
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class VideoPlayerScreenTest {
@@ -53,5 +54,52 @@ class VideoPlayerScreenTest {
     @Test
     fun formatVideoPlayerDurationLabel_formatsKnownDuration() {
         assertEquals("2:00", formatVideoPlayerDurationLabel(120))
+    }
+
+    @Test
+    fun videoPlayerStatusText_prioritizesErrors() {
+        assertEquals(
+            "Issue",
+            videoPlayerStatusText(
+                hasVideo = true,
+                isBuffering = true,
+                errorMessage = "Playback failed"
+            )
+        )
+    }
+
+    @Test
+    fun videoPlayerStatusText_reportsBufferingWhenVideoIsLoading() {
+        assertEquals(
+            "Buffering",
+            videoPlayerStatusText(
+                hasVideo = true,
+                isBuffering = true,
+                errorMessage = null
+            )
+        )
+    }
+
+    @Test
+    fun videoPlayerStatusText_reportsIdleWhenNoVideoIsLoaded() {
+        assertEquals(
+            "Idle",
+            videoPlayerStatusText(
+                hasVideo = false,
+                isBuffering = false,
+                errorMessage = null
+            )
+        )
+    }
+
+    @Test
+    fun videoPlayerStatusText_hidesStatusForReadyVideo() {
+        assertNull(
+            videoPlayerStatusText(
+                hasVideo = true,
+                isBuffering = false,
+                errorMessage = null
+            )
+        )
     }
 }
