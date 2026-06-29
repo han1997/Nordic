@@ -30,6 +30,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,24 +75,19 @@ fun VideoPlayerScreen(
     var scrubPosition by remember(video?.id) { mutableStateOf<Float?>(null) }
     val visiblePosition = (scrubPosition ?: timeline.positionSeconds.toFloat())
         .coerceIn(0f, timeline.sliderMaxSeconds.toFloat())
-    var attachedSurface by remember { mutableStateOf<SurfaceView?>(null) }
     val statusText = videoPlayerStatusText(
         hasVideo = video != null,
         isBuffering = state.isBuffering,
         errorMessage = state.errorMessage
     )
     val videoAspectRatio = state.videoAspectRatio.takeIf { it > 0f } ?: 16f / 9f
-
-    DisposableEffect(attachedSurface) {
-        val surface = attachedSurface
-        if (surface != null) {
-            onSurfaceReady(surface)
-        }
-        onDispose {
-            if (surface != null) {
-                onSurfaceDisposed(surface)
-            }
-        }
+    val currentOnSurfaceReady by rememberUpdatedState(onSurfaceReady)
+    val currentOnSurfaceDisposed by rememberUpdatedState(onSurfaceDisposed)
+    val surfaceReadyCallback = remember {
+        { surface: SurfaceView -> currentOnSurfaceReady(surface) }
+    }
+    val surfaceDisposedCallback = remember {
+        { surface: SurfaceView -> currentOnSurfaceDisposed(surface) }
     }
 
     Box(
@@ -99,32 +95,11 @@ fun VideoPlayerScreen(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        AndroidView(
-            factory = { context ->
-                AspectRatioFrameLayout(context).apply {
-                    layoutParams = FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT
-                    )
-                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    val surface = SurfaceView(context).apply {
-                        layoutParams = FrameLayout.LayoutParams(
-                            FrameLayout.LayoutParams.MATCH_PARENT,
-                            FrameLayout.LayoutParams.MATCH_PARENT
-                        )
-                    }
-                    addView(surface)
-                    attachedSurface = surface
-                }
-            },
-            update = { frameLayout ->
-                frameLayout.resizeMode = when (state.aspectRatioMode) {
-                    AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-                    AspectRatioMode.CROP -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                }
-                frameLayout.setAspectRatio(videoAspectRatio)
-            },
+        VideoPlayerSurface(
+            aspectRatioMode = state.aspectRatioMode,
+            videoAspectRatio = videoAspectRatio,
+            onSurfaceReady = surfaceReadyCallback,
+            onSurfaceDisposed = surfaceDisposedCallback,
             modifier = Modifier.fillMaxSize()
         )
 
@@ -187,6 +162,55 @@ fun VideoPlayerScreen(
             )
         }
     }
+}
+
+@androidx.annotation.OptIn(UnstableApi::class)
+@Composable
+private fun VideoPlayerSurface(
+    aspectRatioMode: AspectRatioMode,
+    videoAspectRatio: Float,
+    onSurfaceReady: (SurfaceView) -> Unit,
+    onSurfaceDisposed: (SurfaceView) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var attachedSurface by remember { mutableStateOf<SurfaceView?>(null) }
+
+    DisposableEffect(attachedSurface) {
+        val surface = attachedSurface
+        if (surface != null) {
+            onSurfaceReady(surface)
+        }
+        onDispose {
+            if (surface != null) {
+                onSurfaceDisposed(surface)
+            }
+        }
+    }
+
+    AndroidView(
+        factory = { context ->
+            AspectRatioFrameLayout(context).apply {
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                val surface = SurfaceView(context).apply {
+                    layoutParams = FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT
+                    )
+                }
+                addView(surface)
+                attachedSurface = surface
+            }
+        },
+        update = { frameLayout ->
+            frameLayout.resizeMode = resolveVideoPlayerResizeMode(aspectRatioMode)
+            frameLayout.setAspectRatio(videoAspectRatio)
+        },
+        modifier = modifier
+    )
 }
 
 @Composable
@@ -540,5 +564,14 @@ internal fun videoPlayerStatusText(
         isBuffering -> "Buffering"
         !hasVideo -> "Idle"
         else -> null
+    }
+}
+
+@androidx.annotation.OptIn(UnstableApi::class)
+internal fun resolveVideoPlayerResizeMode(aspectRatioMode: AspectRatioMode): Int {
+    return when (aspectRatioMode) {
+        AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+        AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+        AspectRatioMode.CROP -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
     }
 }

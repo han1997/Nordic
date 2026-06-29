@@ -1,9 +1,13 @@
 package com.nordic.mediahub.ui
 
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.ui.AspectRatioFrameLayout
+import com.nordic.mediahub.playback.AspectRatioMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
+@androidx.annotation.OptIn(UnstableApi::class)
 class VideoPlayerScreenTest {
     @Test
     fun resolveVideoPlayerTimeline_keepsPositionWhenDurationUnknown() {
@@ -103,4 +107,19 @@ class VideoPlayerScreenTest {
         )
     }
 
+    @Test
+    fun resolveVideoPlayerResizeMode_mapsAspectRatioModesToMedia3ResizeModes() {
+        assertEquals(
+            AspectRatioFrameLayout.RESIZE_MODE_FIT,
+            resolveVideoPlayerResizeMode(AspectRatioMode.FIT)
+        )
+        assertEquals(
+            AspectRatioFrameLayout.RESIZE_MODE_ZOOM,
+            resolveVideoPlayerResizeMode(AspectRatioMode.CROP)
+        )
+        assertEquals(
+            AspectRatioFrameLayout.RESIZE_MODE_FILL,
+            resolveVideoPlayerResizeMode(AspectRatioMode.FILL)
+        )
+    }
 }
