@@ -1,5 +1,6 @@
 package com.nordic.mediahub.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -465,6 +466,20 @@ fun MusicScreenV2(
             cacheUpdatedAtMillis = null
             errorMsg = null
         }
+    }
+
+    BackHandler(enabled = libraryPage != MusicLibraryPage.Home) {
+        if (libraryPage == MusicLibraryPage.PlaylistDetail) {
+            selectedTab = 2
+            libraryPage = MusicLibraryPage.Playlists
+        } else {
+            selectedTab = 0
+            libraryPage = MusicLibraryPage.Home
+        }
+    }
+
+    BackHandler(enabled = showConfig) {
+        showConfig = false
     }
 
     val hasContent = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty() || playlists.isNotEmpty()

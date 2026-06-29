@@ -1,5 +1,6 @@
 package com.nordic.mediahub.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -186,6 +187,14 @@ fun VideoScreen(
         if (savedConfig.isReadyForVideoSync()) {
             refreshVideo(savedConfig, targetLibraryId = null, requestVersion = requestVersion)
         }
+    }
+
+    BackHandler(enabled = selectedVideo != null) {
+        selectedVideo = null
+    }
+
+    BackHandler(enabled = showConfig) {
+        showConfig = false
     }
 
     selectedVideo?.let { video ->

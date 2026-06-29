@@ -1,5 +1,6 @@
 package com.nordic.mediahub.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -222,6 +223,15 @@ fun AudiobookScreen(
         if (savedConfig.isReadyForAudiobookSync()) {
             refreshAudiobooks(savedConfig, requestVersion)
         }
+    }
+
+    BackHandler(enabled = libraryPage != AudiobookLibraryPage.Home) {
+        libraryPage = AudiobookLibraryPage.Home
+        errorMessage = null
+    }
+
+    BackHandler(enabled = showConfig) {
+        showConfig = false
     }
 
     LazyColumn(

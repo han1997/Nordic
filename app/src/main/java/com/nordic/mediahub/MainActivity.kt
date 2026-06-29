@@ -3,6 +3,7 @@ package com.nordic.mediahub
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
@@ -706,6 +707,18 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                 }
             }
         }
+    }
+
+    BackHandler(enabled = showVideoPlayer || videoPlaybackState.video != null) {
+        closeVideoPlayback()
+    }
+
+    BackHandler(enabled = showAudiobookPlayer || audiobookPlaybackError != null) {
+        closeAudiobookPlaybackAfterSync()
+    }
+
+    BackHandler(enabled = showPlayer) {
+        showPlayer = false
     }
 
     if (showAudiobookPlayer || audiobookPlaybackError != null) {
