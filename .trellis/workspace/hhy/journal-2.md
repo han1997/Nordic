@@ -1292,3 +1292,37 @@ Hardened Navidrome structured lyric DTO and parser handling so missing, null, em
 ### Next Steps
 
 - None - task complete
+
+
+## Session 99: Sync remote and verify code
+
+**Date**: 2026-06-29
+**Task**: Sync remote and verify code
+**Branch**: `main`
+
+### Summary
+
+Fetched and merged origin/main, resolved merge fallout by aligning conflicted app files to the current remote APIs, removed incompatible legacy video detail/episode queue remnants, and verified compile, unit tests, lint, and debug assemble.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0a80aa1` | (see git log) |
+| `0f73cfa` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
