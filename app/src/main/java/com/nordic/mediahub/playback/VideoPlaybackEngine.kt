@@ -7,6 +7,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import com.nordic.mediahub.data.VideoItem
 import kotlinx.coroutines.CoroutineScope
@@ -35,15 +37,24 @@ internal fun shouldReplaceCurrentVideoItem(
         currentVideo.streamUrl.orEmpty() != requestedVideo.streamUrl.orEmpty()
 }
 
+enum class AspectRatioMode(val label: String) {
+    FIT("Fit"),
+    CROP("Crop"),
+    FILL("Fill")
+}
+
 data class VideoPlaybackState(
     val video: VideoItem? = null,
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,
     val positionSeconds: Int = 0,
     val durationSeconds: Int = 0,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val aspectRatioMode: AspectRatioMode = AspectRatioMode.FIT,
+    val videoAspectRatio: Float = 16f / 9f
 )
 
+@androidx.annotation.OptIn(UnstableApi::class)
 class VideoPlaybackEngine(context: Context) {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -73,6 +84,18 @@ class VideoPlaybackEngine(context: Context) {
                     isPlaying = false,
                     isBuffering = false,
                     errorMessage = "视频播放失败: ${error.localizedMessage ?: error.errorCodeName}"
+                )
+            }
+        }
+
+        override fun onVideoSizeChanged(videoSize: VideoSize) {
+            _state.update {
+                it.copy(
+                    videoAspectRatio = resolveVideoAspectRatio(
+                        width = videoSize.width,
+                        height = videoSize.height,
+                        pixelWidthHeightRatio = videoSize.pixelWidthHeightRatio
+                    )
                 )
             }
         }
@@ -156,6 +179,10 @@ class VideoPlaybackEngine(context: Context) {
 
     fun seekForwardBy(intervalSeconds: Int = VIDEO_SKIP_FORWARD_SECONDS) {
         seekBy(intervalSeconds)
+    }
+
+    fun cycleAspectRatio() {
+        _state.update { it.copy(aspectRatioMode = resolveNextAspectRatioMode(it.aspectRatioMode)) }
     }
 
     fun stop() {
@@ -250,6 +277,22 @@ internal fun resolveVideoRelativeSeekPositionSeconds(
     val safePosition = positionSeconds.coerceAtLeast(0)
     val target = safePosition.toLong() + deltaSeconds.toLong()
     return target.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+}
+
+internal fun resolveNextAspectRatioMode(current: AspectRatioMode): AspectRatioMode {
+    val modes = AspectRatioMode.entries
+    return modes[(current.ordinal + 1) % modes.size]
+}
+
+internal fun resolveVideoAspectRatio(
+    width: Int,
+    height: Int,
+    pixelWidthHeightRatio: Float
+): Float {
+    if (width <= 0 || height <= 0) return 16f / 9f
+
+    val safePixelRatio = if (pixelWidthHeightRatio > 0f) pixelWidthHeightRatio else 1f
+    return width.toFloat() / height.toFloat() * safePixelRatio
 }
 
 private fun VideoItem.toMediaItem(): MediaItem {

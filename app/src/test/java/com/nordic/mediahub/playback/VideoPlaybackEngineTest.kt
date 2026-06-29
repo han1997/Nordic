@@ -165,6 +165,45 @@ class VideoPlaybackEngineTest {
         )
     }
 
+    @Test
+    fun resolveNextAspectRatioMode_cyclesThroughDisplayModes() {
+        assertEquals(AspectRatioMode.CROP, resolveNextAspectRatioMode(AspectRatioMode.FIT))
+        assertEquals(AspectRatioMode.FILL, resolveNextAspectRatioMode(AspectRatioMode.CROP))
+        assertEquals(AspectRatioMode.FIT, resolveNextAspectRatioMode(AspectRatioMode.FILL))
+    }
+
+    @Test
+    fun resolveVideoAspectRatio_appliesPixelRatio() {
+        assertEquals(
+            2f,
+            resolveVideoAspectRatio(width = 720, height = 540, pixelWidthHeightRatio = 1.5f),
+            0.001f
+        )
+    }
+
+    @Test
+    fun resolveVideoAspectRatio_fallsBackWhenSizeIsInvalid() {
+        assertEquals(
+            16f / 9f,
+            resolveVideoAspectRatio(width = 0, height = 540, pixelWidthHeightRatio = 1f),
+            0.001f
+        )
+        assertEquals(
+            16f / 9f,
+            resolveVideoAspectRatio(width = 720, height = 0, pixelWidthHeightRatio = 1f),
+            0.001f
+        )
+    }
+
+    @Test
+    fun resolveVideoAspectRatio_ignoresInvalidPixelRatio() {
+        assertEquals(
+            16f / 9f,
+            resolveVideoAspectRatio(width = 1920, height = 1080, pixelWidthHeightRatio = 0f),
+            0.001f
+        )
+    }
+
     private fun video(
         id: String = "video-1",
         streamUrl: String? = "https://example.test/video.mp4",

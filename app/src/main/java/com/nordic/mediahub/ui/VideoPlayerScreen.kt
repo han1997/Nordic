@@ -1,6 +1,7 @@
 package com.nordic.mediahub.ui
 
 import android.view.SurfaceView
+import android.widget.FrameLayout
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -41,9 +42,13 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.ui.AspectRatioFrameLayout
+import com.nordic.mediahub.playback.AspectRatioMode
 import com.nordic.mediahub.playback.VideoPlaybackState
 import kotlin.math.roundToInt
 
+@androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 fun VideoPlayerScreen(
     state: VideoPlaybackState,
@@ -54,6 +59,9 @@ fun VideoPlayerScreen(
     onSeekBack: () -> Unit = {},
     onSeekForward: () -> Unit = {},
     onPlayPause: () -> Unit,
+    onCycleAspectRatio: () -> Unit = {},
+    onToggleFullscreen: () -> Unit = {},
+    isFullscreen: Boolean = false,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -72,6 +80,7 @@ fun VideoPlayerScreen(
         isBuffering = state.isBuffering,
         errorMessage = state.errorMessage
     )
+    val videoAspectRatio = state.videoAspectRatio.takeIf { it > 0f } ?: 16f / 9f
 
     DisposableEffect(attachedSurface) {
         val surface = attachedSurface
@@ -92,9 +101,29 @@ fun VideoPlayerScreen(
     ) {
         AndroidView(
             factory = { context ->
-                SurfaceView(context).also { view ->
-                    attachedSurface = view
+                AspectRatioFrameLayout(context).apply {
+                    layoutParams = FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT
+                    )
+                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    val surface = SurfaceView(context).apply {
+                        layoutParams = FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.MATCH_PARENT
+                        )
+                    }
+                    addView(surface)
+                    attachedSurface = surface
                 }
+            },
+            update = { frameLayout ->
+                frameLayout.resizeMode = when (state.aspectRatioMode) {
+                    AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                    AspectRatioMode.CROP -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                }
+                frameLayout.setAspectRatio(videoAspectRatio)
             },
             modifier = Modifier.fillMaxSize()
         )
@@ -121,8 +150,8 @@ fun VideoPlayerScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
+                .then(if (isFullscreen) Modifier else Modifier.statusBarsPadding())
+                .then(if (isFullscreen) Modifier else Modifier.navigationBarsPadding())
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
@@ -141,6 +170,8 @@ fun VideoPlayerScreen(
                 scrubPosition = scrubPosition,
                 isPlaying = state.isPlaying,
                 hasVideo = video != null,
+                aspectRatioMode = state.aspectRatioMode,
+                isFullscreen = isFullscreen,
                 colorScheme = colorScheme,
                 onScrubChange = { scrubPosition = it },
                 onScrubFinished = {
@@ -150,7 +181,9 @@ fun VideoPlayerScreen(
                 },
                 onSeekBack = onSeekBack,
                 onPlayPause = onPlayPause,
-                onSeekForward = onSeekForward
+                onSeekForward = onSeekForward,
+                onCycleAspectRatio = onCycleAspectRatio,
+                onToggleFullscreen = onToggleFullscreen
             )
         }
     }
@@ -285,12 +318,16 @@ private fun VideoPlayerControls(
     scrubPosition: Float?,
     isPlaying: Boolean,
     hasVideo: Boolean,
+    aspectRatioMode: AspectRatioMode,
+    isFullscreen: Boolean,
     colorScheme: ColorScheme,
     onScrubChange: (Float) -> Unit,
     onScrubFinished: () -> Unit,
     onSeekBack: () -> Unit,
     onPlayPause: () -> Unit,
-    onSeekForward: () -> Unit
+    onSeekForward: () -> Unit,
+    onCycleAspectRatio: () -> Unit,
+    onToggleFullscreen: () -> Unit
 ) {
     Surface(
         color = Color.Black.copy(alpha = 0.56f),
@@ -344,6 +381,14 @@ private fun VideoPlayerControls(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 VideoPlayerChromeButton(
+                    text = aspectRatioMode.label,
+                    colorScheme = colorScheme,
+                    enabled = hasVideo,
+                    size = 44.dp,
+                    onClick = onCycleAspectRatio
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                VideoPlayerChromeButton(
                     text = "-10",
                     colorScheme = colorScheme,
                     enabled = hasVideo,
@@ -366,6 +411,14 @@ private fun VideoPlayerControls(
                     enabled = hasVideo,
                     size = 48.dp,
                     onClick = onSeekForward
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                VideoPlayerChromeButton(
+                    text = if (isFullscreen) "Exit" else "Full",
+                    colorScheme = colorScheme,
+                    enabled = hasVideo,
+                    size = 44.dp,
+                    onClick = onToggleFullscreen
                 )
             }
 

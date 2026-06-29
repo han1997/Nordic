@@ -1,5 +1,6 @@
 package com.nordic.mediahub
 
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -19,7 +20,10 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Velocity
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.AudiobookShelfConfig
@@ -235,9 +239,10 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     var showPlayer by remember { mutableStateOf(false) }
     var showAudiobookPlayer by remember { mutableStateOf(false) }
     var showVideoPlayer by remember { mutableStateOf(false) }
+    var isFullscreen by remember { mutableStateOf(false) }
     var showQueueSheet by remember { mutableStateOf(false) }
     var audiobookPlaybackError by remember { mutableStateOf<String?>(null) }
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val playbackEngine = remember { MusicPlaybackEngine(context) }
     val audiobookPlaybackEngine = remember { AudiobookPlaybackEngine(context) }
     val videoPlaybackEngine = remember { VideoPlaybackEngine(context) }
@@ -362,9 +367,29 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         bottomDockVisible = true
     }
 
-    DisposableEffect(Unit) {
+    LaunchedEffect(isFullscreen) {
+        val activity = context as? ComponentActivity ?: return@LaunchedEffect
+        val controller = WindowInsetsControllerCompat(activity.window, activity.window.decorView)
+        if (isFullscreen) {
+            controller.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        } else {
+            controller.show(WindowInsetsCompat.Type.systemBars())
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
+
+    DisposableEffect(context) {
         onDispose {
             bottomDockRevealController.revealJob?.cancel()
+            val activity = context as? ComponentActivity
+            if (activity != null) {
+                WindowInsetsControllerCompat(activity.window, activity.window.decorView)
+                    .show(WindowInsetsCompat.Type.systemBars())
+                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            }
         }
     }
 
@@ -441,6 +466,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         val video = currentState.video
         val repo = embyRepository
         showVideoPlayer = false
+        isFullscreen = false
 
         if (video != null && repo != null && !video.streamUrl.isNullOrBlank()) {
             val positionSeconds = resolveVideoProgressSyncBaselineSeconds(
@@ -713,6 +739,10 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         closeVideoPlayback()
     }
 
+    BackHandler(enabled = isFullscreen) {
+        isFullscreen = false
+    }
+
     BackHandler(enabled = showAudiobookPlayer || audiobookPlaybackError != null) {
         closeAudiobookPlaybackAfterSync()
     }
@@ -747,6 +777,9 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             onSeekBack = { videoPlaybackEngine.seekBackBy() },
             onSeekForward = { videoPlaybackEngine.seekForwardBy() },
             onPlayPause = videoPlaybackEngine::togglePlayPause,
+            onCycleAspectRatio = videoPlaybackEngine::cycleAspectRatio,
+            onToggleFullscreen = { isFullscreen = !isFullscreen },
+            isFullscreen = isFullscreen,
             onClose = { closeVideoPlayback() },
             modifier = Modifier.fillMaxSize()
         )

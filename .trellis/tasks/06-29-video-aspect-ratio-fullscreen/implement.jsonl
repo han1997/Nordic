@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "BackHandler pattern, Compose state isolation, chrome button pattern, scrubber pattern"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "VideoItem data contract and video playback wiring from Emby"}
+{"file": ".trellis/tasks/06-29-video-aspect-ratio-fullscreen/research/aspect-ratio-fullscreen.md", "reason": "AspectRatioFrameLayout approach, WindowInsetsControllerCompat, video size detection, cycling pattern reference"}

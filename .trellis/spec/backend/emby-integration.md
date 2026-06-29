@@ -129,6 +129,7 @@ data class EmbyItemDto(
   - Relative seek commands must resolve to an absolute player position and use the same `seekTo(positionSeconds)` path as the scrubber.
   - Clamp relative seek targets to `0..durationSeconds` when duration is known. When duration is zero or negative, treat it as unknown: clamp only to `>= 0` so skip-forward still advances from the current position.
   - Player timeline UI must not clamp unknown-duration playback to a one-second range. When duration is unknown, the slider maximum should grow to at least the current player position and the duration label should show `--:--`.
+
 - Playback progress reporting:
   - `syncPlaybackProgress(...)` posts to `Sessions/Playing/Progress`; `stopPlaybackProgress(...)` posts to `Sessions/Playing/Stopped`.
   - Requests must include `X-Emby-Token`, `ItemId`, `PositionTicks`, and `IsPaused`.
@@ -355,3 +356,96 @@ if (shouldReplaceCurrentVideoItem(state.value.video, video)) {
 ```
 
 This preserves lightweight replay for the same stream while refreshing ExoPlayer when the stream URL changes.
+
+## Scenario: Video Playback Display Modes and Fullscreen
+
+### 1. Scope / Trigger
+- Trigger: Changing video player display chrome, aspect-ratio behavior, fullscreen handling, or `VideoPlaybackState` fields consumed by `VideoPlayerScreen`.
+- Scope: Media3 video-size observation, player-surface resize mode, UI controls, Android system bars, and orientation handling.
+- Out of scope: Rebuilding Emby stream URLs, changing progress reporting, subtitle/audio-track selection, PiP, or next-episode behavior.
+
+### 2. Signatures
+```kotlin
+enum class AspectRatioMode { FIT, CROP, FILL }
+
+data class VideoPlaybackState(
+    val aspectRatioMode: AspectRatioMode = AspectRatioMode.FIT,
+    val videoAspectRatio: Float = 16f / 9f
+)
+
+fun VideoPlaybackEngine.cycleAspectRatio()
+internal fun resolveNextAspectRatioMode(current: AspectRatioMode): AspectRatioMode
+internal fun resolveVideoAspectRatio(width: Int, height: Int, pixelWidthHeightRatio: Float): Float
+
+fun VideoPlayerScreen(
+    onCycleAspectRatio: () -> Unit,
+    onToggleFullscreen: () -> Unit,
+    isFullscreen: Boolean
+)
+```
+
+### 3. Contracts
+- `VideoPlaybackEngine` owns the current `AspectRatioMode`; Compose UI only renders the selected label and sends `onCycleAspectRatio`.
+- `onVideoSizeChanged` must publish the actual content aspect ratio using Media3 `VideoSize.width`, `height`, and `pixelWidthHeightRatio`.
+- Invalid video dimensions or invalid pixel ratios must fall back to `16f / 9f` so the surface never receives a zero or negative aspect ratio.
+- `VideoPlayerScreen` must wrap the `SurfaceView` in Media3 `AspectRatioFrameLayout` and map:
+  - `FIT` -> `RESIZE_MODE_FIT`
+  - `CROP` -> `RESIZE_MODE_ZOOM`
+  - `FILL` -> `RESIZE_MODE_FILL`
+- The `SurfaceView` child must explicitly fill the `AspectRatioFrameLayout`.
+- Fullscreen state belongs to the app shell because it controls system bars and requested orientation. `VideoPlayerScreen` receives `isFullscreen` and callbacks, but does not mutate Activity window state directly.
+- Fullscreen hides system bars with transient swipe behavior and requests sensor landscape. Leaving fullscreen restores system bars and `SCREEN_ORIENTATION_UNSPECIFIED`.
+- The Activity manifest must handle orientation/screen-size config changes when fullscreen orientation locking is used.
+
+### 4. Validation & Error Matrix
+- `width <= 0` or `height <= 0` -> publish `16f / 9f`.
+- `pixelWidthHeightRatio <= 0f` -> treat pixel ratio as `1f`.
+- `FIT` selected -> preserve full video in the viewport, accepting letterboxing.
+- `CROP` selected -> fill viewport by cropping edges.
+- `FILL` selected -> stretch to fill viewport.
+- Back pressed while fullscreen -> exit fullscreen before closing video playback.
+- Video player closed while fullscreen -> reset fullscreen state and restore system bars/orientation.
+- `MainScreen` disposed while fullscreen -> restore system bars/orientation in `onDispose`.
+
+### 5. Good/Base/Bad Cases
+- Good: A 4:3 video reports pixel-adjusted aspect ratio and renders without horizontal stretching in `FIT`.
+- Good: User can cycle Fit -> Crop -> Fill -> Fit without replacing the Media3 item or seeking.
+- Good: Fullscreen removes app/system chrome and landscape-locks playback, then cleanly restores portrait-capable app UI on exit.
+- Base: Unknown video dimensions render as 16:9 until Media3 reports a real size.
+- Bad: Compose keeps a local aspect-ratio mode that diverges from `VideoPlaybackState`.
+- Bad: `SurfaceView` is added without match-parent layout params and renders smaller than the frame.
+- Bad: Fullscreen directly manipulates Activity state from `VideoPlayerScreen`, making the composable hard to test and reuse.
+
+### 6. Tests Required
+- Unit test `resolveNextAspectRatioMode(...)` for Fit -> Crop -> Fill -> Fit.
+- Unit test `resolveVideoAspectRatio(...)` for pixel-ratio application, invalid dimensions, and invalid pixel ratio.
+- Compile check for Media3 `AspectRatioFrameLayout` API usage and callback wiring.
+- Lint and debug assemble when manifest config changes or fullscreen system UI handling changes.
+
+### 7. Wrong vs Correct
+#### Wrong
+```kotlin
+// UI owns playback display state and can drift from the engine.
+var aspectRatioMode by remember { mutableStateOf(AspectRatioMode.FIT) }
+```
+
+#### Correct
+```kotlin
+// Engine owns the state; UI sends commands and renders state.
+VideoPlayerScreen(
+    state = videoPlaybackState,
+    onCycleAspectRatio = videoPlaybackEngine::cycleAspectRatio
+)
+```
+
+#### Wrong
+```kotlin
+frameLayout.setAspectRatio(videoSize.width.toFloat() / videoSize.height.toFloat())
+```
+
+#### Correct
+```kotlin
+frameLayout.setAspectRatio(
+    resolveVideoAspectRatio(videoSize.width, videoSize.height, videoSize.pixelWidthHeightRatio)
+)
+```
