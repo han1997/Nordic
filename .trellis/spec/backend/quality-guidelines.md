@@ -104,6 +104,32 @@ searchJob.set(scope.launch { /* search */ })
 
 **Why**: Playback ticks and debounce bookkeeping can update often. Isolating operational state prevents unrelated home/library content from being recomposed just because a handle changed.
 
+### Compose BackHandler for sub-navigation
+
+Every composable that manages page-level state visible to the user (e.g., `libraryPage`, `selectedVideo`, `showConfig`, `showPlayer`) must declare a `BackHandler` with the same logic as its manual back button. Without it, the Android system back gesture finishes the Activity and exits the app instead of returning to the previous screen.
+
+**Priority rule**: `BackHandler` uses last-registered-wins priority. Declare `showConfig` handlers AFTER page-level handlers so collapsing a config panel takes precedence over page navigation when both conditions are true.
+
+```kotlin
+// Page-level back — declared first (lower priority)
+BackHandler(enabled = libraryPage != MusicLibraryPage.Home) {
+    if (libraryPage == MusicLibraryPage.PlaylistDetail) {
+        selectedTab = 2
+        libraryPage = MusicLibraryPage.Playlists
+    } else {
+        selectedTab = 0
+        libraryPage = MusicLibraryPage.Home
+    }
+}
+
+// Config dismiss back — declared after (higher priority)
+BackHandler(enabled = showConfig) {
+    showConfig = false
+}
+```
+
+**Why**: The app uses state-driven navigation without Jetpack Navigation Compose. Every sub-page, detail view, player overlay, and inline config panel is controlled by boolean/enum state. Android's default back behavior calls `Activity.finish()`, which exits the app — the opposite of what users expect when navigating within the app.
+
 ### Config readiness checks centralized
 
 `NavidromeConfig.isReadyForMusicSync()` is defined once in `ServerConfig.kt` and imported where needed. Do not inline `serverUrl.isNotBlank() && username.isNotBlank()` or create duplicate extension functions.
@@ -883,6 +909,8 @@ Playback logic tests should isolate pure calculations where possible, as in `app
 
 ## Code Review Checklist
 
+- [ ] All composables with page-level state have `BackHandler` matching their manual back button logic
+- [ ] `showConfig` handlers are declared after page-level handlers (last-registered-wins)
 - [ ] No string-based error type checks (use typed exceptions)
 - [ ] No duplicate utility functions across files
 - [ ] Shared Compose primitives use `internal` visibility
