@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "验证 Emby 播放进度上报、剧集导航的 API 正确性"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "验证错误处理符合规范"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "验证代码质量"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "验证数据流跨层一致性"}

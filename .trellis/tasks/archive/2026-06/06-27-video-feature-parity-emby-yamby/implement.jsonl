@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Emby API 集成规范，播放进度上报、剧集查询等"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "错误处理规范，播放失败等场景"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "代码质量规范"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "跨层数据流指南，Engine→UI→Repository"}
