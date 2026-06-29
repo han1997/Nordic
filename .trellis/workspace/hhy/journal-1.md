@@ -958,3 +958,36 @@ Added manual Next Episode button to video player: VideoEpisodeQueue model for sa
 ### Next Steps
 
 - None - task complete
+
+
+## Session 29: Video playback parity controls
+
+**Date**: 2026-06-29
+**Task**: Video playback parity controls
+**Branch**: `main`
+
+### Summary
+
+Added video seek interval controls, previous episode navigation, one-shot auto-play next episode on end, double-tap play pause, queue tests, and Emby playback spec updates.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `58cf268` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

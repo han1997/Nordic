@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 28
-- **Last Active**: 2026-06-27
+- **Total Sessions**: 29
+- **Last Active**: 2026-06-29
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~960 | Active |
+| `journal-1.md` | ~993 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 29 | 2026-06-29 | Video playback parity controls | `58cf268` | `main` |
 | 28 | 2026-06-27 | Next episode control in video player | `e9dce40` | `main` |
 | 27 | 2026-06-27 | Emby series library grouping | `2fa7ffe` | `main` |
 | 26 | 2026-06-27 | Emby video parity controls | `ebbc501` | `main` |
