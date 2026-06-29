@@ -1361,3 +1361,36 @@ Polished VideoPlayerScreen toward Yamby-like immersive layout with gradient scri
 ### Next Steps
 
 - None - task complete
+
+
+## Session 101: Video aspect ratio fullscreen controls
+
+**Date**: 2026-06-29
+**Task**: Video aspect ratio fullscreen controls
+**Branch**: `main`
+
+### Summary
+
+Added Fit/Crop/Fill video display modes, fullscreen landscape playback handling, Media3 aspect ratio tracking, tests, and Emby playback display spec coverage.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0213d24` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
