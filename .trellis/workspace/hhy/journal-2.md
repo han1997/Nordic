@@ -1326,3 +1326,38 @@ Fetched and merged origin/main, resolved merge fallout by aligning conflicted ap
 ### Next Steps
 
 - None - task complete
+
+
+## Session 100: Optimize video playback page + fix back gesture
+
+**Date**: 2026-06-29
+**Task**: Optimize video playback page + fix back gesture
+**Branch**: `main`
+
+### Summary
+
+Polished VideoPlayerScreen toward Yamby-like immersive layout with gradient scrim, pill control shelf, and chrome buttons. Fixed system back gesture exiting the app by adding BackHandler to all screens with sub-navigation (MusicScreenV2, AudiobookScreen, VideoScreen, MainActivity player overlays). Added BackHandler and showConfig handler priority pattern to quality guidelines spec.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `54df269` | (see git log) |
+| `e4560c5` | (see git log) |
+| `541c374` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

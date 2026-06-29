@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 99
+- **Total Sessions**: 100
 - **Last Active**: 2026-06-29
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~1328 | Active |
+| `journal-2.md` | ~1363 | Active |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 100 | 2026-06-29 | Optimize video playback page + fix back gesture | `54df269`, `e4560c5`, `541c374` | `main` |
 | 99 | 2026-06-29 | Sync remote and verify code | `0a80aa1`, `0f73cfa` | `main` |
 | 98 | 2026-06-29 | Handle missing Navidrome lyric line text | `957f713` | `main` |
 | 97 | 2026-06-29 | Handle incomplete Emby catalog rows | `00fa117` | `main` |
