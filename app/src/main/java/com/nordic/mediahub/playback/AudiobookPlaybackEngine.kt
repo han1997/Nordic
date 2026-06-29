@@ -3,13 +3,11 @@ package com.nordic.mediahub.playback
 import android.content.ComponentName
 import android.content.Context
 import androidx.core.content.ContextCompat
-import androidx.compose.runtime.Stable
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.PlaybackException
-import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
@@ -46,37 +44,8 @@ data class AudiobookPlaybackState(
     val durationSeconds: Int = 0,
     val playbackSpeed: Float = 1f,
     val chapters: List<AudiobookChapter> = emptyList(),
-    val currentChapterIndex: Int = -1,
-    val speed: Float = 1.0f,
-    val sleepTimerRemainingSeconds: Int? = null,
     val errorMessage: String? = null
 )
-
-internal fun resolveInitialAudiobookSyncPositionSeconds(
-    session: AudiobookPlaybackSession,
-    statePositionSeconds: Int
-): Int {
-    return maxOf(
-        statePositionSeconds,
-        session.currentTimeSeconds,
-        session.startTimeSeconds
-    ).coerceAtLeast(0)
-}
-
-internal fun resolveAudiobookSyncDeltaSeconds(
-    lastSyncedPositionSeconds: Int,
-    currentPositionSeconds: Int
-): Int {
-    return (currentPositionSeconds - lastSyncedPositionSeconds).coerceAtLeast(0)
-}
-
-internal fun resolveCurrentChapterIndex(
-    chapters: List<AudiobookChapter>,
-    positionSeconds: Int
-): Int {
-    if (chapters.isEmpty()) return -1
-    return chapters.indexOfLast { it.startSeconds <= positionSeconds }.coerceAtLeast(0)
-}
 
 @androidx.annotation.OptIn(UnstableApi::class)
 class AudiobookPlaybackEngine(context: Context) {
@@ -90,15 +59,9 @@ class AudiobookPlaybackEngine(context: Context) {
     private var controller: MediaController? = null
     private var pendingSession: AudiobookPlaybackSession? = null
     private var positionUpdateJob: Job? = null
-    private var sleepTimerJob: Job? = null
-    private var sleepTimerEndOfChapterJob: Job? = null
-    private var lastChapterIndexBeforeChapterMonitor: Int = -1
 
     private val _state = MutableStateFlow(AudiobookPlaybackState())
     val state: StateFlow<AudiobookPlaybackState> = _state.asStateFlow()
-
-    private val _speed = MutableStateFlow(1.0f)
-    val speed: StateFlow<Float> = _speed.asStateFlow()
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -246,7 +209,6 @@ class AudiobookPlaybackEngine(context: Context) {
 
     fun stop() {
         stopPositionUpdates()
-        cancelSleepTimer()
         controller?.run {
             pause()
             stop()
@@ -254,7 +216,6 @@ class AudiobookPlaybackEngine(context: Context) {
         }
         pendingSession = null
         _state.value = AudiobookPlaybackState()
-        _speed.value = 1.0f
     }
 
     fun release() {
@@ -300,7 +261,6 @@ class AudiobookPlaybackEngine(context: Context) {
                 ),
                 playbackSpeed = activeController.playbackParameters.speed,
                 chapters = session.chapters,
-                currentChapterIndex = resolveCurrentChapterIndex(session.chapters, currentAbsolutePosition),
                 errorMessage = when (activeController.playbackState) {
                     Player.STATE_READY, Player.STATE_ENDED -> null
                     else -> it.errorMessage

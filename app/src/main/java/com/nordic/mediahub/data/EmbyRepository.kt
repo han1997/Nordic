@@ -1,7 +1,5 @@
 package com.nordic.mediahub.data
 
-import androidx.compose.runtime.Stable
-
 import android.util.Log
 import com.nordic.mediahub.api.EmbyApi
 import com.nordic.mediahub.api.EmbyAuthenticateRequest
@@ -15,13 +13,10 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.io.EOFException
 
-private const val LIBRARY_BROWSE_ITEM_TYPES = "Movie,Series,Video"
-
 class EmbyApiException(message: String, val kind: Kind) : Exception(message) {
     enum class Kind { HTTP, AUTH, API }
 }
 
-@Stable
 data class VideoLibrary(
     val id: String,
     val name: String,
@@ -29,7 +24,6 @@ data class VideoLibrary(
     val itemCount: Int = 0
 )
 
-@Stable
 data class VideoItem(
     val id: String,
     val libraryId: String,
@@ -50,89 +44,10 @@ data class VideoItem(
     val streamUrl: String? = null
 )
 
-@Stable
-data class VideoProgress(
-    val currentTimeSeconds: Int = 0,
-    val playedPercentage: Float = 0f,
-    val isPlayed: Boolean = false,
-    val lastPlayedDate: String? = null
-)
-
-@Stable
-data class VideoPlaybackInfo(
-    val itemId: String,
-    val title: String,
-    val streamUrl: String,
-    val mediaSourceId: String,
-    val playSessionId: String,
-    val overview: String = "",
-    val durationSeconds: Int = 0,
-    val imageUrl: String? = null,
-    val resumePositionSeconds: Int = 0,
-    val audioTracks: List<VideoMediaTrack> = emptyList(),
-    val subtitleTracks: List<VideoMediaTrack> = emptyList()
-)
-
-@Stable
-data class VideoMediaTrack(
-    val index: Int,
-    val label: String,
-    val language: String? = null,
-    val codec: String? = null,
-    val isDefault: Boolean = false,
-    val isForced: Boolean = false,
-    val isExternal: Boolean = false,
-    val deliveryUrl: String? = null
-)
-
-@Stable
 data class VideoCatalog(
     val libraries: List<VideoLibrary>,
     val selectedLibraryId: String?,
-    val items: List<VideoItem>,
-    val resumeItems: List<VideoItem> = emptyList(),
-    val nextUpItems: List<VideoItem> = emptyList()
-)
-
-enum class VideoSortOption(val apiSortBy: String, val apiSortOrder: String) {
-    DateAdded("DateCreated", "Descending"),
-    Name("SortName", "Ascending"),
-    Year("ProductionYear", "Descending"),
-    LastPlayed("DatePlayed", "Descending")
-}
-
-enum class VideoItemFilter(val apiFilter: String?) {
-    All(null),
-    Unplayed("IsUnplayed"),
-    Played("IsPlayed"),
-    Favorite("IsFavorite")
-}
-
-@Stable
-data class VideoItemQuery(
-    val sort: VideoSortOption = VideoSortOption.DateAdded,
-    val filter: VideoItemFilter = VideoItemFilter.All
-)
-
-@Stable
-data class VideoSeason(
-    val id: String,
-    val name: String,
-    val indexNumber: Int,
-    val episodeCount: Int,
-    val imageUrl: String? = null
-)
-
-@Stable
-data class VideoEpisode(
-    val id: String,
-    val name: String,
-    val seasonNumber: Int,
-    val episodeNumber: Int,
-    val overview: String,
-    val durationSeconds: Int,
-    val imageUrl: String? = null,
-    val progress: VideoProgress? = null
+    val items: List<VideoItem>
 )
 
 private const val EMBY_TICKS_PER_SECOND = 10_000_000L
@@ -169,10 +84,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
         .build()
         .create(EmbyApi::class.java)
 
-    suspend fun getCatalog(
-        selectedLibraryId: String? = null,
-        query: VideoItemQuery = VideoItemQuery()
-    ): VideoCatalog = try {
+    suspend fun getCatalog(selectedLibraryId: String? = null): VideoCatalog = try {
         val session = session()
         val libraries = getLibraries(session)
         val libraryId = selectedLibraryId?.takeIf { selectedId ->
@@ -182,9 +94,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
         VideoCatalog(
             libraries = libraries,
             selectedLibraryId = libraryId,
-            items = libraryId?.let { getLibraryItems(session, it, query) }.orEmpty(),
-            resumeItems = getResumeItems(session),
-            nextUpItems = getNextUpItems(session)
+            items = libraryId?.let { getLibraryItems(session, it) }.orEmpty()
         )
     } catch (e: EmbyApiException) {
         throw e
@@ -192,11 +102,8 @@ class EmbyRepository(private val config: VideoServerConfig) {
         throw Exception("连接 Emby 失败: ${e.message}")
     }
 
-    suspend fun getLibraryItems(
-        libraryId: String,
-        query: VideoItemQuery = VideoItemQuery()
-    ): List<VideoItem> = try {
-        getLibraryItems(session(), libraryId, query)
+    suspend fun getLibraryItems(libraryId: String): List<VideoItem> = try {
+        getLibraryItems(session(), libraryId)
     } catch (e: EmbyApiException) {
         throw e
     } catch (e: Exception) {
@@ -397,12 +304,6 @@ class EmbyRepository(private val config: VideoServerConfig) {
         }
 
         return response.body() ?: throw EmbyApiException("$action: 响应为空", EmbyApiException.Kind.API)
-    }
-
-    private fun Response<Unit>.requireSuccess(action: String) {
-        if (!isSuccessful) {
-            throw EmbyApiException("$action: HTTP ${code()}", EmbyApiException.Kind.HTTP)
-        }
     }
 
     private fun Response<Unit>.requireSuccess(action: String) {

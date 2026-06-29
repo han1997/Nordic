@@ -3,7 +3,6 @@ package com.nordic.mediahub.api
 import com.google.gson.annotations.SerializedName
 import retrofit2.Response
 import retrofit2.http.Body
-import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
@@ -65,10 +64,6 @@ data class EmbyItemDto(
     val communityRating: Float? = null,
     @SerializedName("ChildCount")
     val childCount: Int? = null,
-    @SerializedName("IndexNumber")
-    val indexNumber: Int? = null,
-    @SerializedName("ParentIndexNumber")
-    val parentIndexNumber: Int? = null,
     @SerializedName("ImageTags")
     val imageTags: Map<String, String>? = emptyMap(),
     @SerializedName("UserData")

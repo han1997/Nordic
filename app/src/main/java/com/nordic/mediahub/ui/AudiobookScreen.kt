@@ -99,13 +99,11 @@ fun AudiobookScreen(
     colorScheme: ColorScheme,
     isDark: Boolean,
     onThemeToggle: (Boolean) -> Unit,
-    onPlayAudiobook: (AudiobookItemSummary) -> Unit = {},
-    onSeekToChapter: (Int) -> Unit = {}
+    onPlayAudiobook: (AudiobookItemSummary) -> Unit = {}
 ) {
     val context = LocalContext.current
     val repository = remember { ConfigRepository(context) }
     val savedConfig by repository.audiobookConfig.collectAsStateWithLifecycle(AudiobookShelfConfig())
-    val lastAudiobookItemId by repository.lastAudiobookItemId.collectAsStateWithLifecycle(null)
     var config by remember { mutableStateOf(AudiobookShelfConfig()) }
     var showConfig by remember { mutableStateOf(false) }
     var libraryPage by remember { mutableStateOf(AudiobookLibraryPage.Home) }
@@ -118,17 +116,6 @@ fun AudiobookScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var audiobookConfigStateVersion by remember { mutableStateOf(0) }
     val scope = rememberCoroutineScope()
-    val continueListeningItems = remember(items) {
-        items
-            .filter { item ->
-                val progress = item.progress
-                progress != null && !progress.isFinished && progress.currentTimeSeconds > 0
-            }
-            .sortedByDescending { it.progress?.lastUpdateMillis ?: 0L }
-    }
-    val lastActiveItem = remember(items, lastAudiobookItemId) {
-        items.firstOrNull { it.id == lastAudiobookItemId }
-    }
 
     val audiobookRepository = remember(savedConfig) {
         if (savedConfig.isReadyForAudiobookSync()) {
@@ -398,40 +385,6 @@ fun AudiobookScreen(
                     )
                 }
             } else {
-                lastActiveItem?.let { item ->
-                    item {
-                        AudiobookSectionHeader("上次播放", colorScheme)
-                    }
-                    item {
-                        AudiobookSummaryCard(
-                            item = item,
-                            colorScheme = colorScheme,
-                            onOpen = { openItemDetail(item) },
-                            onPlay = { onPlayAudiobook(item) }
-                        )
-                    }
-                }
-                if (continueListeningItems.isNotEmpty()) {
-                    item {
-                        AudiobookSectionHeader("继续收听", colorScheme)
-                    }
-                    item {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(
-                                items = continueListeningItems,
-                                key = { "continue-${it.id}" },
-                                contentType = { "continue-audiobook-card" }
-                            ) { item ->
-                                ContinueListeningCard(
-                                    item = item,
-                                    colorScheme = colorScheme,
-                                    onOpen = { openItemDetail(item) },
-                                    onPlay = { onPlayAudiobook(item) }
-                                )
-                            }
-                        }
-                    }
-                }
                 items(items, key = { it.id }, contentType = { "audiobook-summary-card" }) { item ->
                     AudiobookSummaryCard(
                         item = item,
@@ -552,89 +505,6 @@ private fun AudiobookLibrarySelector(
 }
 
 @Composable
-private fun AudiobookSectionHeader(title: String, colorScheme: ColorScheme) {
-    Text(
-        title,
-        fontSize = 16.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = colorScheme.onBackground
-    )
-}
-
-@Composable
-private fun ContinueListeningCard(
-    item: AudiobookItemSummary,
-    colorScheme: ColorScheme,
-    onOpen: () -> Unit,
-    onPlay: () -> Unit
-) {
-    val progress = item.progress
-    Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
-        modifier = Modifier
-            .width(210.dp)
-            .clickable(onClick = onOpen)
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                AudiobookCover(
-                    coverUrl = item.coverUrl,
-                    contentDescription = item.title,
-                    colorScheme = colorScheme,
-                    modifier = Modifier.size(58.dp)
-                )
-                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(
-                        item.title,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colorScheme.onSurface,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    if (item.author.isNotBlank()) {
-                        Text(item.author, fontSize = 12.sp, color = colorScheme.onSurface.copy(alpha = 0.62f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                }
-            }
-            val fraction = progress?.progressFraction?.coerceIn(0f, 1f) ?: 0f
-            LinearProgressIndicator(
-                progress = fraction,
-                modifier = Modifier.fillMaxWidth(),
-                color = colorScheme.primary,
-                trackColor = colorScheme.onSurface.copy(alpha = 0.10f)
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    progress?.let { formatDuration(it.currentTimeSeconds) }.orEmpty(),
-                    fontSize = 12.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.58f)
-                )
-                Surface(
-                    color = colorScheme.primary,
-                    contentColor = colorScheme.onPrimary,
-                    shape = RoundedCornerShape(999.dp),
-                    modifier = Modifier.height(30.dp).clickable(onClick = onPlay)
-                ) {
-                    Box(modifier = Modifier.padding(horizontal = 12.dp), contentAlignment = Center) {
-                        Text("继续", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun AudiobookSummaryCard(
     item: AudiobookItemSummary,
     colorScheme: ColorScheme,
@@ -680,9 +550,6 @@ private fun AudiobookSummaryCard(
                 }.joinToString("  •  ")
                 if (meta.isNotBlank()) {
                     Text(meta, fontSize = 12.sp, color = colorScheme.onSurface.copy(alpha = 0.5f), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                }
-                item.progress?.takeIf { !it.isFinished && it.currentTimeSeconds > 0 }?.let { progress ->
-                    AudiobookMetaChip("续播 ${formatDuration(progress.currentTimeSeconds)}", colorScheme)
                 }
             }
             Surface(
@@ -779,12 +646,12 @@ private fun AudiobookDetailHeader(
 }
 
 @Composable
-private fun AudiobookChapterRow(chapter: AudiobookChapter, colorScheme: ColorScheme, onClick: () -> Unit = {}) {
+private fun AudiobookChapterRow(chapter: AudiobookChapter, colorScheme: ColorScheme) {
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),

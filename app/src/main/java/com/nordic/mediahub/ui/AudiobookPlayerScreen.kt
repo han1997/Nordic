@@ -13,19 +13,13 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
@@ -49,16 +43,11 @@ import coil.compose.AsyncImage
 import com.nordic.mediahub.data.AudiobookChapter
 import com.nordic.mediahub.playback.AudiobookPlaybackState
 
-private val SPEED_OPTIONS = floatArrayOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f, 3f)
-
 @Composable
 fun AudiobookPlayerScreen(
     state: AudiobookPlaybackState,
     colorScheme: ColorScheme,
     externalError: String? = null,
-    speed: Float = 1f,
-    currentChapterIndex: Int = -1,
-    sleepTimerRemainingSeconds: Int? = null,
     onSeek: (Int) -> Unit,
     onSeekBack: () -> Unit = {},
     onSeekForward: () -> Unit = {},
@@ -66,19 +55,7 @@ fun AudiobookPlayerScreen(
     onSeekToNextChapter: () -> Unit = {},
     onCyclePlaybackSpeed: () -> Unit = {},
     onPlayPause: () -> Unit,
-    onClose: () -> Unit,
-    onSpeedChange: (Float) -> Unit = {},
-    onSkipForward: () -> Unit = {},
-    onSkipBackward: () -> Unit = {},
-    onPreviousChapter: () -> Unit = {},
-    onNextChapter: () -> Unit = {},
-    onStartSleepTimer: (Int) -> Unit = {},
-    onStartSleepTimerEndOfChapter: () -> Unit = {},
-    onCancelSleepTimer: () -> Unit = {},
-    bookmarks: List<AudiobookBookmark> = emptyList(),
-    onAddBookmark: () -> Unit = {},
-    onSelectBookmark: (AudiobookBookmark) -> Unit = {},
-    onDeleteBookmark: (AudiobookBookmark) -> Unit = {}
+    onClose: () -> Unit
 ) {
     val session = state.session
     val duration = state.durationSeconds.coerceAtLeast(1)
@@ -127,14 +104,7 @@ fun AudiobookPlayerScreen(
                 ),
             verticalArrangement = Arrangement.spacedBy(sectionGap)
         ) {
-            AudiobookPlayerTopBar(
-                colorScheme = colorScheme,
-                onClose = onClose,
-                sleepTimerRemainingSeconds = sleepTimerRemainingSeconds,
-                onStartSleepTimer = onStartSleepTimer,
-                onStartSleepTimerEndOfChapter = onStartSleepTimerEndOfChapter,
-                onCancelSleepTimer = onCancelSleepTimer
-            )
+            AudiobookPlayerTopBar(colorScheme = colorScheme, onClose = onClose)
             AudiobookPrimaryDisplay(
                 title = session?.displayTitle ?: "有声书播放",
                 coverUrl = session?.coverUrl,
@@ -255,7 +225,7 @@ fun AudiobookPlayerScreen(
                         )
                         Spacer(Modifier.size(if (compact) 6.dp else 8.dp))
                         AudiobookPlayButton(
-                            label = if (state.isPlaying) "II" else "▶",
+                            label = if (state.isPlaying) "Ⅱ" else "▶",
                             colorScheme = colorScheme,
                             compact = compact,
                             enabled = playbackControlsEnabled,
@@ -278,150 +248,8 @@ fun AudiobookPlayerScreen(
                             onClick = onSeekToNextChapter
                         )
                     }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        SPEED_OPTIONS.forEach { optionSpeed ->
-                            val isActive = speed == optionSpeed
-                            Surface(
-                                color = if (isActive) colorScheme.primary else colorScheme.surfaceVariant.copy(alpha = 0.62f),
-                                contentColor = if (isActive) colorScheme.onPrimary else colorScheme.onSurface,
-                                shape = RoundedCornerShape(999.dp),
-                                modifier = Modifier
-                                    .padding(horizontal = 2.dp)
-                                    .clickable { onSpeedChange(optionSpeed) }
-                            ) {
-                                Text(
-                                    if (optionSpeed == 1f) "1x" else "${optionSpeed}x",
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    fontSize = 11.sp,
-                                    color = if (isActive) colorScheme.onPrimary else colorScheme.onSurface.copy(alpha = 0.64f),
-                                    fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium
-                                )
-                            }
-                        }
-                    }
-                    AudiobookBookmarkSection(
-                        bookmarks = bookmarks,
-                        currentPositionSeconds = visiblePosition.toInt(),
-                        colorScheme = colorScheme,
-                        enabled = session != null,
-                        onAddBookmark = onAddBookmark,
-                        onSelectBookmark = onSelectBookmark,
-                        onDeleteBookmark = onDeleteBookmark
-                    )
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun AudiobookBookmarkSection(
-    bookmarks: List<AudiobookBookmark>,
-    currentPositionSeconds: Int,
-    colorScheme: ColorScheme,
-    enabled: Boolean,
-    onAddBookmark: () -> Unit,
-    onSelectBookmark: (AudiobookBookmark) -> Unit,
-    onDeleteBookmark: (AudiobookBookmark) -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(7.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                "书签",
-                fontSize = 12.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.62f),
-                fontWeight = FontWeight.SemiBold
-            )
-            Surface(
-                color = if (enabled) colorScheme.primary.copy(alpha = 0.14f) else colorScheme.surface.copy(alpha = 0.3f),
-                contentColor = if (enabled) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.32f),
-                shape = RoundedCornerShape(999.dp),
-                modifier = Modifier.clickable(enabled = enabled, onClick = onAddBookmark)
-            ) {
-                Text(
-                    "+ ${formatDuration(currentPositionSeconds)}",
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                    fontSize = 11.sp,
-                    color = if (enabled) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.32f),
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        }
-        if (bookmarks.isEmpty()) {
-            Text(
-                "暂无书签",
-                fontSize = 12.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.42f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        } else {
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(
-                    items = bookmarks,
-                    key = { bookmark -> bookmark.id },
-                    contentType = { "audiobook-bookmark" }
-                ) { bookmark ->
-                    AudiobookBookmarkChip(
-                        bookmark = bookmark,
-                        colorScheme = colorScheme,
-                        onSelect = { onSelectBookmark(bookmark) },
-                        onDelete = { onDeleteBookmark(bookmark) }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AudiobookBookmarkChip(
-    bookmark: AudiobookBookmark,
-    colorScheme: ColorScheme,
-    onSelect: () -> Unit,
-    onDelete: () -> Unit
-) {
-    Surface(
-        color = colorScheme.surface.copy(alpha = 0.64f),
-        contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(999.dp),
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f))
-    ) {
-        Row(
-            modifier = Modifier.padding(start = 10.dp, top = 5.dp, end = 6.dp, bottom = 5.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(7.dp)
-        ) {
-            Text(
-                bookmark.label.ifBlank { formatDuration(bookmark.positionSeconds) },
-                modifier = Modifier.clickable(onClick = onSelect),
-                fontSize = 11.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.74f),
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                "x",
-                modifier = Modifier.clickable(onClick = onDelete),
-                fontSize = 12.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.46f),
-                fontWeight = FontWeight.Bold
-            )
         }
     }
 }
@@ -487,14 +315,8 @@ private fun AudiobookPrimaryDisplay(
 @Composable
 private fun AudiobookPlayerTopBar(
     colorScheme: ColorScheme,
-    onClose: () -> Unit,
-    sleepTimerRemainingSeconds: Int?,
-    onStartSleepTimer: (Int) -> Unit,
-    onStartSleepTimerEndOfChapter: () -> Unit,
-    onCancelSleepTimer: () -> Unit
+    onClose: () -> Unit
 ) {
-    var showSleepMenu by remember { mutableStateOf(false) }
-
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -517,66 +339,7 @@ private fun AudiobookPlayerTopBar(
             color = colorScheme.onSurface,
             fontWeight = FontWeight.SemiBold
         )
-        Box {
-            Surface(
-                color = if (sleepTimerRemainingSeconds != null) colorScheme.primary.copy(alpha = 0.18f) else colorScheme.surfaceVariant.copy(alpha = 0.58f),
-                contentColor = if (sleepTimerRemainingSeconds != null) colorScheme.primary else colorScheme.onSurface,
-                shape = RoundedCornerShape(14.dp),
-                border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
-                modifier = Modifier
-                    .height(42.dp)
-                    .clickable {
-                        if (sleepTimerRemainingSeconds != null) {
-                            onCancelSleepTimer()
-                        } else {
-                            showSleepMenu = true
-                        }
-                    }
-            ) {
-                Box(
-                    modifier = Modifier.padding(horizontal = 13.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (sleepTimerRemainingSeconds != null) {
-                        val minutes = sleepTimerRemainingSeconds / 60
-                        val seconds = (sleepTimerRemainingSeconds % 60).toString().padStart(2, '0')
-                        Text(
-                            "⏾ $minutes:$seconds",
-                            fontSize = 13.sp,
-                            color = colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    } else {
-                        Text(
-                            "⏾",
-                            fontSize = 18.sp,
-                            color = colorScheme.onSurface.copy(alpha = 0.76f)
-                        )
-                    }
-                }
-            }
-            DropdownMenu(
-                expanded = showSleepMenu,
-                onDismissRequest = { showSleepMenu = false }
-            ) {
-                listOf(15, 30, 45, 60).forEach { minutes ->
-                    DropdownMenuItem(
-                        text = { Text("$minutes 分钟") },
-                        onClick = {
-                            showSleepMenu = false
-                            onStartSleepTimer(minutes)
-                        }
-                    )
-                }
-                DropdownMenuItem(
-                    text = { Text("本章节结束后") },
-                    onClick = {
-                        showSleepMenu = false
-                        onStartSleepTimerEndOfChapter()
-                    }
-                )
-            }
-        }
+        Spacer(Modifier.size(42.dp))
     }
 }
 

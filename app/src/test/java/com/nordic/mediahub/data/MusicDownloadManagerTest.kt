@@ -78,8 +78,7 @@ class MusicDownloadManagerStateTest {
             duration = 245,
             coverArt = "cover-1",
             streamUrl = "https://example.test/stream",
-            created = "2026-06-27T00:00:00Z",
-            starred = "2026-06-27T00:01:00Z"
+            created = "2026-06-27T00:00:00Z"
         )
 
         saveDownloadedSongMetadata(file, song)

@@ -276,8 +276,7 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
             coverUrl = media.coverPath.toAbsoluteCoverUrlOrNull(),
             durationSeconds = media.duration.toInt(),
             chapterCount = media.numChapters,
-            updatedAtMillis = updatedAt,
-            progress = userMediaProgress?.toDomainProgress()
+            updatedAtMillis = updatedAt
         )
     }
 

@@ -3,7 +3,6 @@ package com.nordic.mediahub.playback
 import android.content.ComponentName
 import android.content.Context
 import androidx.core.content.ContextCompat
-import androidx.compose.runtime.Stable
 import androidx.media3.common.C
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -11,7 +10,6 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.nordic.mediahub.api.NavidromeSong
-import com.nordic.mediahub.data.MusicDownloadManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -25,7 +23,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-@Stable
 data class MusicPlaybackState(
     val currentSong: NavidromeSong? = null,
     val isPlaying: Boolean = false,
@@ -120,7 +117,7 @@ internal fun shouldReplaceCurrentMusicItem(
 }
 
 @androidx.annotation.OptIn(UnstableApi::class)
-class MusicPlaybackEngine(context: Context, private val downloadManager: MusicDownloadManager? = null) {
+class MusicPlaybackEngine(context: Context) {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val sessionToken = SessionToken(
@@ -221,8 +218,7 @@ class MusicPlaybackEngine(context: Context, private val downloadManager: MusicDo
     }
 
     fun play(song: NavidromeSong) {
-        val localPath = downloadManager?.getLocalFilePath(song.id)
-        if (localPath == null && song.streamUrl.isNullOrBlank()) {
+        if (song.streamUrl.isNullOrBlank()) {
             _state.value = MusicPlaybackState(
                 currentSong = song,
                 durationSeconds = song.duration,
@@ -412,66 +408,6 @@ class MusicPlaybackEngine(context: Context, private val downloadManager: MusicDo
         publishPlayerState()
     }
 
-    fun addToQueue(song: NavidromeSong) {
-        val mediaItem = song.toMediaItem(localFilePath = downloadManager?.getLocalFilePath(song.id))
-        val activeController = controller
-        if (activeController == null) {
-            val currentQueue = pendingQueue ?: _state.value.queue
-            val nextQueue = currentQueue + song
-            pendingQueue = nextQueue
-            _state.update { it.copy(queue = nextQueue) }
-            return
-        }
-
-        activeController.addMediaItem(mediaItem)
-        cachedTimelineGeneration = -1
-        publishPlayerState()
-    }
-
-    fun addToQueue(songs: List<NavidromeSong>) {
-        if (songs.isEmpty()) return
-        val mediaItems = songs.map { song ->
-            song.toMediaItem(localFilePath = downloadManager?.getLocalFilePath(song.id))
-        }
-        val activeController = controller
-        if (activeController == null) {
-            val currentQueue = pendingQueue ?: _state.value.queue
-            val nextQueue = currentQueue + songs
-            pendingQueue = nextQueue
-            _state.update { it.copy(queue = nextQueue) }
-            return
-        }
-
-        activeController.addMediaItems(mediaItems)
-        cachedTimelineGeneration = -1
-        publishPlayerState()
-    }
-
-    fun moveQueueItem(fromIndex: Int, toIndex: Int) {
-        val activeController = controller
-        if (activeController == null) {
-            movePendingQueueItem(fromIndex, toIndex)
-            return
-        }
-
-        val itemCount = activeController.mediaItemCount
-        if (fromIndex !in 0 until itemCount || toIndex !in 0 until itemCount) return
-
-        val currentIndex = activeController.currentMediaItemIndex
-
-        activeController.moveMediaItem(fromIndex, toIndex)
-        cachedTimelineGeneration = -1
-
-        val nextCurrentIndex = resolveQueueIndexAfterMove(fromIndex, toIndex, currentIndex, itemCount)
-        if (nextCurrentIndex != currentIndex && currentIndex >= 0) {
-            _state.update { it.copy(queueIndex = nextCurrentIndex) }
-        }
-        publishPlayerState()
-    }
-
-    val audioSessionId: Int
-        get() = MusicPlaybackService.audioSessionId
-
     fun togglePlayPause() {
         val activeController = controller
         if (activeController == null) {
@@ -644,23 +580,6 @@ class MusicPlaybackEngine(context: Context, private val downloadManager: MusicDo
         pendingQueue = nextQueue
         pendingQueueStartIndex = currentIndex
         _state.update { it.copy(queue = nextQueue, queueIndex = currentIndex) }
-    }
-
-    private fun movePendingQueueItem(fromIndex: Int, toIndex: Int) {
-        val queue = pendingQueue ?: _state.value.queue
-        if (fromIndex !in queue.indices || toIndex !in queue.indices) return
-
-        val nextQueue = queue.moveItemToIndex(fromIndex, toIndex)
-        pendingQueue = nextQueue
-        val currentIndex = _state.value.queueIndex
-        val nextCurrentIndex = resolveQueueIndexAfterMove(fromIndex, toIndex, currentIndex, queue.size)
-        pendingQueueStartIndex = nextCurrentIndex
-        _state.update {
-            it.copy(
-                queue = nextQueue,
-                queueIndex = nextCurrentIndex
-            )
-        }
     }
 
 }

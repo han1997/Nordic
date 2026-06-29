@@ -28,20 +28,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.TextButton
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -62,9 +56,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.nordic.mediahub.api.NavidromeAlbum
@@ -72,22 +63,16 @@ import com.nordic.mediahub.api.NavidromeArtist
 import com.nordic.mediahub.api.NavidromePlaylist
 import com.nordic.mediahub.api.NavidromeSong
 import com.nordic.mediahub.data.ConfigRepository
-import com.nordic.mediahub.data.DownloadState
-import com.nordic.mediahub.data.DownloadStateEntry
-import com.nordic.mediahub.data.MusicDownloadManager
 import com.nordic.mediahub.data.NavidromeAlbumSort
 import com.nordic.mediahub.data.NavidromeConfig
 import com.nordic.mediahub.data.NavidromeMusicCacheRepository
 import com.nordic.mediahub.data.NavidromeRepository
-import com.nordic.mediahub.data.PlayHistoryEntry
 import com.nordic.mediahub.data.SearchMusicResult
-import com.nordic.mediahub.data.StarredContent
 import com.nordic.mediahub.data.isReadyForMusicSync
 import com.nordic.mediahub.data.loadNavidromeMusicRefresh
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.concurrent.atomic.AtomicReference
 
 internal enum class MusicLibraryPage {
     Home,
@@ -123,7 +108,6 @@ fun MusicScreenV2(
     val colorScheme = MaterialTheme.colorScheme
     val repository = remember { ConfigRepository(context) }
     val cacheRepository = remember { NavidromeMusicCacheRepository(context) }
-    val downloadStatesMap by downloadManager.downloadStates.collectAsStateWithLifecycle(emptyMap())
     val savedConfig by repository.navidromeConfig.collectAsStateWithLifecycle(NavidromeConfig())
     val navidromeRepository = remember(savedConfig) {
         if (savedConfig.isReadyForMusicSync()) NavidromeRepository(savedConfig) else null
@@ -136,11 +120,6 @@ fun MusicScreenV2(
     var sortedAlbums by remember { mutableStateOf(emptyList<NavidromeAlbum>()) }
     var albumSort by remember { mutableStateOf(NavidromeAlbumSort.RecentlyAdded) }
     var songSort by remember { mutableStateOf(MusicSongSort.Default) }
-    var albumFilterQuery by remember { mutableStateOf("") }
-    var songFilterQuery by remember { mutableStateOf("") }
-    var artistFilterQuery by remember { mutableStateOf("") }
-    var playlistFilterQuery by remember { mutableStateOf("") }
-    var playlistSongFilterQuery by remember { mutableStateOf("") }
     var songs by remember { mutableStateOf(emptyList<NavidromeSong>()) }
     var recentlyAddedSongs by remember { mutableStateOf(emptyList<NavidromeSong>()) }
     var artists by remember { mutableStateOf(emptyList<NavidromeArtist>()) }
@@ -163,7 +142,7 @@ fun MusicScreenV2(
     var searchResult by remember { mutableStateOf<SearchMusicResult?>(null) }
     var isSearching by remember { mutableStateOf(false) }
     var searchError by remember { mutableStateOf<String?>(null) }
-    val searchJob = remember { AtomicReference<Job?>(null) }
+    var searchJob by remember { mutableStateOf<Job?>(null) }
     var cacheUpdatedAtMillis by remember { mutableStateOf<Long?>(null) }
     var musicConfigStateVersion by remember { mutableStateOf(0) }
     val scope = rememberCoroutineScope()
@@ -348,94 +327,8 @@ fun MusicScreenV2(
         }
     }
 
-    suspend fun loadStarredContent(): Boolean {
-        if (isLoadingStarred) return false
-        val repo = navidromeRepository
-        if (repo == null) return false
-
-        isLoadingStarred = true
-        return try {
-            starredContent = repo.getStarred2()
-            true
-        } catch (_: Exception) {
-            false
-        } finally {
-            isLoadingStarred = false
-        }
-    }
-
-    fun toggleSongStar(song: NavidromeSong) {
-        val repo = navidromeRepository ?: return
-        scope.launch {
-            try {
-                if (song.starred != null) {
-                    repo.unstar(id = song.id)
-                } else {
-                    repo.star(id = song.id)
-                }
-                // Update local state
-                val updatedSong = song.copy(starred = if (song.starred != null) null else "now")
-                songs = songs.map { if (it.id == song.id) updatedSong else it }
-                recentlyAddedSongs = recentlyAddedSongs.map { if (it.id == song.id) updatedSong else it }
-                albumDetailSongs = albumDetailSongs.map { if (it.id == song.id) updatedSong else it }
-                playlistSongs = playlistSongs.map { if (it.id == song.id) updatedSong else it }
-                loadStarredContent()
-            } catch (_: Exception) {}
-        }
-    }
-
-    fun toggleAlbumStar(album: NavidromeAlbum) {
-        val repo = navidromeRepository ?: return
-        scope.launch {
-            try {
-                if (album.starred != null) {
-                    repo.unstar(albumId = album.id)
-                } else {
-                    repo.star(albumId = album.id)
-                }
-                val updatedAlbum = album.copy(starred = if (album.starred != null) null else "now")
-                albums = albums.map { if (it.id == album.id) updatedAlbum else it }
-                sortedAlbums = sortedAlbums.map { if (it.id == album.id) updatedAlbum else it }
-                artistAlbums = artistAlbums.map { if (it.id == album.id) updatedAlbum else it }
-                if (selectedAlbum?.id == album.id) {
-                    selectedAlbum = updatedAlbum
-                }
-                loadStarredContent()
-            } catch (_: Exception) {}
-        }
-    }
-
-    fun toggleArtistStar(artist: NavidromeArtist) {
-        val repo = navidromeRepository ?: return
-        scope.launch {
-            try {
-                if (artist.starred != null) {
-                    repo.unstar(artistId = artist.id)
-                } else {
-                    repo.star(artistId = artist.id)
-                }
-                val updatedArtist = artist.copy(starred = if (artist.starred != null) null else "now")
-                artists = artists.map { if (it.id == artist.id) updatedArtist else it }
-                if (selectedArtist?.id == artist.id) {
-                    selectedArtist = updatedArtist
-                }
-                loadStarredContent()
-            } catch (_: Exception) {}
-        }
-    }
-
-    fun toggleSongDownload(song: NavidromeSong) {
-        if (downloadManager.isDownloaded(song.id)) {
-            downloadManager.deleteDownload(song.id)
-        } else {
-            if (savedConfig.isReadyForMusicSync()) {
-                downloadManager.downloadSong(song, savedConfig)
-            }
-        }
-    }
-
     fun openSearch() {
-        searchJob.get()?.cancel()
+        searchJob?.cancel()
         searchQuery = ""
         searchResult = null
         searchError = null
@@ -533,7 +426,6 @@ fun MusicScreenV2(
     fun openPlaylistDetail(playlist: NavidromePlaylist) {
         val requestVersion = musicConfigStateVersion
         selectedPlaylist = playlist
-        playlistSongFilterQuery = ""
         playlistSongs = emptyList()
         isLoadingPlaylistDetail = true
         errorMsg = null
@@ -558,17 +450,6 @@ fun MusicScreenV2(
         }
     }
 
-    fun refreshPlaylistOnly() {
-        scope.launch {
-            val activePlaylist = selectedPlaylist
-            val loaded = loadPlaylists()
-            if (loaded && libraryPage == MusicLibraryPage.PlaylistDetail && activePlaylist != null) {
-                val refreshedPlaylist = playlists.firstOrNull { it.id == activePlaylist.id } ?: activePlaylist
-                openPlaylistDetail(refreshedPlaylist)
-            }
-        }
-    }
-
     LaunchedEffect(savedConfig) {
         config = savedConfig
         resetMusicStateAfterConfigChange()
@@ -586,22 +467,6 @@ fun MusicScreenV2(
         }
     }
 
-    LaunchedEffect(navidromeRepository) {
-        if (navidromeRepository != null) {
-            loadStarredContent()
-        } else {
-            starredContent = StarredContent()
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        downloadManager.restoreDownloadState()
-    }
-
-    LaunchedEffect(songs, recentlyAddedSongs) {
-        downloadManager.updateSongMetadata(songs + recentlyAddedSongs)
-    }
-
     val hasContent = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty() || playlists.isNotEmpty()
     val visibleSongs = remember(songs, songSort) {
         sortMusicSongs(songs, songSort)
@@ -610,33 +475,8 @@ fun MusicScreenV2(
     val homePlaybackQueue = remember(recentlyAddedSongs) { musicHomePlaybackQueue(recentlyAddedSongs) }
     val homeAlbums = remember(albums) { albums.take(10) }
     val homeArtists = remember(artists) { artists.take(10) }
-    val downloadedSongs = remember(downloadStatesMap, songs, recentlyAddedSongs) {
-        downloadManager.getDownloadedSongs()
-    }
-    val historySongs = remember(
-        playHistoryEntries,
-        songs,
-        recentlyAddedSongs,
-        downloadedSongs,
-        albumDetailSongs,
-        playlistSongs,
-        searchResult,
-        starredContent
-    ) {
-        val songMap = (
-            songs +
-                recentlyAddedSongs +
-                downloadedSongs +
-                albumDetailSongs +
-                playlistSongs +
-                (searchResult?.songs ?: emptyList()) +
-                starredContent.songs
-            ).associateBy { it.id }
-        playHistoryEntries.take(20).mapNotNull { entry -> songMap[entry.songId] }
-    }
-    val cacheAgeLabel = remember(cacheUpdatedAtMillis) { formatCacheAge(cacheUpdatedAtMillis) }
-    val headerActions = remember(config.isReadyForMusicSync(), isLoading, isDark) {
-        buildList {
+    val cacheAgeLabel = formatCacheAge(cacheUpdatedAtMillis)
+    val headerActions = buildList {
         if (config.isReadyForMusicSync()) {
             add(
                 HeaderAction(
@@ -657,7 +497,6 @@ fun MusicScreenV2(
         }
         add(HeaderAction(if (isDark) "☀" else "☾") { onThemeToggle(!isDark) })
         add(HeaderAction("⚙") { showConfig = !showConfig })
-    }
     }
     val isHomePage = libraryPage == MusicLibraryPage.Home
     val headerTitle = when (libraryPage) {
@@ -700,10 +539,9 @@ fun MusicScreenV2(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 18.dp, top = 18.dp, end = 18.dp, bottom = if (currentPlayingSong != null && isMusicPlaying) 88.dp else 28.dp),
+        contentPadding = PaddingValues(start = 18.dp, top = 18.dp, end = 18.dp, bottom = 28.dp),
         verticalArrangement = Arrangement.spacedBy(if (isHomePage) 18.dp else 10.dp)
     ) {
         item {
@@ -841,122 +679,8 @@ fun MusicScreenV2(
                             colorScheme = colorScheme,
                             onClick = {
                                 openAlbumDetail(albums.first())
-                            },
-                            onToggleStar = { toggleAlbumStar(albums.first()) }
-                        )
-                    }
-                }
-
-                // Starred section
-                if (starredContent.albums.isNotEmpty() || starredContent.artists.isNotEmpty()) {
-                    item {
-                        MusicSectionHeader(
-                            title = "我的收藏",
-                            subtitle = "你收藏的专辑和歌手",
-                            colorScheme = colorScheme
-                        )
-                    }
-                    if (starredContent.albums.isNotEmpty()) {
-                        item {
-                            val homeStarredAlbums = starredContent.albums.take(10)
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                items(
-                                    items = homeStarredAlbums,
-                                    key = { "starred-album-${it.id}" },
-                                    contentType = { "starred-album-card" }
-                                ) { album ->
-                                    CompactAlbumShelfCard(
-                                        album = album,
-                                        colorScheme = colorScheme,
-                                        onClick = { openAlbumDetail(album) },
-                                        onToggleStar = { toggleAlbumStar(album) }
-                                    )
-                                }
                             }
-                        }
-                    }
-                    if (starredContent.artists.isNotEmpty()) {
-                        item {
-                            val homeStarredArtists = starredContent.artists.take(10)
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                items(
-                                    items = homeStarredArtists,
-                                    key = { "starred-artist-${it.id}" },
-                                    contentType = { "starred-artist-card" }
-                                ) { artist ->
-                                    ArtistShelfCard(
-                                        artist = artist,
-                                        colorScheme = colorScheme,
-                                        onClick = { openArtistDetail(artist) },
-                                        onToggleStar = { toggleArtistStar(artist) }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Downloaded section
-                if (downloadedSongs.isNotEmpty()) {
-                    item {
-                        MusicSectionHeader(
-                            title = "已下载",
-                            subtitle = "离线可播放的歌曲",
-                            colorScheme = colorScheme
                         )
-                    }
-                    item {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            itemsIndexed(
-                                items = downloadedSongs,
-                                key = { _, song -> "downloaded-song-${song.id}" },
-                                contentType = { _, _ -> "downloaded-song-card" }
-                            ) { index, song ->
-                                SongShelfCard(
-                                    song = song,
-                                    colorScheme = colorScheme,
-                                    onClick = {
-                                        onSongSelected(downloadedSongs, index)
-                                    },
-                                    onToggleStar = { toggleSongStar(song) },
-                                    downloadState = downloadStatesMap[song.id]?.state ?: DownloadState.NOT_DOWNLOADED,
-                                    downloadProgress = downloadStatesMap[song.id]?.progress ?: 0f,
-                                    onToggleDownload = { toggleSongDownload(song) }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Recently played section
-                if (historySongs.isNotEmpty()) {
-                    item {
-                        MusicSectionHeader(
-                            title = "最近播放",
-                            subtitle = "你最近听过的歌曲",
-                            colorScheme = colorScheme
-                        )
-                    }
-                    item {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            itemsIndexed(
-                                items = historySongs,
-                                key = { _, song -> "history-song-${song.id}" },
-                                contentType = { _, _ -> "history-song-card" }
-                            ) { index, song ->
-                                SongShelfCard(
-                                    song = song,
-                                    colorScheme = colorScheme,
-                                    onClick = {
-                                        onSongSelected(historySongs, index)
-                                    },
-                                    onToggleStar = { toggleSongStar(song) },
-                                    downloadState = downloadStatesMap[song.id]?.state ?: DownloadState.NOT_DOWNLOADED,
-                                    downloadProgress = downloadStatesMap[song.id]?.progress ?: 0f,
-                                    onToggleDownload = { toggleSongDownload(song) }
-                                )
-                            }
-                        }
                     }
                 }
 
@@ -1016,8 +740,7 @@ fun MusicScreenV2(
                                 CompactAlbumShelfCard(
                                     album = album,
                                     colorScheme = colorScheme,
-                                    onClick = { openAlbumDetail(album) },
-                                    onToggleStar = { toggleAlbumStar(album) }
+                                    onClick = { openAlbumDetail(album) }
                                 )
                             }
                         }
@@ -1041,7 +764,7 @@ fun MusicScreenV2(
                                 key = { "home-artist-${it.id}" },
                                 contentType = { "home-artist-card" }
                             ) { artist ->
-                                ArtistShelfCard(artist = artist, colorScheme = colorScheme, onClick = { openArtistDetail(artist) }, onToggleStar = { toggleArtistStar(artist) })
+                                ArtistShelfCard(artist = artist, colorScheme = colorScheme, onClick = { openArtistDetail(artist) })
                             }
                         }
                     }
@@ -1059,16 +782,6 @@ fun MusicScreenV2(
                             }
                         }
                     )
-                }
-                if (sortedAlbums.isNotEmpty()) {
-                    item {
-                        MusicLocalFilterField(
-                            value = albumFilterQuery,
-                            onValueChange = { albumFilterQuery = it },
-                            placeholder = "筛选专辑、歌手或年份",
-                            colorScheme = colorScheme
-                        )
-                    }
                 }
 
                 if (isLoadingAlbumList) {
@@ -1089,21 +802,12 @@ fun MusicScreenV2(
                             subtitle = "刷新音乐库后，Navidrome 专辑会显示在这里。",
                         )
                     }
-                } else if (filteredAlbums.isEmpty()) {
-                    item {
-                        MusicDetailEmptyState(
-                            title = "没有匹配的专辑",
-                            subtitle = "换个关键词筛选当前列表。",
-                            colorScheme = colorScheme
-                        )
-                    }
                 } else {
-                    items(filteredAlbums, key = { it.id }, contentType = { "album-row" }) { album ->
+                    items(sortedAlbums, key = { it.id }, contentType = { "album-row" }) { album ->
                         AlbumListRow(
                             album = album,
                             colorScheme = colorScheme,
-                            onClick = { openAlbumDetail(album) },
-                            onToggleStar = { toggleAlbumStar(album) }
+                            onClick = { openAlbumDetail(album) }
                         )
                     }
                 }
@@ -1154,24 +858,7 @@ fun MusicScreenV2(
                         )
                     }
                 } else {
-                    item {
-                        MusicLocalFilterField(
-                            value = artistFilterQuery,
-                            onValueChange = { artistFilterQuery = it },
-                            placeholder = "筛选歌手",
-                            colorScheme = colorScheme
-                        )
-                    }
-                    if (filteredArtists.isEmpty()) {
-                        item {
-                            MusicDetailEmptyState(
-                                title = "没有匹配的歌手",
-                                subtitle = "换个关键词筛选当前列表。",
-                                colorScheme = colorScheme
-                            )
-                        }
-                    }
-                    items(filteredArtists, key = { it.id }, contentType = { "artist-row" }) { artist ->
+                    items(artists, key = { it.id }, contentType = { "artist-row" }) { artist ->
                         ArtistListRow(
                             artist = artist,
                             colorScheme = colorScheme,
@@ -1319,7 +1006,7 @@ fun MusicScreenV2(
                         value = searchQuery,
                         onValueChange = { newQuery ->
                             searchQuery = newQuery
-                            searchJob.get()?.cancel()
+                            searchJob?.cancel()
                             searchError = null
                             val query = newQuery.trim()
                             if (query.isBlank()) {
@@ -1345,7 +1032,7 @@ fun MusicScreenV2(
                                             isSearching = false
                                         }
                                     }
-                                })
+                                }
                             }
                         },
                         placeholder = { Text("搜索歌曲、专辑、歌手...", color = colorScheme.onSurface.copy(alpha = 0.4f)) },
@@ -1378,9 +1065,7 @@ fun MusicScreenV2(
                                     )
                                 }
                             },
-                            onArtistClick = { artist -> openArtistDetail(artist) },
-                            downloadStatesMap = downloadStatesMap,
-                            onToggleDownload = { song -> toggleSongDownload(song) }
+                            onArtistClick = { artist -> openArtistDetail(artist) }
                         )
                     }
                 }
@@ -1485,53 +1170,6 @@ fun MusicScreenV2(
             }
 
             MusicLibraryPage.Playlists -> {
-                if (!isLoadingPlaylists && playlists.isNotEmpty()) {
-                    item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.End)
-                        ) {
-                            Surface(
-                                color = colorScheme.surfaceVariant.copy(alpha = 0.64f),
-                                contentColor = colorScheme.onSurface,
-                                shape = RoundedCornerShape(999.dp),
-                                modifier = Modifier
-                                    .height(34.dp)
-                                    .clickable { refreshPlaylistOnly() }
-                            ) {
-                                Box(
-                                    modifier = Modifier.padding(horizontal = 16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        "刷新歌单",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                            }
-                            Surface(
-                                color = colorScheme.primary,
-                                contentColor = colorScheme.onPrimary,
-                                shape = RoundedCornerShape(999.dp),
-                                modifier = Modifier
-                                    .height(34.dp)
-                                    .clickable { showCreatePlaylistDialog = true }
-                            ) {
-                                Box(
-                                    modifier = Modifier.padding(horizontal = 16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        "新建歌单",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
                 if (isLoadingPlaylists) {
                     item {
                         Box(
@@ -1551,37 +1189,11 @@ fun MusicScreenV2(
                         )
                     }
                 } else {
-                    item {
-                        MusicLocalFilterField(
-                            value = playlistFilterQuery,
-                            onValueChange = { playlistFilterQuery = it },
-                            placeholder = "筛选歌单、所有者或描述",
-                            colorScheme = colorScheme
-                        )
-                    }
-                    if (filteredPlaylists.isEmpty()) {
-                        item {
-                            MusicDetailEmptyState(
-                                title = "没有匹配的歌单",
-                                subtitle = "换个关键词筛选当前列表。",
-                                colorScheme = colorScheme
-                            )
-                        }
-                    }
-                    items(filteredPlaylists, key = { it.id }, contentType = { "playlist-row" }) { playlist ->
+                    items(playlists, key = { it.id }, contentType = { "playlist-row" }) { playlist ->
                         PlaylistListRow(
                             playlist = playlist,
                             colorScheme = colorScheme,
-                            onClick = { openPlaylistDetail(playlist) },
-                            onRename = {
-                                renamePlaylistTarget = playlist
-                                renamePlaylistName = playlist.name
-                                showRenamePlaylistDialog = true
-                            },
-                            onDelete = {
-                                deletePlaylistTarget = playlist
-                                showDeletePlaylistConfirm = true
-                            }
+                            onClick = { openPlaylistDetail(playlist) }
                         )
                     }
                 }
@@ -1611,7 +1223,7 @@ fun MusicScreenV2(
                     item {
                         PlaylistDetailHeader(
                             playlist = playlist,
-                            songCount = filteredPlaylistSongs.size,
+                            songCount = playlistSongs.size,
                             colorScheme = colorScheme,
                             onPlayAll = {
                                 playSongList(playlistSongs, "这个歌单没有可播放曲目")
@@ -1647,227 +1259,6 @@ fun MusicScreenV2(
                 }
             }
         }
-    }
-
-    // Mini now-playing bar
-    if (currentPlayingSong != null && isMusicPlaying && onPlayPause != null && onOpenPlayer != null) {
-        MiniNowPlayingBar(
-            song = currentPlayingSong!!,
-            isPlaying = isMusicPlaying,
-            colorScheme = colorScheme,
-            onPlayPause = onPlayPause!!,
-            onNext = onNext ?: {},
-            onClick = onOpenPlayer!!,
-            modifier = Modifier.align(Alignment.BottomCenter)
-        )
-    }
-    }
-
-    // Create playlist dialog
-    if (showCreatePlaylistDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showCreatePlaylistDialog = false
-                createPlaylistName = ""
-            },
-            title = { Text("新建歌单") },
-            text = {
-                OutlinedTextField(
-                    value = createPlaylistName,
-                    onValueChange = { createPlaylistName = it },
-                    placeholder = { Text("歌单名称") },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = colorScheme.primary,
-                        unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.2f)
-                    ),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val name = createPlaylistName.trim()
-                        if (name.isNotBlank()) {
-                            scope.launch {
-                                try {
-                                    navidromeRepository?.createPlaylist(name)
-                                    loadPlaylists()
-                                } catch (_: Exception) {}
-                            }
-                        }
-                        showCreatePlaylistDialog = false
-                        createPlaylistName = ""
-                    },
-                    enabled = createPlaylistName.trim().isNotBlank()
-                ) { Text("创建") }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showCreatePlaylistDialog = false
-                    createPlaylistName = ""
-                }) { Text("取消") }
-            }
-        )
-    }
-
-    // Rename playlist dialog
-    if (showRenamePlaylistDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showRenamePlaylistDialog = false
-                renamePlaylistTarget = null
-                renamePlaylistName = ""
-            },
-            title = { Text("重命名歌单") },
-            text = {
-                OutlinedTextField(
-                    value = renamePlaylistName,
-                    onValueChange = { renamePlaylistName = it },
-                    placeholder = { Text("歌单名称") },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = colorScheme.primary,
-                        unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.2f)
-                    ),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val target = renamePlaylistTarget
-                        val newName = renamePlaylistName.trim()
-                        if (target != null && newName.isNotBlank()) {
-                            scope.launch {
-                                try {
-                                    navidromeRepository?.renamePlaylist(target.id, newName)
-                                    loadPlaylists()
-                                } catch (_: Exception) {}
-                            }
-                        }
-                        showRenamePlaylistDialog = false
-                        renamePlaylistTarget = null
-                        renamePlaylistName = ""
-                    },
-                    enabled = renamePlaylistName.trim().isNotBlank()
-                ) { Text("确定") }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showRenamePlaylistDialog = false
-                    renamePlaylistTarget = null
-                    renamePlaylistName = ""
-                }) { Text("取消") }
-            }
-        )
-    }
-
-    // Delete playlist confirmation dialog
-    if (showDeletePlaylistConfirm) {
-        AlertDialog(
-            onDismissRequest = {
-                showDeletePlaylistConfirm = false
-                deletePlaylistTarget = null
-            },
-            title = { Text("删除歌单") },
-            text = { Text("确定删除歌单「${deletePlaylistTarget?.name}」吗？") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val target = deletePlaylistTarget
-                        if (target != null) {
-                            scope.launch {
-                                try {
-                                    navidromeRepository?.deletePlaylist(target.id)
-                                    loadPlaylists()
-                                } catch (_: Exception) {}
-                            }
-                        }
-                        showDeletePlaylistConfirm = false
-                        deletePlaylistTarget = null
-                    }
-                ) { Text("删除") }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showDeletePlaylistConfirm = false
-                    deletePlaylistTarget = null
-                }) { Text("取消") }
-            }
-        )
-    }
-
-    // Add to playlist dialog
-    if (showAddToPlaylistDialog) {
-        AlertDialog(
-            onDismissRequest = {
-                showAddToPlaylistDialog = false
-                addToPlaylistSongId = null
-            },
-            title = { Text("添加到歌单") },
-            text = {
-                if (playlists.isEmpty()) {
-                    Text("暂无歌单，请先创建一个歌单。", color = colorScheme.onSurface.copy(alpha = 0.6f))
-                } else {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        playlists.forEach { playlist ->
-                            Surface(
-                                color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
-                                contentColor = colorScheme.onSurface,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        val songId = addToPlaylistSongId
-                                        if (songId != null) {
-                                            scope.launch {
-                                                try {
-                                                    navidromeRepository?.addToPlaylist(playlist.id, songId)
-                                                } catch (_: Exception) {}
-                                            }
-                                        }
-                                        showAddToPlaylistDialog = false
-                                        addToPlaylistSongId = null
-                                    }
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    Text(
-                                        playlist.name,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        "${playlist.songCount} 首",
-                                        fontSize = 12.sp,
-                                        color = colorScheme.onSurface.copy(alpha = 0.5f)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = {
-                    showAddToPlaylistDialog = false
-                    addToPlaylistSongId = null
-                }) { Text("取消") }
-            }
-        )
     }
 }
 
@@ -2001,9 +1392,7 @@ private fun PlaylistListRow(
     playlist: NavidromePlaylist,
     colorScheme: ColorScheme,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit = {},
-    onRename: (() -> Unit)? = null,
-    onDelete: (() -> Unit)? = null
+    onClick: () -> Unit = {}
 ) {
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
@@ -2068,30 +1457,6 @@ private fun PlaylistListRow(
                     fontSize = 12.sp,
                     color = colorScheme.onSurface.copy(alpha = 0.46f)
                 )
-            }
-            if (onRename != null || onDelete != null) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    if (onRename != null) {
-                        Surface(
-                            color = Color.Transparent,
-                            contentColor = colorScheme.onSurface.copy(alpha = 0.46f),
-                            onClick = onRename,
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Text("✎", fontSize = 16.sp, modifier = Modifier.padding(2.dp))
-                        }
-                    }
-                    if (onDelete != null) {
-                        Surface(
-                            color = Color.Transparent,
-                            contentColor = colorScheme.error.copy(alpha = 0.7f),
-                            onClick = onDelete,
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Text("✕", fontSize = 14.sp, modifier = Modifier.padding(4.dp))
-                        }
-                    }
-                }
             }
         }
     }
@@ -2534,8 +1899,7 @@ private fun AlbumListRow(
     album: NavidromeAlbum,
     colorScheme: ColorScheme,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit = {},
-    onToggleStar: (() -> Unit)? = null
+    onClick: () -> Unit = {}
 ) {
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
@@ -2606,16 +1970,6 @@ private fun AlbumListRow(
                     fontSize = 12.sp,
                     color = colorScheme.onSurface.copy(alpha = 0.46f)
                 )
-            }
-            if (onToggleStar != null) {
-                IconButton(onClick = onToggleStar, modifier = Modifier.size(36.dp)) {
-                    Icon(
-                        if (album.starred != null) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        contentDescription = if (album.starred != null) "取消收藏" else "收藏",
-                        tint = if (album.starred != null) colorScheme.error else colorScheme.onSurface.copy(alpha = 0.46f),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
             }
         }
     }
@@ -2719,122 +2073,5 @@ private fun formatCacheAge(updatedAtMillis: Long?): String? {
         elapsedMinutes < 60L -> "${elapsedMinutes} 分钟前更新"
         elapsedHours < 24L -> "${elapsedHours} 小时前更新"
         else -> "${elapsedDays} 天前更新"
-    }
-}
-
-@Composable
-private fun MiniNowPlayingBar(
-    song: NavidromeSong,
-    isPlaying: Boolean,
-    colorScheme: ColorScheme,
-    onPlayPause: () -> Unit,
-    onNext: () -> Unit,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.82f),
-        contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp),
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                colorScheme.primary.copy(alpha = 0.2f),
-                                colorScheme.secondary.copy(alpha = 0.12f)
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                if (song.coverArt != null) {
-                    AsyncImage(
-                        model = song.coverArt,
-                        contentDescription = song.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.matchParentSize()
-                    )
-                } else {
-                    Text(
-                        "♪",
-                        fontSize = 14.sp,
-                        color = colorScheme.primary.copy(alpha = 0.68f)
-                    )
-                }
-            }
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Text(
-                    song.title,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    song.artist ?: "Unknown",
-                    fontSize = 12.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.52f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            Surface(
-                color = colorScheme.primary.copy(alpha = 0.12f),
-                contentColor = colorScheme.primary,
-                shape = RoundedCornerShape(999.dp),
-                modifier = Modifier.size(34.dp)
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.clickable(onClick = onPlayPause)
-                ) {
-                    Text(
-                        if (isPlaying) "Ⅱ" else "▶",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colorScheme.primary
-                    )
-                }
-            }
-
-            Surface(
-                color = colorScheme.surface.copy(alpha = 0.56f),
-                contentColor = colorScheme.onSurface,
-                shape = RoundedCornerShape(999.dp),
-                modifier = Modifier.size(34.dp)
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.clickable(onClick = onNext)
-                ) {
-                    Text(
-                        "›",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colorScheme.onSurface.copy(alpha = 0.76f)
-                    )
-                }
-            }
-        }
     }
 }

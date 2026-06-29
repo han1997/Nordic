@@ -62,14 +62,9 @@ import coil.compose.AsyncImage
 import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.EmbyRepository
 import com.nordic.mediahub.data.VideoItem
-import com.nordic.mediahub.data.VideoItemFilter
-import com.nordic.mediahub.data.VideoItemQuery
 import com.nordic.mediahub.data.VideoLibrary
-import com.nordic.mediahub.data.VideoProgress
 import com.nordic.mediahub.data.VideoServerConfig
-import com.nordic.mediahub.data.VideoSortOption
 import com.nordic.mediahub.data.isReadyForVideoSync
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -184,22 +179,6 @@ fun VideoScreen(
         }
     }
 
-    fun loadLibrary(libraryId: String, query: VideoItemQuery = itemQuery) {
-        val repo = embyRepository ?: return
-        selectedLibraryId = libraryId
-        scope.launch {
-            isLoading = true
-            errorMessage = null
-            try {
-                videos = repo.getLibraryItems(libraryId, query)
-            } catch (e: Exception) {
-                errorMessage = e.message ?: "Load video list failed"
-            } finally {
-                isLoading = false
-            }
-        }
-    }
-
     LaunchedEffect(savedConfig) {
         config = savedConfig
         resetVideoStateAfterConfigChange()
@@ -240,7 +219,7 @@ fun VideoScreen(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        "Video",
+                        "视频",
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Bold,
                         color = colorScheme.onBackground,
@@ -266,14 +245,14 @@ fun VideoScreen(
                         if (savedConfig.isReadyForVideoSync()) {
                             add(
                                 HeaderAction(
-                                    icon = if (isLoading) "..." else "R",
+                                    icon = if (isLoading) "…" else "↻",
                                     enabled = !isLoading,
                                     onClick = { scope.launch { refreshVideo() } }
                                 )
                             )
                         }
-                        add(HeaderAction(if (isDark) "L" else "D") { onThemeToggle(!isDark) })
-                        add(HeaderAction("Cfg") { showConfig = !showConfig })
+                        add(HeaderAction(if (isDark) "☀" else "☾") { onThemeToggle(!isDark) })
+                        add(HeaderAction("⚙") { showConfig = !showConfig })
                     }
                 )
             }
@@ -305,39 +284,9 @@ fun VideoScreen(
         if (errorMessage != null) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 VideoMessageCard(
-                    title = "Emby error",
+                    title = "Emby 连接错误",
                     subtitle = errorMessage.orEmpty(),
                     isError = true
-                )
-            }
-        }
-
-        if (savedConfig.isReadyForVideoSync()) {
-            item {
-                VideoSearchBar(
-                    searchTerm = searchTerm,
-                    isSearching = isSearching,
-                    colorScheme = colorScheme,
-                    onSearchTermChange = { searchTerm = it },
-                    onClear = {
-                        searchTerm = ""
-                        searchResults = emptyList()
-                        searchError = null
-                    }
-                )
-            }
-        }
-
-        if (searchTerm.isNotBlank()) {
-            item {
-                VideoSearchResultsSection(
-                    items = searchResults,
-                    isSearching = isSearching,
-                    errorMessage = searchError,
-                    colorScheme = colorScheme,
-                    onItemClick = onShowVideoDetail,
-                    onToggleFavorite = ::toggleFavorite,
-                    onTogglePlayed = ::togglePlayed
                 )
             }
         }
@@ -467,239 +416,6 @@ fun VideoScreen(
 }
 
 @Composable
-private fun VideoSearchBar(
-    searchTerm: String,
-    isSearching: Boolean,
-    colorScheme: ColorScheme,
-    onSearchTermChange: (String) -> Unit,
-    onClear: () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        OutlinedTextField(
-            value = searchTerm,
-            onValueChange = onSearchTermChange,
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text(if (isSearching) "Searching..." else "Search movies, shows, episodes") },
-            singleLine = true
-        )
-        if (searchTerm.isNotBlank()) {
-            VideoActionChip(
-                text = "Clear search",
-                selected = false,
-                colorScheme = colorScheme,
-                onClick = onClear
-            )
-        }
-    }
-}
-
-@Composable
-private fun VideoSearchResultsSection(
-    items: List<VideoItem>,
-    isSearching: Boolean,
-    errorMessage: String?,
-    colorScheme: ColorScheme,
-    onItemClick: (VideoItem) -> Unit,
-    onToggleFavorite: (VideoItem) -> Unit,
-    onTogglePlayed: (VideoItem) -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Text(
-            "Search Results",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = colorScheme.onBackground
-        )
-        when {
-            errorMessage != null -> VideoMessageCard("Search failed", errorMessage, isError = true)
-            isSearching -> VideoLoadingCard(index = 0, colorScheme = colorScheme)
-            items.isEmpty() -> VideoMessageCard("No search results", "Try a different title or episode name.")
-            else -> {
-                items.groupBy { item -> item.type.ifBlank { "Video" } }.forEach { (type, groupItems) ->
-                    Text(
-                        type,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colorScheme.onSurface.copy(alpha = 0.62f)
-                    )
-                    groupItems.forEach { item ->
-                        VideoCard(
-                            video = item,
-                            colorScheme = colorScheme,
-                            onClick = { onItemClick(item) },
-                            onToggleFavorite = { onToggleFavorite(item) },
-                            onTogglePlayed = { onTogglePlayed(item) }
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun VideoLibraryControls(
-    query: VideoItemQuery,
-    colorScheme: ColorScheme,
-    onQueryChange: (VideoItemQuery) -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(VideoSortOption.values().toList(), key = { it.name }) { sort ->
-                VideoActionChip(
-                    text = sort.label(),
-                    selected = query.sort == sort,
-                    colorScheme = colorScheme,
-                    onClick = { onQueryChange(query.copy(sort = sort)) }
-                )
-            }
-        }
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(VideoItemFilter.values().toList(), key = { it.name }) { filter ->
-                VideoActionChip(
-                    text = filter.label(),
-                    selected = query.filter == filter,
-                    colorScheme = colorScheme,
-                    onClick = { onQueryChange(query.copy(filter = filter)) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun VideoShelfSection(
-    title: String,
-    subtitle: String,
-    items: List<VideoItem>,
-    colorScheme: ColorScheme,
-    onItemClick: (VideoItem) -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                title,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = colorScheme.onBackground
-            )
-            Text(
-                subtitle,
-                fontSize = 12.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.52f)
-            )
-        }
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(
-                items = items,
-                key = { item -> "$title-${item.id}" },
-                contentType = { "video-shelf-card" }
-            ) { item ->
-                VideoResumeCard(
-                    video = item,
-                    colorScheme = colorScheme,
-                    onClick = { onItemClick(item) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun VideoResumeCard(
-    video: VideoItem,
-    colorScheme: ColorScheme,
-    onClick: () -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(interactionSource)
-    val progress = video.progress
-    val progressFraction = video.resumeProgressFraction()
-
-    Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.46f),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
-        modifier = Modifier
-            .width(220.dp)
-            .scale(scale)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
-    ) {
-        Column {
-            Box {
-                VideoThumbnail(
-                    imageUrl = video.imageUrl,
-                    title = video.title,
-                    colorScheme = colorScheme,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(16f / 9f)
-                )
-                if (progressFraction > 0f) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .fillMaxWidth()
-                            .height(4.dp)
-                            .background(colorScheme.onSurface.copy(alpha = 0.18f))
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(progressFraction)
-                                .height(4.dp)
-                                .background(colorScheme.primary)
-                        )
-                    }
-                }
-            }
-            Column(
-                modifier = Modifier.padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
-                Text(
-                    video.title,
-                    fontSize = 14.sp,
-                    color = colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    video.progressLabel(progress),
-                    fontSize = 12.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.56f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun VideoLibrarySelector(
     libraries: List<VideoLibrary>,
     selectedLibraryId: String?,
@@ -740,7 +456,6 @@ private fun VideoCard(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val scale = rememberPressScale(interactionSource)
-    val isPlayed = video.progress?.isPlayed == true
 
     Column(
         modifier = Modifier
@@ -1227,47 +942,8 @@ private fun VideoBrowserControls(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    VideoActionChip(
-                        text = if (video.isFavorite) "Favorited" else "Favorite",
-                        selected = video.isFavorite,
-                        colorScheme = colorScheme,
-                        onClick = onToggleFavorite
-                    )
-                    VideoActionChip(
-                        text = if (isPlayed) "Watched" else "Unwatched",
-                        selected = isPlayed,
-                        colorScheme = colorScheme,
-                        onClick = onTogglePlayed
-                    )
-                }
             }
         }
-    }
-}
-
-@Composable
-private fun VideoActionChip(
-    text: String,
-    selected: Boolean,
-    colorScheme: ColorScheme,
-    onClick: () -> Unit
-) {
-    Surface(
-        color = if (selected) colorScheme.primary.copy(alpha = 0.16f) else colorScheme.surfaceVariant.copy(alpha = 0.6f),
-        contentColor = if (selected) colorScheme.primary else colorScheme.onSurface,
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
-        modifier = Modifier.clickable(onClick = onClick)
-    ) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
     }
 }
 
@@ -1330,7 +1006,7 @@ private fun VideoMessageCard(
 private fun VideoLoadingCard(index: Int, colorScheme: ColorScheme) {
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        delay(index * 50L)
+        kotlinx.coroutines.delay(index * 50L)
         visible = true
     }
 
@@ -1371,24 +1047,6 @@ private fun VideoLoadingCard(index: Int, colorScheme: ColorScheme) {
                 }
             }
         }
-    }
-}
-
-private fun VideoSortOption.label(): String {
-    return when (this) {
-        VideoSortOption.DateAdded -> "Date Added"
-        VideoSortOption.Name -> "Name"
-        VideoSortOption.Year -> "Year"
-        VideoSortOption.LastPlayed -> "Last Played"
-    }
-}
-
-private fun VideoItemFilter.label(): String {
-    return when (this) {
-        VideoItemFilter.All -> "All"
-        VideoItemFilter.Unplayed -> "Unplayed"
-        VideoItemFilter.Played -> "Played"
-        VideoItemFilter.Favorite -> "Favorites"
     }
 }
 
@@ -1511,23 +1169,7 @@ private fun formatVideoDuration(durationSeconds: Int): String {
     return if (hours > 0) {
         "${hours}h ${minutes}m"
     } else {
-        0f
-    }
-    return (percentFraction ?: durationFraction).coerceIn(0f, 1f)
-}
-
-private fun VideoItem.progressLabel(progress: VideoProgress?): String {
-    return when {
-        (progress?.currentTimeSeconds ?: 0) > 0 -> buildString {
-            append("Resume ")
-            append(formatDuration(progress?.currentTimeSeconds ?: 0))
-            if (durationSeconds > 0) {
-                append(" / ")
-                append(formatDuration(durationSeconds))
-            }
-        }
-        progress?.isPlayed == true -> "Watched"
-        else -> metaText().ifBlank { "Ready to play" }
+        "${minutes}m"
     }
 }
 

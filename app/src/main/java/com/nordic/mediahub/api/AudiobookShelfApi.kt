@@ -223,7 +223,6 @@ interface AudiobookShelfApi {
         @Header("Authorization") bearerToken: String,
         @Path("id") libraryId: String,
         @Query("minified") minified: Int = 1,
-        @Query("include") include: String = "progress",
         @Query("limit") limit: Int = 50,
         @Query("page") page: Int = 0
     ): Response<AudiobookShelfLibraryItemsResponse>
