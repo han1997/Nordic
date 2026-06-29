@@ -531,12 +531,12 @@ VideoPlaybackInfo(
 )
 ```
 
-## Scenario: Manual Next Episode Playback
+## Scenario: Episode Queue Navigation and Auto-Advance
 
 ### 1. Scope / Trigger
 
-- Trigger: Any change to video player next-episode controls, `VideoEpisodeQueue`, episode playback from `VideoDetailScreen`, or Activity-level video playback state.
-- This is UI/playback orchestration over existing Emby APIs: do not introduce a new Retrofit endpoint when the current season's episode list already contains the ordering needed for a same-season next button.
+- Trigger: Any change to video player next/previous episode controls, auto-advance on ended playback, `VideoEpisodeQueue`, episode playback from `VideoDetailScreen`, or Activity-level video playback state.
+- This is UI/playback orchestration over existing Emby APIs: do not introduce a new Retrofit endpoint when the current season's episode list already contains the ordering needed for same-season previous/next buttons.
 
 ### 2. Signatures
 
@@ -548,13 +548,20 @@ VideoPlaybackInfo(
 )
 
 fun resolveNextVideoEpisodeIndex(currentIndex: Int, itemCount: Int): Int?
+fun resolvePreviousVideoEpisodeIndex(currentIndex: Int, itemCount: Int): Int?
 fun VideoEpisode.toPlaybackVideoItem(libraryId: String): VideoItem
+
+data class VideoPlaybackState(..., val seekIntervalSeconds: Int = 10, val isEnded: Boolean = false)
+fun VideoPlaybackEngine.seekBy(deltaSeconds: Int)
+fun VideoPlaybackEngine.setSeekInterval(intervalSeconds: Int)
 
 fun VideoPlayerScreen(
     ..., hasNextEpisode: Boolean = false,
+    hasPreviousEpisode: Boolean = false,
     isLoadingNextEpisode: Boolean = false,
     externalError: String? = null,
-    onPlayNextEpisode: () -> Unit = {}
+    onPlayNextEpisode: () -> Unit = {},
+    onPlayPreviousEpisode: () -> Unit = {}
 )
 ```
 
@@ -563,10 +570,14 @@ fun VideoPlayerScreen(
 - Only episode playback launched from a Series detail season list should create a `VideoEpisodeQueue`.
 - Queue context is same-season only; `currentIndex` refers to the loaded `episodes` list from `VideoDetailScreen`.
 - `resolveNextVideoEpisodeIndex(...)` returns `currentIndex + 1` only when `currentIndex >= 0` and there is an item after it; otherwise it returns `null`.
+- `resolvePreviousVideoEpisodeIndex(...)` returns `currentIndex - 1` only when `currentIndex > 0` and `currentIndex < itemCount`; otherwise it returns `null`.
 - `VideoEpisode.toPlaybackVideoItem(...)` must preserve episode id, title, overview, duration, image URL, and `progress` so resume playback still works.
-- `VideoPlayerScreen` must render the next-episode action as disabled or absent when `hasNextEpisode == false`.
-- Clicking Next Episode loads `EmbyRepository.getPlaybackInfo(nextEpisode.toPlaybackVideoItem(...))`, then calls `VideoPlaybackEngine.play(...)` and advances the queue only after success.
-- Loading the next episode must not stop or clear the current video on failure; surface the failure through `externalError`.
+- `VideoPlayerScreen` must render previous/next episode actions as disabled or absent when `hasPreviousEpisode == false` or `hasNextEpisode == false`.
+- Clicking Previous or Next loads `EmbyRepository.getPlaybackInfo(targetEpisode.toPlaybackVideoItem(...))`, then calls `VideoPlaybackEngine.play(...)` and updates the queue only after success.
+- Loading another episode must not stop or clear the current video on failure; surface the failure through `externalError`.
+- `VideoPlaybackState.isEnded` is the app-shell signal for auto-advance. Activity-level code should guard it so each ended episode triggers at most one next-episode load.
+- When the current episode reaches `Player.STATE_ENDED` and the queue has a next item, auto-play the next episode immediately without a countdown dialog.
+- Video seek controls use `VideoPlaybackState.seekIntervalSeconds`; allowed UI choices are 10, 15, and 30 seconds, and relative seeks must clamp to the playable range when duration is known.
 - Movie playback, standalone video playback, search-result episode playback, Continue Watching, and Next Up entries do not get queue context unless they are routed through the Series detail episode list.
 
 ### 4. Validation & Error Matrix
@@ -574,25 +585,36 @@ fun VideoPlayerScreen(
 | Condition | Behavior |
 |---|---|
 | Queue is null | Next action disabled/absent; click is a no-op |
+| Current episode is first in queue | Previous action disabled/absent |
 | Current episode is last in queue | Next action disabled/absent |
 | `currentIndex` is invalid | `resolveNextVideoEpisodeIndex(...) == null` |
+| `currentIndex` is invalid | `resolvePreviousVideoEpisodeIndex(...) == null` |
 | Next episode PlaybackInfo succeeds | Start next episode and advance `VideoEpisodeQueue.currentIndex` |
-| Next episode PlaybackInfo fails | Keep current playback, preserve queue index, and show `externalError` |
+| Previous episode PlaybackInfo succeeds | Start previous episode and decrement `VideoEpisodeQueue.currentIndex` |
+| Previous/next episode PlaybackInfo fails | Keep current playback, preserve queue index, and show `externalError` |
+| Playback ends with next episode available | Trigger one immediate next-episode load |
+| Playback ends without next episode | Stay ended; do not loop or clear queue context |
 | User closes video player | Clear queue context and transient next-episode error |
 
 ### 5. Good/Base/Bad Cases
 
 - Good: User opens a Series, plays S1E2, then taps Next and S1E3 starts without returning to the detail screen.
+- Good: User opens a Series, plays S1E2, then taps Previous and S1E1 starts with episode progress reporting stopped/started for the correct Emby item.
+- Good: S1E2 reaches the end and S1E3 starts immediately without a modal or countdown.
 - Base: User plays the last episode in a season; the player remains usable but Next is disabled.
+- Base: User plays the first episode in a season; Previous is disabled and Next remains available when applicable.
 - Bad: User plays a movie after watching an episode and still sees a stale Next button from the previous episode queue.
-- Bad: Next PlaybackInfo fails and the app stops the current episode, losing the user's current playback surface.
+- Bad: Previous/Next PlaybackInfo fails and the app stops the current episode, losing the user's current playback surface.
+- Bad: Ended playback repeatedly launches the same next episode because the app shell observes `isEnded` without a one-shot guard.
 
 ### 6. Tests Required
 
 - Pure helper test for `resolveNextVideoEpisodeIndex(...)` covering normal, last-item, empty, and invalid-index cases.
+- Pure helper test for `resolvePreviousVideoEpisodeIndex(...)` covering normal, first-item, empty, and invalid-index cases.
 - Pure helper/queue test asserting `VideoEpisodeQueue.advanceToNext()` moves one item at a time and stops at the end.
+- Pure helper/queue test asserting `VideoEpisodeQueue.goToPrevious()` moves one item at a time and stops at the beginning.
 - Pure helper test asserting `VideoEpisode.toPlaybackVideoItem(...)` preserves `VideoProgress`.
-- Compile/lint checks for `VideoDetailScreen`, `VideoPlayerScreen`, and `MainActivity` callback wiring.
+- Compile/lint checks for `VideoDetailScreen`, `VideoPlayerScreen`, `VideoPlaybackEngine`, and `MainActivity` callback wiring, including `VideoPlaybackState.isEnded` auto-advance observation.
 
 ### 7. Wrong vs Correct
 
@@ -624,6 +646,22 @@ val nextQueue = queue.advanceToNext() ?: return
 val info = repo.getPlaybackInfo(nextEpisode.toPlaybackVideoItem(nextQueue.libraryId))
 videoPlaybackEngine.play(info)
 videoEpisodeQueue = nextQueue
+```
+
+#### Wrong
+```kotlin
+// Wrong: an ended-state observer without a guard can enqueue repeated next loads.
+if (videoPlaybackState.isEnded && videoEpisodeQueue?.hasNext == true) {
+    playNextVideoEpisode()
+}
+```
+
+#### Correct
+```kotlin
+if (videoPlaybackState.isEnded && videoEpisodeQueue?.hasNext == true && !autoPlayNextTriggered) {
+    autoPlayNextTriggered = true
+    playNextVideoEpisode()
+}
 ```
 
 ## Scenario: Video Search, Discovery Controls, and User Item State

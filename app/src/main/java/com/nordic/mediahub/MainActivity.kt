@@ -265,10 +265,16 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     val musicDownloadManager = remember { MusicDownloadManager(context) }
     val playbackEngine = remember { MusicPlaybackEngine(context, musicDownloadManager) }
     val audiobookPlaybackEngine = remember { AudiobookPlaybackEngine(context) }
+    var autoPlayNextTriggered by remember { mutableStateOf(false) }
+    var videoEpisodeQueue by remember { mutableStateOf<VideoEpisodeQueue?>(null) }
+    var isLoadingNextVideoEpisode by remember { mutableStateOf(false) }
+    var videoPlaybackError by remember { mutableStateOf<String?>(null) }
+
     val videoPlaybackEngine = remember {
         VideoPlaybackEngine(
             context,
             onPlaybackStart = { itemId, mediaSourceId, playSessionId, _ ->
+                autoPlayNextTriggered = false
                 embyRepository?.reportPlaybackStart(itemId, mediaSourceId, playSessionId)
             },
             onPlaybackProgress = { itemId, mediaSourceId, playSessionId, posSec ->
@@ -277,6 +283,8 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             onPlaybackStopped = { itemId, mediaSourceId, playSessionId, posSec ->
                 embyRepository?.reportPlaybackStopped(itemId, mediaSourceId, playSessionId, posSec)
             }
+            // Auto-play next episode is handled via VideoPlaybackState observation
+            // rather than a direct callback, to avoid forward-reference issues.
         )
     }
     val navidromeConfig by configRepository.navidromeConfig.collectAsStateWithLifecycle(NavidromeConfig())
@@ -307,9 +315,6 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     val playbackState by playbackEngine.state.collectAsStateWithLifecycle()
     val audiobookPlaybackState by audiobookPlaybackEngine.state.collectAsStateWithLifecycle()
     val videoPlaybackState by videoPlaybackEngine.state.collectAsStateWithLifecycle()
-    var videoEpisodeQueue by remember { mutableStateOf<VideoEpisodeQueue?>(null) }
-    var isLoadingNextVideoEpisode by remember { mutableStateOf(false) }
-    var videoPlaybackError by remember { mutableStateOf<String?>(null) }
     // Dock-only derived state: skips recomposition when only positionSeconds changes
     val currentSong by remember { derivedStateOf { playbackState.currentSong } }
     val isPlaying by remember { derivedStateOf { playbackState.isPlaying } }
@@ -447,6 +452,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         val nextEpisode = nextQueue.episodes.getOrNull(nextQueue.currentIndex) ?: return
         val repo = embyRepository ?: return
 
+        autoPlayNextTriggered = false
         scope.launch {
             isLoadingNextVideoEpisode = true
             videoPlaybackError = null
@@ -463,6 +469,49 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                 videoPlaybackError = error.message ?: "加载下一集失败"
             }
             isLoadingNextVideoEpisode = false
+        }
+    }
+
+    fun playPreviousVideoEpisode() {
+        val queue = videoEpisodeQueue ?: return
+        val prevQueue = queue.goToPrevious() ?: return
+        val prevEpisode = prevQueue.episodes.getOrNull(prevQueue.currentIndex) ?: return
+        val repo = embyRepository ?: return
+
+        autoPlayNextTriggered = false
+        scope.launch {
+            isLoadingNextVideoEpisode = true
+            videoPlaybackError = null
+            runCatching {
+                repo.getPlaybackInfo(prevEpisode.toPlaybackVideoItem(prevQueue.libraryId))
+            }.onSuccess { playbackInfo ->
+                videoPlaybackEngine.stop()
+                videoPlaybackEngine.play(playbackInfo)
+                videoEpisodeQueue = prevQueue
+                showVideoPlayer = true
+                showPlayer = false
+                showAudiobookPlayer = false
+            }.onFailure { error ->
+                videoPlaybackError = error.message ?: "加载上一集失败"
+            }
+            isLoadingNextVideoEpisode = false
+        }
+    }
+
+    LaunchedEffect(
+        videoPlaybackState.playbackInfo?.itemId,
+        videoPlaybackState.isEnded,
+        videoEpisodeQueue?.currentIndex,
+        videoEpisodeQueue?.episodes?.size
+    ) {
+        if (
+            videoPlaybackState.isEnded &&
+            videoEpisodeQueue?.hasNext == true &&
+            !autoPlayNextTriggered &&
+            !isLoadingNextVideoEpisode
+        ) {
+            autoPlayNextTriggered = true
+            playNextVideoEpisode()
         }
     }
 
@@ -641,14 +690,19 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                         onSelectAudioTrack = videoPlaybackEngine::selectAudioTrack,
                         onSelectSubtitleTrack = videoPlaybackEngine::selectSubtitleTrack,
                         onSubtitleScaleChange = videoPlaybackEngine::setSubtitleScale,
+                        onSeekBy = videoPlaybackEngine::seekBy,
+                        onSeekIntervalChange = videoPlaybackEngine::setSeekInterval,
+                        hasPreviousEpisode = videoEpisodeQueue?.hasPrevious == true,
                         hasNextEpisode = videoEpisodeQueue?.hasNext == true,
                         isLoadingNextEpisode = isLoadingNextVideoEpisode,
                         externalError = videoPlaybackError,
+                        onPlayPreviousEpisode = ::playPreviousVideoEpisode,
                         onPlayNextEpisode = ::playNextVideoEpisode,
                         onClose = {
                             showVideoPlayer = false
                             videoEpisodeQueue = null
                             videoPlaybackError = null
+                            autoPlayNextTriggered = false
                             videoPlaybackEngine.stop()
                         },
                         modifier = Modifier.fillMaxSize()
@@ -723,6 +777,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                     videoPlaybackEngine.stop()
                                     videoEpisodeQueue = null
                                     videoPlaybackError = null
+                                    autoPlayNextTriggered = false
                                     showVideoPlayer = false
                                     playbackEngine.playQueue(songs, index)
                                     showPlayer = true
@@ -742,6 +797,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                     showVideoPlayer = false
                                     videoEpisodeQueue = null
                                     videoPlaybackError = null
+                                    autoPlayNextTriggered = false
                                     videoPlaybackEngine.stop()
                                 },
                                 onAudiobookSeekToChapter = audiobookPlaybackEngine::seekTo,
@@ -806,6 +862,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                     playbackEngine.stop()
                     videoEpisodeQueue = null
                     videoPlaybackError = null
+                    autoPlayNextTriggered = false
                     videoPlaybackEngine.stop()
                     videoPlaybackEngine.play(playbackInfo)
                     showVideoPlayer = true
@@ -818,6 +875,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                     playbackEngine.stop()
                     videoEpisodeQueue = episodeQueue
                     videoPlaybackError = null
+                    autoPlayNextTriggered = false
                     videoPlaybackEngine.stop()
                     videoPlaybackEngine.play(playbackInfo)
                     showVideoPlayer = true

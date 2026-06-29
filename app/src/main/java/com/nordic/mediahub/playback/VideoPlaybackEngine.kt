@@ -37,6 +37,8 @@ data class VideoPlaybackState(
     val selectedAudioTrackIndex: Int? = null,
     val selectedSubtitleTrackIndex: Int? = null,
     val subtitleScale: Float = 1.0f,
+    val seekIntervalSeconds: Int = 10,
+    val isEnded: Boolean = false,
     val errorMessage: String? = null
 )
 
@@ -64,7 +66,10 @@ class VideoPlaybackEngine(
 
         override fun onPlaybackStateChanged(playbackState: Int) {
             publishPlayerState()
-            if (playbackState == Player.STATE_ENDED || !exoPlayer.isPlaying) {
+            if (playbackState == Player.STATE_ENDED) {
+                stopPositionUpdates()
+                stopProgressReporting()
+            } else if (!exoPlayer.isPlaying) {
                 stopPositionUpdates()
             }
         }
@@ -137,6 +142,23 @@ class VideoPlaybackEngine(
     fun seekTo(positionSeconds: Int) {
         exoPlayer.seekTo(positionSeconds.coerceAtLeast(0) * 1000L)
         publishPlayerState()
+    }
+
+    fun seekBy(deltaSeconds: Int) {
+        val currentMs = exoPlayer.currentPosition
+        val durationMs = exoPlayer.duration.let { if (it == C.TIME_UNSET) 0L else it }
+        val requestedMs = currentMs + deltaSeconds * 1000L
+        val targetMs = if (durationMs > 0L) {
+            requestedMs.coerceIn(0L, durationMs)
+        } else {
+            requestedMs.coerceAtLeast(0L)
+        }
+        exoPlayer.seekTo(targetMs)
+        publishPlayerState()
+    }
+
+    fun setSeekInterval(intervalSeconds: Int) {
+        _state.update { it.copy(seekIntervalSeconds = intervalSeconds) }
     }
 
     fun setSpeed(speed: Float) {
@@ -243,6 +265,7 @@ class VideoPlaybackEngine(
                 positionSeconds = (exoPlayer.currentPosition.coerceAtLeast(0L) / 1000L).toInt(),
                 durationSeconds = (playerDuration ?: fallbackDuration).coerceAtLeast(fallbackDuration),
                 speed = exoPlayer.playbackParameters.speed,
+                isEnded = exoPlayer.playbackState == Player.STATE_ENDED,
                 errorMessage = when (exoPlayer.playbackState) {
                     Player.STATE_READY, Player.STATE_ENDED -> null
                     else -> it.errorMessage

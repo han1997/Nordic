@@ -4,7 +4,12 @@ import android.app.Activity
 import android.content.Context
 import android.media.AudioManager
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,9 +27,11 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,10 +64,14 @@ fun VideoPlayerScreen(
     onSelectAudioTrack: (Int?) -> Unit = {},
     onSelectSubtitleTrack: (Int?) -> Unit = {},
     onSubtitleScaleChange: (Float) -> Unit = {},
+    onSeekBy: (Int) -> Unit = {},
+    onSeekIntervalChange: (Int) -> Unit = {},
     hasNextEpisode: Boolean = false,
+    hasPreviousEpisode: Boolean = false,
     isLoadingNextEpisode: Boolean = false,
     externalError: String? = null,
     onPlayNextEpisode: () -> Unit = {},
+    onPlayPreviousEpisode: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -68,6 +79,8 @@ fun VideoPlayerScreen(
     val duration = maxOf(state.durationSeconds, playbackInfo?.durationSeconds ?: 0, 1)
     var scrubPosition by remember(playbackInfo?.itemId) { mutableStateOf<Float?>(null) }
     val visiblePosition = scrubPosition ?: state.positionSeconds.toFloat()
+    var overlayVisible by remember(playbackInfo?.itemId) { mutableStateOf(true) }
+    var overlayActivityCounter by remember { mutableStateOf(0) }
     val statusText = when {
         externalError != null -> externalError
         state.errorMessage != null -> state.errorMessage
@@ -77,10 +90,42 @@ fun VideoPlayerScreen(
         else -> "等待播放"
     }
 
+    val tapScope = rememberCoroutineScope()
+    var lastTapTimeMs by remember { mutableStateOf(0L) }
+
+    // Auto-hide overlay after 5 seconds of no user interaction
+    LaunchedEffect(overlayVisible, state.isPlaying, overlayActivityCounter) {
+        if (overlayVisible && state.isPlaying) {
+            delay(5000L)
+            overlayVisible = false
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
+            .pointerInput(playbackInfo?.itemId) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    val up = waitForUpOrCancellation()
+                    if (up != null) {
+                        val now = System.currentTimeMillis()
+                        if (now - lastTapTimeMs < 300L) {
+                            lastTapTimeMs = 0L
+                            onPlayPause()
+                        } else {
+                            lastTapTimeMs = now
+                            tapScope.launch {
+                                delay(300L)
+                                if (lastTapTimeMs == now) {
+                                    overlayVisible = !overlayVisible
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             .pointerInput(playbackInfo?.itemId, state.positionSeconds, duration) {
                 var dragStartX = 0f
                 var totalDragX = 0f
@@ -125,68 +170,76 @@ fun VideoPlayerScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            Color.Black.copy(alpha = 0.78f),
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.88f)
+        if (overlayVisible) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                Color.Black.copy(alpha = 0.78f),
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.88f)
+                            )
                         )
                     )
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .navigationBarsPadding()
+                    .padding(
+                        start = 18.dp,
+                        top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 12.dp,
+                        end = 18.dp,
+                        bottom = 16.dp
+                    ),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                VideoPlayerTopBar(
+                    title = playbackInfo?.title ?: "视频播放",
+                    statusText = statusText,
+                    isError = externalError != null || state.errorMessage != null,
+                    colorScheme = colorScheme,
+                    onClose = onClose
                 )
-        )
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .navigationBarsPadding()
-                .padding(
-                    start = 18.dp,
-                    top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 12.dp,
-                    end = 18.dp,
-                    bottom = 16.dp
-                ),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            VideoPlayerTopBar(
-                title = playbackInfo?.title ?: "视频播放",
-                statusText = statusText,
-                isError = externalError != null || state.errorMessage != null,
-                colorScheme = colorScheme,
-                onClose = onClose
-            )
-
-            VideoPlayerControls(
-                title = playbackInfo?.title ?: "等待播放",
-                overview = playbackInfo?.overview.orEmpty(),
-                audioTracks = playbackInfo?.audioTracks.orEmpty(),
-                subtitleTracks = playbackInfo?.subtitleTracks.orEmpty(),
-                isPlaying = state.isPlaying,
-                position = visiblePosition.coerceIn(0f, duration.toFloat()),
-                duration = duration,
-                colorScheme = colorScheme,
-                onPositionChange = { scrubPosition = it },
-                onPositionChangeFinished = {
-                    val target = scrubPosition ?: visiblePosition
-                    onSeek(target.toInt())
-                    scrubPosition = null
-                },
-                onPlayPause = onPlayPause,
-                speed = state.speed,
-                onSpeedChange = onSpeedChange,
-                selectedAudioTrackIndex = state.selectedAudioTrackIndex,
-                selectedSubtitleTrackIndex = state.selectedSubtitleTrackIndex,
-                subtitleScale = state.subtitleScale,
-                onSelectAudioTrack = onSelectAudioTrack,
-                onSelectSubtitleTrack = onSelectSubtitleTrack,
-                onSubtitleScaleChange = onSubtitleScaleChange,
-                hasNextEpisode = hasNextEpisode,
-                isLoadingNextEpisode = isLoadingNextEpisode,
-                onPlayNextEpisode = onPlayNextEpisode
-            )
+                VideoPlayerControls(
+                    title = playbackInfo?.title ?: "等待播放",
+                    overview = playbackInfo?.overview.orEmpty(),
+                    audioTracks = playbackInfo?.audioTracks.orEmpty(),
+                    subtitleTracks = playbackInfo?.subtitleTracks.orEmpty(),
+                    isPlaying = state.isPlaying,
+                    position = visiblePosition.coerceIn(0f, duration.toFloat()),
+                    duration = duration,
+                    speed = state.speed,
+                    seekIntervalSeconds = state.seekIntervalSeconds,
+                    colorScheme = colorScheme,
+                    onPositionChange = { scrubPosition = it; overlayActivityCounter++ },
+                    onPositionChangeFinished = {
+                        val target = scrubPosition ?: visiblePosition
+                        onSeek(target.toInt())
+                        scrubPosition = null
+                        overlayActivityCounter++
+                    },
+                    onPlayPause = { onPlayPause(); overlayActivityCounter++ },
+                    onSpeedChange = { onSpeedChange(it); overlayActivityCounter++ },
+                    onSeekBy = { onSeekBy(it); overlayActivityCounter++ },
+                    onSeekIntervalChange = { onSeekIntervalChange(it); overlayActivityCounter++ },
+                    selectedAudioTrackIndex = state.selectedAudioTrackIndex,
+                    selectedSubtitleTrackIndex = state.selectedSubtitleTrackIndex,
+                    subtitleScale = state.subtitleScale,
+                    onSelectAudioTrack = { onSelectAudioTrack(it); overlayActivityCounter++ },
+                    onSelectSubtitleTrack = { onSelectSubtitleTrack(it); overlayActivityCounter++ },
+                    onSubtitleScaleChange = { onSubtitleScaleChange(it); overlayActivityCounter++ },
+                    hasPreviousEpisode = hasPreviousEpisode,
+                    hasNextEpisode = hasNextEpisode,
+                    isLoadingNextEpisode = isLoadingNextEpisode,
+                    onPlayPreviousEpisode = { onPlayPreviousEpisode(); overlayActivityCounter++ },
+                    onPlayNextEpisode = { onPlayNextEpisode(); overlayActivityCounter++ }
+                )
+            }
         }
     }
 }
@@ -253,6 +306,7 @@ private fun VideoPlayerControls(
     position: Float,
     duration: Int,
     speed: Float,
+    seekIntervalSeconds: Int,
     selectedAudioTrackIndex: Int?,
     selectedSubtitleTrackIndex: Int?,
     subtitleScale: Float,
@@ -261,11 +315,15 @@ private fun VideoPlayerControls(
     onPositionChangeFinished: () -> Unit,
     onPlayPause: () -> Unit,
     onSpeedChange: (Float) -> Unit,
+    onSeekBy: (Int) -> Unit,
+    onSeekIntervalChange: (Int) -> Unit,
     onSelectAudioTrack: (Int?) -> Unit,
     onSelectSubtitleTrack: (Int?) -> Unit,
     onSubtitleScaleChange: (Float) -> Unit,
+    hasPreviousEpisode: Boolean,
     hasNextEpisode: Boolean,
     isLoadingNextEpisode: Boolean,
+    onPlayPreviousEpisode: () -> Unit,
     onPlayNextEpisode: () -> Unit
 ) {
     Column(
@@ -312,6 +370,11 @@ private fun VideoPlayerControls(
                 color = Color.White.copy(alpha = 0.64f),
                 fontSize = 12.sp
             )
+            VideoControlChip(
+                text = "-${seekIntervalSeconds}s",
+                active = false,
+                colorScheme = colorScheme
+            ) { onSeekBy(-seekIntervalSeconds) }
             Surface(
                 color = colorScheme.primary,
                 contentColor = colorScheme.onPrimary,
@@ -326,16 +389,34 @@ private fun VideoPlayerControls(
                 )
             }
             VideoControlChip(
+                text = "+${seekIntervalSeconds}s",
+                active = false,
+                colorScheme = colorScheme
+            ) { onSeekBy(seekIntervalSeconds) }
+            Text(
+                formatDuration(duration),
+                color = Color.White.copy(alpha = 0.64f),
+                fontSize = 12.sp
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            VideoControlChip(
+                text = if (isLoadingNextEpisode) "加载中" else "上一集",
+                active = hasPreviousEpisode,
+                enabled = hasPreviousEpisode && !isLoadingNextEpisode,
+                colorScheme = colorScheme,
+                onClick = onPlayPreviousEpisode
+            )
+            VideoControlChip(
                 text = if (isLoadingNextEpisode) "加载中" else "下一集",
                 active = hasNextEpisode,
                 enabled = hasNextEpisode && !isLoadingNextEpisode,
                 colorScheme = colorScheme,
                 onClick = onPlayNextEpisode
-            )
-            Text(
-                formatDuration(duration),
-                color = Color.White.copy(alpha = 0.64f),
-                fontSize = 12.sp
             )
         }
         val speedOptions = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
@@ -358,6 +439,20 @@ private fun VideoPlayerControls(
                         fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium
                     )
                 }
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("跳进", color = Color.White.copy(alpha = 0.62f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            listOf(10, 15, 30).forEach { interval ->
+                VideoControlChip(
+                    text = "${interval}s",
+                    active = seekIntervalSeconds == interval,
+                    colorScheme = colorScheme
+                ) { onSeekIntervalChange(interval) }
             }
         }
         VideoTrackControls(

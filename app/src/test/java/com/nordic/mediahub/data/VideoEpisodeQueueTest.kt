@@ -19,6 +19,17 @@ class VideoEpisodeQueueTest {
     }
 
     @Test
+    fun resolvePreviousVideoEpisodeIndex_returnsPreviousIndexOnlyWhenAvailable() {
+        assertEquals(0, resolvePreviousVideoEpisodeIndex(currentIndex = 1, itemCount = 3))
+        assertEquals(1, resolvePreviousVideoEpisodeIndex(currentIndex = 2, itemCount = 3))
+
+        assertNull(resolvePreviousVideoEpisodeIndex(currentIndex = 0, itemCount = 3))
+        assertNull(resolvePreviousVideoEpisodeIndex(currentIndex = -1, itemCount = 3))
+        assertNull(resolvePreviousVideoEpisodeIndex(currentIndex = 0, itemCount = 1))
+        assertNull(resolvePreviousVideoEpisodeIndex(currentIndex = 0, itemCount = 0))
+    }
+
+    @Test
     fun videoEpisodeQueue_advancesThroughEpisodes() {
         val queue = VideoEpisodeQueue(
             libraryId = "series-1",
@@ -44,6 +55,31 @@ class VideoEpisodeQueueTest {
     }
 
     @Test
+    fun videoEpisodeQueue_navigatesBackward() {
+        val queue = VideoEpisodeQueue(
+            libraryId = "series-1",
+            episodes = listOf(
+                episode("ep-1", 1),
+                episode("ep-2", 2),
+                episode("ep-3", 3)
+            ),
+            currentIndex = 2
+        )
+
+        assertTrue(queue.hasPrevious)
+        assertEquals("ep-2", queue.previousEpisode()?.id)
+
+        val prevQueue = queue.goToPrevious()
+        assertEquals(1, prevQueue?.currentIndex)
+        assertEquals("ep-1", prevQueue?.previousEpisode()?.id)
+
+        val firstQueue = prevQueue?.goToPrevious()
+        assertEquals(0, firstQueue?.currentIndex)
+        assertFalse(firstQueue?.hasPrevious ?: true)
+        assertNull(firstQueue?.goToPrevious())
+    }
+
+    @Test
     fun toPlaybackVideoItem_preservesEpisodeProgress() {
         val progress = VideoProgress(currentTimeSeconds = 42, playedPercentage = 10f)
         val item = episode("ep-1", 1, progress).toPlaybackVideoItem("series-1")
@@ -56,7 +92,7 @@ class VideoEpisodeQueueTest {
     }
 
     @Test
-    fun videoEpisodeQueue_withEmptyEpisodes_hasNoNext() {
+    fun videoEpisodeQueue_withEmptyEpisodes_hasNoNextOrPrevious() {
         val queue = VideoEpisodeQueue(
             libraryId = "series-1",
             episodes = emptyList(),
@@ -65,10 +101,13 @@ class VideoEpisodeQueueTest {
         assertFalse(queue.hasNext)
         assertNull(queue.nextEpisode())
         assertNull(queue.advanceToNext())
+        assertFalse(queue.hasPrevious)
+        assertNull(queue.previousEpisode())
+        assertNull(queue.goToPrevious())
     }
 
     @Test
-    fun videoEpisodeQueue_withOutOfBoundsIndex_hasNoNext() {
+    fun videoEpisodeQueue_withOutOfBoundsIndex_hasNoNextOrPrevious() {
         val queue = VideoEpisodeQueue(
             libraryId = "series-1",
             episodes = listOf(episode("ep-1", 1)),
@@ -77,6 +116,45 @@ class VideoEpisodeQueueTest {
         assertFalse(queue.hasNext)
         assertNull(queue.nextEpisode())
         assertNull(queue.advanceToNext())
+        assertFalse(queue.hasPrevious)
+        assertNull(queue.previousEpisode())
+        assertNull(queue.goToPrevious())
+    }
+
+    @Test
+    fun videoEpisodeQueue_firstEpisode_hasNoPrevious() {
+        val queue = VideoEpisodeQueue(
+            libraryId = "series-1",
+            episodes = listOf(episode("ep-1", 1), episode("ep-2", 2)),
+            currentIndex = 0
+        )
+        assertFalse(queue.hasPrevious)
+        assertNull(queue.previousEpisode())
+        assertNull(queue.goToPrevious())
+    }
+
+    @Test
+    fun videoEpisodeQueue_bidirectionalNavigation() {
+        val queue = VideoEpisodeQueue(
+            libraryId = "series-1",
+            episodes = listOf(
+                episode("ep-1", 1),
+                episode("ep-2", 2),
+                episode("ep-3", 3)
+            ),
+            currentIndex = 1
+        )
+
+        assertTrue(queue.hasPrevious)
+        assertTrue(queue.hasNext)
+        assertEquals("ep-1", queue.previousEpisode()?.id)
+        assertEquals("ep-3", queue.nextEpisode()?.id)
+
+        val forward = queue.advanceToNext()
+        assertEquals(2, forward?.currentIndex)
+
+        val backward = queue.goToPrevious()
+        assertEquals(0, backward?.currentIndex)
     }
 
     private fun episode(
