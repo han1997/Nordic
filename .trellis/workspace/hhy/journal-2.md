@@ -1394,3 +1394,36 @@ Added Fit/Crop/Fill video display modes, fullscreen landscape playback handling,
 ### Next Steps
 
 - None - task complete
+
+
+## Session 102: Video player recomposition performance
+
+**Date**: 2026-06-29
+**Task**: Video player recomposition performance
+**Branch**: `main`
+
+### Summary
+
+Isolated the video SurfaceView/AspectRatioFrameLayout into a focused composable, stabilized surface callbacks, added resize-mode helper coverage, and verified compile, unit tests, and lint.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `60f6722` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
