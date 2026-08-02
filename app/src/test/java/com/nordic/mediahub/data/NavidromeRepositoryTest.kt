@@ -1016,6 +1016,309 @@ class NavidromeRepositoryTest {
         )
     }
 
+    @Test
+    fun star_callsCorrectEndpointWithAlbumId() = runTest {
+        server.enqueueJson(subsonicOkResponse())
+
+        repository().star(albumId = "al-1")
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/star2.view?"))
+        assertTrue(request.contains("albumId=al-1"))
+        assertTrue(request.contains("u=demo"))
+        assertTrue(request.contains("c=Nordic"))
+        assertFalse(request.contains("id="))
+        assertFalse(request.contains("artistId="))
+    }
+
+    @Test
+    fun unstar_callsCorrectEndpointWithArtistId() = runTest {
+        server.enqueueJson(subsonicOkResponse())
+
+        repository().unstar(artistId = "ar-1")
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/unstar.view?"))
+        assertTrue(request.contains("artistId=ar-1"))
+        assertFalse(request.contains("id="))
+        assertFalse(request.contains("albumId="))
+    }
+
+    @Test
+    fun getStarred2_mapsAlbumsSongsArtists() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "starred2": {
+                  "album": [
+                    {"id": "album-1", "name": "Starred Album", "coverArt": "album-cover"}
+                  ],
+                  "song": [
+                    {"id": "song-1", "title": "Starred Song", "artist": "Artist One", "coverArt": "song-cover"}
+                  ],
+                  "artist": [
+                    {"id": "artist-1", "name": "Starred Artist", "albumCount": 5}
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val starred = repository().getStarred()
+
+        assertEquals(listOf("Starred Album"), starred.albums.map { it.name })
+        assertTrue(starred.albums[0].coverArt.orEmpty().contains("/rest/getCoverArt.view?id=album-cover"))
+        assertEquals(listOf("Starred Song"), starred.songs.map { it.title })
+        assertTrue(starred.songs[0].coverArt.orEmpty().contains("/rest/getCoverArt.view?id=song-cover"))
+        assertTrue(starred.songs[0].streamUrl.orEmpty().contains("/rest/stream.view?id=song-1"))
+        assertEquals(listOf("Starred Artist"), starred.artists.map { it.name })
+        assertEquals(listOf("SA"), starred.artists.map { it.initials })
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/getStarred2.view?"))
+    }
+
+    @Test
+    fun getStarred2_mapsMissingAndNullStarredArraysToEmptyLists() = runTest {
+        listOf(
+            """"starred2": {}""",
+            """"starred2": {"album": null, "song": null, "artist": null}"""
+        ).forEach { starredField ->
+            server.enqueueJson(subsonicResponse(starredField))
+
+            val starred = repository().getStarred()
+
+            assertEquals(StarredContent(), starred)
+        }
+    }
+
+    @Test
+    fun createPlaylist_callsEndpointAndMapsResponse() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "playlist": {
+                  "id": "playlist-1",
+                  "name": "My Road Mix",
+                  "owner": "demo",
+                  "songCount": 2,
+                  "duration": 390,
+                  "coverArt": "playlist-cover"
+                }
+                """.trimIndent()
+            )
+        )
+
+        val playlist = repository().createPlaylist(name = "My Road Mix", songIds = listOf("song-1", "song-2"))
+
+        assertEquals("playlist-1", playlist.id)
+        assertEquals("My Road Mix", playlist.name)
+        assertEquals(2, playlist.songCount)
+        assertEquals(390, playlist.duration)
+        assertTrue(playlist.coverArt.orEmpty().contains("/rest/getCoverArt.view?id=playlist-cover"))
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/createPlaylist.view?"))
+        assertTrue(request.contains("name=My%20Road%20Mix"))
+        assertTrue(request.contains("songId=song-1"))
+        assertTrue(request.contains("songId=song-2"))
+    }
+
+    @Test
+    fun createPlaylist_throwsTypedApiExceptionWhenPlaylistIsNull() = runTest {
+        server.enqueueJson(subsonicOkResponse())
+
+        val error = assertNavidromeApiError(NavidromeApiException.Kind.SUBSONIC) {
+            repository().createPlaylist(name = "Empty")
+        }
+
+        assertTrue(error.message.orEmpty().contains("创建歌单返回为空"))
+    }
+
+    @Test
+    fun updatePlaylist_addSongAndRemoveByIndex() = runTest {
+        server.enqueueJson(subsonicOkResponse())
+        server.enqueueJson(subsonicOkResponse())
+
+        repository().addToPlaylist(playlistId = "playlist-1", songId = "song-9")
+        repository().removeFromPlaylist(playlistId = "playlist-1", songIndex = 3)
+
+        val addRequest = server.takeRequest().path.orEmpty()
+        assertTrue(addRequest.startsWith("/rest/updatePlaylist.view?"))
+        assertTrue(addRequest.contains("playlistId=playlist-1"))
+        assertTrue(addRequest.contains("songIdToAdd=song-9"))
+
+        val removeRequest = server.takeRequest().path.orEmpty()
+        assertTrue(removeRequest.startsWith("/rest/updatePlaylist.view?"))
+        assertTrue(removeRequest.contains("playlistId=playlist-1"))
+        assertTrue(removeRequest.contains("songIndexToRemove=3"))
+    }
+
+    @Test
+    fun renamePlaylist_callsUpdatePlaylistWithName() = runTest {
+        server.enqueueJson(subsonicOkResponse())
+
+        repository().renamePlaylist(playlistId = "playlist-1", newName = "Renamed")
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/updatePlaylist.view?"))
+        assertTrue(request.contains("playlistId=playlist-1"))
+        assertTrue(request.contains("name=Renamed"))
+    }
+
+    @Test
+    fun deletePlaylist_callsCorrectEndpoint() = runTest {
+        server.enqueueJson(subsonicOkResponse())
+
+        repository().deletePlaylist(playlistId = "playlist-1")
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/deletePlaylist.view?"))
+        assertTrue(request.contains("id=playlist-1"))
+    }
+
+    @Test
+    fun getSimilarSongs_callsEndpointAndMapsSongs() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "similarSongs": {
+                  "song": [
+                    {
+                      "id": "similar-1",
+                      "title": "Similar Song",
+                      "artist": "Artist One",
+                      "album": "Album One",
+                      "coverArt": "similar-cover"
+                    }
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val songs = repository().getSimilarSongs("song-1")
+
+        assertEquals(listOf("Similar Song"), songs.map { it.title })
+        assertTrue(songs[0].streamUrl.orEmpty().contains("/rest/stream.view?id=similar-1"))
+        assertTrue(songs[0].coverArt.orEmpty().contains("/rest/getCoverArt.view?id=similar-cover"))
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/getSimilarSongs.view?"))
+        assertTrue(request.contains("id=song-1"))
+        assertTrue(request.contains("count=50"))
+    }
+
+    @Test
+    fun getSimilarSongs_mapsMissingAndNullSongArraysToEmptyList() = runTest {
+        listOf(
+            """"similarSongs": {}""",
+            """"similarSongs": {"song": null}"""
+        ).forEach { similarField ->
+            server.enqueueJson(subsonicResponse(similarField))
+
+            val songs = repository().getSimilarSongs("song-1")
+
+            assertEquals(emptyList<NavidromeSong>(), songs)
+        }
+    }
+
+    @Test
+    fun getRandomSongs_callsEndpointAndMapsSongs() = runTest {
+        server.enqueueJson(
+            subsonicResponse(
+                """
+                "randomSongs": {
+                  "song": [
+                    {
+                      "id": "random-1",
+                      "title": "Random Song",
+                      "artist": "Artist One",
+                      "album": "Album One",
+                      "coverArt": "random-cover"
+                    }
+                  ]
+                }
+                """.trimIndent()
+            )
+        )
+
+        val songs = repository().getRandomSongs(count = 30)
+
+        assertEquals(listOf("Random Song"), songs.map { it.title })
+        assertTrue(songs[0].streamUrl.orEmpty().contains("/rest/stream.view?id=random-1"))
+        assertTrue(songs[0].coverArt.orEmpty().contains("/rest/getCoverArt.view?id=random-cover"))
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/getRandomSongs.view?"))
+        assertTrue(request.contains("size=30"))
+    }
+
+    @Test
+    fun scrobble_callsEndpointWithSubmissionTrue() = runTest {
+        server.enqueueJson(subsonicOkResponse())
+
+        repository().scrobble(songId = "song-1", submission = true)
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/scrobble.view?"))
+        assertTrue(request.contains("id=song-1"))
+        assertTrue(request.contains("submission=true"))
+    }
+
+    @Test
+    fun scrobble_callsEndpointWithSubmissionFalse() = runTest {
+        server.enqueueJson(subsonicOkResponse())
+
+        repository().scrobble(songId = "song-1", submission = false)
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/scrobble.view?"))
+        assertTrue(request.contains("id=song-1"))
+        assertTrue(request.contains("submission=false"))
+    }
+
+    @Test
+    fun subsonicError_formatsNullSafeWhenCodeOrMessageIsMissing() = runTest {
+        listOf(
+            """
+            {
+              "subsonic-response": {
+                "status": "failed",
+                "version": "1.16.1",
+                "error": {}
+              }
+            }
+            """.trimIndent(),
+            """
+            {
+              "subsonic-response": {
+                "status": "failed",
+                "version": "1.16.1",
+                "error": {"code": 70}
+              }
+            }
+            """.trimIndent(),
+            """
+            {
+              "subsonic-response": {
+                "status": "failed",
+                "version": "1.16.1",
+                "error": {"message": "User not authorized"}
+              }
+            }
+            """.trimIndent()
+        ).forEach { errorBody ->
+            server.enqueueJson(errorBody)
+
+            val error = assertNavidromeApiError(NavidromeApiException.Kind.SUBSONIC) {
+                repository().getPlaylists()
+            }
+
+            assertTrue(error.message.orEmpty().contains("Subsonic错误"))
+        }
+    }
+
     private suspend fun assertNavidromeApiError(
         kind: NavidromeApiException.Kind,
         block: suspend () -> Unit
@@ -1049,6 +1352,17 @@ class NavidromeRepositoryTest {
                 "status": "ok",
                 "version": "1.16.1",
                 $dataFields
+              }
+            }
+        """.trimIndent()
+    }
+
+    private fun subsonicOkResponse(): String {
+        return """
+            {
+              "subsonic-response": {
+                "status": "ok",
+                "version": "1.16.1"
               }
             }
         """.trimIndent()

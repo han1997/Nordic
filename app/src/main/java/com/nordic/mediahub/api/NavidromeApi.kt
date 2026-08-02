@@ -20,6 +20,8 @@ data class SubsonicData(
     val playlists: NavidromePlaylistList? = null,
     val playlist: NavidromePlaylistDetail? = null,
     val randomSongs: SongList? = null,
+    val similarSongs: SongList? = null,
+    val starred2: Starred2? = null,
     val searchResult3: SearchResult3? = null,
     val lyrics: NavidromePlainLyrics? = null,
     val lyricsList: NavidromeLyricsList? = null,
@@ -40,8 +42,8 @@ data class SearchResult3(
 )
 
 data class SubsonicError(
-    val code: Int,
-    val message: String
+    val code: Int? = null,
+    val message: String? = null
 )
 
 data class AlbumList(
@@ -49,6 +51,12 @@ data class AlbumList(
 )
 
 data class SongList(
+    val song: List<NavidromeSong>? = null
+)
+
+data class Starred2(
+    val album: List<NavidromeAlbum>? = null,
+    val artist: List<NavidromeArtist>? = null,
     val song: List<NavidromeSong>? = null
 )
 
@@ -266,5 +274,102 @@ interface NavidromeApi {
         @Query("artistCount") artistCount: Int = 10,
         @Query("albumCount") albumCount: Int = 10,
         @Query("songCount") songCount: Int = 20
+    ): Response<SubsonicResponse>
+
+    @GET("rest/star2.view")
+    suspend fun star(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("f") format: String = "json",
+        @Query("id") id: String? = null,
+        @Query("albumId") albumId: String? = null,
+        @Query("artistId") artistId: String? = null
+    ): Response<SubsonicResponse>
+
+    @GET("rest/unstar.view")
+    suspend fun unstar(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("f") format: String = "json",
+        @Query("id") id: String? = null,
+        @Query("albumId") albumId: String? = null,
+        @Query("artistId") artistId: String? = null
+    ): Response<SubsonicResponse>
+
+    @GET("rest/getStarred2.view")
+    suspend fun getStarred2(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("f") format: String = "json"
+    ): Response<SubsonicResponse>
+
+    @GET("rest/createPlaylist.view")
+    suspend fun createPlaylist(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("f") format: String = "json",
+        @Query("name") name: String,
+        @Query("songId") songId: List<String>? = null
+    ): Response<SubsonicResponse>
+
+    @GET("rest/updatePlaylist.view")
+    suspend fun updatePlaylist(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("f") format: String = "json",
+        @Query("playlistId") playlistId: String,
+        @Query("name") name: String? = null,
+        @Query("songIdToAdd") songIdToAdd: List<String>? = null,
+        @Query("songIndexToRemove") songIndexToRemove: List<Int>? = null
+    ): Response<SubsonicResponse>
+
+    @GET("rest/deletePlaylist.view")
+    suspend fun deletePlaylist(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("f") format: String = "json",
+        @Query("id") id: String
+    ): Response<SubsonicResponse>
+
+    @GET("rest/getSimilarSongs.view")
+    suspend fun getSimilarSongs(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("f") format: String = "json",
+        @Query("id") id: String,
+        @Query("count") count: Int = 50
+    ): Response<SubsonicResponse>
+
+    @GET("rest/scrobble.view")
+    suspend fun scrobble(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("f") format: String = "json",
+        @Query("id") id: String,
+        @Query("submission") submission: Boolean
     ): Response<SubsonicResponse>
 }
