@@ -115,11 +115,12 @@ internal fun VideoDetailScreen(
                     overflow = TextOverflow.Ellipsis
                 )
 
+                val chips = remember(video) { video.detailChips() }
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(video.detailChips(), key = { it }, contentType = { "video-detail-chip" }) { chip ->
+                    items(chips, key = { it }, contentType = { "video-detail-chip" }) { chip ->
                         MetaChip(text = chip, colorScheme = colorScheme)
                     }
                 }
@@ -223,8 +224,9 @@ internal fun VideoEpisodeRow(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
+            val label = remember(episode) { episode.episodeLabel() }
             Text(
-                episode.episodeLabel(),
+                label,
                 fontSize = 12.sp,
                 color = colorScheme.onSurface.copy(alpha = 0.58f),
                 fontWeight = FontWeight.Medium,

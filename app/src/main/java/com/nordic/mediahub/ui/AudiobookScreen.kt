@@ -528,11 +528,13 @@ private fun AudiobookSummaryCard(
                 if (item.author.isNotBlank()) {
                     Text(item.author, fontSize = 13.sp, color = colorScheme.onSurface.copy(alpha = 0.66f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                val meta = buildList {
-                    if (item.narrator.isNotBlank()) add("播讲 ${item.narrator}")
-                    if (item.chapterCount > 0) add("${item.chapterCount} 章")
-                    if (item.durationSeconds > 0) add(formatDuration(item.durationSeconds))
-                }.joinToString("  •  ")
+                val meta = remember(item) {
+                    buildList {
+                        if (item.narrator.isNotBlank()) add("播讲 ${item.narrator}")
+                        if (item.chapterCount > 0) add("${item.chapterCount} 章")
+                        if (item.durationSeconds > 0) add(formatDuration(item.durationSeconds))
+                    }.joinToString("  •  ")
+                }
                 if (meta.isNotBlank()) {
                     Text(meta, fontSize = 12.sp, color = colorScheme.onSurface.copy(alpha = 0.5f), maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
