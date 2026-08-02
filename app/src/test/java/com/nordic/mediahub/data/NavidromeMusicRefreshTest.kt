@@ -1,8 +1,5 @@
 package com.nordic.mediahub.data
 
-import com.nordic.mediahub.api.NavidromeAlbum
-import com.nordic.mediahub.api.NavidromeArtist
-import com.nordic.mediahub.api.NavidromeSong
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

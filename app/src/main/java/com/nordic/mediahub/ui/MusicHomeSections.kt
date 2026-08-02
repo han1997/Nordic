@@ -35,9 +35,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nordic.mediahub.api.NavidromeAlbum
-import com.nordic.mediahub.api.NavidromeArtist
-import com.nordic.mediahub.api.NavidromeSong
+import com.nordic.mediahub.data.NavidromeAlbum
+import com.nordic.mediahub.data.NavidromeArtist
+import com.nordic.mediahub.data.NavidromeSong
 
 @Composable
 fun MusicHeroBanner(

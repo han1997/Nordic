@@ -1,6 +1,6 @@
 package com.nordic.mediahub.playback
 
-import com.nordic.mediahub.api.NavidromeSong
+import com.nordic.mediahub.data.NavidromeSong
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

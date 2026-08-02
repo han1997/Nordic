@@ -5,7 +5,7 @@ import android.os.Bundle
 import androidx.core.os.bundleOf
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
-import com.nordic.mediahub.api.NavidromeSong
+import com.nordic.mediahub.data.NavidromeSong
 
 private const val EXTRA_ID = "com.nordic.mediahub.extra.ID"
 private const val EXTRA_TITLE = "com.nordic.mediahub.extra.TITLE"

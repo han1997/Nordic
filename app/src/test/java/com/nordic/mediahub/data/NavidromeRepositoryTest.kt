@@ -1,8 +1,5 @@
 package com.nordic.mediahub.data
 
-import com.nordic.mediahub.api.NavidromeAlbum
-import com.nordic.mediahub.api.NavidromePlaylist
-import com.nordic.mediahub.api.NavidromeSong
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer

@@ -1,13 +1,7 @@
 package com.nordic.mediahub.data
 
 import android.util.Log
-import com.nordic.mediahub.api.NavidromeAlbum
 import com.nordic.mediahub.api.NavidromeApi
-import com.nordic.mediahub.api.NavidromeArtist
-import com.nordic.mediahub.api.NavidromePlaylist
-import com.nordic.mediahub.api.NavidromePlaylistDetail
-import com.nordic.mediahub.api.NavidromeSong
-import com.nordic.mediahub.api.NavidromeStructuredLyrics
 import com.nordic.mediahub.api.SubsonicData
 import com.nordic.mediahub.api.SubsonicResponse
 import okhttp3.HttpUrl.Companion.toHttpUrl

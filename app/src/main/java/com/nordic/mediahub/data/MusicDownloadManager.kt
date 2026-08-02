@@ -3,7 +3,6 @@ package com.nordic.mediahub.data
 import android.content.Context
 import android.os.Environment
 import com.google.gson.Gson
-import com.nordic.mediahub.api.NavidromeSong
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

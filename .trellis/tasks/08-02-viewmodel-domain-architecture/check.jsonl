@@ -1,1 +1,7 @@
-{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `py -3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Verify ViewModel/domain layer placement, no api.* imports in ui/playback, service↔activity decoupling"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify no duplicate close/sync utilities, repository reuse, BackHandler, no string-based errors"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Verify VM sync loops surface failures (no swallowed errors), catch-rethrow order"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "Verify playback tags used, no auth leaks"}
+{"file": ".trellis/spec/backend/audiobookshelf-integration.md", "reason": "Verify audiobook VM orchestration matches sync/close/baseline contracts"}
+{"file": ".trellis/spec/backend/navidrome-integration.md", "reason": "Verify music VM queue ownership and handoff ordering"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Verify video VM periodic sync baseline and stop-on-handoff"}

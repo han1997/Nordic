@@ -1,6 +1,15 @@
 package com.nordic.mediahub.api
 
 import com.google.gson.annotations.SerializedName
+import com.nordic.mediahub.data.NavidromeAlbum
+import com.nordic.mediahub.data.NavidromeAlbumDetail
+import com.nordic.mediahub.data.NavidromeArtist
+import com.nordic.mediahub.data.NavidromeArtistDetail
+import com.nordic.mediahub.data.NavidromeLyricsList
+import com.nordic.mediahub.data.NavidromePlainLyrics
+import com.nordic.mediahub.data.NavidromePlaylistDetail
+import com.nordic.mediahub.data.NavidromePlaylistList
+import com.nordic.mediahub.data.NavidromeSong
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -28,13 +37,6 @@ data class SubsonicData(
     val error: SubsonicError? = null,
 )
 
-data class NavidromeArtistDetail(
-    val id: String,
-    val name: String,
-    val albumCount: Int = 0,
-    val album: List<NavidromeAlbum>? = null
-)
-
 data class SearchResult3(
     val artist: List<NavidromeArtist>? = null,
     val album: List<NavidromeAlbum>? = null,
@@ -60,10 +62,6 @@ data class Starred2(
     val song: List<NavidromeSong>? = null
 )
 
-data class NavidromePlaylistList(
-    val playlist: List<NavidromePlaylist>? = null
-)
-
 data class ArtistsIndex(
     val index: List<ArtistIndex>? = null
 )
@@ -71,92 +69,6 @@ data class ArtistsIndex(
 data class ArtistIndex(
     val name: String,
     val artist: List<NavidromeArtist>? = null
-)
-
-data class NavidromeAlbum(
-    val id: String,
-    val name: String,
-    val artist: String? = null,
-    val coverArt: String? = null,
-    val songCount: Int = 0,
-    val year: Int? = null
-)
-
-data class NavidromeAlbumDetail(
-    val id: String,
-    val name: String,
-    val artist: String? = null,
-    val coverArt: String? = null,
-    val song: List<NavidromeSong>? = null
-)
-
-data class NavidromePlaylist(
-    val id: String,
-    val name: String,
-    val comment: String? = null,
-    val owner: String? = null,
-    @SerializedName("public")
-    val isPublic: Boolean = false,
-    val songCount: Int = 0,
-    val duration: Int = 0,
-    val created: String? = null,
-    val changed: String? = null,
-    val coverArt: String? = null
-)
-
-data class NavidromePlaylistDetail(
-    val id: String,
-    val name: String,
-    val comment: String? = null,
-    val owner: String? = null,
-    @SerializedName("public")
-    val isPublic: Boolean = false,
-    val songCount: Int = 0,
-    val duration: Int = 0,
-    val coverArt: String? = null,
-    val entry: List<NavidromeSong>? = null
-)
-
-data class NavidromeSong(
-    val id: String,
-    val title: String,
-    val artist: String? = null,
-    val album: String? = null,
-    val duration: Int = 0,
-    val coverArt: String? = null,
-    val streamUrl: String? = null,
-    val created: String? = null
-)
-
-data class NavidromeArtist(
-    val id: String,
-    val name: String,
-    val albumCount: Int = 0,
-    @Transient val initials: String = ""
-)
-
-data class NavidromePlainLyrics(
-    val artist: String? = null,
-    val title: String? = null,
-    val value: String? = null
-)
-
-data class NavidromeLyricsList(
-    val structuredLyrics: List<NavidromeStructuredLyrics>? = null
-)
-
-data class NavidromeStructuredLyrics(
-    val displayArtist: String? = null,
-    val displayTitle: String? = null,
-    val lang: String? = null,
-    val offset: Double? = null,
-    val synced: Boolean = false,
-    val line: List<NavidromeStructuredLyricLine>? = null
-)
-
-data class NavidromeStructuredLyricLine(
-    val start: Double? = null,
-    val value: String? = null
 )
 
 interface NavidromeApi {

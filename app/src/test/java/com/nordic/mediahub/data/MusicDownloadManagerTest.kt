@@ -1,6 +1,5 @@
 package com.nordic.mediahub.data
 
-import com.nordic.mediahub.api.NavidromeSong
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

@@ -2,10 +2,6 @@ package com.nordic.mediahub.data
 
 import androidx.compose.runtime.Stable
 
-import com.nordic.mediahub.api.NavidromeAlbum
-import com.nordic.mediahub.api.NavidromeArtist
-import com.nordic.mediahub.api.NavidromeSong
-
 @Stable
 data class NavidromeMusicRefreshData(
     val albums: List<NavidromeAlbum>,

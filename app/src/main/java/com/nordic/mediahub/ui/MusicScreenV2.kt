@@ -58,10 +58,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.nordic.mediahub.api.NavidromeAlbum
-import com.nordic.mediahub.api.NavidromeArtist
-import com.nordic.mediahub.api.NavidromePlaylist
-import com.nordic.mediahub.api.NavidromeSong
+import com.nordic.mediahub.data.NavidromeAlbum
+import com.nordic.mediahub.data.NavidromeArtist
+import com.nordic.mediahub.data.NavidromePlaylist
+import com.nordic.mediahub.data.NavidromeSong
 import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.NavidromeAlbumSort
 import com.nordic.mediahub.data.NavidromeConfig

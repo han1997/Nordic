@@ -1,1 +1,7 @@
-{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `py -3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Layer boundaries (api/data/playback/ui), package conventions for ViewModel placement, domain model location, service↔activity decoupling"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "No duplicate utilities (close funcs, sync loops); media repository instance reuse; Compose performance state isolation; BackHandler; config readiness centralized"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Catch-rethrow pattern for VM-orchestrated sync loops; swallowed failures (M-吞错误) must surface as user-facing error state not silent catch"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "Playback tags (MusicPlayback/AudiobookPlayback/VideoPlayback) for VM lifecycle/sync/close errors; no auth URLs/tokens logged"}
+{"file": ".trellis/spec/backend/audiobookshelf-integration.md", "reason": "AudiobookPlaybackViewModel owns syncAndCloseSession orchestration, periodic sync baseline, app-shell resolveAudiobookPlayRequestAction; close on music/video handoff"}
+{"file": ".trellis/spec/backend/navidrome-integration.md", "reason": "MusicPlaybackViewModel repository reuse (remember keyed on config), playback queue ownership, music↔audiobook handoff stop ordering"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "VideoPlaybackViewModel owns 30s periodic progress loop, stop-on-handoff, playbackPosition resume decisions"}

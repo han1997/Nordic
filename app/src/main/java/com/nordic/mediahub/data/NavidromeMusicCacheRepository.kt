@@ -4,9 +4,6 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.gson.Gson
-import com.nordic.mediahub.api.NavidromeAlbum
-import com.nordic.mediahub.api.NavidromeArtist
-import com.nordic.mediahub.api.NavidromeSong
 import kotlinx.coroutines.flow.first
 
 private const val MUSIC_CACHE_SCHEMA_VERSION = 3

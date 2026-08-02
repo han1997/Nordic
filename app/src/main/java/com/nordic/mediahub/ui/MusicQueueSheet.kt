@@ -40,7 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import com.nordic.mediahub.api.NavidromeSong
+import com.nordic.mediahub.data.NavidromeSong
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
