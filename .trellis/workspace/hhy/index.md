@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 106
+- **Total Sessions**: 107
 - **Last Active**: 2026-08-02
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~1563 | Active |
+| `journal-2.md` | ~1596 | Active |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 107 | 2026-08-02 | T5 ABS continue-listening + typed errors | `fec5b93` | `main` |
 | 106 | 2026-08-02 | T6 Compose performance quick wins | `41bf217` | `main` |
 | 105 | 2026-08-02 | T3 playback layer hardening | `375135a` | `main` |
 | 104 | 2026-08-02 | T2 Navidrome contract completion | `6873149` | `main` |

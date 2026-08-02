@@ -1561,3 +1561,36 @@ Implemented T6 (P1): C3 searchJob migrated to AtomicReference<Job?> so debounce 
 ### Next Steps
 
 - None - task complete
+
+
+## Session 107: T5 ABS continue-listening + typed errors
+
+**Date**: 2026-08-02
+**Task**: T5 ABS continue-listening + typed errors
+**Branch**: `main`
+
+### Summary
+
+Implemented T5 (P1): C4 continue-listening progress restored — getLibraryItems now sends include=progress, AudiobookShelfLibraryItemMinifiedDto gained userMediaProgress, toSummary() maps progress to AudiobookItemSummary.progress via toDomainProgress() (2 tests: param presence + field mapping). H10 bearerToken now catches EOFException on empty 200 login body and throws AudiobookShelfApiException(Kind.API, '登录失败: 响应为空') (1 test). H9 sync/close typed catch: syncProgress and closeSession migrated to requireUnitResponseWithRetry which catches EOFException -> Kind.API and non-2xx -> Kind.HTTP; syncProgress already had the HTTP test from prior session, closeSession got a new HTTP-500 test. M-非原子close: syncAndCloseSession refactored to try { syncProgress } finally { closeSession } so close always runs even when sync throws (1 test verifies close request still fires after a sync 500). M-401 重认证: new executeWithAuthRetry(request) clears cachedBearerToken on 401, re-auths, retries once; all body/unit responses route through it (1 test: login -> 401 -> re-login -> 200, 4 requests). M-ABS DTO: AudiobookShelfLibraryItemExpandedDto (id/libraryId/mediaType/media), AudiobookShelfBookExpandedDto (id/metadata/tracks/audioFiles), AudiobookShelfBookExpandedMetadataDto.title, AudiobookShelfPlaybackSessionDto (id/libraryId/libraryItemId/mediaType/displayTitle), and AudiobookShelfMediaProgressDto.id all made nullable with = null default; repository normalizes via orEmpty() (1 test for missing optional fields mapping to defaults). L-Emby 分页: EmbyApi.totalRecordCount changed from Int=0 to Int?=null; EmbyRepository paging loop now treats null total as 'unknown' and continues until a short page, while non-null total still stops at startIndex >= total (1 test: 2 pages, null total, stops on short page). M-token deviation: PRD listed Uri.encode/HttpUrl.Builder for toAbsoluteAudioUrl, but T1 already migrated ABS audio to header auth (stripAuthQuery + MediaAuthHeaderRegistry registers Authorization: Bearer), so the token never reaches the URL — encoding is unnecessary. Check agent APPROVED with 2 nits fixed: AudiobookShelfMediaProgressDto.id made nullable (defensive), and dead requireUnitResponse extension removed (superseded by requireUnitResponseWithRetry). 8 new tests pass (37 ABS + 24 Emby total); compile + lint green. T5 archived.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fec5b93` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
