@@ -1594,3 +1594,36 @@ Implemented T5 (P1): C4 continue-listening progress restored — getLibraryItems
 ### Next Steps
 
 - None - task complete
+
+
+## Session 108: T4 ViewModel + domain architecture
+
+**Date**: 2026-08-02
+**Task**: T4 ViewModel + domain architecture
+**Branch**: `main`
+
+### Summary
+
+Implemented T4 (P1) across 4 phases, satisfying H2/H3/H4/M-吞错误/M-MainActivity 重复. Phase A (commit ac1f8ad, H4): relocated 12 Navidrome app-facing model classes from api/NavidromeApi.kt to new data/NavidromeModels.kt (package data), updated imports across 14 files (5 ui/, 2 playback/, 4 data/, 5 tests); 0 api.Navidrome* imports remain in ui/+playback/. Phase B (commit 4c7e9e6, M-吞错误+M-MainActivity 重复): added .onFailure to video periodic sync loop (sets videoPlaybackError + Log.e VideoPlayback) and closeVideoPlayback final stop-save (sets videoPlaybackError + Log.e, does not undo showVideoPlayer/isFullscreen); added videoPlaybackError StateFlow plumbed to VideoPlayerScreen via new externalError param; merged closeAudiobookPlayback + closeAudiobookPlaybackAfterSync into single closeAudiobookPlayback(reopenPlayerOnFailure) with callback-based UI-boolean delegation; extracted runPeriodicProgressSync + PeriodicSyncStep as a private suspend helper used by both audiobook+video sync loops (behavior preserved, video now surfaces failures). Phase C (commit 43ff122, H3): broke MainActivity↔MusicPlaybackService cycle — MusicPlaybackService no longer imports MainActivity; session-activity class name moved to manifest <meta-data android:name=com.nordic.mediahub.session-activity android:value=com.nordic.mediahub.MainActivity>, resolved at runtime via PackageManager.getServiceInfo + Intent.setClassName; graceful degradation on missing meta-data. Phase D (commit 4074cfc, H2): introduced 3 playback ViewModels in playback/ — MusicPlaybackViewModel (owns MusicPlaybackEngine + ConfigRepository + NavidromeRepository rebuilt on config change + lyrics reactive loading + all engine command delegates), AudiobookPlaybackViewModel (owns AudiobookPlaybackEngine + ConfigRepository + AudiobookShelfRepository + 30s sync loop via runPeriodicProgressSync + startPlayback with Result callback + closeAudiobookPlayback with onClosed/onFailed callbacks + setPlayerVisible for sync error visibility gate), VideoPlaybackViewModel (owns VideoPlaybackEngine + ConfigRepository + EmbyRepository + 30s sync loop + closeVideoPlayback with onClosed/onFailed callbacks + Log.e VideoPlayback); extracted ProgressSync.kt as internal shared helper (no duplication per quality-guidelines); MainActivity reduced 832→591 lines, no orchestration remains (close bodies, sync LaunchedEffects, lyrics LaunchedEffect all moved into VMs); UI booleans use rememberSaveable; engines created in VM init, released in onCleared (survive config changes); cross-domain handoff stays in MainActivity calling other VMs close/stop; added lifecycle-viewmodel-compose:2.7.0 dependency. Check agent APPROVED with 0 blocking issues, 1 non-blocking observation (resolveAudiobookProgressSyncPositionSeconds now orphaned in production but tested; ProgressSync inlines equivalent maxOf logic — future cleanup). All 6 acceptance criteria pass: 3 VMs exist via viewModel(), MainScreen 832→591 lines, 0 api.* imports in ui/+playback/, 0 MainActivity imports in service, runPeriodicProgressSync has onFailure + closeAudiobook merged, rememberSaveable for UI state, compile+test (290 tests)+lint all pass. T4 archived.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4074cfc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
