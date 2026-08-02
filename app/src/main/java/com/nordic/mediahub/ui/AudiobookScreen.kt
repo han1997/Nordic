@@ -4,7 +4,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,8 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -245,7 +242,7 @@ fun AudiobookScreen(
                 verticalAlignment = Alignment.Top
             ) {
                 if (libraryPage != AudiobookLibraryPage.Home) {
-                    AudiobookBackButton(colorScheme) {
+                    ScreenBackButton(colorScheme = colorScheme) {
                         libraryPage = AudiobookLibraryPage.Home
                         errorMessage = null
                     }
@@ -454,26 +451,6 @@ fun AudiobookScreen(
 }
 
 @Composable
-private fun AudiobookBackButton(colorScheme: ColorScheme, onClick: () -> Unit) {
-    Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
-        contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
-        modifier = Modifier
-            .height(42.dp)
-            .clickable(onClick = onClick)
-    ) {
-        Box(
-            modifier = Modifier.padding(horizontal = 13.dp),
-            contentAlignment = Center
-        ) {
-            Text("‹", fontSize = 26.sp, color = colorScheme.onSurface.copy(alpha = 0.74f), fontWeight = FontWeight.SemiBold)
-        }
-    }
-}
-
-@Composable
 private fun AudiobookLibrarySelector(
     libraries: List<AudiobookLibrarySummary>,
     selectedLibraryId: String?,
@@ -528,11 +505,13 @@ private fun AudiobookSummaryCard(
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AudiobookCover(
-                coverUrl = item.coverUrl,
+            CoverArt(
+                imageUrl = item.coverUrl,
                 contentDescription = item.title,
                 colorScheme = colorScheme,
-                modifier = Modifier.size(72.dp)
+                modifier = Modifier.size(72.dp),
+                shape = RoundedCornerShape(18.dp),
+                fallbackGlyph = "▤"
             )
             Column(
                 modifier = Modifier.weight(1f),
@@ -587,11 +566,13 @@ private fun AudiobookDetailHeader(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.Top
         ) {
-            AudiobookCover(
-                coverUrl = item.coverUrl,
+            CoverArt(
+                imageUrl = item.coverUrl,
                 contentDescription = item.title,
                 colorScheme = colorScheme,
-                modifier = Modifier.size(128.dp)
+                modifier = Modifier.size(128.dp),
+                shape = RoundedCornerShape(18.dp),
+                fallbackGlyph = "▤"
             )
             Column(
                 modifier = Modifier.weight(1f),
@@ -605,11 +586,11 @@ private fun AudiobookDetailHeader(
                     Text(item.authors.joinToString(" / "), fontSize = 14.sp, color = colorScheme.onSurface.copy(alpha = 0.68f))
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AudiobookMetaChip("${item.chapters.size} 章", colorScheme)
-                    AudiobookMetaChip(formatDuration(item.durationSeconds), colorScheme)
+                    MetaChip("${item.chapters.size} 章", colorScheme)
+                    MetaChip(formatDuration(item.durationSeconds), colorScheme)
                 }
                 item.progress?.let { progress ->
-                    AudiobookMetaChip("续播 ${formatDuration(progress.currentTimeSeconds)}", colorScheme)
+                    MetaChip("续播 ${formatDuration(progress.currentTimeSeconds)}", colorScheme)
                 }
                 Surface(
                     color = colorScheme.primary,
@@ -691,55 +672,3 @@ private fun AudiobookLoadingCard(title: String, subtitle: String) {
     MediaLoadingCard(title = title, subtitle = subtitle)
 }
 
-@Composable
-private fun AudiobookCover(
-    coverUrl: String?,
-    contentDescription: String,
-    colorScheme: ColorScheme,
-    modifier: Modifier = Modifier
-) {
-    var imageFailed by remember(coverUrl) { mutableStateOf(false) }
-
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(18.dp))
-            .background(
-                Brush.linearGradient(
-                    listOf(
-                        colorScheme.primary.copy(alpha = 0.22f),
-                        colorScheme.secondary.copy(alpha = 0.16f)
-                    )
-                )
-            ),
-        contentAlignment = Center
-    ) {
-        if (coverUrl != null && !imageFailed) {
-            AuthedAsyncImage(
-                url = coverUrl,
-                contentDescription = contentDescription,
-                modifier = Modifier.fillMaxSize(),
-                onError = { imageFailed = true }
-            )
-        } else {
-            Text("▤", fontSize = 24.sp, color = colorScheme.primary.copy(alpha = 0.72f))
-        }
-    }
-}
-
-@Composable
-private fun AudiobookMetaChip(text: String, colorScheme: ColorScheme) {
-    Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.62f),
-        contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(999.dp)
-    ) {
-        Text(
-            text,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-            fontSize = 11.sp,
-            color = colorScheme.onSurface.copy(alpha = 0.62f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}

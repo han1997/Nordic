@@ -19,10 +19,7 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,7 +29,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nordic.mediahub.data.NavidromeAlbum
@@ -95,8 +91,8 @@ fun MusicHeroBanner(
                     overflow = TextOverflow.Ellipsis
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MusicMetaChip("${album.songCount} tracks", colorScheme)
-                    album.year?.let { MusicMetaChip(it.toString(), colorScheme) }
+                    MetaChip("${album.songCount} tracks", colorScheme)
+                    album.year?.let { MetaChip(it.toString(), colorScheme) }
                 }
             }
 
@@ -183,131 +179,6 @@ fun MusicSectionHeader(
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun AlbumShelfCard(
-    album: NavidromeAlbum,
-    colorScheme: ColorScheme,
-    modifier: Modifier = Modifier
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(
-        interactionSource = interactionSource,
-        pressedScale = 0.98f,
-        durationMillis = 180
-    )
-
-    Column(
-        modifier = modifier
-            .width(156.dp)
-            .scale(scale)
-            .clickable(interactionSource = interactionSource, indication = null) {},
-        verticalArrangement = Arrangement.spacedBy(9.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(156.dp)
-                .clip(RoundedCornerShape(22.dp))
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            colorScheme.primary.copy(alpha = 0.18f),
-                            colorScheme.secondary.copy(alpha = 0.12f)
-                        )
-                    )
-                )
-        ) {
-            if (album.coverArt != null) {
-                AuthedAsyncImage(
-                    url = album.coverArt,
-                    contentDescription = album.name,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.matchParentSize()
-                )
-            }
-        }
-
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                album.name,
-                fontSize = 15.sp,
-                color = colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                album.artist ?: "Unknown artist",
-                fontSize = 13.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.64f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                buildString {
-                    append("${album.songCount} tracks")
-                    album.year?.let {
-                        append("  •  ")
-                        append(it)
-                    }
-                },
-                fontSize = 12.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.46f)
-            )
-        }
-    }
-}
-
-@Composable
-fun ArtistRoundCard(
-    artist: NavidromeArtist,
-    colorScheme: ColorScheme,
-    modifier: Modifier = Modifier
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(
-        interactionSource = interactionSource,
-        pressedScale = 0.98f,
-        durationMillis = 180
-    )
-
-    Column(
-        modifier = modifier
-            .width(88.dp)
-            .scale(scale)
-            .clickable(interactionSource = interactionSource, indication = null) {},
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        MusicArtwork(
-            imageUrl = null,
-            contentDescription = artist.name,
-            colorScheme = colorScheme,
-            size = 78.dp,
-            shape = CircleShape,
-            initials = artist.initials
-        )
-
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            Text(
-                artist.name,
-                fontSize = 13.sp,
-                color = colorScheme.onSurface,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                "${artist.albumCount} albums",
-                fontSize = 11.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.5f)
-            )
         }
     }
 }
@@ -405,7 +276,7 @@ fun SongListRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            MusicArtwork(
+            CoverArt(
                 imageUrl = song.coverArt,
                 contentDescription = song.title,
                 colorScheme = colorScheme
@@ -471,7 +342,7 @@ fun ArtistListRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            MusicArtwork(
+            CoverArt(
                 imageUrl = null,
                 contentDescription = artist.name,
                 colorScheme = colorScheme,
@@ -533,7 +404,7 @@ private fun CompactMusicShelfItem(
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        MusicArtwork(
+        CoverArt(
             imageUrl = artworkUrl,
             contentDescription = contentDescription,
             colorScheme = colorScheme,
@@ -569,77 +440,3 @@ private fun CompactMusicShelfItem(
     }
 }
 
-@Composable
-private fun MusicArtwork(
-    imageUrl: String?,
-    contentDescription: String,
-    colorScheme: ColorScheme,
-    size: Dp = 52.dp,
-    shape: Shape = RoundedCornerShape(12.dp),
-    initials: String? = null
-) {
-    var imageFailed by remember(imageUrl) { mutableStateOf(false) }
-    val fallbackAccent = remember(contentDescription) {
-        Math.floorMod(contentDescription.hashCode(), 3)
-    }
-    val accentColor = when (fallbackAccent) {
-        0 -> colorScheme.primary
-        1 -> colorScheme.secondary
-        else -> colorScheme.tertiary
-    }
-
-    val showImage = !imageUrl.isNullOrBlank() && !imageFailed
-    val showInitials = !showImage && !initials.isNullOrBlank()
-
-    Box(
-        modifier = Modifier
-            .size(size)
-            .clip(shape)
-            .background(
-                Brush.linearGradient(
-                    listOf(
-                        accentColor.copy(alpha = 0.2f),
-                        colorScheme.surfaceVariant.copy(alpha = 0.82f)
-                    )
-                )
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        if (showImage) {
-            AuthedAsyncImage(
-                url = imageUrl,
-                contentDescription = contentDescription,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.matchParentSize(),
-                onError = { imageFailed = true }
-            )
-        } else if (showInitials) {
-            Text(
-                initials!!,
-                fontSize = (size.value * 0.38f).sp,
-                color = accentColor.copy(alpha = 0.68f),
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
-@Composable
-internal fun MusicMetaChip(
-    text: String,
-    colorScheme: ColorScheme
-) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
-            .background(colorScheme.surface.copy(alpha = 0.64f))
-            .padding(horizontal = 9.dp, vertical = 5.dp)
-    ) {
-        Text(
-            text,
-            fontSize = 12.sp,
-            color = colorScheme.onSurface.copy(alpha = 0.72f),
-            fontWeight = FontWeight.Medium
-        )
-    }
-}

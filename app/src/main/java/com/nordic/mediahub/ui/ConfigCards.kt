@@ -126,27 +126,15 @@ fun VideoConfigCard(
                     onConfigChange(config.copy(serverUrl = it))
                 }
                 when (type) {
-                    VideoServerType.EMBY, VideoServerType.PLEX -> {
-                        ConfigTextField("用户名", config.username, "username", colorScheme) {
-                            onConfigChange(config.copy(username = it))
-                        }
-                        ConfigTextField("密码", config.password, "password", colorScheme, true) {
-                            onConfigChange(config.copy(password = it))
-                        }
-                        if (type == VideoServerType.EMBY) {
-                            ConfigTextField("API Key（可选）", config.apiKey, "api key", colorScheme) {
-                                onConfigChange(config.copy(apiKey = it))
-                            }
+                    VideoServerType.EMBY -> {
+                        VideoServerCredentialsFields(config, colorScheme, onConfigChange)
+                        ConfigTextField("API Key（可选）", config.apiKey, "api key", colorScheme) {
+                            onConfigChange(config.copy(apiKey = it))
                         }
                     }
 
-                    VideoServerType.WEBDAV -> {
-                        ConfigTextField("用户名", config.username, "username", colorScheme) {
-                            onConfigChange(config.copy(username = it))
-                        }
-                        ConfigTextField("密码", config.password, "password", colorScheme, true) {
-                            onConfigChange(config.copy(password = it))
-                        }
+                    VideoServerType.PLEX, VideoServerType.WEBDAV -> {
+                        VideoServerCredentialsFields(config, colorScheme, onConfigChange)
                     }
                 }
                 Button(onClick = onSave, modifier = Modifier.fillMaxWidth()) {
@@ -154,6 +142,20 @@ fun VideoConfigCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun VideoServerCredentialsFields(
+    config: VideoServerConfig,
+    colorScheme: ColorScheme,
+    onConfigChange: (VideoServerConfig) -> Unit
+) {
+    ConfigTextField("用户名", config.username, "username", colorScheme) {
+        onConfigChange(config.copy(username = it))
+    }
+    ConfigTextField("密码", config.password, "password", colorScheme, true) {
+        onConfigChange(config.copy(password = it))
     }
 }
 

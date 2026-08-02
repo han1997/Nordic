@@ -147,15 +147,15 @@ fun AudiobookPlayerScreen(
                     overflow = TextOverflow.Ellipsis
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AudiobookPlayerMetaChip(formatDuration(duration), colorScheme)
-                    AudiobookPlayerMetaChip(
+                    MetaChip(formatDuration(duration), colorScheme)
+                    MetaChip(
                         text = formatPlaybackSpeed(state.playbackSpeed),
                         colorScheme = colorScheme,
                         enabled = playbackControlsEnabled,
                         onClick = onCyclePlaybackSpeed
                     )
                     if (currentChapter != null) {
-                        AudiobookPlayerMetaChip(currentChapter.title, colorScheme)
+                        MetaChip(currentChapter.title, colorScheme)
                     }
                 }
             }
@@ -342,36 +342,6 @@ private fun AudiobookPlayerTopBar(
             fontWeight = FontWeight.SemiBold
         )
         Spacer(Modifier.size(42.dp))
-    }
-}
-
-@Composable
-private fun AudiobookPlayerMetaChip(
-    text: String,
-    colorScheme: ColorScheme,
-    enabled: Boolean = true,
-    onClick: (() -> Unit)? = null
-) {
-    val chipModifier = if (onClick != null) {
-        Modifier.clickable(enabled = enabled, onClick = onClick)
-    } else {
-        Modifier
-    }
-
-    Surface(
-        color = if (enabled) colorScheme.surfaceVariant.copy(alpha = 0.62f) else colorScheme.surface.copy(alpha = 0.30f),
-        contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(999.dp),
-        modifier = chipModifier
-    ) {
-        Text(
-            text,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-            fontSize = 11.sp,
-            color = colorScheme.onSurface.copy(alpha = 0.62f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
     }
 }
 

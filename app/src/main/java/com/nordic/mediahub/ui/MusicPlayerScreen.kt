@@ -35,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -232,7 +231,7 @@ private fun PlayerTopBar(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                PlayerStatusChip(status, statusColor)
+                ToneMetaChip(status, statusColor)
                 Text(
                     album,
                     fontSize = 13.sp,
@@ -244,29 +243,7 @@ private fun PlayerTopBar(
                 )
             }
         }
-        PlayerMetaChip(duration, colorScheme)
-    }
-}
-
-@Composable
-private fun PlayerStatusChip(
-    text: String,
-    color: Color
-) {
-    Surface(
-        color = color.copy(alpha = 0.13f),
-        contentColor = color,
-        shape = RoundedCornerShape(999.dp)
-    ) {
-        Text(
-            text,
-            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-            fontSize = 11.sp,
-            color = color,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+        MetaChip(duration, colorScheme)
     }
 }
 
@@ -569,27 +546,6 @@ private fun PlayerConsole(
                 PlayerControlButton("≡", colorScheme, size = sideButtonSize, enabled = hasSong, onClick = onOpenQueue)
             }
         }
-    }
-}
-
-@Composable
-private fun PlayerMetaChip(
-    text: String,
-    colorScheme: ColorScheme
-) {
-    Surface(
-        color = colorScheme.surface.copy(alpha = 0.50f),
-        contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(999.dp)
-    ) {
-        Text(
-            text,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-            fontSize = 11.sp,
-            color = colorScheme.onSurface.copy(alpha = 0.62f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
     }
 }
 

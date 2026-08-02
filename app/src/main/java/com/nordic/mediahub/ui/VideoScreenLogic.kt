@@ -1,0 +1,178 @@
+package com.nordic.mediahub.ui
+
+import com.nordic.mediahub.data.VideoItem
+
+internal fun VideoItem.metaText(): String {
+    return buildList {
+        type.takeIf { it.isNotBlank() }?.let { add(it) }
+        year?.let { add(it.toString()) }
+        if (durationSeconds > 0) add(formatLongDuration(durationSeconds))
+        if (playbackPositionSeconds > 0 && !isPlayed) add("看到 ${formatLongDuration(playbackPositionSeconds)}")
+        if (isPlayed) add("已播放")
+    }.joinToString("  /  ")
+}
+
+internal fun VideoItem.detailChips(): List<String> {
+    return buildList {
+        type.takeIf { it.isNotBlank() }?.let { add(it) }
+        year?.let { add(it.toString()) }
+        if (durationSeconds > 0) add(formatLongDuration(durationSeconds))
+        if (playbackPositionSeconds > 0 && !isPlayed) add("续看 ${formatLongDuration(playbackPositionSeconds)}")
+        if (isPlayed) add("已播放")
+        communityRating?.takeIf { it > 0f }?.let { add("评分 ${"%.1f".format(it)}") }
+    }.ifEmpty { listOf("视频") }
+}
+
+internal fun continueWatchingShelf(videos: List<VideoItem>, limit: Int = 12): List<VideoItem> {
+    return videos
+        .filter { video -> video.isContinueWatchingCandidate() }
+        .sortedWith(
+            compareByDescending<VideoItem> { it.lastPlayedDate.orEmpty() }
+                .thenByDescending { it.playbackPositionSeconds }
+                .thenBy { it.title }
+        )
+        .take(limit)
+}
+
+internal fun resolveVideoSelectionAfterCatalogRefresh(
+    selectedVideo: VideoItem?,
+    selectedLibraryId: String?,
+    videos: List<VideoItem>
+): VideoItem? {
+    val currentSelection = selectedVideo ?: return null
+    val currentLibraryId = selectedLibraryId ?: return null
+    if (currentSelection.libraryId != currentLibraryId) return null
+
+    return videos.firstOrNull { video ->
+        video.id == currentSelection.id && video.libraryId == currentLibraryId
+    }
+}
+
+internal fun resolveVideoTypeFilterAfterCatalogRefresh(
+    selectedTypeFilter: VideoTypeFilter,
+    videos: List<VideoItem>
+): VideoTypeFilter {
+    return selectedTypeFilter.takeIf { filter ->
+        filter == VideoTypeFilter.All || videos.any(filter::matches)
+    } ?: VideoTypeFilter.All
+}
+
+internal fun resolveVideoSelectionAfterConfigChange(selectedVideo: VideoItem?): VideoItem? {
+    return when (selectedVideo) {
+        null -> null
+        else -> null
+    }
+}
+
+internal fun resolveVideoTypeFilterAfterConfigChange(
+    selectedTypeFilter: VideoTypeFilter
+): VideoTypeFilter {
+    return when (selectedTypeFilter) {
+        VideoTypeFilter.All,
+        VideoTypeFilter.Movies,
+        VideoTypeFilter.Series,
+        VideoTypeFilter.Episodes,
+        VideoTypeFilter.Videos -> VideoTypeFilter.All
+    }
+}
+
+private fun VideoItem.isContinueWatchingCandidate(): Boolean {
+    if (playbackPositionSeconds <= 0 || isPlayed) return false
+
+    val knownDuration = durationSeconds.coerceAtLeast(0)
+    return knownDuration == 0 || playbackPositionSeconds < knownDuration
+}
+
+internal fun List<VideoItem>.relatedEpisodesFor(series: VideoItem): List<VideoItem> {
+    if (!series.type.equals("Series", ignoreCase = true)) return emptyList()
+
+    return filter { item ->
+        item.type.equals("Episode", ignoreCase = true) &&
+            (
+                item.seriesId == series.id ||
+                    (
+                        item.seriesId.isNullOrBlank() &&
+                            !item.seriesName.isNullOrBlank() &&
+                            item.seriesName.equals(series.title, ignoreCase = true)
+                    )
+            )
+    }.sortedWith(
+        compareBy<VideoItem> { it.seasonNumber ?: Int.MAX_VALUE }
+            .thenBy { it.episodeNumber ?: Int.MAX_VALUE }
+            .thenBy { it.title }
+    )
+}
+
+internal fun VideoItem.episodeLabel(): String {
+    val season = seasonNumber
+    val episode = episodeNumber
+    return when {
+        season != null && episode != null -> "S$season E$episode"
+        episode != null -> "第 $episode 集"
+        season != null -> "第 $season 季"
+        else -> type.ifBlank { "Episode" }
+    }
+}
+
+internal enum class VideoTypeFilter(val label: String) {
+    All("全部"),
+    Movies("电影"),
+    Series("剧集"),
+    Episodes("单集"),
+    Videos("视频");
+
+    fun matches(video: VideoItem): Boolean {
+        return when (this) {
+            All -> true
+            Movies -> video.type.equals("Movie", ignoreCase = true)
+            Series -> video.type.equals("Series", ignoreCase = true)
+            Episodes -> video.type.equals("Episode", ignoreCase = true)
+            Videos -> video.type.equals("Video", ignoreCase = true)
+        }
+    }
+}
+
+internal fun videoMatchesSearch(video: VideoItem, query: String): Boolean {
+    val normalizedQuery = query.trim()
+    if (normalizedQuery.isBlank()) return true
+
+    val searchableTerms = buildList {
+        add(video.title)
+        add(video.overview)
+        add(video.type)
+        video.year?.let { year -> add(year.toString()) }
+        video.seriesName?.takeIf { it.isNotBlank() }?.let { seriesName -> add(seriesName) }
+
+        val seasonNumber = video.seasonNumber?.takeIf { it > 0 }
+        val episodeNumber = video.episodeNumber?.takeIf { it > 0 }
+        val seasonTokens = seasonNumber?.let { number -> videoNumberVariants(number) }.orEmpty()
+        val episodeTokens = episodeNumber?.let { number -> videoNumberVariants(number) }.orEmpty()
+
+        seasonTokens.forEach { season -> add("S$season") }
+        episodeTokens.forEach { episode -> add("E$episode") }
+        seasonNumber?.let { season -> add("Season $season") }
+        episodeNumber?.let { episode -> add("Episode $episode") }
+
+        seasonTokens.forEach { season ->
+            episodeTokens.forEach { episode ->
+                add("S${season}E${episode}")
+                add("S$season E$episode")
+            }
+        }
+        if (seasonNumber != null && episodeNumber != null) {
+            add("Season $seasonNumber Episode $episodeNumber")
+        }
+    }
+
+    return searchableTerms.any { term -> term.contains(normalizedQuery, ignoreCase = true) }
+}
+
+internal fun VideoItem.matchesSearch(query: String): Boolean {
+    return videoMatchesSearch(this, query)
+}
+
+private fun videoNumberVariants(number: Int): List<String> {
+    val raw = number.toString()
+    val padded = raw.padStart(2, '0')
+    return if (raw == padded) listOf(raw) else listOf(raw, padded)
+}

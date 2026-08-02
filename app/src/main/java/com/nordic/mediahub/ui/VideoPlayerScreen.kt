@@ -2,6 +2,7 @@ package com.nordic.mediahub.ui
 
 import android.view.SurfaceView
 import android.widget.FrameLayout
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -96,6 +97,10 @@ fun VideoPlayerScreen(
     }
     val surfaceDisposedCallback = remember {
         { surface: SurfaceView -> currentOnSurfaceDisposed(surface) }
+    }
+
+    BackHandler(enabled = isFullscreen) {
+        onToggleFullscreen()
     }
 
     Box(
