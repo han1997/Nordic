@@ -1528,3 +1528,36 @@ Implemented T3 (P0): hardened all 3 playback engines + service. C2: added MediaC
 ### Next Steps
 
 - None - task complete
+
+
+## Session 106: T6 Compose performance quick wins
+
+**Date**: 2026-08-02
+**Task**: T6 Compose performance quick wins
+**Branch**: `main`
+
+### Summary
+
+Implemented T6 (P1): C3 searchJob migrated to AtomicReference<Job?> so debounce job replacement no longer recomposes the music library screen. H12 audiobook chapters pre-sorted via remember(chapters){ sortedBy } and current chapter derived from the remembered list (no per-tick resort); extracted resolveCurrentAudiobookChapterFromSorted pure helper (4 tests). H11 playAlbum now captures requestVersion and guards all state writes after the suspend call; resetMusicStateAfterConfigChange clears loadingAlbumId so a config switch mid-load leaves no stale indicator. M-Compose: VideoPlayerStatusPill accepts a typed VideoStatusTone enum (Error/Buffering/Idle) with color via when(tone) instead of string equality (4 tests for resolveVideoStatusTone); VideoScreen episodes moved from eager Column{forEach} to a single LazyColumn with stable key + contentType; all 3 config save handlers (Music/Audiobook/Video) now only persist and close the panel, letting LaunchedEffect(savedConfig) react (race-free); MusicEqualizerSheet preset LazyRow gained stable keys and all 3 empty catch blocks now Log.e with throwable. Minor: metaText()/metaTextForPlayer() memoized via remember(source); hero AsyncImage switched to matchParentSize(). 8 new tests pass (33 total in the two test classes); compile + lint green. Check agent APPROVED. Descoped: playback position isolation (MusicPlayerScreen/AudiobookPlayerScreen) deferred to T4 — it requires changing the position parameter signature at the MainActivity call site, which is explicitly out of scope for T6 and overlaps T4's ViewModel/状态所有权 refactor. T6 archived.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `41bf217` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
