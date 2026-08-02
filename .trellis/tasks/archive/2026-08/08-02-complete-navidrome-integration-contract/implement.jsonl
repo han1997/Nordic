@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/backend/navidrome-integration.md", "reason": "Defines exact Retrofit signatures, repository methods, validation matrix, and required tests for star/unstar/getStarred2/playlist CRUD/getSimilarSongs/scrobble"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "NavidromeApiException catch-rethrow pattern, requestSubsonic/requireResponse contract, Kind.HTTP/SUBSONIC/API classification for new endpoints"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "NavidromeRepo tag for repository errors, no auth URLs logged, Level.NONE for HttpLoggingInterceptor"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Repository instance reuse, cover-art URL mapping withCoverArtUrl, stream URL via stream.view, readiness helpers isReadyForMusicSync"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "API DTOs in api/, repository methods in data/, DTO mapping in repository not UI"}

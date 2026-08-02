@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/navidrome-integration.md", "reason": "Verify new endpoints match spec signatures, validation matrix, and required test assertions"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Verify catch-rethrow pattern on all new repository methods, typed exceptions preserved"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "Verify no auth URLs logged, NavidromeRepo tag used correctly, Level.NONE maintained"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify cover-art URL mapping, stream URL conventions, repository reuse, no duplicate readiness checks"}
