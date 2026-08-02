@@ -1818,3 +1818,36 @@ Root cause: MainScreen collected 3 playback StateFlows at top level, causing eve
 ### Next Steps
 
 - None - task complete
+
+
+## Session 112: UI design token system (Shapes/Spacing/Type/Alpha) + 17-file migration
+
+**Date**: 2026-08-02
+**Task**: UI design token system (Shapes/Spacing/Type/Alpha) + 17-file migration
+**Branch**: `main`
+
+### Summary
+
+Established a 3-layer design-token system (NordicShapes/NordicSpacing/NordicTypography/NordicAlpha) in ui/theme/, wired into NordicTheme, and migrated all 17 UI files off hardcoded RoundedCornerShape/CircleShape/padding/fontSize/onSurface.copy(alpha) literals. MediaStateComponents state-semantic alphas (0.72f/0.76f/0.82f) kept as local constants per spec exception. Dynamic if/when expressions and Color.White overlay alphas preserved. trellis-check APPROVE (1 self-fix: named ERROR_STATE_SUBTITLE_ALPHA). All 3 gates green: compileDebugKotlin, testDebugUnitTest 312/0, lintDebug. Added 'Design token system' Required Pattern to quality-guidelines.md. Cleaned up 3 stale duplicate task scaffolds.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `78e3e67` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
