@@ -73,6 +73,7 @@ import com.nordic.mediahub.data.loadNavidromeMusicRefresh
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicReference
 
 internal enum class MusicLibraryPage {
     Home,
@@ -142,7 +143,7 @@ fun MusicScreenV2(
     var searchResult by remember { mutableStateOf<SearchMusicResult?>(null) }
     var isSearching by remember { mutableStateOf(false) }
     var searchError by remember { mutableStateOf<String?>(null) }
-    var searchJob by remember { mutableStateOf<Job?>(null) }
+    val searchJob = remember { AtomicReference<Job?>(null) }
     var cacheUpdatedAtMillis by remember { mutableStateOf<Long?>(null) }
     var musicConfigStateVersion by remember { mutableStateOf(0) }
     val scope = rememberCoroutineScope()
@@ -169,8 +170,9 @@ fun MusicScreenV2(
         isLoadingAlbumDetail = false
         isLoadingArtistDetail = false
         isLoadingPlaylistDetail = false
-        searchJob?.cancel()
-        searchJob = null
+        loadingAlbumId = null
+        searchJob.get()?.cancel()
+        searchJob.set(null)
         searchQuery = ""
         searchResult = null
         searchError = null
@@ -328,7 +330,7 @@ fun MusicScreenV2(
     }
 
     fun openSearch() {
-        searchJob?.cancel()
+        searchJob.get()?.cancel()
         searchQuery = ""
         searchResult = null
         searchError = null
@@ -354,10 +356,12 @@ fun MusicScreenV2(
             return
         }
 
+        val requestVersion = musicConfigStateVersion
         loadingAlbumId = album.id
         errorMsg = null
         try {
             val albumSongs = repo.getAlbumSongs(album.id)
+            if (musicConfigStateVersion != requestVersion) return
             val startIndex = firstPlayableSongIndex(albumSongs)
             if (startIndex == null) {
                 errorMsg = "这张专辑没有可播放曲目"
@@ -365,9 +369,13 @@ fun MusicScreenV2(
                 onSongSelected(albumSongs, startIndex, BULK_PLAY_ALLOW_UNPLAYABLE_START_FALLBACK)
             }
         } catch (e: Exception) {
-            errorMsg = "获取专辑曲目失败: ${e.message}"
+            if (musicConfigStateVersion == requestVersion) {
+                errorMsg = "获取专辑曲目失败: ${e.message}"
+            }
         } finally {
-            loadingAlbumId = null
+            if (musicConfigStateVersion == requestVersion) {
+                loadingAlbumId = null
+            }
         }
     }
 
@@ -613,12 +621,8 @@ fun MusicScreenV2(
                     onConfigChange = { config = it },
                     onSave = {
                         scope.launch {
-                            val nextConfig = config
-                            repository.saveNavidromeConfig(nextConfig)
-                            applyCachedMusicData(nextConfig)
-                            if (refreshMusicData(nextConfig)) {
-                                showConfig = false
-                            }
+                            repository.saveNavidromeConfig(config)
+                            showConfig = false
                         }
                     }
                 )
@@ -1020,7 +1024,7 @@ fun MusicScreenV2(
                         value = searchQuery,
                         onValueChange = { newQuery ->
                             searchQuery = newQuery
-                            searchJob?.cancel()
+                            searchJob.get()?.cancel()
                             searchError = null
                             val query = newQuery.trim()
                             if (query.isBlank()) {
@@ -1029,7 +1033,7 @@ fun MusicScreenV2(
                             } else {
                                 isSearching = true
                                 val requestVersion = musicConfigStateVersion
-                                searchJob = scope.launch {
+                                searchJob.set(scope.launch {
                                     delay(300)
                                     try {
                                         val result = navidromeRepository?.search(query) ?: SearchMusicResult()
@@ -1046,7 +1050,7 @@ fun MusicScreenV2(
                                             isSearching = false
                                         }
                                     }
-                                }
+                                })
                             }
                         },
                         placeholder = { Text("搜索歌曲、专辑、歌手...", color = colorScheme.onSurface.copy(alpha = 0.4f)) },

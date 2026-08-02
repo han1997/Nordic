@@ -1,6 +1,7 @@
 package com.nordic.mediahub.ui
 
 import android.media.audiofx.Equalizer
+import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -59,7 +60,8 @@ fun MusicEqualizerSheet(
     DisposableEffect(audioSessionId) {
         val eq = try {
             Equalizer(0, audioSessionId)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e("MusicEqualizer", "Failed to create equalizer", e)
             null
         }
         equalizer = eq
@@ -138,7 +140,10 @@ fun MusicEqualizerSheet(
                         LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            itemsIndexed(presetNames) { index, name ->
+                            itemsIndexed(
+                                items = presetNames,
+                                key = { index, name -> "eq-preset-$name-$index" }
+                            ) { index, name ->
                                 val isSelected = selectedPreset == index
                                 Surface(
                                     color = if (isSelected) {
@@ -159,7 +164,9 @@ fun MusicEqualizerSheet(
                                             bandLevels = (0 until bandCount).map {
                                                 equalizer?.getBandLevel(it.toShort()) ?: 0
                                             }
-                                        } catch (_: Exception) {}
+                                        } catch (e: Exception) {
+                                            Log.e("MusicEqualizer", "Failed to apply equalizer preset", e)
+                                        }
                                     }
                                 ) {
                                     Text(
@@ -228,7 +235,9 @@ fun MusicEqualizerSheet(
                                                 bandLevels = bandLevels.toMutableList().also {
                                                     it[band] = newLevel.toInt().toShort()
                                                 }
-                                            } catch (_: Exception) {}
+                                            } catch (e: Exception) {
+                                                Log.e("MusicEqualizer", "Failed to set equalizer band level", e)
+                                            }
                                         },
                                         valueRange = minLevel.toFloat()..maxLevel.toFloat(),
                                         colors = SliderDefaults.colors(

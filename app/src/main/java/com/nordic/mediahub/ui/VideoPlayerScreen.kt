@@ -80,6 +80,12 @@ fun VideoPlayerScreen(
         isBuffering = state.isBuffering,
         errorMessage = state.errorMessage
     )
+    val statusTone = resolveVideoStatusTone(
+        hasVideo = video != null,
+        isBuffering = state.isBuffering,
+        errorMessage = state.errorMessage
+    )
+    val playerSubtitle = remember(video) { video?.metaTextForPlayer() }
     val videoAspectRatio = state.videoAspectRatio.takeIf { it > 0f } ?: 16f / 9f
     val currentOnSurfaceReady by rememberUpdatedState(onSurfaceReady)
     val currentOnSurfaceDisposed by rememberUpdatedState(onSurfaceDisposed)
@@ -132,8 +138,9 @@ fun VideoPlayerScreen(
         ) {
             VideoPlayerTopBar(
                 title = video?.title ?: "Video player",
-                subtitle = video?.metaTextForPlayer(),
+                subtitle = playerSubtitle,
                 statusText = statusText,
+                statusTone = statusTone,
                 colorScheme = colorScheme,
                 onClose = onClose
             )
@@ -236,6 +243,7 @@ private fun VideoPlayerTopBar(
     title: String,
     subtitle: String?,
     statusText: String?,
+    statusTone: VideoStatusTone?,
     colorScheme: ColorScheme,
     onClose: () -> Unit
 ) {
@@ -273,20 +281,29 @@ private fun VideoPlayerTopBar(
                 )
             }
         }
-        if (!statusText.isNullOrBlank()) {
-            VideoPlayerStatusPill(text = statusText, colorScheme = colorScheme)
+        if (statusTone != null && !statusText.isNullOrBlank()) {
+            VideoPlayerStatusPill(
+                tone = statusTone,
+                text = statusText,
+                colorScheme = colorScheme
+            )
         }
     }
 }
 
 @Composable
-private fun VideoPlayerStatusPill(text: String, colorScheme: ColorScheme) {
+private fun VideoPlayerStatusPill(
+    tone: VideoStatusTone,
+    text: String,
+    colorScheme: ColorScheme
+) {
+    val containerColor = when (tone) {
+        VideoStatusTone.Buffering -> colorScheme.primary.copy(alpha = 0.18f)
+        VideoStatusTone.Error -> Color.Black.copy(alpha = 0.42f)
+        VideoStatusTone.Idle -> Color.Black.copy(alpha = 0.42f)
+    }
     Surface(
-        color = if (text == "Buffering") {
-            colorScheme.primary.copy(alpha = 0.18f)
-        } else {
-            Color.Black.copy(alpha = 0.42f)
-        },
+        color = containerColor,
         contentColor = Color.White,
         shape = RoundedCornerShape(999.dp),
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f))
@@ -563,6 +580,21 @@ internal fun videoPlayerStatusText(
         !errorMessage.isNullOrBlank() -> "Issue"
         isBuffering -> "Buffering"
         !hasVideo -> "Idle"
+        else -> null
+    }
+}
+
+internal enum class VideoStatusTone { Error, Buffering, Idle }
+
+internal fun resolveVideoStatusTone(
+    hasVideo: Boolean,
+    isBuffering: Boolean,
+    errorMessage: String?
+): VideoStatusTone? {
+    return when {
+        !errorMessage.isNullOrBlank() -> VideoStatusTone.Error
+        isBuffering -> VideoStatusTone.Buffering
+        !hasVideo -> VideoStatusTone.Idle
         else -> null
     }
 }

@@ -63,6 +63,13 @@ fun AudiobookPlayerScreen(
     val errorMessage = externalError ?: state.errorMessage
     val chapterNavigationEnabled = session != null && state.chapters.isNotEmpty()
     val playbackControlsEnabled = session != null
+    val sortedChapters = remember(state.chapters) {
+        state.chapters.sortedBy { chapter -> chapter.startSeconds }
+    }
+    val currentChapter = resolveCurrentAudiobookChapterFromSorted(
+        sortedChapters = sortedChapters,
+        positionSeconds = visiblePosition.toInt()
+    )
     val statusText = when {
         errorMessage != null -> errorMessage
         state.isBuffering -> "正在缓冲"
@@ -146,10 +153,6 @@ fun AudiobookPlayerScreen(
                         colorScheme = colorScheme,
                         enabled = playbackControlsEnabled,
                         onClick = onCyclePlaybackSpeed
-                    )
-                    val currentChapter = resolveCurrentAudiobookChapter(
-                        chapters = state.chapters,
-                        positionSeconds = visiblePosition.toInt()
                     )
                     if (currentChapter != null) {
                         AudiobookPlayerMetaChip(currentChapter.title, colorScheme)
@@ -448,8 +451,14 @@ internal fun resolveCurrentAudiobookChapter(
     chapters: List<AudiobookChapter>,
     positionSeconds: Int
 ): AudiobookChapter? {
+    val sortedChapters = chapters.sortedBy { chapter -> chapter.startSeconds }
+    return resolveCurrentAudiobookChapterFromSorted(sortedChapters, positionSeconds)
+}
+
+internal fun resolveCurrentAudiobookChapterFromSorted(
+    sortedChapters: List<AudiobookChapter>,
+    positionSeconds: Int
+): AudiobookChapter? {
     val safePosition = positionSeconds.coerceAtLeast(0)
-    return chapters
-        .sortedBy { chapter -> chapter.startSeconds }
-        .lastOrNull { chapter -> chapter.startSeconds <= safePosition }
+    return sortedChapters.lastOrNull { chapter -> chapter.startSeconds <= safePosition }
 }

@@ -141,6 +141,57 @@ class AudiobookScreenTest {
     }
 
     @Test
+    fun resolveCurrentAudiobookChapterFromSorted_returnsLastChapterAtOrBeforePosition() {
+        val sortedChapters = listOf(
+            chapter(id = 1, startSeconds = 0),
+            chapter(id = 2, startSeconds = 100),
+            chapter(id = 3, startSeconds = 200)
+        )
+
+        val currentChapter = resolveCurrentAudiobookChapterFromSorted(
+            sortedChapters = sortedChapters,
+            positionSeconds = 150
+        )
+
+        assertEquals(2, currentChapter?.id)
+    }
+
+    @Test
+    fun resolveCurrentAudiobookChapterFromSorted_returnsNullBeforeFirstChapter() {
+        val currentChapter = resolveCurrentAudiobookChapterFromSorted(
+            sortedChapters = listOf(chapter(id = 1, startSeconds = 30)),
+            positionSeconds = 10
+        )
+
+        assertNull(currentChapter)
+    }
+
+    @Test
+    fun resolveCurrentAudiobookChapterFromSorted_clampsNegativePositionToStart() {
+        val currentChapter = resolveCurrentAudiobookChapterFromSorted(
+            sortedChapters = listOf(chapter(id = 1, startSeconds = 30)),
+            positionSeconds = -5
+        )
+
+        assertNull(currentChapter)
+    }
+
+    @Test
+    fun resolveCurrentAudiobookChapterFromSorted_doesNotReSortUnsortedInput() {
+        val unsortedChapters = listOf(
+            chapter(id = 2, startSeconds = 100),
+            chapter(id = 1, startSeconds = 0)
+        )
+
+        val currentChapter = resolveCurrentAudiobookChapterFromSorted(
+            sortedChapters = unsortedChapters,
+            positionSeconds = 150
+        )
+
+        assertEquals(1, currentChapter?.id)
+    }
+
+    @Test
     fun sortAudiobookDetailChapters_ordersByStartTime() {
         val chapters = listOf(
             chapter(id = 3, startSeconds = 240),

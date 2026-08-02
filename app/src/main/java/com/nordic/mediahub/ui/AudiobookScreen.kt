@@ -305,10 +305,7 @@ fun AudiobookScreen(
                     onSave = {
                         scope.launch {
                             repository.saveAudiobookConfig(config)
-                            refreshAudiobooks(config, requestVersion = null)
-                            if (errorMessage == null) {
-                                showConfig = false
-                            }
+                            showConfig = false
                         }
                     }
                 )

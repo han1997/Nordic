@@ -108,6 +108,53 @@ class VideoPlayerScreenTest {
     }
 
     @Test
+    fun resolveVideoStatusTone_prioritizesErrors() {
+        assertEquals(
+            VideoStatusTone.Error,
+            resolveVideoStatusTone(
+                hasVideo = true,
+                isBuffering = true,
+                errorMessage = "Playback failed"
+            )
+        )
+    }
+
+    @Test
+    fun resolveVideoStatusTone_reportsBufferingWhenVideoIsLoading() {
+        assertEquals(
+            VideoStatusTone.Buffering,
+            resolveVideoStatusTone(
+                hasVideo = true,
+                isBuffering = true,
+                errorMessage = null
+            )
+        )
+    }
+
+    @Test
+    fun resolveVideoStatusTone_reportsIdleWhenNoVideoIsLoaded() {
+        assertEquals(
+            VideoStatusTone.Idle,
+            resolveVideoStatusTone(
+                hasVideo = false,
+                isBuffering = false,
+                errorMessage = null
+            )
+        )
+    }
+
+    @Test
+    fun resolveVideoStatusTone_hidesToneForReadyVideo() {
+        assertNull(
+            resolveVideoStatusTone(
+                hasVideo = true,
+                isBuffering = false,
+                errorMessage = null
+            )
+        )
+    }
+
+    @Test
     fun resolveVideoPlayerResizeMode_mapsAspectRatioModesToMedia3ResizeModes() {
         assertEquals(
             AspectRatioFrameLayout.RESIZE_MODE_FIT,

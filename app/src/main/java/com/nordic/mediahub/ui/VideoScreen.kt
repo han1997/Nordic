@@ -12,7 +12,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +24,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -33,7 +33,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -279,10 +278,7 @@ fun VideoScreen(
                     onSave = {
                         scope.launch {
                             configRepository.saveVideoConfig(config)
-                            refreshVideo(config, selectedLibraryId, requestVersion = null)
-                            if (errorMessage == null && config.isReadyForVideoSync()) {
-                                showConfig = false
-                            }
+                            showConfig = false
                         }
                     }
                 )
@@ -502,7 +498,7 @@ private fun VideoCard(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            val meta = video.metaText()
+            val meta = remember(video) { video.metaText() }
             if (meta.isNotBlank()) {
                 Text(
                     meta,
@@ -604,153 +600,146 @@ private fun VideoDetailScreen(
     onPlay: () -> Unit,
     onPlayEpisode: (VideoItem) -> Unit
 ) {
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
-                contentColor = colorScheme.onSurface,
-                shape = RoundedCornerShape(14.dp),
-                border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
-                modifier = Modifier
-                    .size(42.dp)
-                    .clickable(onClick = onBack)
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text("‹", fontSize = 26.sp, color = colorScheme.onSurface.copy(alpha = 0.78f))
+                Surface(
+                    color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
+                    contentColor = colorScheme.onSurface,
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clickable(onClick = onBack)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text("‹", fontSize = 26.sp, color = colorScheme.onSurface.copy(alpha = 0.78f))
+                    }
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text(
+                        "视频详情",
+                        fontSize = 13.sp,
+                        color = colorScheme.onSurface.copy(alpha = 0.58f),
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        video.title,
+                        fontSize = 18.sp,
+                        color = colorScheme.onBackground,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(3.dp)
+        }
+
+        item {
+            Surface(
+                color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
+                shape = RoundedCornerShape(24.dp),
+                border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
+                shadowElevation = 10.dp,
+                modifier = Modifier.fillMaxWidth(0.72f)
             ) {
-                Text(
-                    "视频详情",
-                    fontSize = 13.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.58f),
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                VideoThumbnail(
+                    imageUrl = video.imageUrl,
+                    title = video.title,
+                    colorScheme = colorScheme,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(2f / 3f)
                 )
+            }
+        }
+
+        item {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 Text(
                     video.title,
-                    fontSize = 18.sp,
+                    fontSize = 28.sp,
+                    lineHeight = 32.sp,
                     color = colorScheme.onBackground,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 3,
                     overflow = TextOverflow.Ellipsis
                 )
-            }
-        }
 
-        Surface(
-            color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
-            shape = RoundedCornerShape(24.dp),
-            border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
-            shadowElevation = 10.dp,
-            modifier = Modifier.fillMaxWidth(0.72f)
-        ) {
-            VideoThumbnail(
-                imageUrl = video.imageUrl,
-                title = video.title,
-                colorScheme = colorScheme,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(2f / 3f)
-            )
-        }
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(video.detailChips(), key = { it }, contentType = { "video-detail-chip" }) { chip ->
+                        VideoDetailMetaChip(text = chip, colorScheme = colorScheme)
+                    }
+                }
 
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                video.title,
-                fontSize = 28.sp,
-                lineHeight = 32.sp,
-                color = colorScheme.onBackground,
-                fontWeight = FontWeight.Bold,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis
-            )
+                VideoDetailPlayButton(
+                    enabled = !video.streamUrl.isNullOrBlank(),
+                    colorScheme = colorScheme,
+                    onClick = onPlay
+                )
 
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(video.detailChips(), key = { it }, contentType = { "video-detail-chip" }) { chip ->
-                    VideoDetailMetaChip(text = chip, colorScheme = colorScheme)
+                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Text(
+                        "简介",
+                        fontSize = 17.sp,
+                        color = colorScheme.onSurface,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        video.overview.ifBlank { "暂无简介" },
+                        fontSize = 14.sp,
+                        lineHeight = 21.sp,
+                        color = colorScheme.onSurface.copy(alpha = 0.68f)
+                    )
                 }
             }
+        }
 
-            VideoDetailPlayButton(
-                enabled = !video.streamUrl.isNullOrBlank(),
-                colorScheme = colorScheme,
-                onClick = onPlay
-            )
-
-            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        if (relatedEpisodes.isNotEmpty()) {
+            item {
                 Text(
-                    "简介",
-                    fontSize = 17.sp,
-                    color = colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
+                    "分集",
+                    fontSize = 20.sp,
+                    color = colorScheme.onBackground,
+                    fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    video.overview.ifBlank { "暂无简介" },
-                    fontSize = 14.sp,
-                    lineHeight = 21.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.68f)
-                )
             }
-
-            if (relatedEpisodes.isNotEmpty()) {
-                VideoEpisodeSection(
-                    episodes = relatedEpisodes,
+            items(
+                items = relatedEpisodes,
+                key = { episode -> "video-episode-${episode.id}" },
+                contentType = { "video-episode-row" }
+            ) { episode ->
+                VideoEpisodeRow(
+                    episode = episode,
                     colorScheme = colorScheme,
-                    onPlayEpisode = onPlayEpisode
+                    onClick = { onPlayEpisode(episode) }
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun VideoEpisodeSection(
-    episodes: List<VideoItem>,
-    colorScheme: ColorScheme,
-    onPlayEpisode: (VideoItem) -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        Text(
-            "分集",
-            fontSize = 20.sp,
-            color = colorScheme.onBackground,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        episodes.forEach { episode ->
-            VideoEpisodeRow(
-                episode = episode,
-                colorScheme = colorScheme,
-                onClick = { onPlayEpisode(episode) }
-            )
         }
     }
 }
@@ -817,7 +806,7 @@ private fun VideoEpisodeRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            val meta = episode.metaText()
+            val meta = remember(episode) { episode.metaText() }
             if (meta.isNotBlank()) {
                 Text(
                     meta,

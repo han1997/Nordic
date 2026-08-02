@@ -118,7 +118,7 @@ fun MusicHeroBanner(
                         url = album.coverArt,
                         contentDescription = album.name,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxWidth().height(124.dp)
+                        modifier = Modifier.matchParentSize()
                     )
                 }
             }
