@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 103
+- **Total Sessions**: 104
 - **Last Active**: 2026-08-02
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~1464 | Active |
+| `journal-2.md` | ~1497 | Active |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 104 | 2026-08-02 | T2 Navidrome contract completion | `6873149` | `main` |
 | 103 | 2026-08-02 | Full code review + T1 credential security hardening | `19bf518`, `84eefcc`, `c4c29d7` | `main` |
 | 102 | 2026-06-29 | Video player recomposition performance | `60f6722` | `main` |
 | 101 | 2026-06-29 | Video aspect ratio fullscreen controls | `0213d24` | `main` |
