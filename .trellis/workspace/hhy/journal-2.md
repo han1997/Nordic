@@ -1627,3 +1627,78 @@ Implemented T4 (P1) across 4 phases, satisfying H2/H3/H4/M-吞错误/M-MainActiv
 ### Next Steps
 
 - None - task complete
+
+
+## Session 109: T8 MusicDownloadManager fixes
+
+**Date**: 2026-08-02
+**Task**: T8 MusicDownloadManager fixes
+**Branch**: `main`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## Session 109: T8 MusicDownloadManager fixes
+
+### Main Changes
+
+- `app/src/main/java/com/nordic/mediahub/data/MusicDownloadManager.kt` — constructor refactor (primary `internal constructor(scope, client, downloadDir)` + public `constructor(context: Context)` preserving production defaults), extracted `internal fun beginDownloading(song): Boolean` (atomic dedup via `ConcurrentHashMap.compute`), extracted `internal suspend fun performDownload(song, config)` (response.use + tempFile-ref cleanup + renameTo boolean check), added `m4b`->"m4b" and `mp4`->"m4a" branches to `extensionFromContentType`. Removed `context` stored field (only used for default download dir); `downloadDir` is now a `private val` (mkdirs once at construction).
+- `app/src/test/java/com/nordic/mediahub/data/MusicDownloadManagerTest.kt` — 1 new helper-mapping test (`extensionFromContentType_mapsM4bAndMp4`) + new `MusicDownloadManagerDownloadTest` class with 6 MockWebServer tests (server-error no-orphan, success rename+metadata+DOWNLOADED, m4b content type, mp4 content type, beginDownloading same-id reject, beginDownloading different-ids accept). Check agent self-fixed resource cleanup in `@After` (scope.cancel + client dispatcher shutdown + connectionPool evictAll) to eliminate a flaky full-suite hang.
+
+### The 5 Fixes
+
+1. **C5 [Critical] orphan temp file** — catch deletes the SAME `tempFile` reference (declared before try, assigned inside) via `tempFile?.takeIf { it.exists() }?.delete()`, not the old wrong-name `File(downloadDir, "${song.id}.tmp")`.
+2. **M-renameTo** — `tf.renameTo(tg)` boolean checked; on false -> delete temp + NOT_DOWNLOADED + return (no metadata, no DOWNLOADED). Honors spec contract "Download fails before final rename | Delete temp file and leave state as not downloaded".
+3. **M-未关response** — `response.use { }` wraps all response processing; `return@performDownload` (valid non-local return since `use` is inline) closes response on early-return paths; exception path: use's finally closes, outer catch handles tempFile + state.
+4. **M-去重竞态** — `beginDownloading` uses `states.compute(song.id)` atomic check-and-set; second concurrent call for same id finds DOWNLOADING -> returns existing, `shouldLaunch` stays false -> `downloadSong` returns.
+5. **L-扩展名** — `extensionFromContentType` gained explicit `m4b`->"m4b" and `mp4`->"m4a" branches (audio/mp4 -> m4a is the conventional audio extension).
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `797b079` | fix(download): close response, clean temp file, check rename, atomic dedup, m4b/mp4 extensions (T8, C5+M-renameTo+M-未关response+M-去重竞态+L-扩展名) |
+| `867ff9f` | chore(task): archive 08-02-fix-music-download-manager |
+
+### Testing
+
+- [OK] compileDebugKotlin: BUILD SUCCESSFUL (0 warnings on changed files)
+- [OK] testDebugUnitTest: 312 tests, 0 failures, 0 errors, 0 skipped (16 in MusicDownloadManager test file: 10 StateTest + 6 DownloadTest; +1 helper mapping = 7 new tests total)
+- [OK] lintDebug: BUILD SUCCESSFUL (13 pre-existing warnings, 0 new errors)
+- [OK] trellis-check: APPROVE — all 7 acceptance criteria PASS, spec contracts honored, public API stable, concurrency correct, response.use semantics correct, extension edge cases verified
+
+### Spec Compliance
+
+- database-guidelines.md "Navidrome Downloaded Song Metadata Sidecars": temp cleanup on failure (Fix 1+2), delete-while-downloading no-op (deleteDownload unchanged), file name `<songId>.<extension>` (Fix 5), write audio then sidecar (performDownload order), restore ignores *.tmp + *.metadata.json (isDownloadedMusicFile unchanged).
+- error-handling.md: response closed on all failure paths (Fix 3), errors never silently leave state DOWNLOADED (catch sets NOT_DOWNLOADED).
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- T7 (08-02-split-ui-shared-components, P2) — mechanical file split + shared component extraction (MetaChip/CoverArt/BackButton/PrimaryActionButton). Depends on T4 (done). This is the last planned task in the code-review backlog.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `797b079` | (see git log) |
+| `867ff9f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
