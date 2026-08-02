@@ -54,6 +54,7 @@ import kotlin.math.roundToInt
 fun VideoPlayerScreen(
     state: VideoPlaybackState,
     colorScheme: ColorScheme,
+    externalError: String? = null,
     onSurfaceReady: (SurfaceView) -> Unit,
     onSurfaceDisposed: (SurfaceView) -> Unit,
     onSeek: (Int) -> Unit,
@@ -75,15 +76,16 @@ fun VideoPlayerScreen(
     var scrubPosition by remember(video?.id) { mutableStateOf<Float?>(null) }
     val visiblePosition = (scrubPosition ?: timeline.positionSeconds.toFloat())
         .coerceIn(0f, timeline.sliderMaxSeconds.toFloat())
+    val errorMessage = externalError ?: state.errorMessage
     val statusText = videoPlayerStatusText(
         hasVideo = video != null,
         isBuffering = state.isBuffering,
-        errorMessage = state.errorMessage
+        errorMessage = errorMessage
     )
     val statusTone = resolveVideoStatusTone(
         hasVideo = video != null,
         isBuffering = state.isBuffering,
-        errorMessage = state.errorMessage
+        errorMessage = errorMessage
     )
     val playerSubtitle = remember(video) { video?.metaTextForPlayer() }
     val videoAspectRatio = state.videoAspectRatio.takeIf { it > 0f } ?: 16f / 9f
@@ -116,10 +118,10 @@ fun VideoPlayerScreen(
                 title = "No video loaded",
                 subtitle = "Select a video from the library to start playback."
             )
-        } else if (state.errorMessage != null) {
+        } else if (errorMessage != null) {
             VideoPlayerCenterMessage(
                 title = "Playback issue",
-                subtitle = state.errorMessage
+                subtitle = errorMessage
             )
         } else if (state.isBuffering) {
             VideoPlayerCenterMessage(
