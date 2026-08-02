@@ -33,18 +33,29 @@ data class DownloadStateEntry(
     val song: NavidromeSong? = null
 )
 
-class MusicDownloadManager(private val context: Context) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val client = OkHttpClient.Builder()
-        .addInterceptor(
-            HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.NONE
-            }
-        )
-        .build()
-
+class MusicDownloadManager internal constructor(
+    private val scope: CoroutineScope,
+    private val client: OkHttpClient,
     private val downloadDir: File
-        get() = File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), ".").also { it.mkdirs() }
+) {
+    constructor(context: Context) : this(
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+        client = defaultMusicDownloadClient(),
+        downloadDir = defaultMusicDownloadDir(context)
+    )
+
+    companion object {
+        private fun defaultMusicDownloadClient(): OkHttpClient = OkHttpClient.Builder()
+            .addInterceptor(
+                HttpLoggingInterceptor().apply {
+                    level = HttpLoggingInterceptor.Level.NONE
+                }
+            )
+            .build()
+
+        private fun defaultMusicDownloadDir(context: Context): File =
+            File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), ".").also { it.mkdirs() }
+    }
 
     private val states = ConcurrentHashMap<String, DownloadStateEntry>()
 
@@ -62,49 +73,68 @@ class MusicDownloadManager(private val context: Context) {
     }
 
     fun downloadSong(song: NavidromeSong, config: NavidromeConfig) {
-        if (states[song.id]?.state == DownloadState.DOWNLOADING) return
+        if (!beginDownloading(song)) return
+        scope.launch { performDownload(song, config) }
+    }
 
-        updateState(song.id, DownloadStateEntry(state = DownloadState.DOWNLOADING, progress = 0f, song = song))
+    internal fun beginDownloading(song: NavidromeSong): Boolean {
+        var shouldLaunch = false
+        states.compute(song.id) { _, existing ->
+            if (existing?.state == DownloadState.DOWNLOADING) {
+                existing
+            } else {
+                shouldLaunch = true
+                DownloadStateEntry(state = DownloadState.DOWNLOADING, progress = 0f, song = song)
+            }
+        }
+        if (shouldLaunch) {
+            _downloadStates.value = states.toMap()
+        }
+        return shouldLaunch
+    }
 
-        scope.launch {
-            try {
-                val auth = config.authParams()
-                val baseUrl = config.normalizedBaseUrl()
-                val url = baseUrl.toHttpUrl().newBuilder()
-                    .addPathSegment("rest")
-                    .addPathSegment("download.view")
-                    .addQueryParameter("u", config.username)
-                    .addQueryParameter("t", auth.token)
-                    .addQueryParameter("s", auth.salt)
-                    .addQueryParameter("v", NAVIDROME_API_VERSION)
-                    .addQueryParameter("c", NAVIDROME_CLIENT_NAME)
-                    .addQueryParameter("id", song.id)
-                    .build()
-                    .toString()
+    internal suspend fun performDownload(song: NavidromeSong, config: NavidromeConfig) {
+        var tempFile: File? = null
+        var targetFile: File?
+        try {
+            val auth = config.authParams()
+            val baseUrl = config.normalizedBaseUrl()
+            val url = baseUrl.toHttpUrl().newBuilder()
+                .addPathSegment("rest")
+                .addPathSegment("download.view")
+                .addQueryParameter("u", config.username)
+                .addQueryParameter("t", auth.token)
+                .addQueryParameter("s", auth.salt)
+                .addQueryParameter("v", NAVIDROME_API_VERSION)
+                .addQueryParameter("c", NAVIDROME_CLIENT_NAME)
+                .addQueryParameter("id", song.id)
+                .build()
+                .toString()
 
-                val request = Request.Builder().url(url).build()
-                val response = client.newCall(request).execute()
-
+            val request = Request.Builder().url(url).build()
+            val response = client.newCall(request).execute()
+            response.use {
                 if (!response.isSuccessful) {
                     updateState(song.id, DownloadStateEntry(state = DownloadState.NOT_DOWNLOADED, progress = 0f))
-                    return@launch
+                    return@performDownload
                 }
 
-                val body = response.body ?: run {
+                val body = response.body
+                if (body == null) {
                     updateState(song.id, DownloadStateEntry(state = DownloadState.NOT_DOWNLOADED, progress = 0f))
-                    return@launch
+                    return@performDownload
                 }
 
                 val contentLength = body.contentLength().coerceAtLeast(0L)
                 val contentType = response.header("Content-Type", "audio/mpeg") ?: "audio/mpeg"
                 val extension = extensionFromContentType(contentType)
                 val fileName = "${song.id}.${extension}"
-                val targetFile = File(downloadDir, fileName)
-                val tempFile = File(downloadDir, "$fileName.tmp")
+                targetFile = File(downloadDir, fileName)
+                tempFile = File(downloadDir, "$fileName.tmp")
 
                 withContext(Dispatchers.IO) {
                     body.byteStream().use { input ->
-                        tempFile.outputStream().use { output ->
+                        tempFile!!.outputStream().use { output ->
                             val buffer = ByteArray(8192)
                             var bytesRead: Long = 0
                             while (true) {
@@ -123,19 +153,26 @@ class MusicDownloadManager(private val context: Context) {
                         }
                     }
                 }
-
-                if (tempFile.exists()) {
-                    if (targetFile.exists()) targetFile.delete()
-                    tempFile.renameTo(targetFile)
-                }
-                saveDownloadedSongMetadata(metadataFile(song.id), song)
-
-                updateState(song.id, DownloadStateEntry(state = DownloadState.DOWNLOADED, progress = 1f, song = song))
-            } catch (_: Exception) {
-                val tempFile = File(downloadDir, "${song.id}.tmp")
-                if (tempFile.exists()) tempFile.delete()
-                updateState(song.id, DownloadStateEntry(state = DownloadState.NOT_DOWNLOADED, progress = 0f))
             }
+
+            val tf = tempFile
+            val tg = targetFile
+            if (tf == null || tg == null || !tf.exists()) {
+                updateState(song.id, DownloadStateEntry(state = DownloadState.NOT_DOWNLOADED, progress = 0f))
+                return
+            }
+            if (tg.exists()) tg.delete()
+            if (!tf.renameTo(tg)) {
+                tf.delete()
+                updateState(song.id, DownloadStateEntry(state = DownloadState.NOT_DOWNLOADED, progress = 0f))
+                return
+            }
+            saveDownloadedSongMetadata(metadataFile(song.id), song)
+
+            updateState(song.id, DownloadStateEntry(state = DownloadState.DOWNLOADED, progress = 1f, song = song))
+        } catch (_: Exception) {
+            tempFile?.takeIf { it.exists() }?.delete()
+            updateState(song.id, DownloadStateEntry(state = DownloadState.NOT_DOWNLOADED, progress = 0f))
         }
     }
 
@@ -222,6 +259,8 @@ internal fun extensionFromContentType(contentType: String): String {
         contentType.contains("wav", ignoreCase = true) -> "wav"
         contentType.contains("aac", ignoreCase = true) -> "aac"
         contentType.contains("m4a", ignoreCase = true) -> "m4a"
+        contentType.contains("m4b", ignoreCase = true) -> "m4b"
+        contentType.contains("mp4", ignoreCase = true) -> "m4a"
         contentType.contains("opus", ignoreCase = true) -> "opus"
         contentType.contains("wma", ignoreCase = true) -> "wma"
         else -> "mp3"

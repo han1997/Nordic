@@ -1,9 +1,21 @@
 package com.nordic.mediahub.data
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.runBlocking
+import okhttp3.OkHttpClient
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import okio.Buffer
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
+import java.io.File
 import java.nio.file.Files
 
 class MusicDownloadManagerStateTest {
@@ -53,6 +65,14 @@ class MusicDownloadManagerStateTest {
     }
 
     @Test
+    fun extensionFromContentType_mapsM4bAndMp4() {
+        assertEquals("m4b", extensionFromContentType("audio/m4b"))
+        assertEquals("m4a", extensionFromContentType("audio/mp4"))
+        assertEquals("m4b", extensionFromContentType("AUDIO/X-M4B"))
+        assertEquals("m4a", extensionFromContentType("audio/x-mp4"))
+    }
+
+    @Test
     fun musicDownloadMetadataFileName_usesStableSidecarName() {
         assertEquals("song-1.metadata.json", musicDownloadMetadataFileName("song-1"))
     }
@@ -94,5 +114,114 @@ class MusicDownloadManagerStateTest {
 
         assertEquals(null, loadDownloadedSongMetadata(missing))
         assertEquals(null, loadDownloadedSongMetadata(malformed))
+    }
+}
+
+class MusicDownloadManagerDownloadTest {
+    private lateinit var server: MockWebServer
+    private lateinit var dir: File
+    private lateinit var scope: CoroutineScope
+    private lateinit var client: OkHttpClient
+    private lateinit var manager: MusicDownloadManager
+
+    @Before
+    fun setUp() {
+        server = MockWebServer().apply { start() }
+        dir = Files.createTempDirectory("music-dl-test").toFile()
+        scope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
+        client = OkHttpClient.Builder().build()
+        manager = MusicDownloadManager(
+            scope = scope,
+            client = client,
+            downloadDir = dir
+        )
+    }
+
+    @After
+    fun tearDown() {
+        server.shutdown()
+        scope.cancel()
+        client.dispatcher.executorService.shutdown()
+        client.connectionPool.evictAll()
+        dir.deleteRecursively()
+    }
+
+    private fun config() = NavidromeConfig(
+        serverUrl = server.url("/").toString(),
+        username = "user",
+        password = "pass"
+    )
+
+    private fun song() = NavidromeSong(id = "song-1", title = "Test Song", artist = "Artist")
+
+    @Test
+    fun performDownload_serverError_closesResponseAndLeavesNoOrphan() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(500))
+        manager.performDownload(song(), config())
+        val temps = dir.listFiles { f -> f.name.endsWith(".tmp") }.orEmpty()
+        assertEquals(0, temps.size)
+        assertEquals(DownloadState.NOT_DOWNLOADED, manager.downloadStates.value["song-1"]?.state)
+    }
+
+    @Test
+    fun performDownload_success_renamesToFinalAndMarksDownloaded() = runBlocking {
+        val audioBytes = ByteArray(1024) { 0x42 }
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "audio/mpeg")
+                .setBody(Buffer().write(audioBytes))
+        )
+        manager.performDownload(song(), config())
+        val finalFile = File(dir, "song-1.mp3")
+        assertTrue(finalFile.exists())
+        assertFalse(File(dir, "song-1.mp3.tmp").exists())
+        assertTrue(File(dir, "song-1.metadata.json").exists())
+        assertEquals(DownloadState.DOWNLOADED, manager.downloadStates.value["song-1"]?.state)
+    }
+
+    @Test
+    fun performDownload_m4bContentType_usesM4bExtension() = runBlocking {
+        val audioBytes = ByteArray(64) { 0x42 }
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "audio/m4b")
+                .setBody(Buffer().write(audioBytes))
+        )
+        manager.performDownload(song(), config())
+        assertTrue(File(dir, "song-1.m4b").exists())
+        assertEquals(DownloadState.DOWNLOADED, manager.downloadStates.value["song-1"]?.state)
+    }
+
+    @Test
+    fun performDownload_mp4ContentType_usesM4aExtension() = runBlocking {
+        val audioBytes = ByteArray(64) { 0x42 }
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "audio/mp4")
+                .setBody(Buffer().write(audioBytes))
+        )
+        manager.performDownload(song(), config())
+        assertTrue(File(dir, "song-1.m4a").exists())
+    }
+
+    @Test
+    fun beginDownloading_rejectsSecondConcurrentRequestForSameSong() {
+        val s = song()
+        assertTrue(manager.beginDownloading(s))
+        assertFalse(manager.beginDownloading(s))
+        assertEquals(DownloadState.DOWNLOADING, manager.downloadStates.value["song-1"]?.state)
+    }
+
+    @Test
+    fun beginDownloading_acceptsDownloadForDifferentSongs() {
+        val a = NavidromeSong(id = "song-a", title = "A")
+        val b = NavidromeSong(id = "song-b", title = "B")
+        assertTrue(manager.beginDownloading(a))
+        assertTrue(manager.beginDownloading(b))
+        assertEquals(DownloadState.DOWNLOADING, manager.downloadStates.value["song-a"]?.state)
+        assertEquals(DownloadState.DOWNLOADING, manager.downloadStates.value["song-b"]?.state)
     }
 }
