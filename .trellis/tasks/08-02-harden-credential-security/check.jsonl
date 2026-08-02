@@ -1,0 +1,9 @@
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "校验 ESP 迁移幂等、migrated flag、旧 preferences_pb 删除、持久化规则合规"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "校验无凭据/令牌入 logcat、HttpLoggingInterceptor 仍 Level.NONE、无新增 Log.d 泄露 URL"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "校验 AuthedAsyncImage 作为 internal 共享组件、stripAuth 纯函数可测、无跨层 token 传递"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "校验迁移失败/Emby header 降级回退的类型化错误处理"}
+{"file": ".trellis/spec/backend/navidrome-integration.md", "reason": "校验 Navidrome 仍走查询参数但 cache key 已剥离 auth、未误改协议契约"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "校验 Emby stream/image 走 X-Emby-Token header、api_key 已从 URL 移除"}
+{"file": ".trellis/spec/backend/audiobookshelf-integration.md", "reason": "校验 ABS audio 走 Authorization:Bearer、token 已从 URL 移除、cover 仍无 token"}
+{"file": ".trellis/tasks/08-02-harden-credential-security/research/android-encrypted-credential-storage.md", "reason": "对照 A1 方案验证迁移序列 7 步全落地、Flow 适配器回流正确"}
+{"file": ".trellis/tasks/08-02-harden-credential-security/research/media-url-token-cache-strategy.md", "reason": "对照 B1+B2 方案验证 CacheKeyFactory/Coil diskCacheKey/Emby-ABS header 全落地"}

@@ -1,0 +1,9 @@
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "ESP 迁移、12 个 key 清单、DataStore→ESP 切换、删除旧 preferences_pb 的持久化规则"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "EncryptedConfigStore 在 data/ 层的位置、AuthedAsyncImage 在 ui/ 层的位置、层边界（ui 不持 token）"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "迁移失败/Emby header 烟测失败的类型化错误与降级回退路径"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "HttpLoggingInterceptor 维持 Level.NONE、凭据/令牌不入 logcat 的硬约束"}
+{"file": ".trellis/spec/backend/navidrome-integration.md", "reason": "Navidrome 无 header 鉴权、靠 clean cache key 剥离 u/t/s/v/c 的契约约定"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Emby stream/image 改 X-Emby-Token header、去 api_key 查询的契约约定"}
+{"file": ".trellis/spec/backend/audiobookshelf-integration.md", "reason": "ABS audio 改 Authorization:Bearer header、去 token 查询、cover 无 token 的契约约定"}
+{"file": ".trellis/tasks/08-02-harden-credential-security/research/android-encrypted-credential-storage.md", "reason": "A1 决策依据：security-crypto:1.1.0 maven 坐标、MasterKey/ESP API 形态、7 步迁移序列、12 key 分级"}
+{"file": ".trellis/tasks/08-02-harden-credential-security/research/media-url-token-cache-strategy.md", "reason": "B1+B2 决策依据：Media3 CacheKeyFactory 持久化行为、stripAuth 实现要点、Emby/ABS header 鉴权服务端支持证据、Navidrome 协议限制"}
