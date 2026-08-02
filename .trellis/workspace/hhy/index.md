@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 109
+- **Total Sessions**: 110
 - **Last Active**: 2026-08-02
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~1704 | Active |
+| `journal-2.md` | ~1787 | Active |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 110 | 2026-08-02 | T7 UI split + shared components | `1d2679e` | `main` |
 | 109 | 2026-08-02 | T8 MusicDownloadManager fixes | `797b079`, `867ff9f` | `main` |
 | 108 | 2026-08-02 | T4 ViewModel + domain architecture | `4074cfc` | `main` |
 | 107 | 2026-08-02 | T5 ABS continue-listening + typed errors | `fec5b93` | `main` |

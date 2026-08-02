@@ -1702,3 +1702,86 @@ Implemented T4 (P1) across 4 phases, satisfying H2/H3/H4/M-吞错误/M-MainActiv
 ### Next Steps
 
 - None - task complete
+
+
+## Session 110: T7 UI split + shared components
+
+**Date**: 2026-08-02
+**Task**: T7 UI split + shared components
+**Branch**: `main`
+
+### Summary
+
+(Add summary)
+
+### Main Changes
+
+## Session 110: T7 UI split + shared components
+
+### Main Changes
+
+**Phase A** (shared components + small fixes):
+- Created `ui/SharedComponents.kt` with `internal MetaChip` (plain, supports enabled/onClick), `internal ToneMetaChip` (colored-tone), `internal ScreenBackButton`.
+- Deleted 6 MetaChip variants (MusicMetaChip, AudiobookMetaChip, AudiobookPlayerMetaChip, PlayerMetaChip, PlayerStatusChip, VideoDetailMetaChip) + 2 BackButton variants (MusicBackButton, AudiobookBackButton); all call sites migrated to shared components.
+- Dead code removed: AlbumShelfCard, ArtistRoundCard (MusicHomeSections), DarkAccent, LightAccent (Color.kt).
+- Format unification: added `formatLongDuration` to MusicFormatters.kt; removed `formatVideoDuration` from VideoScreen.kt; 4 call sites retargeted.
+- VideoPlayerScreen fullscreen `BackHandler(enabled = isFullscreen) { onToggleFullscreen() }` added (correct last-registered-wins priority).
+
+**Phase B** (shared component extraction):
+- Added `internal CoverArt` to SharedComponents.kt — unifies MusicArtwork (initials fallback), AudiobookCover (glyph fallback), VideoThumbnail (text fallback) into single Box+gradient+AuthedAsyncImage+fallback component. Deleted all 3 originals; call sites migrated.
+- Added `internal PrimaryActionButton` — unifies VideoDetailPlayButton (52dp full-width primary). Deleted original; call site migrated.
+- ConfigCards: extracted `VideoServerCredentialsFields` for shared username+password; EMBY adds API key, PLEX/WEBDAV use shared fields.
+
+**Phase C** (file splits):
+- `MusicScreenV2.kt` 2092 -> 1261 lines: moved browse composables to `MusicBrowseComponents.kt` (728 lines, internal), pure logic to `MusicScreenLogic.kt` (113 lines, internal). Kept main composable + state + effects + BackHandlers + when(libraryPage) dispatch.
+- `VideoScreen.kt` 1246 -> 400 lines: moved detail to `VideoDetailScreen.kt` (266 lines), browse to `VideoBrowseComponents.kt` (334 lines), logic to `VideoScreenLogic.kt` (178 lines). Kept main composable only.
+
+**Check agent self-fixes**:
+- Critical: CoverArt sizing bug — `modifier.size(size)` chained after caller's modifier overrode custom sizes; fixed by reordering size param before modifier.
+- Medium: VideoDetailScreen inline back button replaced with shared ScreenBackButton.
+- Low: unused imports removed after back button replacement.
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1d2679e` | refactor(ui): extract shared components + split MusicScreenV2/VideoScreen (T7, H13+H14+M-UI reuse) |
+
+### Testing
+
+- [OK] compileDebugKotlin: BUILD SUCCESSFUL
+- [OK] testDebugUnitTest: 312 tests, 0 failures, 0 errors, 0 skipped
+- [OK] lintDebug: BUILD SUCCESSFUL
+- [OK] trellis-check: APPROVE — all 4 acceptance criteria PASS, 3 issues self-fixed (1 critical CoverArt sizing, 1 medium back button, 1 low imports)
+
+### Spec Compliance
+
+- quality-guidelines.md: Shared components internal (5 new), duplicate utilities single-source (formatLongDuration), BackHandler priority rule (VideoPlayerScreen fullscreen).
+- directory-structure.md: New files follow ui/ placement + naming; moved composables internal; main screens keep single responsibility.
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- All 8 code-review tasks (T1-T8) now complete. T9 (ConfigRepository tests + key unit test gaps) remains in the backlog but was not prioritized this session.
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1d2679e` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
