@@ -1851,3 +1851,36 @@ Established a 3-layer design-token system (NordicShapes/NordicSpacing/NordicTypo
 ### Next Steps
 
 - None - task complete
+
+
+## Session 113: Performance-first media chrome spec
+
+**Date**: 2026-08-03
+**Task**: Performance-first media chrome spec
+**Branch**: `main`
+
+### Summary
+
+Added performance-first persistent media chrome guideline to backend quality-guidelines.md (contracts, wrong/correct example, why) plus a code-review checklist item. Spec-only task; no app code changed. Verified against prd acceptance criteria via trellis-check (PASS).
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `17f1a3a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
