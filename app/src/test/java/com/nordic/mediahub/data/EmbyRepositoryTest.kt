@@ -410,6 +410,50 @@ class EmbyRepositoryTest {
     }
 
     @Test
+    fun getCatalog_pagesUntilShortPageWhenTotalRecordCountIsNull() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
+                  ]
+                }
+            """.trimIndent()
+        )
+        val page1Items = (1..100).joinToString(",") { validEmbyMovieJson(it) }
+        server.enqueueJson(
+            """
+                {
+                  "Items": [$page1Items]
+                }
+            """.trimIndent()
+        )
+        val page2Items = (101..150).joinToString(",") { validEmbyMovieJson(it) }
+        server.enqueueJson(
+            """
+                {
+                  "Items": [$page2Items]
+                }
+            """.trimIndent()
+        )
+
+        val catalog = repository(apiKey = "api-key").getCatalog()
+
+        assertEquals(150, catalog.items.size)
+        assertEquals("Movie 1", catalog.items.first().title)
+        assertEquals("Movie 150", catalog.items.last().title)
+
+        server.takeRequest()
+        server.takeRequest()
+        val firstItemsRequest = server.takeRequest()
+        assertTrue(firstItemsRequest.path.orEmpty().contains("StartIndex=0"))
+        val secondItemsRequest = server.takeRequest()
+        assertTrue(secondItemsRequest.path.orEmpty().contains("StartIndex=100"))
+        assertEquals(4, server.requestCount)
+    }
+
+    @Test
     fun getCatalog_mapsMissingAndNullLibraryItemsToEmptyItems() = runTest {
         listOf(
             """{"TotalRecordCount":0}""",

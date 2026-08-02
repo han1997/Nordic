@@ -48,12 +48,25 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
         .build()
         .create(AudiobookShelfApi::class.java)
 
+    private suspend fun <T> executeWithAuthRetry(
+        request: suspend (String) -> Response<T>
+    ): Response<T> {
+        val firstAuth = bearerToken()
+        var response = request(firstAuth)
+        if (response.code() == 401) {
+            cachedBearerToken = null
+            val newAuth = bearerToken()
+            response = request(newAuth)
+        }
+        return response
+    }
+
     private suspend fun <T> requireResponseBody(
         action: String,
-        request: suspend () -> Response<T>
+        request: suspend (String) -> Response<T>
     ): T {
         val response = try {
-            request()
+            executeWithAuthRetry(request)
         } catch (error: EOFException) {
             throw AudiobookShelfApiException(
                 "$action: 响应为空",
@@ -74,15 +87,42 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
             )
     }
 
+    private suspend fun requireUnitResponseWithRetry(
+        action: String,
+        request: suspend (String) -> Response<Unit>
+    ) {
+        val response = try {
+            executeWithAuthRetry(request)
+        } catch (error: EOFException) {
+            throw AudiobookShelfApiException(
+                "$action: 响应为空",
+                AudiobookShelfApiException.Kind.API
+            )
+        }
+        if (!response.isSuccessful) {
+            throw AudiobookShelfApiException(
+                "$action: HTTP ${response.code()}",
+                AudiobookShelfApiException.Kind.HTTP
+            )
+        }
+    }
+
     private suspend fun bearerToken(): String {
         cachedBearerToken?.let { return it }
 
-        val response = api.login(
-            request = com.nordic.mediahub.api.AudiobookShelfLoginRequest(
-                username = config.username,
-                password = config.password
+        val response = try {
+            api.login(
+                request = com.nordic.mediahub.api.AudiobookShelfLoginRequest(
+                    username = config.username,
+                    password = config.password
+                )
             )
-        )
+        } catch (error: EOFException) {
+            throw AudiobookShelfApiException(
+                "登录失败: 响应为空",
+                AudiobookShelfApiException.Kind.API
+            )
+        }
 
         if (!response.isSuccessful) {
             throw AudiobookShelfApiException(
@@ -106,8 +146,7 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
     }
 
     suspend fun getLibraries(): List<AudiobookLibrarySummary> {
-        val auth = bearerToken()
-        val body = requireResponseBody("获取书库失败") {
+        val body = requireResponseBody("获取书库失败") { auth ->
             api.getLibraries(auth)
         }
 
@@ -125,13 +164,12 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
     }
 
     suspend fun getLibraryItems(libraryId: String): List<AudiobookItemSummary> {
-        val auth = bearerToken()
         val items = mutableListOf<AudiobookItemSummary>()
         var page = 0
         var fetchedItemCount = 0
 
         while (true) {
-            val body = requireResponseBody("获取有声书列表失败") {
+            val body = requireResponseBody("获取有声书列表失败") { auth ->
                 api.getLibraryItems(
                     bearerToken = auth,
                     libraryId = libraryId,
@@ -154,8 +192,7 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
     }
 
     suspend fun getLibraryItem(itemId: String): AudiobookItemDetail {
-        val auth = bearerToken()
-        return requireResponseBody("获取有声书详情失败") {
+        return requireResponseBody("获取有声书详情失败") { auth ->
             api.getLibraryItem(
                 bearerToken = auth,
                 itemId = itemId
@@ -164,8 +201,7 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
     }
 
     suspend fun startPlayback(itemId: String): AudiobookPlaybackSession {
-        val auth = bearerToken()
-        val session = requireResponseBody("启动播放失败") {
+        val session = requireResponseBody("启动播放失败") { auth ->
             api.startPlayback(
                 bearerToken = auth,
                 itemId = itemId,
@@ -183,9 +219,9 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
         }
 
         return AudiobookPlaybackSession(
-            sessionId = session.id,
-            libraryItemId = session.libraryItemId,
-            displayTitle = session.displayTitle,
+            sessionId = session.id.orEmpty(),
+            libraryItemId = session.libraryItemId.orEmpty(),
+            displayTitle = session.displayTitle.orEmpty(),
             displayAuthor = session.displayAuthor.orEmpty(),
             coverUrl = session.coverPath.toAbsoluteCoverUrlOrNull(),
             durationSeconds = session.duration.toInt(),
@@ -213,49 +249,74 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
     }
 
     suspend fun syncProgress(session: AudiobookPlaybackSession, currentTimeSeconds: Int, deltaSeconds: Int) {
-        val auth = bearerToken()
-        val duration = session.durationSeconds.coerceAtLeast(1)
-        val safeCurrentTime = resolveAudiobookSyncCurrentTimeSeconds(currentTimeSeconds, session.durationSeconds)
-        val progress = (safeCurrentTime.toDouble() / duration.toDouble()).coerceIn(0.0, 1.0)
-        api.updateProgress(
-            bearerToken = auth,
-            itemId = session.libraryItemId,
-            request = AudiobookShelfProgressUpdateRequest(
-                duration = duration.toDouble(),
-                currentTime = safeCurrentTime.toDouble(),
-                progress = progress,
-                lastUpdate = System.currentTimeMillis()
+        try {
+            val duration = session.durationSeconds.coerceAtLeast(1)
+            val safeCurrentTime = resolveAudiobookSyncCurrentTimeSeconds(currentTimeSeconds, session.durationSeconds)
+            val progress = (safeCurrentTime.toDouble() / duration.toDouble()).coerceIn(0.0, 1.0)
+            requireUnitResponseWithRetry("同步有声书进度失败") { auth ->
+                api.updateProgress(
+                    bearerToken = auth,
+                    itemId = session.libraryItemId,
+                    request = AudiobookShelfProgressUpdateRequest(
+                        duration = duration.toDouble(),
+                        currentTime = safeCurrentTime.toDouble(),
+                        progress = progress,
+                        lastUpdate = System.currentTimeMillis()
+                    )
+                )
+            }
+            requireUnitResponseWithRetry("同步有声书播放会话失败") { auth ->
+                api.syncSession(
+                    bearerToken = auth,
+                    sessionId = session.sessionId,
+                    request = AudiobookShelfSessionSyncRequest(
+                        currentTime = safeCurrentTime.toDouble(),
+                        timeListened = deltaSeconds.toDouble().coerceAtLeast(0.0),
+                        duration = duration.toDouble()
+                    )
+                )
+            }
+        } catch (e: AudiobookShelfApiException) {
+            throw e
+        } catch (e: Exception) {
+            throw AudiobookShelfApiException(
+                "同步进度失败: ${e.message}",
+                AudiobookShelfApiException.Kind.API
             )
-        ).requireUnitResponse("同步有声书进度失败")
-        api.syncSession(
-            bearerToken = auth,
-            sessionId = session.sessionId,
-            request = AudiobookShelfSessionSyncRequest(
-                currentTime = safeCurrentTime.toDouble(),
-                timeListened = deltaSeconds.toDouble().coerceAtLeast(0.0),
-                duration = duration.toDouble()
-            )
-        ).requireUnitResponse("同步有声书播放会话失败")
+        }
     }
 
     suspend fun closeSession(session: AudiobookPlaybackSession, currentTimeSeconds: Int) {
-        val auth = bearerToken()
-        val duration = session.durationSeconds.coerceAtLeast(1)
-        val safeCurrentTime = resolveAudiobookSyncCurrentTimeSeconds(currentTimeSeconds, session.durationSeconds)
-        api.closeSession(
-            bearerToken = auth,
-            sessionId = session.sessionId,
-            request = AudiobookShelfSessionSyncRequest(
-                currentTime = safeCurrentTime.toDouble(),
-                timeListened = 0.0,
-                duration = duration.toDouble()
+        try {
+            val duration = session.durationSeconds.coerceAtLeast(1)
+            val safeCurrentTime = resolveAudiobookSyncCurrentTimeSeconds(currentTimeSeconds, session.durationSeconds)
+            requireUnitResponseWithRetry("关闭有声书播放会话失败") { auth ->
+                api.closeSession(
+                    bearerToken = auth,
+                    sessionId = session.sessionId,
+                    request = AudiobookShelfSessionSyncRequest(
+                        currentTime = safeCurrentTime.toDouble(),
+                        timeListened = 0.0,
+                        duration = duration.toDouble()
+                    )
+                )
+            }
+        } catch (e: AudiobookShelfApiException) {
+            throw e
+        } catch (e: Exception) {
+            throw AudiobookShelfApiException(
+                "关闭会话失败: ${e.message}",
+                AudiobookShelfApiException.Kind.API
             )
-        ).requireUnitResponse("关闭有声书播放会话失败")
+        }
     }
 
     suspend fun syncAndCloseSession(session: AudiobookPlaybackSession, currentTimeSeconds: Int, deltaSeconds: Int = 0) {
-        syncProgress(session, currentTimeSeconds, deltaSeconds)
-        closeSession(session, currentTimeSeconds)
+        try {
+            syncProgress(session, currentTimeSeconds, deltaSeconds)
+        } finally {
+            closeSession(session, currentTimeSeconds)
+        }
     }
 
     private fun AudiobookShelfLibraryItemMinifiedDto.toSummary(
@@ -277,27 +338,28 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
             coverUrl = media.coverPath.toAbsoluteCoverUrlOrNull(),
             durationSeconds = media.duration.toInt(),
             chapterCount = media.numChapters,
-            updatedAtMillis = updatedAt
+            updatedAtMillis = updatedAt,
+            progress = userMediaProgress?.toDomainProgress()
         )
     }
 
     private fun AudiobookShelfLibraryItemExpandedDto.toDetail(): AudiobookItemDetail {
         return AudiobookItemDetail(
-            id = id,
-            libraryId = libraryId,
-            title = media.metadata.title,
-            subtitle = media.metadata.subtitle.orEmpty(),
-            description = media.metadata.descriptionPlain
-                ?: media.metadata.description
+            id = id.orEmpty(),
+            libraryId = libraryId.orEmpty(),
+            title = media?.metadata?.title.orEmpty(),
+            subtitle = media?.metadata?.subtitle.orEmpty(),
+            description = media?.metadata?.descriptionPlain
+                ?: media?.metadata?.description
                 ?: "",
-            authors = media.metadata.authors.orEmpty().map { it.name },
-            narrators = media.metadata.narrators.orEmpty(),
-            series = media.metadata.series.orEmpty().map { series ->
+            authors = media?.metadata?.authors.orEmpty().map { it.name },
+            narrators = media?.metadata?.narrators.orEmpty(),
+            series = media?.metadata?.series.orEmpty().map { series ->
                 if (series.sequence.isNullOrBlank()) series.name else "${series.name} #${series.sequence}"
             },
-            coverUrl = media.coverPath.toAbsoluteCoverUrlOrNull(),
-            durationSeconds = media.duration.toInt(),
-            chapters = media.chapters.orEmpty().map { chapter ->
+            coverUrl = media?.coverPath.toAbsoluteCoverUrlOrNull(),
+            durationSeconds = (media?.duration ?: 0.0).toInt(),
+            chapters = media?.chapters.orEmpty().map { chapter ->
                 AudiobookChapter(
                     id = chapter.id,
                     title = chapter.title,
@@ -330,14 +392,5 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
     private fun String.toAbsoluteAudioUrl(): String {
         val absolute = if (startsWith("http://") || startsWith("https://")) this else "$baseUrl$this"
         return stripAuthQuery(absolute)
-    }
-
-    private fun Response<Unit>.requireUnitResponse(action: String) {
-        if (!isSuccessful) {
-            throw AudiobookShelfApiException(
-                "$action: HTTP ${code()}",
-                AudiobookShelfApiException.Kind.HTTP
-            )
-        }
     }
 }

@@ -53,16 +53,18 @@ data class AudiobookShelfLibraryItemMinifiedDto(
     val mediaType: String? = null,
     val addedAt: Long = 0L,
     val updatedAt: Long = 0L,
-    val media: AudiobookShelfBookMinifiedDto? = null
+    val media: AudiobookShelfBookMinifiedDto? = null,
+    @SerializedName("userMediaProgress")
+    val userMediaProgress: AudiobookShelfMediaProgressDto? = null
 )
 
 data class AudiobookShelfLibraryItemExpandedDto(
-    val id: String,
-    val libraryId: String,
-    val mediaType: String,
+    val id: String? = null,
+    val libraryId: String? = null,
+    val mediaType: String? = null,
     val addedAt: Long = 0L,
     val updatedAt: Long = 0L,
-    val media: AudiobookShelfBookExpandedDto,
+    val media: AudiobookShelfBookExpandedDto? = null,
     @SerializedName("userMediaProgress")
     val userMediaProgress: AudiobookShelfMediaProgressDto? = null
 )
@@ -89,17 +91,17 @@ data class AudiobookShelfBookMinifiedMetadataDto(
 )
 
 data class AudiobookShelfBookExpandedDto(
-    val id: String,
-    val metadata: AudiobookShelfBookExpandedMetadataDto,
+    val id: String? = null,
+    val metadata: AudiobookShelfBookExpandedMetadataDto? = null,
     val coverPath: String? = null,
     val duration: Double = 0.0,
     val chapters: List<AudiobookShelfChapterDto>? = null,
-    val tracks: List<AudiobookShelfAudioTrackDto> = emptyList(),
-    val audioFiles: List<AudiobookShelfAudioTrackDto> = emptyList()
+    val tracks: List<AudiobookShelfAudioTrackDto>? = null,
+    val audioFiles: List<AudiobookShelfAudioTrackDto>? = null
 )
 
 data class AudiobookShelfBookExpandedMetadataDto(
-    val title: String,
+    val title: String? = null,
     val titleIgnorePrefix: String? = null,
     val subtitle: String? = null,
     val authorName: String? = null,
@@ -149,7 +151,7 @@ data class AudiobookShelfFileMetadataDto(
 )
 
 data class AudiobookShelfMediaProgressDto(
-    val id: String,
+    val id: String? = null,
     val libraryItemId: String? = null,
     val episodeId: String? = null,
     val duration: Double = 0.0,
@@ -160,11 +162,11 @@ data class AudiobookShelfMediaProgressDto(
 )
 
 data class AudiobookShelfPlaybackSessionDto(
-    val id: String,
-    val libraryId: String,
-    val libraryItemId: String,
-    val mediaType: String,
-    val displayTitle: String,
+    val id: String? = null,
+    val libraryId: String? = null,
+    val libraryItemId: String? = null,
+    val mediaType: String? = null,
+    val displayTitle: String? = null,
     val displayAuthor: String? = null,
     val coverPath: String? = null,
     val duration: Double = 0.0,
@@ -223,6 +225,7 @@ interface AudiobookShelfApi {
         @Header("Authorization") bearerToken: String,
         @Path("id") libraryId: String,
         @Query("minified") minified: Int = 1,
+        @Query("include") include: String = "progress",
         @Query("limit") limit: Int = 50,
         @Query("page") page: Int = 0
     ): Response<AudiobookShelfLibraryItemsResponse>

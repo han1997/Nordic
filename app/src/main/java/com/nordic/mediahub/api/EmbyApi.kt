@@ -34,7 +34,7 @@ data class EmbyItemsResponse(
     @SerializedName("Items")
     val items: List<EmbyItemDto>? = null,
     @SerializedName("TotalRecordCount")
-    val totalRecordCount: Int = 0
+    val totalRecordCount: Int? = null
 )
 
 data class EmbyItemDto(

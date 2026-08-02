@@ -5,6 +5,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -788,6 +789,179 @@ class AudiobookShelfRepositoryTest {
         requireNotNull(error)
         assertEquals(AudiobookShelfApiException.Kind.HTTP, error.kind)
         assertTrue(error.message.orEmpty().contains("HTTP 500"))
+    }
+
+    @Test
+    fun getLibraryItems_includesProgressParam() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(libraryItemsJson(itemRange = 1..1, total = 1))
+
+        repository().getLibraryItems("lib-1")
+
+        server.takeRequest()
+        val itemsRequest = server.takeRequest()
+        assertTrue(itemsRequest.path.orEmpty().contains("include=progress"))
+    }
+
+    @Test
+    fun getLibraryItems_mapsUserMediaProgressToSummary() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(
+            """
+                {
+                  "results": [
+                    {
+                      "id": "book-1",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {
+                        "id": "media-1",
+                        "metadata": {"title": "Book One"},
+                        "duration": 3600.0,
+                        "numChapters": 10
+                      },
+                      "userMediaProgress": {
+                        "id": "progress-1",
+                        "libraryItemId": "book-1",
+                        "duration": 3600.0,
+                        "progress": 0.5,
+                        "currentTime": 1800.0,
+                        "isFinished": false,
+                        "lastUpdate": 1700000000000
+                      }
+                    }
+                  ],
+                  "total": 1,
+                  "limit": 50,
+                  "page": 0,
+                  "mediaType": "book",
+                  "minified": true
+                }
+            """.trimIndent()
+        )
+
+        val items = repository().getLibraryItems("lib-1")
+
+        val progress = items.single().progress
+        requireNotNull(progress)
+        assertEquals(1800, progress.currentTimeSeconds)
+        assertEquals(3600, progress.durationSeconds)
+        assertEquals(0.5f, progress.progressFraction, 0.001f)
+        assertFalse(progress.isFinished)
+        assertEquals(1700000000000L, progress.lastUpdateMillis)
+    }
+
+    @Test
+    fun bearerToken_throwsApiExceptionOnEmptyBody() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val error = try {
+            repository().getLibraries()
+            null
+        } catch (error: AudiobookShelfApiException) {
+            error
+        }
+
+        requireNotNull(error)
+        assertEquals(AudiobookShelfApiException.Kind.API, error.kind)
+        assertTrue(error.message.orEmpty().contains("登录失败"))
+    }
+
+    @Test
+    fun closeSession_wrapsHttpErrorAsApiException() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueue(MockResponse().setResponseCode(500))
+
+        val error = try {
+            repository().closeSession(sampleSession(), currentTimeSeconds = 10)
+            null
+        } catch (error: AudiobookShelfApiException) {
+            error
+        }
+
+        requireNotNull(error)
+        assertEquals(AudiobookShelfApiException.Kind.HTTP, error.kind)
+        assertTrue(error.message.orEmpty().contains("HTTP 500"))
+    }
+
+    @Test
+    fun syncAndCloseSession_closesSessionEvenWhenSyncThrows() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueue(MockResponse().setResponseCode(500))
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val error = try {
+            repository().syncAndCloseSession(sampleSession(), currentTimeSeconds = 10, deltaSeconds = 5)
+            null
+        } catch (error: AudiobookShelfApiException) {
+            error
+        }
+
+        requireNotNull(error)
+        assertEquals(AudiobookShelfApiException.Kind.HTTP, error.kind)
+
+        server.takeRequest()
+        val progressRequest = server.takeRequest()
+        assertEquals("/api/me/progress/book-1", progressRequest.path)
+
+        val closeRequest = server.takeRequest()
+        assertEquals("/api/session/session-1/close", closeRequest.path)
+        assertEquals(3, server.requestCount)
+    }
+
+    @Test
+    fun getLibraryItems_retriesOn401WithNewToken() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-1"}}""")
+        server.enqueue(MockResponse().setResponseCode(401))
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-2"}}""")
+        server.enqueueJson(libraryItemsJson(itemRange = 1..1, total = 1))
+
+        val items = repository().getLibraryItems("lib-1")
+
+        assertEquals(1, items.size)
+        assertEquals("Book 1", items.single().title)
+        assertEquals(4, server.requestCount)
+    }
+
+    @Test
+    fun getLibraryItems_mapsMissingOptionalFieldsToDefaults() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(
+            """
+                {
+                  "results": [
+                    {
+                      "id": "book-minimal",
+                      "libraryId": "lib-1",
+                      "mediaType": "book",
+                      "media": {
+                        "id": "media-minimal",
+                        "metadata": {"title": "Minimal Book"}
+                      }
+                    }
+                  ],
+                  "total": 1,
+                  "limit": 50,
+                  "page": 0,
+                  "mediaType": "book",
+                  "minified": true
+                }
+            """.trimIndent()
+        )
+
+        val items = repository().getLibraryItems("lib-1")
+
+        val item = items.single()
+        assertEquals("book-minimal", item.id)
+        assertEquals("Minimal Book", item.title)
+        assertEquals("", item.author)
+        assertEquals("", item.narrator)
+        assertEquals("", item.series)
+        assertNull(item.coverUrl)
+        assertEquals(0, item.durationSeconds)
+        assertEquals(0, item.chapterCount)
+        assertEquals(0, item.updatedAtMillis)
+        assertNull(item.progress)
     }
 
     private fun registeredAbsBearer(): String? {

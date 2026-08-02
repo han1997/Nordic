@@ -203,7 +203,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
         val items = mutableListOf<VideoItem>()
         var startIndex = 0
 
-        do {
+        while (true) {
             val response = requireResponseBody("获取 Emby 视频失败") {
                 api.getItems(
                     userId = session.userId,
@@ -216,7 +216,14 @@ class EmbyRepository(private val config: VideoServerConfig) {
             val pageItems = response.items.orEmpty()
             items += pageItems.mapNotNull { item -> item.toVideoItem(libraryId, session.token) }
             startIndex += pageItems.size
-        } while (pageItems.isNotEmpty() && startIndex < response.totalRecordCount)
+
+            val total = response.totalRecordCount
+            if (total != null) {
+                if (pageItems.isEmpty() || startIndex >= total) break
+            } else {
+                if (pageItems.size < EMBY_ITEMS_PAGE_SIZE) break
+            }
+        }
 
         return items
     }
