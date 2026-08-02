@@ -18,8 +18,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
@@ -44,6 +44,9 @@ import androidx.compose.ui.unit.sp
 import androidx.media3.common.Player
 import com.nordic.mediahub.data.NavidromeSong
 import com.nordic.mediahub.data.MusicLyrics
+import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicShapes
+import com.nordic.mediahub.ui.theme.NordicSpacing
 
 @Composable
 fun MusicPlayerScreen(
@@ -99,11 +102,11 @@ fun MusicPlayerScreen(
             )
     ) {
         val compact = maxHeight < 740.dp
-        val sidePadding = if (compact) 18.dp else 20.dp
+        val sidePadding = if (compact) NordicSpacing.lg else NordicSpacing.xl
         val statusTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-        val topPadding = statusTopPadding + if (compact) 8.dp else 12.dp
-        val bottomPadding = if (compact) 12.dp else 18.dp
-        val sectionGap = if (compact) 10.dp else 14.dp
+        val topPadding = statusTopPadding + if (compact) NordicSpacing.sm else NordicSpacing.md
+        val bottomPadding = if (compact) NordicSpacing.md else NordicSpacing.lg
+        val sectionGap = NordicSpacing.md
 
         if (song?.coverArt != null) {
             AuthedAsyncImage(
@@ -202,7 +205,7 @@ private fun PlayerTopBar(
     val album = song?.album ?: "音乐库"
     val duration = formatDuration(song?.duration ?: 0)
     val status = playbackStatus ?: "正在播放"
-    val statusColor = if (playbackStatusIsError) colorScheme.error else colorScheme.primary.copy(alpha = 0.78f)
+    val statusColor = if (playbackStatusIsError) colorScheme.error else colorScheme.primary.copy(alpha = NordicAlpha.medium)
 
     Row(
         modifier = Modifier
@@ -213,9 +216,9 @@ private fun PlayerTopBar(
     ) {
         PlayerTopButton("⌄", colorScheme, onClick = onClose)
         Column(
-            modifier = Modifier.weight(1f).padding(horizontal = 14.dp),
+            modifier = Modifier.weight(1f).padding(horizontal = NordicSpacing.md),
             horizontalAlignment = Alignment.Start,
-            verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp)
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
         ) {
             Text(
                 title,
@@ -228,14 +231,14 @@ private fun PlayerTopBar(
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 ToneMetaChip(status, statusColor)
                 Text(
                     album,
-                    fontSize = 13.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.62f),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -256,12 +259,12 @@ private fun PlayerTopButton(
     Surface(
         color = colorScheme.surface.copy(alpha = 0.56f),
         contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(999.dp),
+        shape = NordicShapes.full,
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.04f)),
         modifier = Modifier.size(42.dp).clickable(onClick = onClick)
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text(label, fontSize = 22.sp, color = colorScheme.onSurface.copy(alpha = 0.76f))
+            Text(label, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Normal, color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium))
         }
     }
 }
@@ -314,7 +317,7 @@ private fun PlayerArtwork(
 
         Surface(
             color = colorScheme.surfaceVariant.copy(alpha = 0.48f),
-            shape = RoundedCornerShape(30.dp),
+            shape = NordicShapes.xl,
             shadowElevation = 10.dp,
             border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
             modifier = Modifier.size(side)
@@ -345,11 +348,11 @@ private fun PlayerArtwork(
                         modifier = Modifier
                             .fillMaxWidth(0.44f)
                             .aspectRatio(1f)
-                            .clip(RoundedCornerShape(28.dp))
+                            .clip(NordicShapes.xl)
                             .background(colorScheme.surface.copy(alpha = 0.62f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("♪", fontSize = 54.sp, color = colorScheme.primary.copy(alpha = 0.72f))
+                        Text("♪", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Normal, color = colorScheme.primary.copy(alpha = NordicAlpha.medium))
                     }
                 }
             }
@@ -374,7 +377,7 @@ private fun PlayerLyricsDisplay(
 
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(30.dp))
+            .clip(NordicShapes.xl)
             .background(
                 Brush.linearGradient(
                     listOf(
@@ -385,7 +388,7 @@ private fun PlayerLyricsDisplay(
                     )
                 )
             )
-            .padding(horizontal = 22.dp, vertical = if (compact) 16.dp else 22.dp),
+            .padding(horizontal = NordicSpacing.xl, vertical = if (compact) NordicSpacing.lg else NordicSpacing.xl),
         contentAlignment = Alignment.Center
     ) {
         when {
@@ -395,7 +398,7 @@ private fun PlayerLyricsDisplay(
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 11.dp)
+                    verticalArrangement = Arrangement.spacedBy(if (compact) NordicSpacing.sm else NordicSpacing.md)
                 ) {
                     visibleLines.forEach { line ->
                         Text(
@@ -413,7 +416,7 @@ private fun PlayerLyricsDisplay(
                             color = if (line.active) {
                                 colorScheme.onSurface
                             } else {
-                                colorScheme.onSurface.copy(alpha = 0.46f)
+                                colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
                             },
                             fontWeight = if (line.active) FontWeight.Bold else FontWeight.Medium,
                             textAlign = TextAlign.Center,
@@ -434,8 +437,8 @@ private fun PlayerLyricsStatus(
 ) {
     Text(
         text,
-        fontSize = 15.sp,
-        color = colorScheme.onSurface.copy(alpha = 0.48f),
+        style = MaterialTheme.typography.titleMedium,
+        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
         fontWeight = FontWeight.Medium,
         textAlign = TextAlign.Center,
         maxLines = 1,
@@ -465,7 +468,7 @@ private fun PlayerConsole(
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
         contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(28.dp),
+        shape = NordicShapes.xl,
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.04f)),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -481,12 +484,12 @@ private fun PlayerConsole(
                     )
                 )
                 .padding(
-                    start = 14.dp,
-                    top = if (compact) 8.dp else 10.dp,
-                    end = 14.dp,
-                    bottom = if (compact) 12.dp else 14.dp
+                    start = NordicSpacing.md,
+                    top = if (compact) NordicSpacing.sm else NordicSpacing.md,
+                    end = NordicSpacing.md,
+                    bottom = NordicSpacing.md
                 ),
-            verticalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 9.dp)
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
         ) {
             Slider(
                 value = position,
@@ -509,13 +512,13 @@ private fun PlayerConsole(
             ) {
                 Text(
                     formatDuration(position.toInt()),
-                    fontSize = 12.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.5f)
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
                 )
                 Text(
                     formatDuration(duration),
-                    fontSize = 12.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.5f)
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
                 )
             }
             Row(
@@ -568,14 +571,14 @@ private fun PlayerControlButton(
     val foreground = when {
         filled -> colorScheme.onPrimary
         active && enabled -> colorScheme.primary
-        enabled -> colorScheme.onSurface.copy(alpha = 0.76f)
-        else -> colorScheme.onSurface.copy(alpha = 0.28f)
+        enabled -> colorScheme.onSurface.copy(alpha = NordicAlpha.medium)
+        else -> colorScheme.onSurface.copy(alpha = NordicAlpha.faint)
     }
 
     Surface(
         color = background,
         contentColor = foreground,
-        shape = RoundedCornerShape(999.dp),
+        shape = NordicShapes.full,
         shadowElevation = if (filled && enabled) 4.dp else 0.dp,
         modifier = Modifier
             .size(size.dp)
@@ -584,7 +587,7 @@ private fun PlayerControlButton(
         Box(contentAlignment = Alignment.Center) {
             Text(
                 label,
-                fontSize = if (filled) 22.sp else 18.sp,
+                style = if (filled) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleMedium,
                 color = foreground,
                 fontWeight = FontWeight.Bold
             )

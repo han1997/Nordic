@@ -25,9 +25,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicShapes
+import com.nordic.mediahub.ui.theme.NordicSpacing
 
 data class HeaderAction(
     val icon: String,
@@ -63,10 +66,10 @@ fun AnimatedIconButton(icon: String, onClick: () -> Unit) {
         modifier = Modifier
             .size(42.dp)
             .scale(scale)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(NordicShapes.md)
             .background(colorScheme.surfaceVariant.copy(alpha = 0.58f))
     ) {
-        Text(icon, fontSize = 20.sp, color = colorScheme.onSurface.copy(alpha = 0.78f))
+        Text(icon, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Normal, color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium))
     }
 }
 
@@ -82,12 +85,12 @@ fun HeaderActionGroup(
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
         contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(18.dp),
+        shape = NordicShapes.md,
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
         modifier = modifier
     ) {
         Row(
-            modifier = Modifier.padding(3.dp),
+            modifier = Modifier.padding(NordicSpacing.xs),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -112,7 +115,7 @@ private fun HeaderActionButton(action: HeaderAction) {
         modifier = Modifier
             .size(34.dp)
             .scale(scale)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(NordicShapes.md)
             .clickable(
                 enabled = action.enabled,
                 interactionSource = interactionSource,
@@ -123,8 +126,9 @@ private fun HeaderActionButton(action: HeaderAction) {
     ) {
         Text(
             action.icon,
-            fontSize = 17.sp,
-            color = colorScheme.onSurface.copy(alpha = if (action.enabled) 0.78f else 0.36f)
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Normal,
+            color = colorScheme.onSurface.copy(alpha = if (action.enabled) NordicAlpha.medium else NordicAlpha.faint)
         )
     }
 }

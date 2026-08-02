@@ -41,6 +41,8 @@ private val LightColorScheme = lightColorScheme(
 fun NordicTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
+        typography = NordicTypography,
+        shapes = NordicShapesMaterial,
         content = content
     )
 }

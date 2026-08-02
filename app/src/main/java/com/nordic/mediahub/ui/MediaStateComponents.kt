@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -14,6 +13,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicShapes
+import com.nordic.mediahub.ui.theme.NordicSpacing
+
+// State-semantic container alpha — design-system values, intentionally NOT part of NordicAlpha
+// (which is only for generic secondary-text tiers). See quality-guidelines.md.
+private const val EMPTY_STATE_CONTAINER_ALPHA = 0.72f
+private const val LOADING_STATE_CONTAINER_ALPHA = 0.76f
+private const val ERROR_STATE_SUBTITLE_ALPHA = 0.82f
 
 internal enum class MediaStateTone {
     Neutral,
@@ -39,11 +47,11 @@ internal fun MediaStateCard(
     val containerColor = when {
         isError -> colorScheme.errorContainer
         density == MediaStateDensity.Compact -> colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        else -> colorScheme.surfaceVariant.copy(alpha = 0.72f)
+        else -> colorScheme.surfaceVariant.copy(alpha = EMPTY_STATE_CONTAINER_ALPHA)
     }
     val contentColor = if (isError) colorScheme.onErrorContainer else colorScheme.onSurface
-    val shape = RoundedCornerShape(if (density == MediaStateDensity.Compact) 20.dp else 24.dp)
-    val padding = if (density == MediaStateDensity.Compact) 18.dp else 20.dp
+    val shape = if (density == MediaStateDensity.Compact) NordicShapes.lg else NordicShapes.xl
+    val padding = if (density == MediaStateDensity.Compact) NordicSpacing.lg else NordicSpacing.xl
 
     Surface(
         color = containerColor,
@@ -58,24 +66,24 @@ internal fun MediaStateCard(
     ) {
         Column(
             modifier = Modifier.padding(padding),
-            verticalArrangement = Arrangement.spacedBy(if (density == MediaStateDensity.Compact) 6.dp else 8.dp)
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
         ) {
             Text(
                 title,
-                fontSize = if (density == MediaStateDensity.Compact) 17.sp else 18.sp,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleMedium,
                 color = contentColor
             )
             Text(
                 subtitle,
-                fontSize = if (density == MediaStateDensity.Compact) 13.sp else 14.sp,
+                style = if (density == MediaStateDensity.Compact) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Normal,
                 lineHeight = if (density == MediaStateDensity.Compact) 19.sp else 20.sp,
-                color = contentColor.copy(alpha = if (isError) 0.82f else 0.64f)
+                color = contentColor.copy(alpha = if (isError) ERROR_STATE_SUBTITLE_ALPHA else NordicAlpha.medium)
             )
             if (hint.isNotBlank()) {
                 Text(
                     hint,
-                    fontSize = 13.sp,
+                    style = MaterialTheme.typography.labelLarge,
                     color = colorScheme.primary,
                     fontWeight = FontWeight.Medium
                 )
@@ -93,25 +101,25 @@ internal fun MediaLoadingCard(
     val colorScheme = MaterialTheme.colorScheme
 
     Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.76f),
+        color = colorScheme.surfaceVariant.copy(alpha = LOADING_STATE_CONTAINER_ALPHA),
         contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(24.dp),
+        shape = NordicShapes.xl,
         modifier = modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.padding(NordicSpacing.xl),
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
         ) {
             Text(
                 title,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleMedium,
                 color = colorScheme.onSurface
             )
             Text(
                 subtitle,
-                fontSize = 13.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.62f)
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Normal,
+                color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium)
             )
         }
     }

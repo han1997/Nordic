@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,7 +35,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.EmbyRepository
@@ -42,6 +42,8 @@ import com.nordic.mediahub.data.VideoItem
 import com.nordic.mediahub.data.VideoLibrary
 import com.nordic.mediahub.data.VideoServerConfig
 import com.nordic.mediahub.data.isReadyForVideoSync
+import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicSpacing
 import kotlinx.coroutines.launch
 
 @Composable
@@ -189,24 +191,23 @@ fun VideoScreen(
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 156.dp),
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(NordicSpacing.lg),
+        verticalArrangement = Arrangement.spacedBy(NordicSpacing.lg),
+        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
                 verticalAlignment = Alignment.Top
             ) {
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
                 ) {
                     Text(
                         "视频",
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.displaySmall,
                         color = colorScheme.onBackground,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -219,8 +220,8 @@ fun VideoScreen(
                             savedConfig.isReadyForVideoSync() -> "已连接 Emby，选择媒体库浏览内容"
                             else -> "连接 Emby 后显示真实媒体库、海报和视频信息"
                         },
-                        fontSize = 14.sp,
-                        color = colorScheme.onSurface.copy(alpha = 0.62f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )

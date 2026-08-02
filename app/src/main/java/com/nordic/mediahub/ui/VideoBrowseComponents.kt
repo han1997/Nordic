@@ -17,8 +17,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -38,6 +38,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nordic.mediahub.data.VideoItem
 import com.nordic.mediahub.data.VideoLibrary
+import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicShapes
+import com.nordic.mediahub.ui.theme.NordicSpacing
 
 @Composable
 internal fun VideoLibrarySelector(
@@ -48,21 +51,21 @@ internal fun VideoLibrarySelector(
 ) {
     LazyRow(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)
     ) {
         items(libraries, key = { it.id }, contentType = { "video-library-chip" }) { library ->
             val selected = library.id == selectedLibraryId
             Surface(
                 color = if (selected) colorScheme.primary.copy(alpha = 0.16f) else colorScheme.surfaceVariant.copy(alpha = 0.56f),
                 contentColor = if (selected) colorScheme.primary else colorScheme.onSurface,
-                shape = RoundedCornerShape(18.dp),
+                shape = NordicShapes.md,
                 border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
                 modifier = Modifier.clickable { onSelect(library.id) }
             ) {
                 Text(
                     text = library.name,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    fontSize = 13.sp,
+                    modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.md),
+                    style = MaterialTheme.typography.labelLarge,
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -90,11 +93,11 @@ internal fun VideoCard(
                 indication = null,
                 onClick = onClick
             ),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
     ) {
         Surface(
             color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
-            shape = RoundedCornerShape(18.dp),
+            shape = NordicShapes.md,
             border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -105,7 +108,7 @@ internal fun VideoCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(2f / 3f),
-                shape = RoundedCornerShape(18.dp),
+                shape = NordicShapes.md,
                 fallbackText = "VIDEO"
             )
         }
@@ -113,10 +116,9 @@ internal fun VideoCard(
         Column {
             Text(
                 video.title,
-                fontSize = 14.sp,
+                style = MaterialTheme.typography.titleSmall,
                 lineHeight = 18.sp,
                 color = colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
@@ -124,8 +126,9 @@ internal fun VideoCard(
             if (meta.isNotBlank()) {
                 Text(
                     meta,
-                    fontSize = 12.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.56f),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Normal,
+                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -144,7 +147,7 @@ internal fun VideoSpotlightSections(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
+        verticalArrangement = Arrangement.spacedBy(NordicSpacing.lg)
     ) {
         VideoSpotlightRow(
             title = "继续观看",
@@ -182,19 +185,18 @@ internal fun VideoSpotlightRow(
 
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)
     ) {
         Text(
             title,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.headlineMedium,
             color = colorScheme.onBackground,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)
         ) {
             items(
                 items = videos,
@@ -224,7 +226,7 @@ internal fun VideoBrowserControls(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)
     ) {
         OutlinedTextField(
             value = searchQuery,
@@ -234,10 +236,10 @@ internal fun VideoBrowserControls(
             placeholder = {
                 Text(
                     "搜索标题、简介、年份",
-                    color = colorScheme.onSurface.copy(alpha = 0.44f)
+                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.faint)
                 )
             },
-            shape = RoundedCornerShape(16.dp),
+            shape = NordicShapes.md,
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = colorScheme.surfaceVariant.copy(alpha = 0.42f),
                 unfocusedContainerColor = colorScheme.surfaceVariant.copy(alpha = 0.42f),
@@ -247,21 +249,21 @@ internal fun VideoBrowserControls(
 
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
         ) {
             items(filters, key = { it.name }, contentType = { "video-type-filter" }) { filter ->
                 val selected = filter == selectedTypeFilter
                 Surface(
                     color = if (selected) colorScheme.primary.copy(alpha = 0.16f) else colorScheme.surfaceVariant.copy(alpha = 0.50f),
                     contentColor = if (selected) colorScheme.primary else colorScheme.onSurface,
-                    shape = RoundedCornerShape(999.dp),
+                    shape = NordicShapes.full,
                     border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
                     modifier = Modifier.clickable { onFilterSelected(filter) }
                 ) {
                     Text(
                         text = filter.label,
-                        modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
-                        fontSize = 13.sp,
+                        modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),
+                        style = MaterialTheme.typography.labelLarge,
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -299,7 +301,7 @@ internal fun VideoLoadingCard(index: Int, colorScheme: ColorScheme) {
     ) {
         Surface(
             color = colorScheme.surfaceVariant.copy(alpha = 0.76f),
-            shape = RoundedCornerShape(18.dp),
+            shape = NordicShapes.md,
             modifier = Modifier.fillMaxWidth()
         ) {
             Column {
@@ -310,21 +312,21 @@ internal fun VideoLoadingCard(index: Int, colorScheme: ColorScheme) {
                         .background(colorScheme.surface.copy(alpha = 0.34f))
                 )
                 Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.padding(NordicSpacing.md),
+                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(14.dp)
-                            .clip(RoundedCornerShape(999.dp))
+                            .clip(NordicShapes.full)
                             .background(colorScheme.onSurface.copy(alpha = 0.12f))
                     )
                     Box(
                         modifier = Modifier
                             .width(96.dp)
                             .height(12.dp)
-                            .clip(RoundedCornerShape(999.dp))
+                            .clip(NordicShapes.full)
                             .background(colorScheme.onSurface.copy(alpha = 0.08f))
                     )
                 }

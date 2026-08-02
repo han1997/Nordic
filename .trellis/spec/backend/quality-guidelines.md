@@ -31,6 +31,38 @@ This document records project-specific code quality conventions discovered durin
 
 Small UI primitives reused across files (e.g., `MusicMetaChip`, `rememberPressScale`) must be `internal` (not `private`) so they can be imported without exposing them as public API. Private helpers that are duplicated across files should be lifted to a shared file with `internal` visibility.
 
+### Design token system (Shape / Spacing / Typography / Alpha)
+
+UI files under `ui/` must use the design tokens defined in `ui/theme/Shapes.kt`, `ui/theme/Spacing.kt`, and `ui/theme/Type.kt` — not hardcoded `RoundedCornerShape(<num>.dp)`, `CircleShape`, `Modifier.padding(<num>.dp)`, `fontSize = <num>.sp`, or `colorScheme.onSurface.copy(alpha = <magic>)` literals. `NordicTheme` wires `NordicTypography` and `NordicShapesMaterial` into `MaterialTheme`, so composables can resolve via `MaterialTheme.typography.<slot>` / `MaterialTheme.shapes.<slot>` or reference the `object`s directly.
+
+**Token scales** (finite, named):
+
+```kotlin
+object NordicShapes { val none, sm(12), md(16), lg(20), xl(24), full(50%) }
+object NordicSpacing { val xs(4), sm(8), md(12), lg(16), xl(20), xxl(24), xxxl(32), content(16) }
+object NordicAlpha  { val medium(0.68f), subtle(0.5f), faint(0.3f) }
+val NordicTypography = Typography(
+    displaySmall(32/Bold), headlineMedium(22/Bold), titleMedium(16/SemiBold),
+    titleSmall(14/SemiBold), bodyMedium(14/Normal), labelLarge(13/SemiBold), bodySmall(12/Medium)
+)
+```
+
+**Rules**:
+- New UI code uses tokens; existing magic numbers converge to the nearest tier (see the convergence maps in the comments atop each token file).
+- `NordicShapes.full` (`RoundedCornerShape(50)`, percent-based) replaces both `RoundedCornerShape(999.dp)` and `CircleShape`.
+- Dynamic expressions stay dynamic: `if (compact) NordicShapes.lg else NordicShapes.xl` — do not collapse a dynamic branch to a single token just because both sides now resolve via tokens.
+- When a `Text` needs a slot style plus a different weight, pass `style = MaterialTheme.typography.<slot>` and keep the explicit `fontWeight = ...` override (the explicit param wins).
+- `lineHeight = <num>.sp` literals are out of the `fontSize` scope and may remain explicit when a slot does not encode the desired line spacing.
+
+**State-semantic alpha exception**: `MediaStateComponents` encodes the design-system state alphas (`EMPTY_STATE_CONTAINER_ALPHA = 0.72f` empty, `LOADING_STATE_CONTAINER_ALPHA = 0.76f` loading, `ERROR_STATE_SUBTITLE_ALPHA = 0.82f` error subtitle). These are state semantics, not generic text tiers — they stay as named local constants inside `MediaStateComponents` and must NOT be folded into `NordicAlpha`. `NordicAlpha` is only for generic secondary-text tiers on `onSurface`.
+
+**Out of token scope** (left explicit, not migrated):
+- `Color.White.copy(alpha=…)` in `VideoPlayerScreen` — video-overlay white-on-black context, separate from the `onSurface` secondary-text scope.
+- Component dimensions (cover-art `size`, control heights, grid `minSize`) — these are layout sizing, not spacing tokens.
+- `spacedBy(2.dp)` below `NordicSpacing.xs` (4.dp) — no tier to converge to; forcing `xs` would double the gap.
+
+**Why**: Centralizing the token scale prevents visual drift across 20+ UI files, makes the design intent legible at the call site (`NordicShapes.md` vs `RoundedCornerShape(14.dp)`), and gives future theme variants (dynamic color, window-size buckets) a single extension point instead of a full-UI re-scan.
+
 ### Shared media state surfaces
 
 Top-level Music, Audiobook, and Video screens should use the shared media state components instead of reimplementing one-off loading, error, and empty cards:

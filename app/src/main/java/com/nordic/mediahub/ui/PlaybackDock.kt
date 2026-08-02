@@ -8,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +22,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nordic.mediahub.data.NavidromeSong
+import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicShapes
+import com.nordic.mediahub.ui.theme.NordicSpacing
 
 
 @Composable
@@ -34,7 +36,7 @@ private fun DockPlayPauseButton(
     Surface(
         color = colorScheme.primary,
         contentColor = colorScheme.onPrimary,
-        shape = RoundedCornerShape(999.dp),
+        shape = NordicShapes.full,
         shadowElevation = 2.dp,
         modifier = Modifier.clickable(onClick = onPlayPause)
     ) {
@@ -43,9 +45,9 @@ private fun DockPlayPauseButton(
             contentAlignment = Alignment.Center
         ) {
             if (isPlaying) {
-                Text("⏸", fontSize = 16.sp, color = colorScheme.onPrimary)
+                Text("⏸", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Normal, color = colorScheme.onPrimary)
             } else {
-                Text("▶", fontSize = 16.sp, color = colorScheme.onPrimary)
+                Text("▶", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Normal, color = colorScheme.onPrimary)
             }
         }
     }
@@ -64,17 +66,17 @@ fun PolishedPlaybackDock(
     Surface(
         color = colorScheme.surface.copy(alpha = 0.94f),
         contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(28.dp),
+        shape = NordicShapes.xl,
         tonalElevation = 6.dp,
         shadowElevation = 12.dp,
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.08f)),
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(start = 12.dp, end = 12.dp, bottom = 10.dp)
+            .padding(start = NordicSpacing.md, end = NordicSpacing.md, bottom = NordicSpacing.md)
     ) {
         Column(
-            modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
+            modifier = Modifier.padding(top = NordicSpacing.sm, bottom = NordicSpacing.sm),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             PolishedNowPlayingBar(
@@ -87,7 +89,7 @@ fun PolishedPlaybackDock(
             )
             Box(
                 Modifier
-                    .padding(horizontal = 18.dp, vertical = 2.dp)
+                    .padding(horizontal = NordicSpacing.lg, vertical = 2.dp)
                     .height(1.dp)
                     .fillMaxWidth()
                     .background(colorScheme.onSurface.copy(alpha = 0.07f))
@@ -103,8 +105,8 @@ fun PolishedBottomNav(selected: Int, colorScheme: ColorScheme, onSelect: (Int) -
         Modifier
             .fillMaxWidth()
             .height(58.dp)
-            .padding(horizontal = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+            .padding(horizontal = NordicSpacing.sm),
+        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
     ) {
         PolishedNavItem("♪", "音乐", selected == 0, colorScheme, Modifier.weight(1f)) { onSelect(0) }
         PolishedNavItem("▤", "有声书", selected == 1, colorScheme, Modifier.weight(1f)) { onSelect(1) }
@@ -132,7 +134,7 @@ fun PolishedNavItem(
         animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
     )
     val contentColor by animateColorAsState(
-        targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.58f),
+        targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
         animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
     )
 
@@ -140,7 +142,7 @@ fun PolishedNavItem(
         modifier = modifier
             .fillMaxHeight()
             .scale(scale)
-            .clip(RoundedCornerShape(18.dp))
+            .clip(NordicShapes.md)
             .background(color = itemColor)
             .clickable(
                 interactionSource = interactionSource,
@@ -153,10 +155,10 @@ fun PolishedNavItem(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            Text(icon, fontSize = 19.sp, color = contentColor, fontWeight = FontWeight.SemiBold)
+            Text(icon, style = MaterialTheme.typography.titleMedium, color = contentColor)
             Text(
                 label,
-                fontSize = 11.sp,
+                style = MaterialTheme.typography.bodySmall,
                 color = contentColor,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
             )
@@ -184,7 +186,7 @@ fun PolishedNowPlayingBar(
         Box(
             modifier = Modifier
                 .size(46.dp)
-                .clip(RoundedCornerShape(13.dp))
+                .clip(NordicShapes.sm)
                 .background(
                     Brush.linearGradient(
                         listOf(
@@ -203,29 +205,27 @@ fun PolishedNowPlayingBar(
                     modifier = Modifier.matchParentSize()
                 )
             } else {
-                Text("♪", fontSize = 22.sp, color = colorScheme.primary, fontWeight = FontWeight.Bold)
+                Text("♪", style = MaterialTheme.typography.headlineMedium, color = colorScheme.primary)
             }
         }
-        Spacer(Modifier.width(14.dp))
+        Spacer(Modifier.width(NordicSpacing.md))
         Column(
             Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
         ) {
             if (song == null) {
                 Text(
                     "播放队列",
-                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.titleMedium,
                     color = colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             } else {
                 Text(
                     song.title,
-                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.titleMedium,
                     color = colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -233,17 +233,19 @@ fun PolishedNowPlayingBar(
             if (song == null) {
                 Text(
                     "等待播放",
-                    fontSize = 12.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.56f),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Normal,
+                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             } else {
                 Text(
                     playbackStatus ?: song.artist ?: song.album ?: "Unknown artist",
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Normal,
                     color = if (playbackStatus == null) {
-                        colorScheme.onSurface.copy(alpha = 0.56f)
+                        colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
                     } else {
                         colorScheme.primary.copy(alpha = 0.78f)
                     },

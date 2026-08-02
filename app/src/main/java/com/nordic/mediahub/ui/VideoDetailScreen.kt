@@ -14,8 +14,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,6 +28,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nordic.mediahub.data.VideoItem
+import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicShapes
+import com.nordic.mediahub.ui.theme.NordicSpacing
 
 @Composable
 internal fun VideoDetailScreen(
@@ -41,14 +44,14 @@ internal fun VideoDetailScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+            .padding(NordicSpacing.lg),
+        verticalArrangement = Arrangement.spacedBy(NordicSpacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 ScreenBackButton(
@@ -57,21 +60,20 @@ internal fun VideoDetailScreen(
                 )
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
                 ) {
                     Text(
                         "视频详情",
-                        fontSize = 13.sp,
-                        color = colorScheme.onSurface.copy(alpha = 0.58f),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         video.title,
-                        fontSize = 18.sp,
+                        style = MaterialTheme.typography.titleMedium,
                         color = colorScheme.onBackground,
-                        fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -82,7 +84,7 @@ internal fun VideoDetailScreen(
         item {
             Surface(
                 color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
-                shape = RoundedCornerShape(24.dp),
+                shape = NordicShapes.xl,
                 border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
                 shadowElevation = 10.dp,
                 modifier = Modifier.fillMaxWidth(0.72f)
@@ -94,7 +96,7 @@ internal fun VideoDetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(2f / 3f),
-                    shape = RoundedCornerShape(18.dp),
+                    shape = NordicShapes.md,
                     fallbackText = "VIDEO"
                 )
             }
@@ -103,14 +105,13 @@ internal fun VideoDetailScreen(
         item {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)
             ) {
                 Text(
                     video.title,
-                    fontSize = 28.sp,
+                    style = MaterialTheme.typography.displaySmall,
                     lineHeight = 32.sp,
                     color = colorScheme.onBackground,
-                    fontWeight = FontWeight.Bold,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -118,7 +119,7 @@ internal fun VideoDetailScreen(
                 val chips = remember(video) { video.detailChips() }
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
                 ) {
                     items(chips, key = { it }, contentType = { "video-detail-chip" }) { chip ->
                         MetaChip(text = chip, colorScheme = colorScheme)
@@ -132,20 +133,19 @@ internal fun VideoDetailScreen(
                     onClick = onPlay
                 )
 
-                Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
                     Text(
                         "简介",
-                        fontSize = 17.sp,
+                        style = MaterialTheme.typography.titleMedium,
                         color = colorScheme.onSurface,
-                        fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         video.overview.ifBlank { "暂无简介" },
-                        fontSize = 14.sp,
+                        style = MaterialTheme.typography.bodyMedium,
                         lineHeight = 21.sp,
-                        color = colorScheme.onSurface.copy(alpha = 0.68f)
+                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium)
                     )
                 }
             }
@@ -155,9 +155,8 @@ internal fun VideoDetailScreen(
             item {
                 Text(
                     "分集",
-                    fontSize = 20.sp,
+                    style = MaterialTheme.typography.headlineMedium,
                     color = colorScheme.onBackground,
-                    fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -200,12 +199,12 @@ internal fun VideoEpisodeRow(
                 indication = null,
                 onClick = onClick
             ),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(
             color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
-            shape = RoundedCornerShape(12.dp),
+            shape = NordicShapes.sm,
             border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
             modifier = Modifier.width(116.dp)
         ) {
@@ -216,29 +215,27 @@ internal fun VideoEpisodeRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f),
-                shape = RoundedCornerShape(18.dp),
+                shape = NordicShapes.md,
                 fallbackText = "VIDEO"
             )
         }
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
         ) {
             val label = remember(episode) { episode.episodeLabel() }
             Text(
                 label,
-                fontSize = 12.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.58f),
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.bodySmall,
+                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 episode.title,
-                fontSize = 15.sp,
+                style = MaterialTheme.typography.titleMedium,
                 lineHeight = 19.sp,
                 color = colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
@@ -246,8 +243,9 @@ internal fun VideoEpisodeRow(
             if (meta.isNotBlank()) {
                 Text(
                     meta,
-                    fontSize = 12.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.56f),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Normal,
+                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

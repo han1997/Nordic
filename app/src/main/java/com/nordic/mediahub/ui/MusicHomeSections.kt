@@ -13,9 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,6 +33,9 @@ import androidx.compose.ui.unit.sp
 import com.nordic.mediahub.data.NavidromeAlbum
 import com.nordic.mediahub.data.NavidromeArtist
 import com.nordic.mediahub.data.NavidromeSong
+import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicShapes
+import com.nordic.mediahub.ui.theme.NordicSpacing
 
 @Composable
 fun MusicHeroBanner(
@@ -44,7 +46,7 @@ fun MusicHeroBanner(
 ) {
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.62f),
-        shape = RoundedCornerShape(24.dp),
+        shape = NordicShapes.xl,
         modifier = modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
@@ -60,37 +62,36 @@ fun MusicHeroBanner(
                         )
                     )
                 )
-                .padding(18.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(NordicSpacing.lg),
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.lg),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)
             ) {
                 Text(
                     "刚刚同步到你的曲库",
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
                     color = colorScheme.primary,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     album.name,
-                    fontSize = 24.sp,
+                    style = MaterialTheme.typography.headlineMedium,
                     lineHeight = 28.sp,
                     color = colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     album.artist ?: "Unknown artist",
-                    fontSize = 14.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.68f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
                     MetaChip("${album.songCount} tracks", colorScheme)
                     album.year?.let { MetaChip(it.toString(), colorScheme) }
                 }
@@ -99,7 +100,7 @@ fun MusicHeroBanner(
             Box(
                 modifier = Modifier
                     .size(124.dp)
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(NordicShapes.lg)
                     .background(
                         Brush.linearGradient(
                             listOf(
@@ -133,16 +134,16 @@ fun MusicSectionHeader(
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
         ) {
             Text(
                 title,
-                fontSize = 20.sp,
+                style = MaterialTheme.typography.headlineMedium,
                 color = colorScheme.onBackground,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -150,8 +151,9 @@ fun MusicSectionHeader(
             )
             Text(
                 subtitle,
-                fontSize = 13.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.6f),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Normal,
+                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -161,21 +163,20 @@ fun MusicSectionHeader(
             Surface(
                 color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
                 contentColor = colorScheme.onSurface,
-                shape = RoundedCornerShape(999.dp),
+                shape = NordicShapes.full,
                 border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
                 modifier = Modifier
                     .height(34.dp)
                     .clickable(onClick = onAction)
             ) {
                 Box(
-                    modifier = Modifier.padding(horizontal = 13.dp),
+                    modifier = Modifier.padding(horizontal = NordicSpacing.md),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         actionLabel,
-                        fontSize = 13.sp,
-                        color = colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.labelLarge,
+                        color = colorScheme.primary
                     )
                 }
             }
@@ -242,7 +243,7 @@ fun ArtistShelfCard(
         contentDescription = artist.name,
         colorScheme = colorScheme,
         modifier = modifier,
-        artworkShape = CircleShape,
+        artworkShape = NordicShapes.full,
         initials = artist.initials,
         onClick = onClick
     )
@@ -264,7 +265,7 @@ fun SongListRow(
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
         contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(16.dp),
+        shape = NordicShapes.md,
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
         modifier = modifier
             .fillMaxWidth()
@@ -272,8 +273,8 @@ fun SongListRow(
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {
             CoverArt(
@@ -284,28 +285,29 @@ fun SongListRow(
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(3.dp)
+                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
             ) {
                 Text(
                     song.title,
-                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.titleMedium,
                     color = colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     song.artist ?: "Unknown artist",
-                    fontSize = 13.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.64f),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Normal,
+                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 song.album?.takeIf { it.isNotBlank() }?.let { album ->
                     Text(
                         album,
-                        fontSize = 12.sp,
-                        color = colorScheme.onSurface.copy(alpha = 0.46f),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Normal,
+                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -314,9 +316,8 @@ fun SongListRow(
 
             Text(
                 formatDuration(song.duration),
-                fontSize = 12.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.48f),
-                fontWeight = FontWeight.Medium,
+                style = MaterialTheme.typography.bodySmall,
+                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                 maxLines = 1
             )
         }
@@ -333,39 +334,39 @@ fun ArtistListRow(
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
         contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(16.dp),
+        shape = NordicShapes.md,
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
         modifier = modifier.fillMaxWidth().clickable(onClick = onClick)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {
             CoverArt(
                 imageUrl = null,
                 contentDescription = artist.name,
                 colorScheme = colorScheme,
-                shape = CircleShape,
+                shape = NordicShapes.full,
                 initials = artist.initials
             )
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(3.dp)
+                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
             ) {
                 Text(
                     artist.name,
-                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.titleMedium,
                     color = colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     "${artist.albumCount} albums",
-                    fontSize = 13.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.62f),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Normal,
+                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -373,9 +374,8 @@ fun ArtistListRow(
 
             Text(
                 "歌手",
-                fontSize = 12.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.44f),
-                fontWeight = FontWeight.Medium
+                style = MaterialTheme.typography.bodySmall,
+                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
             )
         }
     }
@@ -390,7 +390,7 @@ private fun CompactMusicShelfItem(
     contentDescription: String,
     colorScheme: ColorScheme,
     modifier: Modifier = Modifier,
-    artworkShape: Shape = RoundedCornerShape(18.dp),
+    artworkShape: Shape = NordicShapes.lg,
     initials: String? = null,
     onClick: () -> Unit = {}
 ) {
@@ -402,7 +402,7 @@ private fun CompactMusicShelfItem(
             .width(124.dp)
             .scale(scale)
             .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
     ) {
         CoverArt(
             imageUrl = artworkUrl,
@@ -413,26 +413,27 @@ private fun CompactMusicShelfItem(
             initials = initials
         )
 
-        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
             Text(
                 title,
-                fontSize = 13.sp,
+                style = MaterialTheme.typography.labelLarge,
                 color = colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 subtitle,
-                fontSize = 12.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.64f),
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Normal,
+                color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 meta,
-                fontSize = 11.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.46f),
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Normal,
+                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

@@ -11,8 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +33,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicShapes
+import com.nordic.mediahub.ui.theme.NordicSpacing
 
 @Composable
 internal fun MetaChip(
@@ -50,15 +53,14 @@ internal fun MetaChip(
     Surface(
         color = if (enabled) colorScheme.surfaceVariant.copy(alpha = 0.62f) else colorScheme.surface.copy(alpha = 0.30f),
         contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(999.dp),
+        shape = NordicShapes.full,
         modifier = chipModifier
     ) {
         Text(
             text,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-            fontSize = 11.sp,
-            color = colorScheme.onSurface.copy(alpha = 0.72f),
-            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.xs),
+            style = MaterialTheme.typography.bodySmall,
+            color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -74,13 +76,13 @@ internal fun ToneMetaChip(
     Surface(
         color = color.copy(alpha = 0.13f),
         contentColor = color,
-        shape = RoundedCornerShape(999.dp),
+        shape = NordicShapes.full,
         modifier = modifier
     ) {
         Text(
             text,
-            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
-            fontSize = 11.sp,
+            modifier = Modifier.padding(horizontal = NordicSpacing.sm, vertical = NordicSpacing.xs),
+            style = MaterialTheme.typography.bodySmall,
             color = color,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
@@ -98,20 +100,20 @@ internal fun ScreenBackButton(
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
         contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(16.dp),
+        shape = NordicShapes.md,
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
         modifier = modifier
             .height(42.dp)
             .clickable(onClick = onClick)
     ) {
         Box(
-            modifier = Modifier.padding(horizontal = 13.dp),
+            modifier = Modifier.padding(horizontal = NordicSpacing.md),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 "‹",
-                fontSize = 26.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.74f),
+                style = MaterialTheme.typography.headlineMedium,
+                color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
                 fontWeight = FontWeight.SemiBold
             )
         }
@@ -125,7 +127,7 @@ internal fun CoverArt(
     colorScheme: ColorScheme,
     size: Dp = 52.dp,
     modifier: Modifier = Modifier.size(size),
-    shape: Shape = RoundedCornerShape(12.dp),
+    shape: Shape = NordicShapes.sm,
     fallbackText: String? = null,
     initials: String? = null,
     fallbackGlyph: String? = null
@@ -179,15 +181,16 @@ internal fun CoverArt(
             showGlyph -> {
                 Text(
                     fallbackGlyph!!,
-                    fontSize = 24.sp,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Normal,
                     color = colorScheme.primary.copy(alpha = 0.72f)
                 )
             }
             showText -> {
                 Text(
                     fallbackText!!,
-                    fontSize = 12.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.48f),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -213,7 +216,7 @@ internal fun PrimaryActionButton(
     Surface(
         color = if (enabled) colorScheme.primary else colorScheme.primary.copy(alpha = 0.32f),
         contentColor = colorScheme.onPrimary,
-        shape = RoundedCornerShape(999.dp),
+        shape = NordicShapes.full,
         shadowElevation = if (enabled) 4.dp else 0.dp,
         modifier = modifier
             .fillMaxWidth()
@@ -232,7 +235,7 @@ internal fun PrimaryActionButton(
         ) {
             Text(
                 text,
-                fontSize = 16.sp,
+                style = MaterialTheme.typography.titleMedium,
                 color = colorScheme.onPrimary,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,

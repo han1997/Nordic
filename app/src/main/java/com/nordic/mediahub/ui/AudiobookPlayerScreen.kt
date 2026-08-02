@@ -17,9 +17,9 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
@@ -41,6 +41,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nordic.mediahub.data.AudiobookChapter
 import com.nordic.mediahub.playback.AudiobookPlaybackState
+import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicShapes
+import com.nordic.mediahub.ui.theme.NordicSpacing
 
 @Composable
 fun AudiobookPlayerScreen(
@@ -92,11 +95,11 @@ fun AudiobookPlayerScreen(
             )
     ) {
         val compact = maxHeight < 740.dp
-        val sidePadding = if (compact) 18.dp else 20.dp
+        val sidePadding = if (compact) NordicSpacing.lg else NordicSpacing.xl
         val statusTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-        val topPadding = statusTopPadding + if (compact) 8.dp else 12.dp
-        val bottomPadding = if (compact) 12.dp else 18.dp
-        val sectionGap = if (compact) 10.dp else 14.dp
+        val topPadding = statusTopPadding + if (compact) NordicSpacing.sm else NordicSpacing.md
+        val bottomPadding = if (compact) NordicSpacing.md else NordicSpacing.lg
+        val sectionGap = NordicSpacing.md
 
         Column(
             modifier = Modifier
@@ -122,7 +125,7 @@ fun AudiobookPlayerScreen(
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
             ) {
                 Text(
                     session?.displayTitle ?: "等待播放",
@@ -136,9 +139,9 @@ fun AudiobookPlayerScreen(
                 )
                 Text(
                     session?.displayAuthor?.takeIf { it.isNotBlank() } ?: statusText,
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = if (errorMessage == null) {
-                        colorScheme.onSurface.copy(alpha = 0.64f)
+                        colorScheme.onSurface.copy(alpha = NordicAlpha.medium)
                     } else {
                         colorScheme.error
                     },
@@ -146,7 +149,7 @@ fun AudiobookPlayerScreen(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
                     MetaChip(formatDuration(duration), colorScheme)
                     MetaChip(
                         text = formatPlaybackSpeed(state.playbackSpeed),
@@ -162,18 +165,18 @@ fun AudiobookPlayerScreen(
             Surface(
                 color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
                 contentColor = colorScheme.onSurface,
-                shape = RoundedCornerShape(24.dp),
+                shape = NordicShapes.xl,
                 border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
                     modifier = Modifier.padding(
-                        start = 14.dp,
-                        top = if (compact) 8.dp else 10.dp,
-                        end = 14.dp,
-                        bottom = if (compact) 12.dp else 14.dp
+                        start = NordicSpacing.md,
+                        top = if (compact) NordicSpacing.sm else NordicSpacing.md,
+                        end = NordicSpacing.md,
+                        bottom = NordicSpacing.md
                     ),
-                    verticalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 9.dp)
+                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
                 ) {
                     Slider(
                         value = visiblePosition.coerceIn(0f, duration.toFloat()),
@@ -196,13 +199,13 @@ fun AudiobookPlayerScreen(
                     ) {
                         Text(
                             formatDuration(visiblePosition.toInt()),
-                            fontSize = 12.sp,
-                            color = colorScheme.onSurface.copy(alpha = 0.5f)
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
                         )
                         Text(
                             formatDuration(duration),
-                            fontSize = 12.sp,
-                            color = colorScheme.onSurface.copy(alpha = 0.5f)
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
                         )
                     }
                     Row(
@@ -217,7 +220,7 @@ fun AudiobookPlayerScreen(
                             enabled = chapterNavigationEnabled,
                             onClick = onSeekToPreviousChapter
                         )
-                        Spacer(Modifier.size(if (compact) 6.dp else 8.dp))
+                        Spacer(Modifier.size(NordicSpacing.sm))
                         AudiobookControlButton(
                             label = "-30",
                             colorScheme = colorScheme,
@@ -225,7 +228,7 @@ fun AudiobookPlayerScreen(
                             enabled = playbackControlsEnabled,
                             onClick = onSeekBack
                         )
-                        Spacer(Modifier.size(if (compact) 6.dp else 8.dp))
+                        Spacer(Modifier.size(NordicSpacing.sm))
                         AudiobookPlayButton(
                             label = if (state.isPlaying) "Ⅱ" else "▶",
                             colorScheme = colorScheme,
@@ -233,7 +236,7 @@ fun AudiobookPlayerScreen(
                             enabled = playbackControlsEnabled,
                             onClick = onPlayPause
                         )
-                        Spacer(Modifier.size(if (compact) 6.dp else 8.dp))
+                        Spacer(Modifier.size(NordicSpacing.sm))
                         AudiobookControlButton(
                             label = "+30",
                             colorScheme = colorScheme,
@@ -241,7 +244,7 @@ fun AudiobookPlayerScreen(
                             enabled = playbackControlsEnabled,
                             onClick = onSeekForward
                         )
-                        Spacer(Modifier.size(if (compact) 6.dp else 8.dp))
+                        Spacer(Modifier.size(NordicSpacing.sm))
                         AudiobookControlButton(
                             label = "≫",
                             colorScheme = colorScheme,
@@ -271,7 +274,7 @@ private fun AudiobookPrimaryDisplay(
 
         Surface(
             color = colorScheme.surfaceVariant.copy(alpha = 0.48f),
-            shape = RoundedCornerShape(30.dp),
+            shape = NordicShapes.xl,
             shadowElevation = 10.dp,
             border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
             modifier = Modifier.size(side)
@@ -302,11 +305,11 @@ private fun AudiobookPrimaryDisplay(
                         modifier = Modifier
                             .fillMaxWidth(0.44f)
                             .aspectRatio(1f)
-                            .clip(RoundedCornerShape(28.dp))
+                            .clip(NordicShapes.xl)
                             .background(colorScheme.surface.copy(alpha = 0.62f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("▤", fontSize = 54.sp, color = colorScheme.primary.copy(alpha = 0.72f))
+                        Text("▤", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Normal, color = colorScheme.primary.copy(alpha = NordicAlpha.medium))
                     }
                 }
             }
@@ -327,19 +330,18 @@ private fun AudiobookPlayerTopBar(
         Surface(
             color = colorScheme.surfaceVariant.copy(alpha = 0.58f),
             contentColor = colorScheme.onSurface,
-            shape = RoundedCornerShape(14.dp),
+            shape = NordicShapes.md,
             border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
             modifier = Modifier.size(42.dp).clickable(onClick = onClose)
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Text("⌄", fontSize = 22.sp, color = colorScheme.onSurface.copy(alpha = 0.76f))
+                Text("⌄", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Normal, color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium))
             }
         }
         Text(
             "有声书播放",
-            fontSize = 14.sp,
-            color = colorScheme.onSurface,
-            fontWeight = FontWeight.SemiBold
+            style = MaterialTheme.typography.titleSmall,
+            color = colorScheme.onSurface
         )
         Spacer(Modifier.size(42.dp))
     }
@@ -356,13 +358,13 @@ private fun AudiobookControlButton(
     val foreground = if (enabled) {
         colorScheme.primary
     } else {
-        colorScheme.onSurface.copy(alpha = 0.28f)
+        colorScheme.onSurface.copy(alpha = NordicAlpha.faint)
     }
 
     Surface(
         color = if (enabled) colorScheme.primary.copy(alpha = 0.16f) else colorScheme.surface.copy(alpha = 0.30f),
         contentColor = foreground,
-        shape = RoundedCornerShape(999.dp),
+        shape = NordicShapes.full,
         modifier = Modifier
             .size(if (compact) 42.dp else 46.dp)
             .clickable(enabled = enabled, onClick = onClick)
@@ -389,7 +391,7 @@ private fun AudiobookPlayButton(
     Surface(
         color = if (enabled) colorScheme.primary else colorScheme.primary.copy(alpha = 0.32f),
         contentColor = colorScheme.onPrimary,
-        shape = RoundedCornerShape(999.dp),
+        shape = NordicShapes.full,
         shadowElevation = if (enabled) 4.dp else 0.dp,
         modifier = Modifier
             .size(if (compact) 58.dp else 62.dp)
@@ -398,9 +400,8 @@ private fun AudiobookPlayButton(
         Box(contentAlignment = Alignment.Center) {
             Text(
                 label,
-                fontSize = 22.sp,
-                color = colorScheme.onPrimary,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.headlineMedium,
+                color = colorScheme.onPrimary
             )
         }
     }

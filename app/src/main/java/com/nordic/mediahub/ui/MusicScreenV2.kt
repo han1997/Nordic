@@ -23,7 +23,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
@@ -44,7 +43,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nordic.mediahub.data.NavidromeAlbum
 import com.nordic.mediahub.data.NavidromeArtist
@@ -58,6 +56,9 @@ import com.nordic.mediahub.data.NavidromeRepository
 import com.nordic.mediahub.data.SearchMusicResult
 import com.nordic.mediahub.data.isReadyForMusicSync
 import com.nordic.mediahub.data.loadNavidromeMusicRefresh
+import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicShapes
+import com.nordic.mediahub.ui.theme.NordicSpacing
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -542,13 +543,13 @@ fun MusicScreenV2(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 18.dp, top = 18.dp, end = 18.dp, bottom = 28.dp),
-        verticalArrangement = Arrangement.spacedBy(if (isHomePage) 18.dp else 10.dp)
+        contentPadding = PaddingValues(start = NordicSpacing.lg, top = NordicSpacing.lg, end = NordicSpacing.lg, bottom = NordicSpacing.xxl),
+        verticalArrangement = Arrangement.spacedBy(if (isHomePage) NordicSpacing.lg else NordicSpacing.md)
     ) {
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
                 verticalAlignment = Alignment.Top
             ) {
                 if (!isHomePage) {
@@ -567,20 +568,19 @@ fun MusicScreenV2(
                 }
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
                 ) {
                     Text(
                         headerTitle,
-                        fontSize = 30.sp,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.displaySmall,
                         color = colorScheme.onBackground,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         headerSubtitle,
-                        fontSize = 14.sp,
-                        color = colorScheme.onSurface.copy(alpha = 0.62f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -695,7 +695,7 @@ fun MusicScreenV2(
                         )
                     }
                     item {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
                             itemsIndexed(
                                 items = homeSongs,
                                 key = { _, song -> "home-song-${song.id}" },
@@ -728,7 +728,7 @@ fun MusicScreenV2(
                         )
                     }
                     item {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
                             items(
                                 items = homeAlbums,
                                 key = { "home-album-${it.id}" },
@@ -755,7 +755,7 @@ fun MusicScreenV2(
                         )
                     }
                     item {
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
                             items(
                                 items = homeArtists,
                                 key = { "home-artist-${it.id}" },
@@ -786,10 +786,10 @@ fun MusicScreenV2(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 24.dp),
+                                .padding(vertical = NordicSpacing.xxl),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("正在加载专辑...", fontSize = 14.sp, color = colorScheme.onSurface.copy(alpha = 0.56f))
+                            Text("正在加载专辑...", style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle))
                         }
                     }
                 } else if (sortedAlbums.isEmpty()) {
@@ -884,7 +884,7 @@ fun MusicScreenV2(
                                 Surface(
                                     color = colorScheme.primary,
                                     contentColor = colorScheme.onPrimary,
-                                    shape = RoundedCornerShape(999.dp),
+                                    shape = NordicShapes.full,
                                     modifier = Modifier
                                         .height(34.dp)
                                         .clickable {
@@ -904,13 +904,12 @@ fun MusicScreenV2(
                                         }
                                 ) {
                                     Box(
-                                        modifier = Modifier.padding(horizontal = 16.dp),
+                                        modifier = Modifier.padding(horizontal = NordicSpacing.lg),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
                                             "播放全部",
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.SemiBold
+                                            style = MaterialTheme.typography.labelLarge
                                         )
                                     }
                                 }
@@ -922,10 +921,10 @@ fun MusicScreenV2(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 24.dp),
+                                    .padding(vertical = NordicSpacing.xxl),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("加载专辑...", fontSize = 14.sp, color = colorScheme.onSurface.copy(alpha = 0.56f))
+                                Text("加载专辑...", style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle))
                             }
                         }
                     } else if (artistAlbums.isEmpty()) {
@@ -961,10 +960,10 @@ fun MusicScreenV2(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 34.dp),
+                                .padding(vertical = NordicSpacing.xxxl),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("加载中...", fontSize = 14.sp, color = colorScheme.onSurface.copy(alpha = 0.56f))
+                            Text("加载中...", style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle))
                         }
                     }
                 } else {
@@ -1032,13 +1031,13 @@ fun MusicScreenV2(
                                 })
                             }
                         },
-                        placeholder = { Text("搜索歌曲、专辑、歌手...", color = colorScheme.onSurface.copy(alpha = 0.4f)) },
+                        placeholder = { Text("搜索歌曲、专辑、歌手...", color = colorScheme.onSurface.copy(alpha = NordicAlpha.faint)) },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = colorScheme.primary,
                             unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.2f)
                         ),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = NordicShapes.md,
                         modifier = Modifier.fillMaxWidth(),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
                     )
@@ -1114,7 +1113,7 @@ fun MusicScreenV2(
                             )
                         }
                         item {
-                            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
                                 items(
                                     items = result.albums,
                                     key = { "search-album-${it.id}" },
@@ -1172,10 +1171,10 @@ fun MusicScreenV2(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 24.dp),
+                                .padding(vertical = NordicSpacing.xxl),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("正在加载歌单...", fontSize = 14.sp, color = colorScheme.onSurface.copy(alpha = 0.56f))
+                            Text("正在加载歌单...", style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle))
                         }
                     }
                 } else if (playlists.isEmpty()) {
@@ -1210,10 +1209,10 @@ fun MusicScreenV2(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 34.dp),
+                                .padding(vertical = NordicSpacing.xxxl),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("加载歌单曲目...", fontSize = 14.sp, color = colorScheme.onSurface.copy(alpha = 0.56f))
+                            Text("加载歌单曲目...", style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle))
                         }
                     }
                 } else {

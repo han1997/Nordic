@@ -19,8 +19,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,12 +35,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.nordic.mediahub.data.NavidromeAlbum
 import com.nordic.mediahub.data.NavidromeAlbumSort
 import com.nordic.mediahub.data.NavidromeArtist
 import com.nordic.mediahub.data.NavidromePlaylist
 import com.nordic.mediahub.data.NavidromeSong
+import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicShapes
+import com.nordic.mediahub.ui.theme.NordicSpacing
 
 @Composable
 internal fun MusicSearchLanding(
@@ -57,7 +59,7 @@ internal fun MusicSearchLanding(
     val suggestedSongs = remember(songs) { songs.take(8) }
     val suggestedArtists = remember(artists) { artists.take(8) }
 
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.lg)) {
         if (!hasSuggestions) {
             MediaStateCard(
                 title = "输入关键词开始搜索",
@@ -79,7 +81,7 @@ internal fun MusicSearchLanding(
                 count = albums.size,
                 colorScheme = colorScheme
             )
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
                 items(
                     items = suggestedAlbums,
                     key = { "search-home-album-${it.id}" },
@@ -100,7 +102,7 @@ internal fun MusicSearchLanding(
                 count = songs.size,
                 colorScheme = colorScheme
             )
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
                 itemsIndexed(
                     items = suggestedSongs,
                     key = { index, song -> "search-home-song-${song.id}-$index" },
@@ -121,7 +123,7 @@ internal fun MusicSearchLanding(
                 count = artists.size,
                 colorScheme = colorScheme
             )
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
                 items(
                     items = suggestedArtists,
                     key = { "search-home-artist-${it.id}" },
@@ -146,22 +148,20 @@ internal fun SearchResultSectionHeader(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             title,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.titleMedium,
             color = colorScheme.onBackground,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
         Text(
             count.toString(),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            color = colorScheme.onSurface.copy(alpha = 0.5f),
+            style = MaterialTheme.typography.bodySmall,
+            color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
             maxLines = 1
         )
     }
@@ -177,21 +177,21 @@ internal fun PlaylistListRow(
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
         contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(16.dp),
+        shape = NordicShapes.md,
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
                     .size(56.dp)
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(NordicShapes.md)
                     .background(
                         Brush.linearGradient(
                             listOf(
@@ -210,32 +210,33 @@ internal fun PlaylistListRow(
                         modifier = Modifier.matchParentSize()
                     )
                 } else {
-                    Text("≡", fontSize = 22.sp, color = colorScheme.primary.copy(alpha = 0.56f))
+                    Text("≡", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Normal, color = colorScheme.primary.copy(alpha = NordicAlpha.subtle))
                 }
             }
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(3.dp)
+                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
             ) {
                 Text(
                     playlist.name,
-                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.titleMedium,
                     color = colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     playlist.comment?.takeIf { it.isNotBlank() } ?: playlist.owner ?: "Navidrome 歌单",
-                    fontSize = 13.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.62f),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Normal,
+                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     "${playlist.songCount} 首  •  ${formatDuration(playlist.duration)}",
-                    fontSize = 12.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.46f)
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Normal,
+                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
                 )
             }
         }
@@ -251,13 +252,13 @@ internal fun PlaylistDetailHeader(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.lg),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .size(120.dp)
-                .clip(RoundedCornerShape(20.dp))
+                .clip(NordicShapes.lg)
                 .background(
                     Brush.linearGradient(
                         listOf(
@@ -276,17 +277,16 @@ internal fun PlaylistDetailHeader(
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
-                Text("≡", fontSize = 38.sp, color = colorScheme.primary.copy(alpha = 0.62f))
+                Text("≡", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Normal, color = colorScheme.primary.copy(alpha = NordicAlpha.subtle))
             }
         }
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
         ) {
             Text(
                 playlist.name,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineMedium,
                 color = colorScheme.onSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
@@ -294,32 +294,31 @@ internal fun PlaylistDetailHeader(
             playlist.comment?.takeIf { it.isNotBlank() }?.let { comment ->
                 Text(
                     comment,
-                    fontSize = 14.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.68f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
                 MetaChip("${songCount} 首", colorScheme)
                 MetaChip(formatDuration(playlist.duration), colorScheme)
             }
             Surface(
                 color = colorScheme.primary,
                 contentColor = colorScheme.onPrimary,
-                shape = RoundedCornerShape(999.dp),
+                shape = NordicShapes.full,
                 modifier = Modifier
                     .height(36.dp)
                     .clickable(onClick = onPlayAll)
             ) {
                 Box(
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                    modifier = Modifier.padding(horizontal = NordicSpacing.lg),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         "播放全部",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.labelLarge
                     )
                 }
             }
@@ -350,13 +349,13 @@ internal fun MusicSegmentedTabs(
 
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(
             color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
             contentColor = colorScheme.onSurface,
-            shape = RoundedCornerShape(18.dp),
+            shape = NordicShapes.md,
             border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
             modifier = Modifier
                 .weight(1f)
@@ -365,8 +364,8 @@ internal fun MusicSegmentedTabs(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    .padding(NordicSpacing.xs),
+                horizontalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
             ) {
                 tabs.forEachIndexed { index, label ->
                     val selected = selectedTab == index
@@ -375,14 +374,14 @@ internal fun MusicSegmentedTabs(
                         animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
                     )
                     val textColor by animateColorAsState(
-                        targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.62f),
+                        targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                         animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
                     )
 
                     Surface(
                         color = tabColor,
                         contentColor = textColor,
-                        shape = RoundedCornerShape(14.dp),
+                        shape = NordicShapes.md,
                         tonalElevation = if (selected) 2.dp else 0.dp,
                         modifier = Modifier
                             .weight(1f)
@@ -396,7 +395,7 @@ internal fun MusicSegmentedTabs(
                             Text(
                                 label,
                                 color = textColor,
-                                fontSize = 14.sp,
+                                style = MaterialTheme.typography.titleSmall,
                                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -418,7 +417,7 @@ internal fun MusicSearchButton(
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
         contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(18.dp),
+        shape = NordicShapes.md,
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
         modifier = Modifier
             .height(48.dp)
@@ -427,13 +426,13 @@ internal fun MusicSearchButton(
         Box(
             modifier = Modifier
                 .height(48.dp)
-                .padding(horizontal = 15.dp),
+                .padding(horizontal = NordicSpacing.lg),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 "⌕",
-                fontSize = 20.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.72f),
+                style = MaterialTheme.typography.headlineMedium,
+                color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
                 fontWeight = FontWeight.SemiBold
             )
         }
@@ -455,7 +454,7 @@ internal fun SongSortSegmentedControl(
         MusicSongSort.Duration
     )
 
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
         items(sorts, key = { it.name }) { sort ->
             val selected = selectedSort == sort
             val background by animateColorAsState(
@@ -463,14 +462,14 @@ internal fun SongSortSegmentedControl(
                 animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
             )
             val textColor by animateColorAsState(
-                targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.64f),
+                targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
                 animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
             )
 
             Surface(
                 color = background,
                 contentColor = textColor,
-                shape = RoundedCornerShape(999.dp),
+                shape = NordicShapes.full,
                 border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
                 tonalElevation = if (selected) 2.dp else 0.dp,
                 modifier = Modifier
@@ -478,13 +477,13 @@ internal fun SongSortSegmentedControl(
                     .clickable { onSortSelected(sort) }
             ) {
                 Box(
-                    modifier = Modifier.padding(horizontal = 14.dp),
+                    modifier = Modifier.padding(horizontal = NordicSpacing.md),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         sort.displayLabel(),
                         color = textColor,
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.labelLarge,
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -510,7 +509,7 @@ internal fun AlbumSortSegmentedControl(
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
         contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(18.dp),
+        shape = NordicShapes.md,
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
         modifier = Modifier
             .fillMaxWidth()
@@ -519,8 +518,8 @@ internal fun AlbumSortSegmentedControl(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                .padding(NordicSpacing.xs),
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
         ) {
             sorts.forEach { sort ->
                 val selected = selectedSort == sort
@@ -529,14 +528,14 @@ internal fun AlbumSortSegmentedControl(
                     animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
                 )
                 val textColor by animateColorAsState(
-                    targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.62f),
+                    targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                     animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
                 )
 
                 Surface(
                     color = tabColor,
                     contentColor = textColor,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = NordicShapes.md,
                     tonalElevation = if (selected) 2.dp else 0.dp,
                     modifier = Modifier
                         .weight(1f)
@@ -550,7 +549,7 @@ internal fun AlbumSortSegmentedControl(
                         Text(
                             sort.displayLabel(),
                             color = textColor,
-                            fontSize = 14.sp,
+                            style = MaterialTheme.typography.titleSmall,
                             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -572,21 +571,21 @@ internal fun AlbumListRow(
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
         contentColor = colorScheme.onSurface,
-        shape = RoundedCornerShape(16.dp),
+        shape = NordicShapes.md,
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
                     .size(56.dp)
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(NordicShapes.md)
                     .background(
                         Brush.linearGradient(
                             listOf(
@@ -605,25 +604,25 @@ internal fun AlbumListRow(
                         modifier = Modifier.matchParentSize()
                     )
                 } else {
-                    Text("♪", fontSize = 20.sp, color = colorScheme.primary.copy(alpha = 0.52f))
+                    Text("♪", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Normal, color = colorScheme.primary.copy(alpha = NordicAlpha.subtle))
                 }
             }
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(3.dp)
+                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
             ) {
                 Text(
                     album.name,
-                    fontSize = 15.sp,
+                    style = MaterialTheme.typography.titleMedium,
                     color = colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     album.artist ?: "Unknown artist",
-                    fontSize = 13.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.62f),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Normal,
+                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -635,8 +634,9 @@ internal fun AlbumListRow(
                             append(it)
                         }
                     },
-                    fontSize = 12.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.46f)
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Normal,
+                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
                 )
             }
         }
@@ -651,13 +651,13 @@ internal fun AlbumDetailHeader(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.lg),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .size(120.dp)
-                .clip(RoundedCornerShape(20.dp))
+                .clip(NordicShapes.lg)
                 .background(
                     Brush.linearGradient(
                         listOf(
@@ -676,17 +676,16 @@ internal fun AlbumDetailHeader(
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
-                Text("♪", fontSize = 36.sp, color = colorScheme.primary.copy(alpha = 0.6f))
+                Text("♪", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Normal, color = colorScheme.primary.copy(alpha = NordicAlpha.subtle))
             }
         }
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
         ) {
             Text(
                 album.name,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.headlineMedium,
                 color = colorScheme.onSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
@@ -694,32 +693,31 @@ internal fun AlbumDetailHeader(
             album.artist?.let { artist ->
                 Text(
                     artist,
-                    fontSize = 14.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.68f),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
                 MetaChip("${album.songCount} tracks", colorScheme)
                 album.year?.let { MetaChip(it.toString(), colorScheme) }
             }
             Surface(
                 color = colorScheme.primary,
                 contentColor = colorScheme.onPrimary,
-                shape = RoundedCornerShape(999.dp),
+                shape = NordicShapes.full,
                 modifier = Modifier
                     .height(36.dp)
                     .clickable(onClick = onPlayAll)
             ) {
                 Box(
-                    modifier = Modifier.padding(horizontal = 16.dp),
+                    modifier = Modifier.padding(horizontal = NordicSpacing.lg),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         "播放全部",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.labelLarge
                     )
                 }
             }

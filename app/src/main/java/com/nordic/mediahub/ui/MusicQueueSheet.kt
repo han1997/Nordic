@@ -15,9 +15,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -38,9 +38,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.nordic.mediahub.data.NavidromeSong
+import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicShapes
+import com.nordic.mediahub.ui.theme.NordicSpacing
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,11 +68,11 @@ fun MusicQueueSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = colorScheme.surface,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        shape = NordicShapes.xl
     ) {
         Column(
-            modifier = Modifier.padding(bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.padding(bottom = NordicSpacing.xxl),
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
         ) {
             QueueSheetHeader(
                 queueSize = queue.size,
@@ -87,7 +89,7 @@ fun MusicQueueSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 520.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
                 ) {
                     itemsIndexed(
                         items = queue,
@@ -135,32 +137,32 @@ private fun QueueSheetHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = NordicSpacing.xl),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
         ) {
             Text(
                 "播放队列",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleMedium,
                 color = colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 queueSubtitle(queueSize, currentIndex, upcomingCount),
-                fontSize = 13.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.56f),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Normal,
+                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(NordicSpacing.md))
         QueueTextAction(
             text = "清空后续",
             enabled = upcomingCount > 0,
@@ -182,17 +184,17 @@ private fun queueSubtitle(queueSize: Int, currentIndex: Int, upcomingCount: Int)
 private fun QueueEmptyState(colorScheme: ColorScheme) {
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.46f),
-        shape = RoundedCornerShape(18.dp),
+        shape = NordicShapes.md,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp)
+            .padding(horizontal = NordicSpacing.md)
     ) {
         Text(
             "当前没有播放队列",
-            fontSize = 14.sp,
-            color = colorScheme.onSurface.copy(alpha = 0.58f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 28.dp)
+            modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.xxl)
         )
     }
 }
@@ -216,7 +218,7 @@ private fun QueueRow(
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
     val rowHeightPx = with(density) { 64.dp.toPx() }
-    val dragShadowPx = with(density) { 8.dp.toPx() }
+    val dragShadowPx = with(density) { NordicSpacing.sm.toPx() }
     val backgroundColor = if (isCurrent) {
         colorScheme.primary.copy(alpha = 0.1f)
     } else {
@@ -225,10 +227,10 @@ private fun QueueRow(
 
     Surface(
         color = backgroundColor,
-        shape = RoundedCornerShape(12.dp),
+        shape = NordicShapes.sm,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp)
+            .padding(horizontal = NordicSpacing.md)
             .zIndex(if (dragOffsetY != 0f) 1f else 0f)
             .graphicsLayer {
                 translationY = dragOffsetY
@@ -237,8 +239,8 @@ private fun QueueRow(
             .clickable(onClick = onClick)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
-            horizontalArrangement = Arrangement.spacedBy(11.dp),
+            modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {
             QueueDragHandle(
@@ -270,7 +272,7 @@ private fun QueueRow(
             Box(
                 modifier = Modifier
                     .size(42.dp)
-                    .clip(RoundedCornerShape(10.dp))
+                    .clip(NordicShapes.sm)
                     .background(
                         Brush.linearGradient(
                             listOf(
@@ -291,19 +293,20 @@ private fun QueueRow(
                 } else {
                     Text(
                         "♪",
-                        fontSize = 16.sp,
-                        color = if (isCurrent) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.48f)
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Normal,
+                        color = if (isCurrent) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
                     )
                 }
             }
 
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
             ) {
                 Text(
                     song.title,
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.titleSmall,
                     color = if (isCurrent) colorScheme.primary else colorScheme.onSurface,
                     fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Medium,
                     maxLines = 1,
@@ -311,14 +314,15 @@ private fun QueueRow(
                 )
                 Text(
                     song.artist ?: "Unknown",
-                    fontSize = 12.sp,
-                    color = colorScheme.onSurface.copy(alpha = 0.52f),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Normal,
+                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
 
-            Spacer(modifier = Modifier.width(2.dp))
+            Spacer(modifier = Modifier.width(NordicSpacing.xs))
 
             QueueTextAction(
                 text = "下一首",
@@ -336,7 +340,7 @@ private fun QueueRow(
             if (isCurrent) {
                 Text(
                     "♪",
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.titleSmall,
                     color = colorScheme.primary,
                     fontWeight = FontWeight.Bold
                 )
@@ -353,14 +357,14 @@ private fun QueueDragHandle(
 ) {
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = if (enabled) 0.48f else 0.28f),
-        contentColor = colorScheme.onSurface.copy(alpha = if (enabled) 0.62f else 0.24f),
-        shape = RoundedCornerShape(999.dp),
+        contentColor = colorScheme.onSurface.copy(alpha = if (enabled) NordicAlpha.subtle else NordicAlpha.faint),
+        shape = NordicShapes.full,
         modifier = modifier.size(28.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
                 "≡",
-                fontSize = 17.sp,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -383,20 +387,20 @@ private fun QueueTextAction(
         contentColor = if (enabled) {
             colorScheme.primary
         } else {
-            colorScheme.onSurface.copy(alpha = 0.3f)
+            colorScheme.onSurface.copy(alpha = NordicAlpha.faint)
         },
-        shape = RoundedCornerShape(999.dp),
+        shape = NordicShapes.full,
         modifier = Modifier
             .width(58.dp)
             .clickable(enabled = enabled, onClick = onClick)
     ) {
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier.padding(vertical = 7.dp)
+            modifier = Modifier.padding(vertical = NordicSpacing.sm)
         ) {
             Text(
                 text,
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1
             )
@@ -420,9 +424,9 @@ private fun QueueIconAction(
         contentColor = if (enabled) {
             colorScheme.error
         } else {
-            colorScheme.onSurface.copy(alpha = 0.3f)
+            colorScheme.onSurface.copy(alpha = NordicAlpha.faint)
         },
-        shape = RoundedCornerShape(999.dp),
+        shape = NordicShapes.full,
         modifier = Modifier
             .size(32.dp)
             .clickable(enabled = enabled, onClick = onClick)
@@ -430,7 +434,7 @@ private fun QueueIconAction(
         Box(contentAlignment = Alignment.Center) {
             Text(
                 text,
-                fontSize = 18.sp,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
         }

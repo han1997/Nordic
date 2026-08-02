@@ -20,8 +20,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
@@ -48,6 +48,8 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import com.nordic.mediahub.playback.AspectRatioMode
 import com.nordic.mediahub.playback.VideoPlaybackState
+import com.nordic.mediahub.ui.theme.NordicShapes
+import com.nordic.mediahub.ui.theme.NordicSpacing
 import kotlin.math.roundToInt
 
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -140,7 +142,7 @@ fun VideoPlayerScreen(
                 .fillMaxSize()
                 .then(if (isFullscreen) Modifier else Modifier.statusBarsPadding())
                 .then(if (isFullscreen) Modifier else Modifier.navigationBarsPadding())
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.md),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             VideoPlayerTopBar(
@@ -256,7 +258,7 @@ private fun VideoPlayerTopBar(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
         verticalAlignment = Alignment.Top
     ) {
         VideoPlayerChromeButton(
@@ -267,13 +269,12 @@ private fun VideoPlayerTopBar(
         )
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
         ) {
             Text(
                 title,
-                fontSize = 18.sp,
+                style = MaterialTheme.typography.titleMedium,
                 lineHeight = 22.sp,
-                fontWeight = FontWeight.SemiBold,
                 color = Color.White,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
@@ -281,7 +282,8 @@ private fun VideoPlayerTopBar(
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     subtitle,
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Normal,
                     color = Color.White.copy(alpha = 0.66f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -312,13 +314,13 @@ private fun VideoPlayerStatusPill(
     Surface(
         color = containerColor,
         contentColor = Color.White,
-        shape = RoundedCornerShape(999.dp),
+        shape = NordicShapes.full,
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f))
     ) {
         Text(
             text = text,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            fontSize = 11.sp,
+            modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),
+            style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.SemiBold,
             color = Color.White.copy(alpha = 0.86f),
             maxLines = 1,
@@ -332,16 +334,15 @@ private fun BoxScope.VideoPlayerCenterMessage(title: String, subtitle: String?) 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 28.dp)
+            .padding(horizontal = NordicSpacing.xxl)
             .align(Alignment.Center),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
     ) {
         Text(
             title,
             color = Color.White.copy(alpha = 0.84f),
-            fontSize = 17.sp,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.titleMedium,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
@@ -349,7 +350,8 @@ private fun BoxScope.VideoPlayerCenterMessage(title: String, subtitle: String?) 
             Text(
                 subtitle,
                 color = Color.White.copy(alpha = 0.60f),
-                fontSize = 13.sp,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Normal,
                 lineHeight = 18.sp,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis
@@ -380,13 +382,13 @@ private fun VideoPlayerControls(
     Surface(
         color = Color.Black.copy(alpha = 0.56f),
         contentColor = Color.White,
-        shape = RoundedCornerShape(28.dp),
+        shape = NordicShapes.xl,
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.md),
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)
         ) {
             Slider(
                 value = visiblePosition,
@@ -411,13 +413,15 @@ private fun VideoPlayerControls(
             ) {
                 Text(
                     formatDuration(visiblePosition.roundToInt()),
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Normal,
                     color = Color.White.copy(alpha = 0.68f),
                     maxLines = 1
                 )
                 Text(
                     formatVideoPlayerDurationLabel(durationSeconds),
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Normal,
                     color = Color.White.copy(alpha = 0.52f),
                     maxLines = 1
                 )
@@ -435,7 +439,7 @@ private fun VideoPlayerControls(
                     size = 44.dp,
                     onClick = onCycleAspectRatio
                 )
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(NordicSpacing.md))
                 VideoPlayerChromeButton(
                     text = "-10",
                     colorScheme = colorScheme,
@@ -443,7 +447,7 @@ private fun VideoPlayerControls(
                     size = 48.dp,
                     onClick = onSeekBack
                 )
-                Spacer(modifier = Modifier.width(18.dp))
+                Spacer(modifier = Modifier.width(NordicSpacing.lg))
                 VideoPlayerChromeButton(
                     text = if (isPlaying) "||" else ">",
                     colorScheme = colorScheme,
@@ -452,7 +456,7 @@ private fun VideoPlayerControls(
                     size = 58.dp,
                     onClick = onPlayPause
                 )
-                Spacer(modifier = Modifier.width(18.dp))
+                Spacer(modifier = Modifier.width(NordicSpacing.lg))
                 VideoPlayerChromeButton(
                     text = "+30",
                     colorScheme = colorScheme,
@@ -460,7 +464,7 @@ private fun VideoPlayerControls(
                     size = 48.dp,
                     onClick = onSeekForward
                 )
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(NordicSpacing.md))
                 VideoPlayerChromeButton(
                     text = if (isFullscreen) "Exit" else "Full",
                     colorScheme = colorScheme,
@@ -474,7 +478,8 @@ private fun VideoPlayerControls(
                 Text(
                     "Release to seek to ${formatDuration(scrubPosition.roundToInt())}",
                     modifier = Modifier.fillMaxWidth(),
-                    fontSize = 12.sp,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Normal,
                     color = Color.White.copy(alpha = 0.58f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -514,7 +519,7 @@ private fun VideoPlayerChromeButton(
     Surface(
         color = containerColor,
         contentColor = contentColor,
-        shape = RoundedCornerShape(999.dp),
+        shape = NordicShapes.full,
         border = if (primary) null else BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
         shadowElevation = if (primary && enabled) 4.dp else 0.dp,
         modifier = Modifier

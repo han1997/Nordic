@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment.Companion.Center
@@ -30,6 +28,9 @@ import com.nordic.mediahub.data.AudiobookItemSummary
 import com.nordic.mediahub.data.AudiobookLibrarySummary
 import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.isReadyForAudiobookSync
+import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicShapes
+import com.nordic.mediahub.ui.theme.NordicSpacing
 import kotlinx.coroutines.launch
 
 internal enum class AudiobookLibraryPage {
@@ -232,13 +233,13 @@ fun AudiobookScreen(
 
     LazyColumn(
         Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = PaddingValues(NordicSpacing.lg),
+        verticalArrangement = Arrangement.spacedBy(NordicSpacing.lg)
     ) {
         item {
             Row(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
                 verticalAlignment = Alignment.Top
             ) {
                 if (libraryPage != AudiobookLibraryPage.Home) {
@@ -249,12 +250,11 @@ fun AudiobookScreen(
                 }
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
                 ) {
                     Text(
                         if (libraryPage == AudiobookLibraryPage.Home) "有声书" else selectedItem?.title ?: "详情",
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.displaySmall,
                         color = colorScheme.onBackground,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -268,8 +268,8 @@ fun AudiobookScreen(
                             }
                             AudiobookLibraryPage.Detail -> selectedItem?.authors?.joinToString(" / ").orEmpty()
                         },
-                        fontSize = 14.sp,
-                        color = colorScheme.onSurface.copy(alpha = 0.62f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -432,14 +432,13 @@ fun AudiobookScreen(
                         )
                     }
                     if (detailChapters.isNotEmpty()) {
-                        item {
-                            Text(
-                                "章节",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = colorScheme.onBackground
-                            )
-                        }
+                    item {
+                        Text(
+                            "章节",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = colorScheme.onBackground
+                        )
+                    }
                         items(detailChapters, key = { it.id }, contentType = { "audiobook-chapter-row" }) { chapter ->
                             AudiobookChapterRow(chapter, colorScheme)
                         }
@@ -459,7 +458,7 @@ private fun AudiobookLibrarySelector(
 ) {
     LazyRow(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)
     ) {
         items(
             items = libraries,
@@ -470,14 +469,14 @@ private fun AudiobookLibrarySelector(
             Surface(
                 color = if (selected) colorScheme.primary.copy(alpha = 0.16f) else colorScheme.surfaceVariant.copy(alpha = 0.56f),
                 contentColor = if (selected) colorScheme.primary else colorScheme.onSurface,
-                shape = RoundedCornerShape(18.dp),
+                shape = NordicShapes.md,
                 border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
                 modifier = Modifier.clickable { onSelect(library.id) }
             ) {
                 Text(
                     library.name,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    fontSize = 13.sp,
+                    modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.md),
+                    style = MaterialTheme.typography.labelLarge,
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -496,13 +495,13 @@ private fun AudiobookSummaryCard(
 ) {
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
-        shape = RoundedCornerShape(18.dp),
+        shape = NordicShapes.md,
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
         modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen)
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            modifier = Modifier.padding(NordicSpacing.md),
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {
             CoverArt(
@@ -510,23 +509,22 @@ private fun AudiobookSummaryCard(
                 contentDescription = item.title,
                 colorScheme = colorScheme,
                 modifier = Modifier.size(72.dp),
-                shape = RoundedCornerShape(18.dp),
+                shape = NordicShapes.md,
                 fallbackGlyph = "▤"
             )
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
             ) {
                 Text(
                     item.title,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMedium,
                     color = colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
                 if (item.author.isNotBlank()) {
-                    Text(item.author, fontSize = 13.sp, color = colorScheme.onSurface.copy(alpha = 0.66f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(item.author, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Normal, color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 val meta = remember(item) {
                     buildList {
@@ -536,17 +534,17 @@ private fun AudiobookSummaryCard(
                     }.joinToString("  •  ")
                 }
                 if (meta.isNotBlank()) {
-                    Text(meta, fontSize = 12.sp, color = colorScheme.onSurface.copy(alpha = 0.5f), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(meta, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Normal, color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle), maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
             Surface(
                 color = colorScheme.primary,
                 contentColor = colorScheme.onPrimary,
-                shape = CircleShape,
+                shape = NordicShapes.full,
                 modifier = Modifier.size(38.dp).clickable(onClick = onPlay)
             ) {
                 Box(contentAlignment = Center) {
-                    Text("▶", fontSize = 16.sp, color = colorScheme.onPrimary)
+                    Text("▶", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Normal, color = colorScheme.onPrimary)
                 }
             }
         }
@@ -561,11 +559,11 @@ private fun AudiobookDetailHeader(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(NordicSpacing.lg)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.lg),
             verticalAlignment = Alignment.Top
         ) {
             CoverArt(
@@ -573,21 +571,21 @@ private fun AudiobookDetailHeader(
                 contentDescription = item.title,
                 colorScheme = colorScheme,
                 modifier = Modifier.size(128.dp),
-                shape = RoundedCornerShape(18.dp),
+                shape = NordicShapes.md,
                 fallbackGlyph = "▤"
             )
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+                verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
             ) {
-                Text(item.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = colorScheme.onSurface)
+                Text(item.title, style = MaterialTheme.typography.headlineMedium, color = colorScheme.onSurface)
                 if (item.subtitle.isNotBlank()) {
-                    Text(item.subtitle, fontSize = 14.sp, color = colorScheme.onSurface.copy(alpha = 0.64f))
+                    Text(item.subtitle, style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium))
                 }
                 if (item.authors.isNotEmpty()) {
-                    Text(item.authors.joinToString(" / "), fontSize = 14.sp, color = colorScheme.onSurface.copy(alpha = 0.68f))
+                    Text(item.authors.joinToString(" / "), style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium))
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
                     MetaChip("${item.chapters.size} 章", colorScheme)
                     MetaChip(formatDuration(item.durationSeconds), colorScheme)
                 }
@@ -597,14 +595,14 @@ private fun AudiobookDetailHeader(
                 Surface(
                     color = colorScheme.primary,
                     contentColor = colorScheme.onPrimary,
-                    shape = RoundedCornerShape(999.dp),
+                    shape = NordicShapes.full,
                     modifier = Modifier.height(36.dp).clickable(onClick = onPlay)
                 ) {
                     Box(
-                        modifier = Modifier.padding(horizontal = 16.dp),
+                        modifier = Modifier.padding(horizontal = NordicSpacing.lg),
                         contentAlignment = Center
                     ) {
-                        Text("继续播放", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text("继续播放", style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
@@ -613,20 +611,21 @@ private fun AudiobookDetailHeader(
         if (item.description.isNotBlank()) {
             Surface(
                 color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                shape = RoundedCornerShape(20.dp),
+                shape = NordicShapes.lg,
                 border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
-                    modifier = Modifier.padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.padding(NordicSpacing.lg),
+                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
                 ) {
-                    Text("简介", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = colorScheme.onSurface)
+                    Text("简介", style = MaterialTheme.typography.titleMedium, color = colorScheme.onSurface)
                     Text(
                         item.description,
-                        fontSize = 13.sp,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Normal,
                         lineHeight = 19.sp,
-                        color = colorScheme.onSurface.copy(alpha = 0.66f)
+                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium)
                     )
                 }
             }
@@ -638,19 +637,20 @@ private fun AudiobookDetailHeader(
 private fun AudiobookChapterRow(chapter: AudiobookChapter, colorScheme: ColorScheme) {
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
-        shape = RoundedCornerShape(16.dp),
+        shape = NordicShapes.md,
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.md),
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
         ) {
-            Text(chapter.title, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = colorScheme.onSurface)
+            Text(chapter.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, color = colorScheme.onSurface)
             Text(
                 "${formatDuration(chapter.startSeconds)} - ${formatDuration(chapter.endSeconds)}",
-                fontSize = 12.sp,
-                color = colorScheme.onSurface.copy(alpha = 0.54f)
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Normal,
+                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
             )
         }
     }

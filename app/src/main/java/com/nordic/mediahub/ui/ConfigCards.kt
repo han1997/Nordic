@@ -15,9 +15,9 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -35,6 +35,9 @@ import com.nordic.mediahub.data.AudiobookShelfConfig
 import com.nordic.mediahub.data.NavidromeConfig
 import com.nordic.mediahub.data.VideoServerConfig
 import com.nordic.mediahub.data.VideoServerType
+import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicShapes
+import com.nordic.mediahub.ui.theme.NordicSpacing
 
 @Composable
 fun NavidromeConfigCard(
@@ -90,7 +93,7 @@ fun VideoConfigCard(
     onSave: () -> Unit
 ) {
     ServerConfigCard(title = "视频服务器", colorScheme = colorScheme) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
             VideoServerType.values().forEach { type ->
                 val selected = config.type == type
                 val scale by animateFloatAsState(
@@ -100,7 +103,7 @@ fun VideoConfigCard(
                 Surface(
                     color = if (selected) colorScheme.primary.copy(alpha = 0.16f) else colorScheme.surfaceVariant.copy(alpha = 0.56f),
                     contentColor = if (selected) colorScheme.primary else colorScheme.onSurface,
-                    shape = RoundedCornerShape(999.dp),
+                    shape = NordicShapes.full,
                     border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
                     modifier = Modifier
                         .weight(1f)
@@ -109,8 +112,8 @@ fun VideoConfigCard(
                 ) {
                     Text(
                         type.name,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
-                        fontSize = 13.sp,
+                        modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.md),
+                        style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -121,7 +124,7 @@ fun VideoConfigCard(
             transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(200)) },
             label = "video-config-type"
         ) { type ->
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
                 ConfigTextField("服务器地址", config.serverUrl, "https://video.example.com", colorScheme) {
                     onConfigChange(config.copy(serverUrl = it))
                 }
@@ -167,18 +170,17 @@ private fun ServerConfigCard(
 ) {
     Surface(
         color = colorScheme.surfaceVariant,
-        shape = RoundedCornerShape(12.dp),
+        shape = NordicShapes.sm,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(NordicSpacing.lg),
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)
         ) {
             Text(
                 title,
-                fontSize = 15.sp,
-                color = colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold
+                style = MaterialTheme.typography.titleMedium,
+                color = colorScheme.onSurface
             )
             content()
         }
@@ -194,12 +196,12 @@ fun ConfigTextField(
     isPassword: Boolean = false,
     onValueChange: (String) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(label, fontSize = 12.sp, color = colorScheme.onSurface.copy(alpha = 0.7f))
+    Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
+        Text(label, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Normal, color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium))
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            placeholder = { Text(placeholder, color = colorScheme.onSurface.copy(alpha = 0.4f), fontSize = 14.sp) },
+            placeholder = { Text(placeholder, style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface.copy(alpha = NordicAlpha.faint)) },
             visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = colorScheme.primary,
@@ -208,7 +210,7 @@ fun ConfigTextField(
                 unfocusedTextColor = colorScheme.onSurface
             ),
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(8.dp),
+            shape = NordicShapes.sm,
             singleLine = true
         )
     }

@@ -14,8 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -39,7 +39,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicShapes
+import com.nordic.mediahub.ui.theme.NordicSpacing
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,25 +86,24 @@ fun MusicEqualizerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = colorScheme.surface,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        shape = NordicShapes.xl
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(bottom = NordicSpacing.xxl),
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.lg)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = NordicSpacing.xl),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     "均衡器",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMedium,
                     color = colorScheme.onSurface
                 )
             }
@@ -110,35 +111,34 @@ fun MusicEqualizerSheet(
             if (equalizer == null) {
                 Surface(
                     color = colorScheme.surfaceVariant.copy(alpha = 0.46f),
-                    shape = RoundedCornerShape(18.dp),
+                    shape = NordicShapes.md,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp)
+                        .padding(horizontal = NordicSpacing.md)
                 ) {
                     Text(
                         "均衡器不可用",
-                        fontSize = 14.sp,
-                        color = colorScheme.onSurface.copy(alpha = 0.58f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 28.dp)
+                        modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.xxl)
                     )
                 }
             } else {
                 // Preset buttons
                 if (presetNames.isNotEmpty()) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.padding(horizontal = NordicSpacing.md),
+                        verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
                     ) {
                         Text(
                             "预设",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = colorScheme.onSurface.copy(alpha = 0.68f),
-                            modifier = Modifier.padding(horizontal = 8.dp)
+                            style = MaterialTheme.typography.titleSmall,
+                            color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
+                            modifier = Modifier.padding(horizontal = NordicSpacing.sm)
                         )
                         LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
                         ) {
                             itemsIndexed(
                                 items = presetNames,
@@ -154,9 +154,9 @@ fun MusicEqualizerSheet(
                                     contentColor = if (isSelected) {
                                         colorScheme.primary
                                     } else {
-                                        colorScheme.onSurface.copy(alpha = 0.68f)
+                                        colorScheme.onSurface.copy(alpha = NordicAlpha.medium)
                                     },
-                                    shape = RoundedCornerShape(999.dp),
+                                    shape = NordicShapes.full,
                                     modifier = Modifier.clickable {
                                         try {
                                             equalizer?.usePreset(index.toShort())
@@ -171,11 +171,11 @@ fun MusicEqualizerSheet(
                                 ) {
                                     Text(
                                         name,
-                                        fontSize = 13.sp,
+                                        style = MaterialTheme.typography.labelLarge,
                                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp)
+                                        modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm)
                                     )
                                 }
                             }
@@ -186,19 +186,18 @@ fun MusicEqualizerSheet(
                 // Band sliders - horizontal sliders labeled with frequency
                 if (bandCount > 0) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        modifier = Modifier.padding(horizontal = NordicSpacing.md),
+                        verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
                     ) {
                         Text(
                             "自定义频段",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = colorScheme.onSurface.copy(alpha = 0.68f),
-                            modifier = Modifier.padding(horizontal = 8.dp)
+                            style = MaterialTheme.typography.titleSmall,
+                            color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
+                            modifier = Modifier.padding(horizontal = NordicSpacing.sm)
                         )
                         Column(
-                            modifier = Modifier.padding(horizontal = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            modifier = Modifier.padding(horizontal = NordicSpacing.xs),
+                            verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
                         ) {
                             for (band in 0 until bandCount) {
                                 val level = bandLevels.getOrElse(band) { 0 }
@@ -214,13 +213,12 @@ fun MusicEqualizerSheet(
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
                                 ) {
                                     Text(
                                         freqLabel,
-                                        fontSize = 12.sp,
-                                        color = colorScheme.onSurface.copy(alpha = 0.56f),
-                                        fontWeight = FontWeight.Medium,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                                         modifier = Modifier.width(52.dp)
                                     )
                                     Slider(
@@ -250,9 +248,8 @@ fun MusicEqualizerSheet(
                                     val dbLabel = String.format("%.1f", level.toFloat() / 100f)
                                     Text(
                                         "${dbLabel}dB",
-                                        fontSize = 11.sp,
-                                        color = colorScheme.onSurface.copy(alpha = 0.46f),
-                                        fontWeight = FontWeight.Medium,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                                         modifier = Modifier.width(48.dp),
                                         textAlign = TextAlign.End
                                     )
