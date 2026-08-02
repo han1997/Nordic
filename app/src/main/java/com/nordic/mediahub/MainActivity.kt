@@ -2,7 +2,6 @@ package com.nordic.mediahub
 
 import android.content.pm.ActivityInfo
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
@@ -14,6 +13,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.TransformOrigin
@@ -26,23 +26,16 @@ import androidx.compose.ui.unit.Velocity
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.MediaAuthHeaderInterceptor
 import com.nordic.mediahub.data.AudiobookShelfConfig
 import com.nordic.mediahub.data.AudiobookPlaybackSession
-import com.nordic.mediahub.data.AudiobookShelfRepository
-import com.nordic.mediahub.data.EmbyRepository
-import com.nordic.mediahub.data.MusicLyrics
-import com.nordic.mediahub.data.NavidromeConfig
-import com.nordic.mediahub.data.NavidromeRepository
 import com.nordic.mediahub.data.VideoItem
-import com.nordic.mediahub.data.VideoServerConfig
 import com.nordic.mediahub.data.isReadyForAudiobookSync
-import com.nordic.mediahub.data.isReadyForMusicSync
-import com.nordic.mediahub.data.isReadyForVideoSync
-import com.nordic.mediahub.playback.AudiobookPlaybackEngine
-import com.nordic.mediahub.playback.MusicPlaybackEngine
-import com.nordic.mediahub.playback.VideoPlaybackEngine
+import com.nordic.mediahub.playback.AudiobookPlaybackViewModel
+import com.nordic.mediahub.playback.MusicPlaybackViewModel
+import com.nordic.mediahub.playback.VideoPlaybackViewModel
 import com.nordic.mediahub.ui.*
 import com.nordic.mediahub.ui.theme.*
 import coil.Coil
@@ -129,32 +122,6 @@ internal fun resolveAudiobookCloseFailurePresentation(
             showPlayer = false,
             errorMessage = null
         )
-    }
-}
-
-private class PeriodicSyncStep(
-    val positionSeconds: Int,
-    val isPlaying: Boolean,
-    val deltaSeconds: Int?,
-    val doSync: suspend (positionSeconds: Int, isPlaying: Boolean, deltaSeconds: Int) -> Unit
-)
-
-private suspend fun runPeriodicProgressSync(
-    initialBaselineSeconds: Int,
-    nextStep: () -> PeriodicSyncStep?,
-    onFailure: (Throwable) -> Unit
-) {
-    var lastSyncedPosition = initialBaselineSeconds
-    while (true) {
-        delay(30_000)
-        val step = nextStep() ?: return
-        val currentPosition = maxOf(step.positionSeconds, lastSyncedPosition)
-        val currentDelta = step.deltaSeconds ?: (currentPosition - lastSyncedPosition).coerceAtLeast(0)
-        runCatching {
-            step.doSync(currentPosition, step.isPlaying, currentDelta)
-        }.onSuccess {
-            lastSyncedPosition = currentPosition
-        }.onFailure(onFailure)
     }
 }
 
@@ -264,73 +231,61 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
-    var selectedTab by remember { mutableStateOf(0) }
-    var showPlayer by remember { mutableStateOf(false) }
-    var showAudiobookPlayer by remember { mutableStateOf(false) }
-    var showVideoPlayer by remember { mutableStateOf(false) }
-    var isFullscreen by remember { mutableStateOf(false) }
-    var showQueueSheet by remember { mutableStateOf(false) }
-    var audiobookPlaybackError by remember { mutableStateOf<String?>(null) }
-    var videoPlaybackError by remember { mutableStateOf<String?>(null) }
+    var selectedTab by rememberSaveable { mutableStateOf(0) }
+    var showPlayer by rememberSaveable { mutableStateOf(false) }
+    var showAudiobookPlayer by rememberSaveable { mutableStateOf(false) }
+    var showVideoPlayer by rememberSaveable { mutableStateOf(false) }
+    var isFullscreen by rememberSaveable { mutableStateOf(false) }
+    var showQueueSheet by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
-    val playbackEngine = remember { MusicPlaybackEngine(context) }
-    val audiobookPlaybackEngine = remember { AudiobookPlaybackEngine(context) }
-    val videoPlaybackEngine = remember { VideoPlaybackEngine(context) }
+    val musicVM: MusicPlaybackViewModel = viewModel()
+    val audiobookVM: AudiobookPlaybackViewModel = viewModel()
+    val videoVM: VideoPlaybackViewModel = viewModel()
     val configRepository = remember { ConfigRepository(context) }
-    val navidromeConfig by configRepository.navidromeConfig.collectAsStateWithLifecycle(NavidromeConfig())
     val audiobookConfig by configRepository.audiobookConfig.collectAsStateWithLifecycle(AudiobookShelfConfig())
-    val videoConfig by configRepository.videoConfig.collectAsStateWithLifecycle(VideoServerConfig())
-    val navidromeRepository = remember(navidromeConfig) {
-        if (navidromeConfig.isReadyForMusicSync()) {
-            NavidromeRepository(navidromeConfig)
-        } else {
-            null
-        }
-    }
-    val audiobookRepository = remember(audiobookConfig) {
-        if (audiobookConfig.isReadyForAudiobookSync()) {
-            AudiobookShelfRepository(audiobookConfig)
-        } else {
-            null
-        }
-    }
-    val embyRepository = remember(videoConfig) {
-        if (videoConfig.isReadyForVideoSync()) {
-            EmbyRepository(videoConfig)
-        } else {
-            null
-        }
-    }
-    DisposableEffect(playbackEngine) {
-        onDispose { playbackEngine.release() }
-    }
-    DisposableEffect(audiobookPlaybackEngine) {
-        onDispose { audiobookPlaybackEngine.release() }
-    }
-    DisposableEffect(videoPlaybackEngine) {
-        onDispose { videoPlaybackEngine.release() }
-    }
-    val playbackState by playbackEngine.state.collectAsStateWithLifecycle()
-    val audiobookPlaybackState by audiobookPlaybackEngine.state.collectAsStateWithLifecycle()
-    val videoPlaybackState by videoPlaybackEngine.state.collectAsStateWithLifecycle()
+    val playbackState by musicVM.state.collectAsStateWithLifecycle()
+    val audiobookPlaybackState by audiobookVM.state.collectAsStateWithLifecycle()
+    val videoPlaybackState by videoVM.state.collectAsStateWithLifecycle()
+    val audiobookPlaybackError by audiobookVM.error.collectAsStateWithLifecycle()
+    val videoPlaybackError by videoVM.error.collectAsStateWithLifecycle()
+    val lyrics by musicVM.lyrics.collectAsStateWithLifecycle()
+    val isLyricsLoading by musicVM.isLyricsLoading.collectAsStateWithLifecycle()
+    val lyricsError by musicVM.lyricsError.collectAsStateWithLifecycle()
     val currentSong = playbackState.currentSong
     val isPlaying = playbackState.isPlaying
-    var lyrics by remember { mutableStateOf<MusicLyrics?>(null) }
-    var isLyricsLoading by remember { mutableStateOf(false) }
-    var lyricsError by remember { mutableStateOf<String?>(null) }
     val colorScheme = MaterialTheme.colorScheme
     val scope = rememberCoroutineScope()
     val onPlayPause = {
         if (currentSong == null) {
             showPlayer = true
         } else {
-            playbackEngine.togglePlayPause()
+            musicVM.togglePlayPause()
         }
     }
     val playbackStatus = when {
         playbackState.errorMessage != null -> playbackState.errorMessage
         playbackState.isBuffering -> "正在缓冲"
         else -> null
+    }
+
+    LaunchedEffect(showAudiobookPlayer) {
+        audiobookVM.setPlayerVisible(showAudiobookPlayer)
+    }
+
+    fun closeAudiobookPlayback(reopenPlayerOnFailure: Boolean = false) {
+        showAudiobookPlayer = false
+        audiobookVM.closeAudiobookPlayback(
+            reopenPlayerOnFailure = reopenPlayerOnFailure,
+            onClosed = { },
+            onFailed = { reopen -> if (reopen) showAudiobookPlayer = true }
+        )
+    }
+
+    fun closeVideoPlayback() {
+        videoVM.closeVideoPlayback(
+            onClosed = { showVideoPlayer = false; isFullscreen = false },
+            onFailed = { }
+        )
     }
 
     var bottomDockVisible by remember { mutableStateOf(true) }
@@ -423,195 +378,6 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         }
     }
 
-    fun closeAudiobookPlayback(reopenPlayerOnFailure: Boolean = false) {
-        val currentState = audiobookPlaybackEngine.state.value
-        val session = currentState.session
-        val positionSeconds = if (session != null) {
-            resolveAudiobookProgressSyncBaselineSeconds(
-                statePositionSeconds = currentState.positionSeconds,
-                session = session
-            )
-        } else {
-            currentState.positionSeconds.coerceAtLeast(0)
-        }
-        val repo = audiobookRepository
-        showAudiobookPlayer = false
-        audiobookPlaybackError = null
-
-        if (session == null || repo == null) {
-            audiobookPlaybackEngine.stop()
-            return
-        }
-
-        if (!reopenPlayerOnFailure) {
-            audiobookPlaybackEngine.stop()
-            scope.launch {
-                runCatching {
-                    repo.syncAndCloseSession(session, positionSeconds)
-                }.onFailure { error ->
-                    val presentation = resolveAudiobookCloseFailurePresentation(
-                        closeFailureMessage = error.message ?: "关闭有声书播放会话失败",
-                        reopenPlayerOnFailure = false
-                    )
-                    audiobookPlaybackError = presentation.errorMessage
-                    showAudiobookPlayer = presentation.showPlayer
-                }
-            }
-        } else {
-            scope.launch {
-                runCatching {
-                    repo.syncAndCloseSession(session, positionSeconds)
-                }.onSuccess {
-                    audiobookPlaybackEngine.stop()
-                }.onFailure { error ->
-                    val presentation = resolveAudiobookCloseFailurePresentation(
-                        closeFailureMessage = error.message ?: "关闭有声书播放会话失败",
-                        reopenPlayerOnFailure = true
-                    )
-                    audiobookPlaybackError = presentation.errorMessage
-                    showAudiobookPlayer = presentation.showPlayer
-                }
-            }
-        }
-    }
-
-    fun closeVideoPlayback() {
-        val currentState = videoPlaybackEngine.state.value
-        val video = currentState.video
-        val repo = embyRepository
-        showVideoPlayer = false
-        isFullscreen = false
-        videoPlaybackError = null
-
-        if (video != null && repo != null && !video.streamUrl.isNullOrBlank()) {
-            val positionSeconds = resolveVideoProgressSyncBaselineSeconds(
-                statePositionSeconds = currentState.positionSeconds,
-                video = video
-            )
-            scope.launch {
-                runCatching {
-                    repo.stopPlaybackProgress(video, positionSeconds)
-                }.onFailure { error ->
-                    videoPlaybackError = error.message ?: "保存视频进度失败"
-                    Log.e("VideoPlayback", "保存视频进度失败", error)
-                }
-            }
-        }
-        videoPlaybackEngine.stop()
-    }
-
-    LaunchedEffect(
-        currentSong?.id,
-        navidromeConfig.serverUrl,
-        navidromeConfig.username,
-        navidromeConfig.password
-    ) {
-        val song = currentSong
-        lyrics = null
-        lyricsError = null
-
-        if (song == null) {
-            isLyricsLoading = false
-            return@LaunchedEffect
-        }
-
-        val repo = navidromeRepository
-        if (repo == null) {
-            isLyricsLoading = false
-            lyricsError = "未配置 Navidrome"
-            return@LaunchedEffect
-        }
-
-        isLyricsLoading = true
-        val loadedLyrics = runCatching {
-            repo.getLyrics(song)
-        }.getOrNull()
-        lyrics = loadedLyrics
-        lyricsError = if (loadedLyrics == null) "暂无歌词" else null
-        isLyricsLoading = false
-    }
-
-    LaunchedEffect(
-        audiobookPlaybackState.session?.sessionId,
-        audiobookRepository
-    ) {
-        val initialSession = audiobookPlaybackState.session ?: return@LaunchedEffect
-        val repo = audiobookRepository ?: return@LaunchedEffect
-        val baseline = resolveAudiobookProgressSyncBaselineSeconds(
-            statePositionSeconds = audiobookPlaybackState.positionSeconds,
-            session = initialSession
-        )
-
-        runPeriodicProgressSync(
-            initialBaselineSeconds = baseline,
-            nextStep = {
-                val currentState = audiobookPlaybackEngine.state.value
-                val currentSession = currentState.session
-                if (currentSession == null || currentSession.sessionId != initialSession.sessionId) {
-                    null
-                } else {
-                    PeriodicSyncStep(
-                        positionSeconds = currentState.positionSeconds,
-                        isPlaying = currentState.isPlaying,
-                        deltaSeconds = null,
-                        doSync = { position, _, delta ->
-                            repo.syncProgress(currentSession, position, delta)
-                        }
-                    )
-                }
-            },
-            onFailure = { error ->
-                if (showAudiobookPlayer) {
-                    audiobookPlaybackError = error.message ?: "同步有声书进度失败"
-                }
-            }
-        )
-    }
-
-    LaunchedEffect(
-        videoPlaybackState.video?.id,
-        embyRepository
-    ) {
-        val initialVideo = videoPlaybackState.video ?: return@LaunchedEffect
-        val repo = embyRepository ?: return@LaunchedEffect
-        if (initialVideo.streamUrl.isNullOrBlank()) return@LaunchedEffect
-        val baseline = resolveVideoProgressSyncBaselineSeconds(
-            statePositionSeconds = videoPlaybackState.positionSeconds,
-            video = initialVideo
-        )
-
-        runPeriodicProgressSync(
-            initialBaselineSeconds = baseline,
-            nextStep = {
-                val currentState = videoPlaybackEngine.state.value
-                val currentVideo = currentState.video
-                if (currentVideo == null ||
-                    currentVideo.id != initialVideo.id ||
-                    currentVideo.streamUrl.isNullOrBlank()
-                ) {
-                    null
-                } else {
-                    PeriodicSyncStep(
-                        positionSeconds = currentState.positionSeconds,
-                        isPlaying = currentState.isPlaying,
-                        deltaSeconds = null,
-                        doSync = { position, isPlaying, _ ->
-                            repo.syncPlaybackProgress(
-                                video = currentVideo,
-                                positionSeconds = position,
-                                isPaused = !isPlaying
-                            )
-                        }
-                    )
-                }
-            },
-            onFailure = { error ->
-                videoPlaybackError = error.message ?: "同步视频进度失败"
-                Log.e("VideoPlayback", "同步视频进度失败", error)
-            }
-        )
-    }
-
     Scaffold(
         containerColor = colorScheme.background,
         bottomBar = {
@@ -657,13 +423,13 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                         lyricsError = lyricsError,
                         repeatMode = playbackState.repeatMode,
                         shuffleModeEnabled = playbackState.shuffleModeEnabled,
-                        onSeek = playbackEngine::seekTo,
+                        onSeek = musicVM::seekTo,
                         onPlayPause = onPlayPause,
                         onClose = { showPlayer = false },
-                        onSeekToNext = playbackEngine::seekToNext,
-                        onSeekToPrevious = playbackEngine::seekToPrevious,
-                        onToggleRepeat = playbackEngine::toggleRepeatMode,
-                        onToggleShuffle = playbackEngine::toggleShuffleMode,
+                        onSeekToNext = musicVM::seekToNext,
+                        onSeekToPrevious = musicVM::seekToPrevious,
+                        onToggleRepeat = musicVM::toggleRepeatMode,
+                        onToggleShuffle = musicVM::toggleShuffleMode,
                         onOpenQueue = { showQueueSheet = true },
                         modifier = Modifier.fillMaxSize()
                     )
@@ -683,7 +449,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                     onSongSelected = { songs, index, allowUnplayableStartFallback ->
                                         closeAudiobookPlayback(reopenPlayerOnFailure = false)
                                         closeVideoPlayback()
-                                        playbackEngine.playQueue(
+                                        musicVM.playQueue(
                                             songs = songs,
                                             startIndex = index,
                                             allowUnplayableStartFallback = allowUnplayableStartFallback
@@ -697,18 +463,18 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                     onThemeToggle = onThemeToggle,
                                     onPlayAudiobook = { item ->
                                         if (!audiobookConfig.isReadyForAudiobookSync()) {
-                                            audiobookPlaybackError = "未配置 AudiobookShelf"
+                                            audiobookVM.setError("未配置 AudiobookShelf")
                                             return@AudiobookScreen
                                         }
                                         when (
                                             resolveAudiobookPlayRequestAction(
-                                                currentSession = audiobookPlaybackEngine.state.value.session,
+                                                currentSession = audiobookVM.state.value.session,
                                                 requestedLibraryItemId = item.id
                                             )
                                         ) {
                                             AudiobookPlayRequestAction.ReuseCurrentSession -> {
-                                                audiobookPlaybackError = null
-                                                playbackEngine.stop()
+                                                audiobookVM.clearError()
+                                                musicVM.stop()
                                                 closeVideoPlayback()
                                                 showAudiobookPlayer = true
                                                 showVideoPlayer = false
@@ -720,20 +486,13 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                             }
                                             AudiobookPlayRequestAction.StartNewSession -> Unit
                                         }
-                                        scope.launch {
-                                            audiobookPlaybackError = null
-                                            runCatching {
-                                                audiobookRepository?.startPlayback(item.id)
-                                                    ?: error("未配置 AudiobookShelf")
-                                            }.onSuccess { session ->
-                                                playbackEngine.stop()
+                                        audiobookVM.startPlayback(item.id) { result ->
+                                            result.onSuccess {
+                                                musicVM.stop()
                                                 closeVideoPlayback()
-                                                audiobookPlaybackEngine.play(session)
                                                 showAudiobookPlayer = true
                                                 showVideoPlayer = false
                                                 showPlayer = false
-                                            }.onFailure { error ->
-                                                audiobookPlaybackError = error.message ?: "启动有声书播放失败"
                                             }
                                         }
                                     }
@@ -744,13 +503,13 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                     onThemeToggle = onThemeToggle,
                                     onPlayVideo = { video ->
                                         closeAudiobookPlayback(reopenPlayerOnFailure = false)
-                                        playbackEngine.stop()
-                                        val currentVideo = videoPlaybackEngine.state.value.video
+                                        musicVM.stop()
+                                        val currentVideo = videoVM.state.value.video
                                         if (currentVideo != null && currentVideo.id != video.id) {
                                             closeVideoPlayback()
                                         }
-                                        videoPlaybackError = null
-                                        videoPlaybackEngine.play(video)
+                                        videoVM.clearError()
+                                        videoVM.play(video)
                                         showPlayer = false
                                         showVideoPlayer = true
                                     }
@@ -784,13 +543,13 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             state = audiobookPlaybackState,
             colorScheme = colorScheme,
             externalError = audiobookPlaybackError,
-            onSeek = audiobookPlaybackEngine::seekTo,
-            onSeekBack = { audiobookPlaybackEngine.seekBackBy() },
-            onSeekForward = { audiobookPlaybackEngine.seekForwardBy() },
-            onSeekToPreviousChapter = audiobookPlaybackEngine::seekToPreviousChapter,
-            onSeekToNextChapter = audiobookPlaybackEngine::seekToNextChapter,
-            onCyclePlaybackSpeed = audiobookPlaybackEngine::cyclePlaybackSpeed,
-            onPlayPause = audiobookPlaybackEngine::togglePlayPause,
+            onSeek = audiobookVM::seekTo,
+            onSeekBack = { audiobookVM.seekBackBy() },
+            onSeekForward = { audiobookVM.seekForwardBy() },
+            onSeekToPreviousChapter = audiobookVM::seekToPreviousChapter,
+            onSeekToNextChapter = audiobookVM::seekToNextChapter,
+            onCyclePlaybackSpeed = audiobookVM::cyclePlaybackSpeed,
+            onPlayPause = audiobookVM::togglePlayPause,
             onClose = { closeAudiobookPlayback(reopenPlayerOnFailure = true) }
         )
     }
@@ -800,13 +559,13 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             state = videoPlaybackState,
             colorScheme = colorScheme,
             externalError = videoPlaybackError,
-            onSurfaceReady = videoPlaybackEngine::attachSurface,
-            onSurfaceDisposed = videoPlaybackEngine::detachSurface,
-            onSeek = videoPlaybackEngine::seekTo,
-            onSeekBack = { videoPlaybackEngine.seekBackBy() },
-            onSeekForward = { videoPlaybackEngine.seekForwardBy() },
-            onPlayPause = videoPlaybackEngine::togglePlayPause,
-            onCycleAspectRatio = videoPlaybackEngine::cycleAspectRatio,
+            onSurfaceReady = videoVM::attachSurface,
+            onSurfaceDisposed = videoVM::detachSurface,
+            onSeek = videoVM::seekTo,
+            onSeekBack = { videoVM.seekBackBy() },
+            onSeekForward = { videoVM.seekForwardBy() },
+            onPlayPause = videoVM::togglePlayPause,
+            onCycleAspectRatio = videoVM::cycleAspectRatio,
             onToggleFullscreen = { isFullscreen = !isFullscreen },
             isFullscreen = isFullscreen,
             onClose = { closeVideoPlayback() },
@@ -820,12 +579,12 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             currentIndex = playbackState.queueIndex,
             colorScheme = colorScheme,
             onSeekToIndex = { index ->
-                playbackEngine.seekToQueueIndex(index)
+                musicVM.seekToQueueIndex(index)
                 showQueueSheet = false
             },
-            onPlayNext = playbackEngine::moveQueueItemToPlayNext,
-            onRemoveFromQueue = playbackEngine::removeQueueItem,
-            onClearUpcoming = playbackEngine::clearUpcomingQueueItems,
+            onPlayNext = musicVM::moveQueueItemToPlayNext,
+            onRemoveFromQueue = musicVM::removeQueueItem,
+            onClearUpcoming = musicVM::clearUpcomingQueueItems,
             onDismiss = { showQueueSheet = false }
         )
     }
