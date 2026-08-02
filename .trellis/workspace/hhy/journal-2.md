@@ -1495,3 +1495,36 @@ Implemented T2 (P0): added 8 missing Navidrome Retrofit endpoints (star/unstar/g
 ### Next Steps
 
 - None - task complete
+
+
+## Session 105: T3 playback layer hardening
+
+**Date**: 2026-08-02
+**Task**: T3 playback layer hardening
+**Branch**: `main`
+
+### Summary
+
+Implemented T3 (P0): hardened all 3 playback engines + service. C2: added MediaController.Listener.onDisconnected with 500ms-delayed reconnection and pending-command replay in both MusicPlaybackEngine and AudiobookPlaybackEngine; extracted connectController() from init for reuse. H6: VideoPlaybackEngine ExoPlayer now sets AudioAttributes(USAGE_MEDIA, MOVIE, handleAudioFocus=true) + setHandleAudioBecomingNoisy(true). H7: added PlaybackDomain shared object with volatile activeDomain; each engine sets domain before controller ops; publishPlayerState() blocks publishing when the other domain is active, preventing silent state overwrite. H8: Log.e with throwable added to all three onPlayerError callbacks (tags MusicPlayback/AudiobookPlayback/VideoPlayback). M-服务: SimpleCache wrapped in try/catch with null fallback (no-crash on corrupt cache); cache!! replaced with safe let-binding + okHttpDataSourceFactory fallback; onGetSession now verifies controllerInfo.packageName. M-引擎: playQueue sets cachedTimelineGeneration=-1 before setMediaItems; seekToNext/Previous no longer call premature publishPlayerState (onPositionDiscontinuity handles it); AudiobookPlaybackEngine clears old pendingSession state on overwrite. Registered 3 new playback tags in logging-guidelines.md. All gates pass: compile, test, lint, assemble. T3 archived.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `375135a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
