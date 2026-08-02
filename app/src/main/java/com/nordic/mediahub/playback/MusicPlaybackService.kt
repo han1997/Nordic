@@ -1,7 +1,9 @@
 package com.nordic.mediahub.playback
 
 import android.app.PendingIntent
+import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.util.Log
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -19,7 +21,6 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
-import com.nordic.mediahub.MainActivity
 import com.nordic.mediahub.data.MediaAuthHeaderInterceptor
 import com.nordic.mediahub.data.stripAuthQuery
 import okhttp3.OkHttpClient
@@ -148,8 +149,16 @@ class MusicPlaybackService : MediaSessionService() {
     }
 
     private fun createSessionActivity(): PendingIntent {
-        val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        val className = resolveSessionActivityClassName()
+        val intent = if (className != null) {
+            Intent().apply {
+                setClassName(this@MusicPlaybackService, className)
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+        } else {
+            Intent().apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
         }
         return PendingIntent.getActivity(
             this,
@@ -157,5 +166,16 @@ class MusicPlaybackService : MediaSessionService() {
             intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
+    }
+
+    private fun resolveSessionActivityClassName(): String? {
+        val componentName = ComponentName(this, MusicPlaybackService::class.java)
+        val flags = PackageManager.GET_META_DATA
+        return try {
+            val serviceInfo = packageManager.getServiceInfo(componentName, flags)
+            serviceInfo.metaData?.getString("com.nordic.mediahub.session-activity")
+        } catch (e: PackageManager.NameNotFoundException) {
+            null
+        }
     }
 }

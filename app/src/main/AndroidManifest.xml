@@ -29,6 +29,9 @@
             <intent-filter>
                 <action android:name="androidx.media3.session.MediaSessionService" />
             </intent-filter>
+            <meta-data
+                android:name="com.nordic.mediahub.session-activity"
+                android:value="com.nordic.mediahub.MainActivity" />
         </service>
     </application>
 </manifest>
