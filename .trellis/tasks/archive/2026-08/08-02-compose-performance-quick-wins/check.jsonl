@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify Compose performance patterns: state isolation, stable keys, preview slices, position isolation, BackHandler priority"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Verify ui/ layer boundaries, internal visibility for shared components"}

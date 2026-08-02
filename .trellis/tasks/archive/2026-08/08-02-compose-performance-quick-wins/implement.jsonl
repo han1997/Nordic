@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Compose performance state isolation (AtomicReference<Job?> for searchJob), stable keys/contentType for LazyRow, remember(source){ take(n) } preview slices, position state isolation via State<Int>/lambda, BackHandler priority rule"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "ui/ layer ownership for Compose screens, internal visibility for shared components, keep playback/service concerns out of ui/"}
