@@ -22,7 +22,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.nordic.mediahub.api.NavidromeSong
 
 
@@ -197,8 +196,8 @@ fun PolishedNowPlayingBar(
             contentAlignment = Alignment.Center
         ) {
             if (song?.coverArt != null) {
-                AsyncImage(
-                    model = song.coverArt,
+                AuthedAsyncImage(
+                    url = song.coverArt,
                     contentDescription = song.title,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.matchParentSize()

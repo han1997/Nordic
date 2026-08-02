@@ -10,7 +10,7 @@ internal fun normalizeVideoServerBaseUrl(serverUrl: String): String {
     ) {
         trimmed
     } else {
-        "http://$trimmed"
+        "https://$trimmed"
     }
 }
 

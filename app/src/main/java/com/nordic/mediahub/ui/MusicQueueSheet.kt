@@ -40,7 +40,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import coil.compose.AsyncImage
 import com.nordic.mediahub.api.NavidromeSong
 import kotlin.math.roundToInt
 
@@ -283,8 +282,8 @@ private fun QueueRow(
                 contentAlignment = Alignment.Center
             ) {
                 if (song.coverArt != null) {
-                    AsyncImage(
-                        model = song.coverArt,
+                    AuthedAsyncImage(
+                        url = song.coverArt,
                         contentDescription = song.title,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.matchParentSize()

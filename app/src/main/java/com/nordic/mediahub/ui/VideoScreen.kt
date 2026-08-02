@@ -59,7 +59,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
 import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.EmbyRepository
 import com.nordic.mediahub.data.VideoItem
@@ -980,8 +979,8 @@ private fun VideoThumbnail(
         contentAlignment = Alignment.Center
     ) {
         if (imageUrl != null && !imageFailed) {
-            AsyncImage(
-                model = imageUrl,
+            AuthedAsyncImage(
+                url = imageUrl,
                 contentDescription = title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),

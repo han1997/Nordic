@@ -25,7 +25,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
 import com.nordic.mediahub.data.AudiobookChapter
 import com.nordic.mediahub.data.AudiobookShelfConfig
 import com.nordic.mediahub.data.AudiobookShelfRepository
@@ -718,8 +717,8 @@ private fun AudiobookCover(
         contentAlignment = Center
     ) {
         if (coverUrl != null && !imageFailed) {
-            AsyncImage(
-                model = coverUrl,
+            AuthedAsyncImage(
+                url = coverUrl,
                 contentDescription = contentDescription,
                 modifier = Modifier.fillMaxSize(),
                 onError = { imageFailed = true }

@@ -26,6 +26,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nordic.mediahub.data.ConfigRepository
+import com.nordic.mediahub.data.MediaAuthHeaderInterceptor
 import com.nordic.mediahub.data.AudiobookShelfConfig
 import com.nordic.mediahub.data.AudiobookPlaybackSession
 import com.nordic.mediahub.data.AudiobookShelfRepository
@@ -204,6 +205,7 @@ class MainActivity : ComponentActivity() {
             ImageLoader.Builder(this)
                 .okHttpClient {
                     OkHttpClient.Builder()
+                        .addInterceptor(MediaAuthHeaderInterceptor())
                         .connectTimeout(15, TimeUnit.SECONDS)
                         .readTimeout(35, TimeUnit.SECONDS)
                         .callTimeout(45, TimeUnit.SECONDS)

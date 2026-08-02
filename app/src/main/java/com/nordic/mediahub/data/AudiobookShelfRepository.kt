@@ -9,7 +9,7 @@ import com.nordic.mediahub.api.AudiobookShelfMediaProgressDto
 import com.nordic.mediahub.api.AudiobookShelfPlayRequest
 import com.nordic.mediahub.api.AudiobookShelfProgressUpdateRequest
 import com.nordic.mediahub.api.AudiobookShelfSessionSyncRequest
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
@@ -99,6 +99,9 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
         if (token.isNullOrBlank()) {
             throw AudiobookShelfApiException("登录失败: 未返回 token", AudiobookShelfApiException.Kind.AUTH)
         }
+        runCatching { baseUrl.toHttpUrl().originKey() }
+            .getOrNull()
+            ?.let { origin -> MediaAuthHeaderRegistry.register(origin, "Authorization", "Bearer $token") }
         return "Bearer $token".also { cachedBearerToken = it }
     }
 
@@ -179,8 +182,6 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
             )
         }
 
-        val plainToken = auth.removePrefix("Bearer ").trim()
-
         return AudiobookPlaybackSession(
             sessionId = session.id,
             libraryItemId = session.libraryItemId,
@@ -203,7 +204,7 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
                 AudiobookAudioTrack(
                     index = track.index,
                     title = track.title ?: track.metadata?.filename.orEmpty(),
-                    contentUrl = url.toAbsoluteAudioUrl(plainToken),
+                    contentUrl = url.toAbsoluteAudioUrl(),
                     startOffsetSeconds = track.startOffset.toInt(),
                     durationSeconds = track.duration.toInt()
                 )
@@ -326,22 +327,9 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
         return if (startsWith("http://") || startsWith("https://")) this else "$baseUrl$this"
     }
 
-    private fun String.toAbsoluteAudioUrl(token: String): String {
+    private fun String.toAbsoluteAudioUrl(): String {
         val absolute = if (startsWith("http://") || startsWith("https://")) this else "$baseUrl$this"
-        val url = absolute.toHttpUrlOrNull()
-        if (url != null) {
-            return if (url.queryParameterNames.any { it.equals("token", ignoreCase = true) }) {
-                url.toString()
-            } else {
-                url.newBuilder()
-                    .addQueryParameter("token", token)
-                    .build()
-                    .toString()
-            }
-        }
-
-        val separator = if (absolute.contains("?")) "&" else "?"
-        return "$absolute${separator}token=$token"
+        return stripAuthQuery(absolute)
     }
 
     private fun Response<Unit>.requireUnitResponse(action: String) {

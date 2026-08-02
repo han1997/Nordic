@@ -58,7 +58,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
 import com.nordic.mediahub.api.NavidromeAlbum
 import com.nordic.mediahub.api.NavidromeArtist
 import com.nordic.mediahub.api.NavidromePlaylist
@@ -1438,8 +1437,8 @@ private fun PlaylistListRow(
                 contentAlignment = Alignment.Center
             ) {
                 if (playlist.coverArt != null) {
-                    AsyncImage(
-                        model = playlist.coverArt,
+                    AuthedAsyncImage(
+                        url = playlist.coverArt,
                         contentDescription = playlist.name,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.matchParentSize()
@@ -1504,8 +1503,8 @@ private fun PlaylistDetailHeader(
             contentAlignment = Alignment.Center
         ) {
             if (playlist.coverArt != null) {
-                AsyncImage(
-                    model = playlist.coverArt,
+                AuthedAsyncImage(
+                    url = playlist.coverArt,
                     contentDescription = playlist.name,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
@@ -1945,8 +1944,8 @@ private fun AlbumListRow(
                 contentAlignment = Alignment.Center
             ) {
                 if (album.coverArt != null) {
-                    AsyncImage(
-                        model = album.coverArt,
+                    AuthedAsyncImage(
+                        url = album.coverArt,
                         contentDescription = album.name,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.matchParentSize()
@@ -2016,8 +2015,8 @@ private fun AlbumDetailHeader(
             contentAlignment = Alignment.Center
         ) {
             if (album.coverArt != null) {
-                AsyncImage(
-                    model = album.coverArt,
+                AuthedAsyncImage(
+                    url = album.coverArt,
                     contentDescription = album.name,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()

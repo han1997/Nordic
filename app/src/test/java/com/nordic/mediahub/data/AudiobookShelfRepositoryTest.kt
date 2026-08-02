@@ -23,12 +23,14 @@ class AudiobookShelfRepositoryTest {
 
     @Before
     fun setUp() {
+        MediaAuthHeaderRegistry.clear()
         server = MockWebServer()
         server.start()
     }
 
     @After
     fun tearDown() {
+        MediaAuthHeaderRegistry.clear()
         server.shutdown()
     }
 
@@ -48,9 +50,10 @@ class AudiobookShelfRepositoryTest {
         )
         assertEquals(1, session.audioTracks.size)
         assertEquals(
-            "${server.url("/")}audio/book-1.mp3?download=0&token=token-123",
+            "${server.url("/")}audio/book-1.mp3?download=0",
             session.audioTracks.single().contentUrl
         )
+        assertEquals("Bearer token-123", registeredAbsBearer())
 
         val loginRequest = server.takeRequest()
         assertEquals("/login", loginRequest.path)
@@ -62,29 +65,31 @@ class AudiobookShelfRepositoryTest {
     }
 
     @Test
-    fun startPlayback_appendsTokenWhenTokenTextIsOnlyInAudioPath() = runTest {
+    fun startPlayback_stripsTokenFromAudioUrlEvenWhenTokenTextAppearsInPath() = runTest {
         server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
         server.enqueueJson(playbackSessionJson(contentUrl = "/audio/token=placeholder/book-1.mp3?download=0"))
 
         val session = repository().startPlayback("book-1")
 
         assertEquals(
-            "${server.url("/")}audio/token=placeholder/book-1.mp3?download=0&token=token-123",
+            "${server.url("/")}audio/token=placeholder/book-1.mp3?download=0",
             session.audioTracks.single().contentUrl
         )
+        assertEquals("Bearer token-123", registeredAbsBearer())
     }
 
     @Test
-    fun startPlayback_doesNotDuplicateExistingAudioTokenQueryParameter() = runTest {
+    fun startPlayback_removesExistingTokenQueryParameterFromAudioUrl() = runTest {
         server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
         server.enqueueJson(playbackSessionJson(contentUrl = "/audio/book-1.mp3?token=upstream-token"))
 
         val session = repository().startPlayback("book-1")
 
         assertEquals(
-            "${server.url("/")}audio/book-1.mp3?token=upstream-token",
+            "${server.url("/")}audio/book-1.mp3",
             session.audioTracks.single().contentUrl
         )
+        assertEquals("Bearer token-123", registeredAbsBearer())
     }
 
     @Test
@@ -783,6 +788,11 @@ class AudiobookShelfRepositoryTest {
         requireNotNull(error)
         assertEquals(AudiobookShelfApiException.Kind.HTTP, error.kind)
         assertTrue(error.message.orEmpty().contains("HTTP 500"))
+    }
+
+    private fun registeredAbsBearer(): String? {
+        val header = MediaAuthHeaderRegistry.headerFor(server.url("/").originKey())
+        return header?.headerValue
     }
 
     private fun repository(): AudiobookShelfRepository {

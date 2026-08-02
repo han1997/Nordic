@@ -52,6 +52,10 @@ data class VideoCatalog(
 
 private const val EMBY_TICKS_PER_SECOND = 10_000_000L
 private const val EMBY_ITEMS_PAGE_SIZE = 100
+// TODO: confirm with `curl -H "X-Emby-Token: <key>" <emby-stream-url>` that the
+// stream/image endpoints accept header auth. If a server rejects it, set this to
+// false to fall back to api_key query params (B1 clean cache key still protects disk).
+internal const val EMBY_HEADER_AUTH_ENABLED = true
 private val videoCollectionTypes = setOf("movies", "tvshows", "homevideos", "mixed")
 
 internal fun resolveEmbyPlaybackPositionTicks(positionSeconds: Int, durationSeconds: Int): Long {
@@ -168,6 +172,11 @@ class EmbyRepository(private val config: VideoServerConfig) {
         }
 
         cachedSession = session
+        if (EMBY_HEADER_AUTH_ENABLED) {
+            runCatching { baseUrl.toHttpUrl().originKey() }
+                .getOrNull()
+                ?.let { origin -> MediaAuthHeaderRegistry.register(origin, "X-Emby-Token", session.token) }
+        }
         return session
     }
 
@@ -261,7 +270,9 @@ class EmbyRepository(private val config: VideoServerConfig) {
             .addQueryParameter("maxWidth", "640")
             .addQueryParameter("quality", "90")
             .addQueryParameter("tag", primaryTag)
-            .addQueryParameter("api_key", token)
+            .apply {
+                if (!EMBY_HEADER_AUTH_ENABLED) addQueryParameter("api_key", token)
+            }
             .build()
             .toString()
     }
@@ -273,7 +284,9 @@ class EmbyRepository(private val config: VideoServerConfig) {
             .addPathSegment(itemId)
             .addPathSegment("stream")
             .addQueryParameter("Static", "true")
-            .addQueryParameter("api_key", token)
+            .apply {
+                if (!EMBY_HEADER_AUTH_ENABLED) addQueryParameter("api_key", token)
+            }
             .build()
             .toString()
     }

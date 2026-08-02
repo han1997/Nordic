@@ -24,7 +24,7 @@ internal fun normalizeNavidromeBaseUrl(serverUrl: String): String {
     ) {
         trimmed
     } else {
-        "http://$trimmed"
+        "https://$trimmed"
     }
 }
 

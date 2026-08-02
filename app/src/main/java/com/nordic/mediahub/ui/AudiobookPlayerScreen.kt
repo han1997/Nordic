@@ -39,7 +39,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.nordic.mediahub.data.AudiobookChapter
 import com.nordic.mediahub.playback.AudiobookPlaybackState
 
@@ -289,8 +288,8 @@ private fun AudiobookPrimaryDisplay(
                 contentAlignment = Alignment.Center
             ) {
                 if (coverUrl != null) {
-                    AsyncImage(
-                        model = coverUrl,
+                    AuthedAsyncImage(
+                        url = coverUrl,
                         contentDescription = title,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()

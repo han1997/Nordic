@@ -35,7 +35,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.nordic.mediahub.api.NavidromeAlbum
 import com.nordic.mediahub.api.NavidromeArtist
 import com.nordic.mediahub.api.NavidromeSong
@@ -115,8 +114,8 @@ fun MusicHeroBanner(
                     )
             ) {
                 if (album.coverArt != null) {
-                    AsyncImage(
-                        model = album.coverArt,
+                    AuthedAsyncImage(
+                        url = album.coverArt,
                         contentDescription = album.name,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxWidth().height(124.dp)
@@ -222,8 +221,8 @@ fun AlbumShelfCard(
                 )
         ) {
             if (album.coverArt != null) {
-                AsyncImage(
-                    model = album.coverArt,
+                AuthedAsyncImage(
+                    url = album.coverArt,
                     contentDescription = album.name,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.matchParentSize()
@@ -607,8 +606,8 @@ private fun MusicArtwork(
         contentAlignment = Alignment.Center
     ) {
         if (showImage) {
-            AsyncImage(
-                model = imageUrl!!,
+            AuthedAsyncImage(
+                url = imageUrl,
                 contentDescription = contentDescription,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.matchParentSize(),

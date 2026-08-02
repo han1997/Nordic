@@ -43,7 +43,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.Player
-import coil.compose.AsyncImage
 import com.nordic.mediahub.api.NavidromeSong
 import com.nordic.mediahub.data.MusicLyrics
 
@@ -108,8 +107,8 @@ fun MusicPlayerScreen(
         val sectionGap = if (compact) 10.dp else 14.dp
 
         if (song?.coverArt != null) {
-            AsyncImage(
-                model = song.coverArt,
+            AuthedAsyncImage(
+                url = song.coverArt,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
@@ -358,8 +357,8 @@ private fun PlayerArtwork(
                 contentAlignment = Alignment.Center
             ) {
                 if (song?.coverArt != null) {
-                    AsyncImage(
-                        model = song.coverArt,
+                    AuthedAsyncImage(
+                        url = song.coverArt,
                         contentDescription = song.title,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()

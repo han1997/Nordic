@@ -19,6 +19,8 @@ import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.nordic.mediahub.MainActivity
+import com.nordic.mediahub.data.MediaAuthHeaderInterceptor
+import com.nordic.mediahub.data.stripAuthQuery
 import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -38,6 +40,7 @@ class MusicPlaybackService : MediaSessionService() {
         super.onCreate()
 
         val okHttpClient = OkHttpClient.Builder()
+            .addInterceptor(MediaAuthHeaderInterceptor())
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(35, TimeUnit.SECONDS)
             .build()
@@ -57,6 +60,7 @@ class MusicPlaybackService : MediaSessionService() {
         val cacheDataSourceFactory = CacheDataSource.Factory()
             .setCache(cache!!)
             .setUpstreamDataSourceFactory(okHttpDataSourceFactory)
+            .setCacheKeyFactory { dataSpec -> stripAuthQuery(dataSpec.uri) }
             .setFlags(CacheDataSource.FLAG_BLOCK_ON_CACHE)
 
         val loadControl = DefaultLoadControl.Builder()

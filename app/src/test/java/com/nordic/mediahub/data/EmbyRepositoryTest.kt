@@ -16,12 +16,14 @@ class EmbyRepositoryTest {
 
     @Before
     fun setUp() {
+        MediaAuthHeaderRegistry.clear()
         server = MockWebServer()
         server.start()
     }
 
     @After
     fun tearDown() {
+        MediaAuthHeaderRegistry.clear()
         server.shutdown()
     }
 
@@ -103,11 +105,12 @@ class EmbyRepositoryTest {
         assertFalse(item.isPlayed)
         assertEquals(8.6f, item.communityRating ?: 0f, 0.001f)
         assertTrue(item.imageUrl.orEmpty().contains("/Items/movie-1/Images/Primary"))
-        assertTrue(item.imageUrl.orEmpty().contains("api_key=api-key"))
+        assertFalse(item.imageUrl.orEmpty().contains("api_key="))
         assertTrue(item.imageUrl.orEmpty().contains("tag=tag-1"))
         assertTrue(item.streamUrl.orEmpty().contains("/Videos/movie-1/stream"))
         assertTrue(item.streamUrl.orEmpty().contains("Static=true"))
-        assertTrue(item.streamUrl.orEmpty().contains("api_key=api-key"))
+        assertFalse(item.streamUrl.orEmpty().contains("api_key="))
+        assertEquals("api-key", registeredEmbyToken())
 
         val usersRequest = server.takeRequest()
         assertEquals("/Users", usersRequest.path)
@@ -200,6 +203,7 @@ class EmbyRepositoryTest {
 
         val viewsRequest = server.takeRequest()
         assertEquals("token-123", viewsRequest.getHeader("X-Emby-Token"))
+        assertEquals("token-123", registeredEmbyToken())
     }
 
     @Test
@@ -728,6 +732,11 @@ class EmbyRepositoryTest {
         requireNotNull(error)
         assertEquals(kind, error.kind)
         return error
+    }
+
+    private fun registeredEmbyToken(): String? {
+        val header = MediaAuthHeaderRegistry.headerFor(server.url("/").originKey())
+        return header?.headerValue
     }
 
     private fun repository(apiKey: String = "api-key"): EmbyRepository {

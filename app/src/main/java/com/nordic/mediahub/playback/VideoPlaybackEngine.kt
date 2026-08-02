@@ -9,8 +9,12 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import com.nordic.mediahub.data.MediaAuthHeaderInterceptor
 import com.nordic.mediahub.data.VideoItem
+import okhttp3.OkHttpClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -58,7 +62,16 @@ data class VideoPlaybackState(
 class VideoPlaybackEngine(context: Context) {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val player = ExoPlayer.Builder(appContext).build()
+    private val okHttpClient = OkHttpClient.Builder()
+        .addInterceptor(MediaAuthHeaderInterceptor())
+        .build()
+    private val httpDataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
+        .setUserAgent("Nordic")
+    private val player = ExoPlayer.Builder(appContext)
+        .setMediaSourceFactory(
+            DefaultMediaSourceFactory(appContext).setDataSourceFactory(httpDataSourceFactory)
+        )
+        .build()
     private var positionUpdateJob: Job? = null
 
     private val _state = MutableStateFlow(VideoPlaybackState())
