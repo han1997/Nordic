@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/backend/audiobookshelf-integration.md", "reason": "Verify auth/library/sync/close contracts match spec; progress mapping via userMediaProgress; DTO null-safety; token URL encoding"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Verify Emby totalRecordCount nullability fix matches spec paging contract"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Verify catch-rethrow pattern on sync/close/bearerToken; typed AudiobookShelfApiException preserved; EOFException caught"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "Verify no auth tokens logged; AudiobookShelfApi tag; HttpLoggingInterceptor NONE"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify no string-based classification; no duplicate utilities; code matches existing style"}

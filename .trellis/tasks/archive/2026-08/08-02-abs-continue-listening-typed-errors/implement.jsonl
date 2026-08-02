@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/backend/audiobookshelf-integration.md", "reason": "ABS auth (bearerToken + EOFException), library browsing (getLibraryItems include=progress), playback session sync/close (AudiobookShelfApiException kinds), progress mapping (userMediaProgress -> toSummary), token URL encoding, DTO null-safety conventions"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Emby DTO null safety: totalRecordCount should be Int? (nullable) for paging; existing Emby integration patterns for auth and item mapping"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Catch-rethrow pattern reference; AudiobookShelfApiException typed exception contract (HTTP/API/SUBSONIC-equivalent kinds); EOFException handling at repository boundary"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "AudiobookShelfApi tag for HTTP interceptor; no auth tokens/URLs logged; HttpLoggingInterceptor stays NONE"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "No string-based error classification (use typed AudiobookShelfApiException); no duplicate utilities; repository instance reuse patterns"}
