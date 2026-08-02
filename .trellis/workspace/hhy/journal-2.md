@@ -1785,3 +1785,36 @@ Implemented T4 (P1) across 4 phases, satisfying H2/H3/H4/M-吞错误/M-MainActiv
 ### Next Steps
 
 - None - task complete
+
+
+## Session 111: Optimize scroll jank — isolate playback state collection
+
+**Date**: 2026-08-02
+**Task**: Optimize scroll jank — isolate playback state collection
+**Branch**: `main`
+
+### Summary
+
+Root cause: MainScreen collected 3 playback StateFlows at top level, causing every-second recomposition to cascade through all Tab content during playback. Fixed in 4 phases: (1) Extracted 5 child composables (PlaybackDockSlot, MusicPlayerLayer, VideoPlayerLayer, AudiobookPlayerLayer, MusicQueueLayer) that each collect their own playback state — Tab content no longer reads playback StateFlows. (2) Stabilized Tab content lambdas with remember(stable keys). (3) Enabled Coil crossfade(160ms). (4) remember(video/episode/item) for detailChips/episodeLabel/audiobook buildList. Check agent approved with 0 issues. 312 tests pass.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9013c10` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
