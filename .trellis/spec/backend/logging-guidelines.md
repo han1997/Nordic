@@ -11,6 +11,9 @@ Reference files:
 - `app/src/main/java/com/nordic/mediahub/data/AudiobookShelfRepository.kt`
 - `app/src/main/java/com/nordic/mediahub/data/EmbyRepository.kt`
 - `app/src/main/java/com/nordic/mediahub/ui/MusicHomeSections.kt`
+- `app/src/main/java/com/nordic/mediahub/playback/MusicPlaybackEngine.kt`
+- `app/src/main/java/com/nordic/mediahub/playback/AudiobookPlaybackEngine.kt`
+- `app/src/main/java/com/nordic/mediahub/playback/VideoPlaybackEngine.kt`
 
 ## Tags
 
@@ -21,6 +24,9 @@ Use short, domain-specific tags:
 - `AudiobookShelfApi` for AudiobookShelf HTTP interceptor messages.
 - `EmbyApi` for Emby HTTP interceptor messages.
 - `MusicArtwork` for image-loading diagnostics in music UI.
+- `MusicPlayback` for music playback engine lifecycle, disconnection, and error diagnostics.
+- `AudiobookPlayback` for audiobook playback engine lifecycle, disconnection, and error diagnostics.
+- `VideoPlayback` for video playback engine error diagnostics.
 
 Prefer an existing tag when modifying nearby code. Add a new tag only when the log belongs to a distinct subsystem.
 

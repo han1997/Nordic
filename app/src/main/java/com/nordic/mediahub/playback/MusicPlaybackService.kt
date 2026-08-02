@@ -2,6 +2,7 @@ package com.nordic.mediahub.playback
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.util.Log
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.Player
@@ -51,17 +52,24 @@ class MusicPlaybackService : MediaSessionService() {
         val cacheDir = File(cacheDir, "exo_player_cache")
         if (!cacheDir.exists()) cacheDir.mkdirs()
 
-        cache = SimpleCache(
-            cacheDir,
-            LeastRecentlyUsedCacheEvictor(100 * 1024 * 1024),
-            StandaloneDatabaseProvider(this)
-        )
+        cache = try {
+            SimpleCache(
+                cacheDir,
+                LeastRecentlyUsedCacheEvictor(100 * 1024 * 1024),
+                StandaloneDatabaseProvider(this)
+            )
+        } catch (e: Exception) {
+            Log.e("MusicPlayback", "Cache init failed, continuing without cache", e)
+            null
+        }
 
-        val cacheDataSourceFactory = CacheDataSource.Factory()
-            .setCache(cache!!)
-            .setUpstreamDataSourceFactory(okHttpDataSourceFactory)
-            .setCacheKeyFactory { dataSpec -> stripAuthQuery(dataSpec.uri) }
-            .setFlags(CacheDataSource.FLAG_BLOCK_ON_CACHE)
+        val cacheDataSourceFactory = cache?.let { c ->
+            CacheDataSource.Factory()
+                .setCache(c)
+                .setUpstreamDataSourceFactory(okHttpDataSourceFactory)
+                .setCacheKeyFactory { dataSpec -> stripAuthQuery(dataSpec.uri) }
+                .setFlags(CacheDataSource.FLAG_BLOCK_ON_CACHE)
+        } ?: okHttpDataSourceFactory
 
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
@@ -113,7 +121,7 @@ class MusicPlaybackService : MediaSessionService() {
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
-        return mediaSession
+        return if (controllerInfo.packageName == packageName) mediaSession else null
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {

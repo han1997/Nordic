@@ -1,7 +1,9 @@
 package com.nordic.mediahub.playback
 
 import android.content.Context
+import android.util.Log
 import android.view.SurfaceView
+import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -71,6 +73,14 @@ class VideoPlaybackEngine(context: Context) {
         .setMediaSourceFactory(
             DefaultMediaSourceFactory(appContext).setDataSourceFactory(httpDataSourceFactory)
         )
+        .setAudioAttributes(
+            AudioAttributes.Builder()
+                .setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                .build(),
+            true
+        )
+        .setHandleAudioBecomingNoisy(true)
         .build()
     private var positionUpdateJob: Job? = null
 
@@ -91,6 +101,7 @@ class VideoPlaybackEngine(context: Context) {
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            Log.e("VideoPlayback", "Playback error", error)
             stopPositionUpdates()
             _state.update {
                 it.copy(

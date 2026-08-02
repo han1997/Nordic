@@ -2,6 +2,7 @@ package com.nordic.mediahub.playback
 
 import android.content.ComponentName
 import android.content.Context
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.media3.common.C
 import androidx.media3.common.PlaybackException
@@ -124,7 +125,6 @@ class MusicPlaybackEngine(context: Context) {
         appContext,
         ComponentName(appContext, MusicPlaybackService::class.java)
     )
-    private val controllerFuture = MediaController.Builder(appContext, sessionToken).buildAsync()
     private var controller: MediaController? = null
     private var pendingSong: NavidromeSong? = null
     private var pendingQueue: List<NavidromeSong>? = null
@@ -132,6 +132,28 @@ class MusicPlaybackEngine(context: Context) {
     private var positionUpdateJob: Job? = null
     private var cachedTimelineGeneration: Int = -1
     private var cachedQueue: List<NavidromeSong> = emptyList()
+
+    private val controllerListener = object : MediaController.Listener {
+        override fun onDisconnected(controller: MediaController) {
+            Log.e("MusicPlayback", "MediaController disconnected, attempting reconnect")
+            controller.removeListener(playerListener)
+            this@MusicPlaybackEngine.controller = null
+            cachedTimelineGeneration = -1
+            val currentSong = _state.value.currentSong
+            if (pendingSong == null && pendingQueue == null && currentSong != null) {
+                pendingSong = currentSong
+            }
+            _state.update { it.copy(isPlaying = false, isBuffering = false) }
+            scope.launch {
+                delay(500)
+                connectController()
+            }
+        }
+    }
+
+    private var controllerFuture = MediaController.Builder(appContext, sessionToken)
+        .setListener(controllerListener)
+        .buildAsync()
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -172,6 +194,7 @@ class MusicPlaybackEngine(context: Context) {
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            Log.e("MusicPlayback", "Playback error", error)
             stopPositionUpdates()
             _state.update {
                 it.copy(
@@ -188,6 +211,13 @@ class MusicPlaybackEngine(context: Context) {
     val state: StateFlow<MusicPlaybackState> = _state.asStateFlow()
 
     init {
+        connectController()
+    }
+
+    private fun connectController() {
+        controllerFuture = MediaController.Builder(appContext, sessionToken)
+            .setListener(controllerListener)
+            .buildAsync()
         controllerFuture.addListener(
             {
                 runCatching {
@@ -227,6 +257,7 @@ class MusicPlaybackEngine(context: Context) {
             return
         }
 
+        PlaybackDomain.activeDomain = MediaDomain.MUSIC
         val activeController = controller
         if (activeController == null) {
             pendingSong = song
@@ -294,6 +325,7 @@ class MusicPlaybackEngine(context: Context) {
             return
         }
 
+        PlaybackDomain.activeDomain = MediaDomain.MUSIC
         val activeController = controller
         if (activeController == null) {
             pendingSong = null
@@ -312,6 +344,7 @@ class MusicPlaybackEngine(context: Context) {
             return
         }
 
+        cachedTimelineGeneration = -1
         val mediaItems = playableQueue.songs.map { it.toMediaItem() }
         activeController.setMediaItems(mediaItems, playableQueue.startIndex, 0L)
         activeController.prepare()
@@ -321,12 +354,10 @@ class MusicPlaybackEngine(context: Context) {
 
     fun seekToNext() {
         controller?.seekToNext()
-        publishPlayerState()
     }
 
     fun seekToPrevious() {
         controller?.seekToPrevious()
-        publishPlayerState()
     }
 
     fun toggleRepeatMode() {
@@ -482,6 +513,10 @@ class MusicPlaybackEngine(context: Context) {
 
     private fun publishPlayerState() {
         val activeController = controller ?: return
+        if (PlaybackDomain.activeDomain == MediaDomain.AUDIOBOOK) {
+            _state.update { it.copy(isPlaying = false, isBuffering = false) }
+            return
+        }
         val current = activeController.currentMediaItem?.toNavidromeSong() ?: _state.value.currentSong
         val playerDuration = activeController.duration
             .takeIf { it != C.TIME_UNSET }

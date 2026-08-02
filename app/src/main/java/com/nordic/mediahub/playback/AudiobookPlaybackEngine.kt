@@ -2,6 +2,7 @@ package com.nordic.mediahub.playback
 
 import android.content.ComponentName
 import android.content.Context
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -55,10 +56,30 @@ class AudiobookPlaybackEngine(context: Context) {
         appContext,
         ComponentName(appContext, MusicPlaybackService::class.java)
     )
-    private val controllerFuture = MediaController.Builder(appContext, sessionToken).buildAsync()
     private var controller: MediaController? = null
     private var pendingSession: AudiobookPlaybackSession? = null
     private var positionUpdateJob: Job? = null
+
+    private val controllerListener = object : MediaController.Listener {
+        override fun onDisconnected(controller: MediaController) {
+            Log.e("AudiobookPlayback", "MediaController disconnected, attempting reconnect")
+            controller.removeListener(playerListener)
+            this@AudiobookPlaybackEngine.controller = null
+            val currentSession = _state.value.session
+            if (pendingSession == null && currentSession != null) {
+                pendingSession = currentSession
+            }
+            _state.update { it.copy(isPlaying = false, isBuffering = false) }
+            scope.launch {
+                delay(500)
+                connectController()
+            }
+        }
+    }
+
+    private var controllerFuture = MediaController.Builder(appContext, sessionToken)
+        .setListener(controllerListener)
+        .buildAsync()
 
     private val _state = MutableStateFlow(AudiobookPlaybackState())
     val state: StateFlow<AudiobookPlaybackState> = _state.asStateFlow()
@@ -82,6 +103,7 @@ class AudiobookPlaybackEngine(context: Context) {
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            Log.e("AudiobookPlayback", "Playback error", error)
             stopPositionUpdates()
             _state.update {
                 it.copy(
@@ -94,6 +116,13 @@ class AudiobookPlaybackEngine(context: Context) {
     }
 
     init {
+        connectController()
+    }
+
+    private fun connectController() {
+        controllerFuture = MediaController.Builder(appContext, sessionToken)
+            .setListener(controllerListener)
+            .buildAsync()
         controllerFuture.addListener(
             {
                 runCatching {
@@ -125,8 +154,10 @@ class AudiobookPlaybackEngine(context: Context) {
             return
         }
 
+        PlaybackDomain.activeDomain = MediaDomain.AUDIOBOOK
         val activeController = controller
         if (activeController == null) {
+            if (pendingSession != null) stopPositionUpdates()
             pendingSession = session
             _state.value = AudiobookPlaybackState(
                 session = session,
@@ -244,6 +275,10 @@ class AudiobookPlaybackEngine(context: Context) {
     private fun publishPlayerState() {
         val activeController = controller ?: return
         val session = _state.value.session ?: return
+        if (PlaybackDomain.activeDomain == MediaDomain.MUSIC) {
+            _state.update { it.copy(isPlaying = false, isBuffering = false) }
+            return
+        }
         val currentAbsolutePosition = resolveAbsolutePositionSeconds(
             session.audioTracks,
             activeController.currentMediaItemIndex,
