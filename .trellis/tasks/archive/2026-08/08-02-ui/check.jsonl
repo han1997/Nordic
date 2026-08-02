@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Spec index + verification commands for the quality gate"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Quality bar — shared components internal, MediaStateComponents alpha exception (0.72f/0.76f), media list stability, state isolation, BackHandler rules to verify migration did not break any required pattern"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Verify new token files placed in ui/theme/, internal visibility for shared primitives"}
+{"file": ".trellis/tasks/08-02-ui/prd.md", "reason": "Acceptance criteria — no bare RoundedCornerShape(<num>.dp)/fontSize=<num>.sp literals, alpha collapsed to <=4 named tiers, token files wired into MaterialTheme, all 23 files migrated"}

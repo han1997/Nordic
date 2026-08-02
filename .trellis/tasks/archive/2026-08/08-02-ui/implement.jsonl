@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Spec index — Pre-Development Checklist + verification commands (compileDebugKotlin/testDebugUnitTest/lintDebug)"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Confirms ui/theme/ is the correct home for new Shapes.kt/Spacing.kt/Type.kt files; ui/ layer ownership + internal-visibility rule for shared primitives"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "MediaStateComponents encodes design-system alpha (0.72f empty, 0.76f loading) — must NOT be folded into NordicAlpha token. Shared components must be internal. Required patterns for media list stability, state isolation, BackHandler — must preserve during migration"}
+{"file": ".trellis/tasks/08-02-ui/prd.md", "reason": "Task PRD — token scales (Shapes/Spacing/Type/Alpha), convergence rules, migration strategy, MediaStateComponents alpha exception, dynamic-shape constraint"}
