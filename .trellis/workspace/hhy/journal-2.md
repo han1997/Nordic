@@ -1427,3 +1427,38 @@ Isolated the video SurfaceView/AspectRatioFrameLayout into a focused composable,
 ### Next Steps
 
 - None - task complete
+
+
+## Session 103: Full code review + T1 credential security hardening
+
+**Date**: 2026-08-02
+**Task**: Full code review + T1 credential security hardening
+**Branch**: `main`
+
+### Summary
+
+Ran a 4-agent parallel comprehensive code review (api/data, playback, ui/compose, cross-cutting) producing a prioritized report (5 Critical / 15 High / ~34 Medium / ~22 Low) and seeded 8 Trellis tasks T1-T8 with draft prds. Then executed T1 (P0 credential security): migrated 12 server config keys from plaintext DataStore to EncryptedSharedPreferences with a Flow adapter preserving ConfigRepository's public API and a one-time idempotent background migration; moved Emby/ABS media auth from URL query params to X-Emby-Token / Authorization:Bearer headers via a shared MediaAuthHeaderInterceptor registered by origin; added stripAuthQuery as the ExoPlayer CacheKeyFactory and Coil diskCacheKey so tokens never reach disk (Navidrome stays query-auth, clean cache key only); converted 14 AsyncImage sites to a new AuthedAsyncImage helper; defaulted the three URL normalizers to https:// while preserving explicit http:// for LAN self-hosting. Added 4 test files and updated 3 existing ones (273 tests pass, lint clean). Updated 4 spec files with the new encrypted-storage and media-auth/cache contracts.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `19bf518` | (see git log) |
+| `84eefcc` | (see git log) |
+| `c4c29d7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
