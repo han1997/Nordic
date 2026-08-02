@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify Compose performance state isolation: MainScreen no longer collects playback StateFlow at top level; tab content params are stable; derived strings are remember'd. Verify no duplicate utilities introduced."}
+{"file": ".trellis/workspace/hhy/code-review-2026-08-02.md", "reason": "Cross-check that the scroll-jank root cause (MainScreen every-second recomposition cascading to tab content) is resolved and Fix 4 addresses the metaText/detailChips buildList allocation finding."}
