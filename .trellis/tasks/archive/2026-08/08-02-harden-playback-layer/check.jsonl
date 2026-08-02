@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Verify playback code stays in playback/ layer, naming conventions followed"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "Verify new Log.e calls use correct tags with throwable, no auth URLs/tokens logged, HttpLoggingInterceptor unchanged"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Verify error handling uses typed exceptions where applicable, contextual wrapping for playback errors"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify no duplicate utilities, no string-based error classification, code matches existing style"}

@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "playback/ layer ownership: Media3 engines and service belong in playback/, not ui/; defines naming conventions"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "Need to register new playback subsystem tags (MusicPlayback/AudiobookPlayback/VideoPlayback); Log.e with throwable for onPlayerError; no auth URLs logged"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Typed exception pattern reference; error wrapping with context for playback failures; catch-rethrow pattern context"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "No duplicate utilities, no string-based error classification, repository/instance reuse patterns, shared component conventions"}
