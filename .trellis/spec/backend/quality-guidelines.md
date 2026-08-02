@@ -136,6 +136,35 @@ searchJob.set(scope.launch { /* search */ })
 
 **Why**: Playback ticks and debounce bookkeeping can update often. Isolating operational state prevents unrelated home/library content from being recomposed just because a handle changed.
 
+### Performance-first persistent media chrome
+
+Floating playback bars, bottom navigation, and other persistent media chrome must justify their always-visible cost. When playback is paused, idle, stopped, or otherwise not actively changing, prefer a collapsed, hidden, or on-demand surface if the chrome blocks page content or keeps expensive UI subscribed to fast-changing playback state.
+
+**Contracts**:
+- Treat performance and content readability as the default priority; decorative or convenience chrome is secondary.
+- Do not keep floating player controls visible by default on static pages unless they provide an immediate user action that is more important than the obscured content.
+- Prefer state gates such as `isPlaying`, active media identity, or explicit user expansion to decide when player chrome is shown.
+- Keep collapsed/hidden chrome detached from high-frequency playback position updates so idle screens do not recompose on every tick.
+- Preserve clear recovery paths: users must still be able to reopen playback controls or navigate back to the active player through an explicit affordance.
+
+```kotlin
+// Wrong: idle chrome permanently covers content and stays subscribed to ticks.
+FloatingPlaybackBar(
+    state = playbackState,
+    modifier = Modifier.align(Alignment.BottomCenter)
+)
+
+// Correct: static pages stay readable; controls return while active or requested.
+if (playbackState.isPlaying || showPlayerControls) {
+    FloatingPlaybackBar(
+        state = playbackState,
+        modifier = Modifier.align(Alignment.BottomCenter)
+    )
+}
+```
+
+**Why**: Always-visible overlays reduce usable screen space and can keep expensive Compose surfaces alive. Media UI should spend recomposition and screen real estate only where it improves the current workflow.
+
 ### Compose BackHandler for sub-navigation
 
 Every composable that manages page-level state visible to the user (e.g., `libraryPage`, `selectedVideo`, `showConfig`, `showPlayer`) must declare a `BackHandler` with the same logic as its manual back button. Without it, the Android system back gesture finishes the Activity and exits the app instead of returning to the previous screen.
@@ -947,6 +976,7 @@ Playback logic tests should isolate pure calculations where possible, as in `app
 - [ ] No duplicate utility functions across files
 - [ ] Shared Compose primitives use `internal` visibility
 - [ ] Repeated loading/error/empty state cards use shared media state components
+- [ ] Persistent player/navigation chrome is hidden, collapsed, or explicitly justified when static, with performance and content readability prioritized
 - [ ] `NavidromeRepository` is `remember`ed, not constructed per call
 - [ ] Config readiness checks use `isReadyForMusicSync()`, not inlined
 - [ ] All public `NavidromeRepository` methods have both `NavidromeApiException` and `Exception` catch blocks
