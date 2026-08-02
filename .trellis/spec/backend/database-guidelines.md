@@ -25,9 +25,9 @@ and suspend save methods:
 - `saveAudiobookConfig(config)`
 - `saveVideoConfig(config)`
 
-When adding or changing server settings, update the data class in `ServerConfig.kt`, the matching DataStore keys in `ConfigRepository`, and the corresponding config card UI.
+When adding or changing server settings, update the data class in `ServerConfig.kt`, the matching keys in `ConfigRepository` (backed by `EncryptedConfigStore` — see "Encrypted Credential Storage" below), and the corresponding config card UI.
 
-Do not read or write DataStore preferences directly from UI screens except through `ConfigRepository`.
+Do not read or write stored config directly from UI screens except through `ConfigRepository`. `ConfigRepository` is backed by `EncryptedConfigStore` (EncryptedSharedPreferences); the legacy plaintext DataStore `settings` file is only read once during one-time migration.
 
 ## Cache Storage
 
@@ -290,7 +290,83 @@ Use `MockWebServer` tests when adding repository behavior that depends on reques
 
 ## Common Mistakes
 
-- Do not add a Room database for simple server config; the project convention is DataStore Preferences.
+- Do not add a Room database for simple server config; the project convention is DataStore Preferences for non-secret cache and EncryptedSharedPreferences for credentials.
 - Do not store passwords or API keys in logs.
 - Do not change cache field semantics without bumping the cache schema version.
 - Do not duplicate readiness checks such as `serverUrl.isNotBlank() && username.isNotBlank()` inside composables.
+
+## Scenario: Encrypted Credential Storage
+
+### 1. Scope / Trigger
+- Trigger: Any change to `ConfigRepository`, `EncryptedConfigStore`, server credential persistence, or config migration.
+- All server credentials (Navidrome/AudiobookShelf/Emby passwords + Emby API key) must be encrypted at rest. The app sets `android:allowBackup="false"`, so backup leakage is handled; this contract governs on-device at-rest encryption.
+
+### 2. Signatures
+- `val Context.dataStore: DataStore<Preferences>` (legacy plaintext store, read only during migration)
+- `class EncryptedConfigStore(context: Context)` backed by `EncryptedSharedPreferences` (file `secret_prefs`, `MasterKey` AES256_GCM, AES256_SIV key scheme, AES256_GCM value scheme)
+- `EncryptedConfigStore` exposes the same `Flow`/`suspend` surface `ConfigRepository` previously had over `context.dataStore`: `navidromeConfig`/`audiobookConfig`/`lastAudiobookItemId`/`videoConfig` + 4 `suspend fun saveXxx`
+- `internal object EncryptedConfigKeys` — 12 string keys: 4 high-sensitivity (`navidrome_pass`, `audiobook_pass`, `video_pass`, `video_api_key`), 3 PII (`*_user`), 5 config (`*_url`, `audiobook_last_item_id`, `video_type`)
+- `internal fun runEncryptedConfigMigration(prefs, snapshot, deleteLegacy)` — pure migration step for deterministic testing
+- `class ConfigRepository(context)` — public API unchanged; internal backing swapped to `EncryptedConfigStore`
+
+### 3. Contracts
+- `ConfigRepository` public `Flow`/`suspend` signatures must not change; callers (MainActivity, repositories) need zero edits when the backing store changes.
+- `EncryptedConfigStore` exposes `Flow` via `OnSharedPreferenceChangeListener` → `callbackFlow` → `distinctUntilChanged` (cold flow that registers/unregisters the listener).
+- `suspend save*` functions use `commit()` (synchronous, guarantees durability) wrapped in `withContext(Dispatchers.IO)`, not `apply()` (fire-and-forget can lose durability before the legacy file is deleted).
+- One-time migration: ESP `migrated` boolean guard → read legacy `context.dataStore.data.first()` on a background `Dispatchers.IO` coroutine (NOT on the main thread; `runBlocking` is only allowed inside the IO scope) → `commit()` all 12 keys → set `migrated=true` → delete `context.filesDir.resolve("datastore/settings.preferences_pb")`.
+- Migration is idempotent: the `migrated` flag prevents re-running after interruption; a partially-written legacy snapshot is safe because `commit()` is atomic per call and the flag is set in the same `commit()` as the keys.
+- `android:allowBackup="false"` must stay set so the encrypted store is not backed up.
+- Never log credentials, API keys, or the encrypted file path.
+
+### 4. Validation & Error Matrix
+| Condition | Behavior |
+|---|---|
+| First launch (no legacy file) | Migration no-op; `migrated=true` set on first `commit()`; ESP stores new config directly |
+| Upgrade from plaintext DataStore | Migration copies all 12 keys into ESP via `commit()`, sets `migrated=true`, deletes legacy `settings.preferences_pb` |
+| Migration interrupted before `commit()` | `migrated` stays `false`; next launch re-reads legacy DataStore and re-runs; ESP has no partial state because `commit()` is atomic |
+| Migration interrupted after `commit()` but before file delete | `migrated=true` already set; next launch skips migration; legacy file is harmless (no longer read) and may be deleted on a later cleanup |
+| Keystore unavailable / master key rotate fails | `EncryptedSharedPreferences.create` throws `GeneralSecurityException`/`IOException`; `EncryptedConfigStore` fails fast — do not silently fall back to plaintext |
+| `ConfigRepository` public API change | Rejected at review; callers must need zero edits |
+
+### 5. Good/Base/Bad Cases
+- Good: User upgrades from a plaintext build; saved Navidrome/ABS/Emby config reappears without re-entry; the legacy `settings.preferences_pb` file is gone after first launch.
+- Base: Fresh install; ESP is empty until the user saves config; no migration runs.
+- Bad: `save*` uses `apply()` and the user kills the app before the async write flushes; the config is lost.
+- Bad: Migration runs `runBlocking` on the main thread to read the legacy DataStore; the app ANRs on cold start.
+- Bad: A new credential key is added to `EncryptedConfigKeys.ALL` but the legacy snapshot reader does not include it; upgrades lose that field.
+
+### 6. Tests Required
+- `EncryptedConfigStoreTest`: Flow emits initial values; `save*` triggers a new emission; `distinctUntilChanged` drops no-op writes; `lastAudiobookItemId` blank coalesces to `null`; `video_type` blank falls back to `EMBY`.
+- Migration tests via `runEncryptedConfigMigration`: copies all 12 keys, skips `null` values, sets `migrated=true`, deletes the legacy file, and is idempotent (second run is a no-op).
+- `ConfigRepository` compile-check: public `Flow`/`suspend` signatures unchanged.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```kotlin
+// apply() is fire-and-forget; durability before deleting the legacy file is not guaranteed.
+prefs.edit().putString(NAVIDROME_PASS, config.password).apply()
+deleteLegacyDataStoreFile()
+```
+
+#### Correct
+```kotlin
+withContext(Dispatchers.IO) {
+    prefs.edit().apply {
+        putString(EncryptedConfigKeys.NAVIDROME_PASS, config.password)
+    }.commit()  // synchronous; guarantees durability before any cleanup
+}
+```
+
+#### Wrong
+```kotlin
+// Migration blocks the main thread reading the legacy DataStore.
+fun init() = runBlocking { context.dataStore.data.first() }
+```
+
+#### Correct
+```kotlin
+// Migration runs on a background IO scope; the UI is never blocked.
+private val migrationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+init { migrationScope.launch { runMigrationIfNeeded() } }
+```

@@ -169,3 +169,52 @@ if (playedRatio >= 0.5f || playbackState.positionSeconds >= 240) {
     repo.scrobble(song.id, submission = true)
 }
 ```
+
+## Scenario: Media URL Disk Cache Hygiene (Query Auth)
+
+### 1. Scope / Trigger
+- Trigger: Any change to `NavidromeRepository` stream/cover URL construction, `MusicPlaybackService` `CacheKeyFactory`, Coil `ImageLoader`, or `AuthedAsyncImage`.
+- Subsonic/Navidrome auth is strictly query-param based (`u`, `t`, `s`, `v`, `c`); there is no header option. The token `t` is a one-time salted MD5 (`md5(password+salt)`), not the reusable password, so a persisted URL exposes a replay token for that request only. Disk hygiene keeps even that one-time token off disk.
+
+### 2. Signatures
+- `internal fun stripAuthQuery(url: String): String` (`data/AuthUrl.kt`)
+- `MusicPlaybackService` `CacheDataSource.Factory().setCacheKeyFactory { dataSpec -> stripAuthQuery(dataSpec.uri) }`
+- `internal fun AuthedAsyncImage(url: String?, ...)` (`ui/AuthedAsyncImage.kt`) — `diskCacheKey`/`memoryCacheKey` = `stripAuthQuery(url)`
+
+### 3. Contracts
+- Navidrome stream/cover URLs keep `u`/`t`/`s`/`v`/`c` query params in the actual request URL (Subsonic protocol requires them); `stripAuthQuery` is used ONLY as the `CacheKeyFactory`/`diskCacheKey` so the disk cache index stores the de-authed URL.
+- Do NOT register Navidrome auth into `MediaAuthHeaderRegistry` (no header auth exists); do NOT strip auth from the request URL (only from the cache key).
+- `AuthedAsyncImage` is used for Navidrome cover art so Coil's disk cache key is the de-authed URL.
+- The OkHttp client in `MusicPlaybackService` may still include `MediaAuthHeaderInterceptor` (it no-ops for Navidrome origins because nothing is registered), but it must not strip Navidrome query params from the request.
+
+### 4. Validation & Error Matrix
+| Condition | Behavior |
+|---|---|
+| Navidrome stream/cover request | URL keeps `u/t/s/v/c`; cache key strips them; `exo_player_cache` index and Coil disk cache hold only de-authed URLs |
+| OkHttp logging raised above `NONE` | Tokens can hit logcat — keep `HttpLoggingInterceptor.Level.NONE` (see logging-guidelines) |
+| A future change adds a Navidrome header-auth option | Register into `MediaAuthHeaderRegistry` and drop query params from the request URL; update this contract |
+
+### 5. Good/Base/Bad Cases
+- Good: `exo_player_cache` `cached_content_index` and Coil disk cache contain only de-authed Navidrome URLs; the one-time `t` hash never reaches disk.
+- Base: Navidrome playback works because the request URL still carries auth query params.
+- Bad: `stripAuthQuery` is applied to the actual request URL (not just the cache key); Navidrome requests 401 because Subsonic requires query auth.
+
+### 6. Tests Required
+- `AuthUrlTest`: `stripAuthQuery` removes `u`/`t`/`s`/`v`/`c` from a Navidrome sample URL and preserves non-auth params.
+- `NavidromeRepositoryTest`: stream/cover URLs still include `u`/`t`/`s`/`v`/`c` (request URL unchanged); the cache-key path uses `stripAuthQuery`.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```kotlin
+// Stripping auth from the request URL breaks Subsonic auth (no header option exists).
+val requestUrl = stripAuthQuery(dataSpec.uri.toString())
+```
+
+#### Correct
+```kotlin
+// Auth stays in the request URL; only the cache key is de-authed.
+CacheDataSource.Factory()
+    .setCache(cache)
+    .setCacheKeyFactory { dataSpec -> stripAuthQuery(dataSpec.uri) }
+```

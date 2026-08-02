@@ -449,3 +449,57 @@ frameLayout.setAspectRatio(
     resolveVideoAspectRatio(videoSize.width, videoSize.height, videoSize.pixelWidthHeightRatio)
 )
 ```
+
+## Scenario: Media URL Auth Header and Disk Cache Hygiene
+
+### 1. Scope / Trigger
+- Trigger: Any change to Emby stream/image URL construction, `EmbyRepository` session/token handling, `MusicPlaybackService`/`VideoPlaybackEngine` HTTP clients, Coil `ImageLoader`, or `AuthedAsyncImage`.
+- Auth tokens must not reach disk via ExoPlayer `SimpleCache` or Coil disk cache. Emby media endpoints accept the `X-Emby-Token` header (already proven on JSON API), so the token moves out of the URL entirely.
+
+### 2. Signatures
+- `internal const val EMBY_HEADER_AUTH_ENABLED: Boolean` (`EmbyRepository.kt`)
+- `internal fun stripAuthQuery(url: String): String` (`data/AuthUrl.kt`) — shared by ExoPlayer `CacheKeyFactory` and Coil `diskCacheKey`
+- `internal object MediaAuthHeaderRegistry` + `internal class MediaAuthHeaderInterceptor` (`data/AuthUrl.kt`) — global registry keyed by `"$host:$port"` origin, shared by all media OkHttp clients
+- `internal fun AuthedAsyncImage(url: String?, ...)` (`ui/AuthedAsyncImage.kt`) — wraps Coil `AsyncImage` with `diskCacheKey`/`memoryCacheKey` = `stripAuthQuery(url)`
+
+### 3. Contracts
+- When `EMBY_HEADER_AUTH_ENABLED=true` (default), `EmbyRepository.primaryImageUrl`/`streamUrl` build the URL path + non-auth params (`maxWidth`, `quality`, `tag`, `Static`) WITHOUT the `api_key` query. The session token is registered into `MediaAuthHeaderRegistry` under the Emby base-URL origin as header `X-Emby-Token` when a session is established.
+- When `EMBY_HEADER_AUTH_ENABLED=false` (smoke-test-failure fallback), the URL adds `api_key=<token>` query as before; `stripAuthQuery` still keeps the disk cache key clean, so disk hygiene is preserved either way.
+- `MusicPlaybackService`, `VideoPlaybackEngine`, and the Coil `ImageLoader` (in `MainActivity`) OkHttp clients add `MediaAuthHeaderInterceptor`, which injects the registered `X-Emby-Token` for requests whose `host:port` matches a registered Emby origin.
+- The Emby stream/image URL path segments (`Items/{id}/Images/Primary`, `Videos/{id}/stream`) and non-auth query params (`maxWidth=640`, `quality=90`, `tag=<primaryTag>`, `Static=true`) are unchanged; only the auth channel moves from query to header.
+- `MediaAuthHeaderInterceptor` matches by origin (`host:port`), so an Emby token is never injected into an ABS or Navidrome request (different origins).
+- `stripAuthQuery` is used ONLY as the `CacheKeyFactory`/`diskCacheKey` value; the actual request URL is unchanged for Navidrome (query auth) and is auth-free for Emby (header auth).
+
+### 4. Validation & Error Matrix
+| Condition | Behavior |
+|---|---|
+| Emby stream/image request, header auth enabled | URL has no `api_key`; interceptor injects `X-Emby-Token`; cache key strips nothing extra (URL already clean) |
+| Emby stream/image request, header auth disabled (fallback) | URL has `api_key=<token>`; cache key strips `api_key`; token stays in network URL only |
+| Smoke test rejects `X-Emby-Token` on stream/image | Set `EMBY_HEADER_AUTH_ENABLED=false`; playback falls back to `api_key` query; disk cache key still clean |
+| Coil image request for Emby cover | `AuthedAsyncImage` sets `diskCacheKey=stripAuthQuery(url)`; interceptor injects `X-Emby-Token` |
+| `MediaAuthHeaderRegistry` cleared between repository test runs | `@Before`/`@After` call `MediaAuthHeaderRegistry.clear()` to prevent cross-test token leakage |
+
+### 5. Good/Base/Bad Cases
+- Good: `exo_player_cache` `cached_content_index` and Coil disk cache contain only de-authed Emby URLs; tokens never reach disk.
+- Base: A server rejects header auth; `EMBY_HEADER_AUTH_ENABLED=false` keeps playback working with `api_key` query while the clean cache key still protects disk.
+- Bad: `stripAuthQuery` is applied to the actual request URL (not just the cache key); Emby requests lose auth and 401 because there is no query fallback when header auth is enabled.
+- Bad: A repository test does not clear `MediaAuthHeaderRegistry`; an Emby token from a prior test leaks into the next test's ABS request.
+
+### 6. Tests Required
+- `AuthUrlTest`: `stripAuthQuery` removes `api_key`/`token`/`u`/`t`/`s`/`v`/`c`, preserves non-auth params, handles no-query/clean/blank/non-URL; `MediaAuthHeaderRegistry` register/lookup/overwrite/clear/origin isolation; `MediaAuthHeaderInterceptor` injects registered header, skips when absent, does not overwrite an existing header.
+- `EmbyRepositoryTest`: stream/image URL does NOT contain `api_key=` when header auth enabled; `MediaAuthHeaderRegistry` holds `X-Emby-Token: <token>` for the Emby origin after `getCatalog`; `@Before`/`@After` clear the registry.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```kotlin
+// Token stays in the URL and reaches the disk cache index.
+addQueryParameter("api_key", token)
+```
+
+#### Correct
+```kotlin
+// Token moves to a header injected by the shared interceptor; URL stays clean.
+if (!EMBY_HEADER_AUTH_ENABLED) addQueryParameter("api_key", token)
+// and register X-Emby-Token into MediaAuthHeaderRegistry when session() resolves.
+```

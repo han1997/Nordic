@@ -534,3 +534,55 @@ val continueItems = items.filter { item ->
     item.progress?.let { !it.isFinished && it.currentTimeSeconds > 0 } == true
 }
 ```
+
+## Scenario: Media URL Auth Header and Disk Cache Hygiene
+
+### 1. Scope / Trigger
+- Trigger: Any change to `AudiobookShelfRepository.toAbsoluteAudioUrl`, bearer-token handling, `MusicPlaybackService` HTTP client, Coil `ImageLoader`, or `AuthedAsyncImage`.
+- The bearer token must not reach disk via ExoPlayer `SimpleCache` or Coil disk cache. ABS accepts `Authorization: Bearer` (confirmed by `Auth.js` extractors), so the token moves out of the audio URL entirely. Cover endpoints are unauthenticated (no token) and are unchanged.
+
+### 2. Signatures
+- `internal fun stripAuthQuery(url: String): String` (`data/AuthUrl.kt`)
+- `internal object MediaAuthHeaderRegistry` + `internal class MediaAuthHeaderInterceptor` (`data/AuthUrl.kt`)
+- `internal fun AuthedAsyncImage(url: String?, ...)` (`ui/AuthedAsyncImage.kt`)
+
+### 3. Contracts
+- `AudiobookShelfRepository.toAbsoluteAudioUrl` returns the absolute audio URL WITHOUT appending `?token=<bearer>`; the bearer token is registered into `MediaAuthHeaderRegistry` under the ABS base-URL origin as header `Authorization: Bearer <token>` when `bearerToken()` resolves a token.
+- The audio URL path and the existing `download=0` query param are preserved; only the `token` query is removed.
+- `MusicPlaybackService` and the Coil `ImageLoader` (in `MainActivity`) OkHttp clients add `MediaAuthHeaderInterceptor`, which injects `Authorization: Bearer` for requests whose `host:port` matches a registered ABS origin.
+- Cover URLs (`/items/{id}/cover`, `/authors/{id}/image`) already have no token and stay unauthenticated.
+- `stripAuthQuery` is used ONLY as the `CacheKeyFactory`/`diskCacheKey` value; the audio request URL is auth-free (header auth) — do NOT apply `stripAuthQuery` to the request URL in a way that strips `download=0` or path segments.
+
+### 4. Validation & Error Matrix
+| Condition | Behavior |
+|---|---|
+| ABS audio request | URL has no `token=`; interceptor injects `Authorization: Bearer <token>`; cache key is the clean URL |
+| Cover image request | URL has no token; `AuthedAsyncImage` sets a clean `diskCacheKey`; no header needed |
+| `bearerToken()` re-authenticates | Registry overwrites the prior bearer for the ABS origin so the new token is injected |
+| `MediaAuthHeaderRegistry` cleared between repository test runs | `@Before`/`@After` call `MediaAuthHeaderRegistry.clear()` |
+
+### 5. Good/Base/Bad Cases
+- Good: `exo_player_cache` `cached_content_index` and Coil disk cache contain only de-authed ABS URLs; bearer tokens never reach disk.
+- Base: Cover art still loads unauthenticated; audio plays with header auth.
+- Bad: `toAbsoluteAudioUrl` still appends `?token=`; the bearer reaches the disk cache index.
+- Bad: A repository test does not clear `MediaAuthHeaderRegistry`; an ABS bearer from a prior test leaks into the next test's Emby request.
+
+### 6. Tests Required
+- `AudiobookShelfRepositoryTest`: audio URL does NOT contain `token=`; `MediaAuthHeaderRegistry` holds `Authorization: Bearer <token>` for the ABS origin after `startPlayback`/`bearerToken()`; `@Before`/`@After` clear the registry.
+- `AuthUrlTest` covers `token` stripping and interceptor injection (shared with Emby).
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```kotlin
+// Bearer token appended to the URL and persisted in the cache index.
+val url = absolute.toHttpUrlOrNull()
+    ?.newBuilder()?.addQueryParameter("token", token)?.build()?.toString()
+```
+
+#### Correct
+```kotlin
+// Bearer moves to a header; URL stays clean.
+MediaAuthHeaderRegistry.register(absOriginKey, "Authorization", "Bearer $token")
+return stripAuthQuery(absolute)
+```
