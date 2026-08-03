@@ -14,6 +14,7 @@ This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. 
 | [Persistence Guidelines](./database-guidelines.md) | Changing DataStore config, cache fields, readiness helpers, or local persistence behavior |
 | [Error Handling](./error-handling.md) | Adding repository calls, typed exceptions, `Response<T>` validation, or UI error propagation |
 | [Quality Guidelines](./quality-guidelines.md) | Reviewing shared components, cache semantics, test coverage, and known anti-patterns |
+| [文档规范](./documentation-guidelines.md) | 编写中文优先沟通、用户可见文案、CHANGELOG 条目、README 更新或任务文档 |
 | [Logging Guidelines](./logging-guidelines.md) | Adding or changing `Log.*` calls or OkHttp logging interceptors |
 | [AudiobookShelf Integration Contract](./audiobookshelf-integration.md) | Changing audiobook auth, library browsing, playback sessions, progress sync, or Media3 audiobook state |
 | [Emby Integration Contract](./emby-integration.md) | Changing Emby auth, library/item mapping, video playback, progress reporting, or season/episode browsing |
@@ -25,6 +26,7 @@ This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. 
 - Read [Persistence Guidelines](./database-guidelines.md) before changing `ConfigRepository`, server config models, or cache models.
 - Read [Error Handling](./error-handling.md) before adding repository methods or changing exception behavior.
 - Read [Quality Guidelines](./quality-guidelines.md) before modifying shared UI state components, music library navigation, or cache contracts.
+- 修改用户可见文案、项目文档、任务文档、发布记录或开发规范前，先阅读 [文档规范](./documentation-guidelines.md)。
 - Read [Logging Guidelines](./logging-guidelines.md) before adding diagnostics.
 - Read the service-specific contract when touching Navidrome, AudiobookShelf, or Emby behavior.
 
