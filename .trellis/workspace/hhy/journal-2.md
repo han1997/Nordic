@@ -1920,3 +1920,37 @@ Brought video UI up to Plex/Infuse/Apple TV parity across three surfaces. (1) Da
 ### Next Steps
 
 - None - task complete
+
+
+## Session 115: Video interface logic: resume/restart actions, search collapse, episode filter, player chrome polish
+
+**Date**: 2026-08-03
+**Task**: Video interface logic: resume/restart actions, search collapse, episode filter, player chrome polish
+**Branch**: `main`
+
+### Summary
+
+Aligned video tab with mainstream apps: library selector above spotlight, search collapses to an icon, added '全部 N 项' divider, detail hero offers '继续从 XX:XX 播放' + '从头播放' when resumable, series detail episode filter (未看/全部), player controls visible on first open then auto-hide after 4s, player status/center messages localized to Chinese. Added VideoDetailPlayAction helper, VideoPlaybackEngine.playFromStart, VideoEpisodeFilter enum. Updated specs: Emby resume/restart play-action contract and player-chrome visible-on-first-open convention.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4e1ae70` | (see git log) |
+| `d227996` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
