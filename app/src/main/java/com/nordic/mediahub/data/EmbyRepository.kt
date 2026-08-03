@@ -41,6 +41,7 @@ data class VideoItem(
     val seasonNumber: Int? = null,
     val episodeNumber: Int? = null,
     val imageUrl: String? = null,
+    val backdropImageUrl: String? = null,
     val streamUrl: String? = null
 )
 
@@ -232,6 +233,18 @@ class EmbyRepository(private val config: VideoServerConfig) {
         val itemId = id?.trim()?.takeIf { it.isNotBlank() } ?: return null
         val title = name?.trim()?.takeIf { it.isNotBlank() } ?: return null
 
+        val ownBackdropTag = backdropImageTags.orEmpty().firstOrNull()?.takeIf { it.isNotBlank() }
+        val parentBackdropTag = parentBackdropImageTags.orEmpty().firstOrNull()?.takeIf { it.isNotBlank() }
+        val parentBackdropId = parentBackdropItemId?.trim()?.takeIf { it.isNotBlank() }
+        val safeSeriesId = seriesId?.trim()?.takeIf { it.isNotBlank() }
+        val resolvedBackdrop: String? = when {
+            ownBackdropTag != null -> backdropImageUrl(itemId, token, ownBackdropTag)
+            parentBackdropTag != null && parentBackdropId != null ->
+                backdropImageUrl(parentBackdropId, token, parentBackdropTag)
+            safeSeriesId != null -> backdropImageUrl(safeSeriesId, token, null)
+            else -> null
+        }
+
         return VideoItem(
             id = itemId,
             libraryId = libraryId,
@@ -249,6 +262,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
             seasonNumber = parentIndexNumber,
             episodeNumber = indexNumber,
             imageUrl = primaryImageUrl(itemId, token, imageTags.orEmpty()["Primary"]),
+            backdropImageUrl = resolvedBackdrop,
             streamUrl = if (isDirectlyPlayableVideoType(type)) streamUrl(itemId, token) else null
         )
     }
@@ -278,6 +292,23 @@ class EmbyRepository(private val config: VideoServerConfig) {
             .addQueryParameter("quality", "90")
             .addQueryParameter("tag", primaryTag)
             .apply {
+                if (!EMBY_HEADER_AUTH_ENABLED) addQueryParameter("api_key", token)
+            }
+            .build()
+            .toString()
+    }
+
+    private fun backdropImageUrl(itemId: String, token: String, backdropTag: String?): String {
+        return baseUrl.toHttpUrl()
+            .newBuilder()
+            .addPathSegment("Items")
+            .addPathSegment(itemId)
+            .addPathSegment("Images")
+            .addPathSegment("Backdrop")
+            .addQueryParameter("maxWidth", "1280")
+            .addQueryParameter("quality", "90")
+            .apply {
+                if (!backdropTag.isNullOrBlank()) addQueryParameter("tag", backdropTag)
                 if (!EMBY_HEADER_AUTH_ENABLED) addQueryParameter("api_key", token)
             }
             .build()

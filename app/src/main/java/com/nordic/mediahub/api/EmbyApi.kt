@@ -66,6 +66,12 @@ data class EmbyItemDto(
     val childCount: Int? = null,
     @SerializedName("ImageTags")
     val imageTags: Map<String, String>? = emptyMap(),
+    @SerializedName("BackdropImageTags")
+    val backdropImageTags: List<String>? = null,
+    @SerializedName("ParentBackdropItemId")
+    val parentBackdropItemId: String? = null,
+    @SerializedName("ParentBackdropImageTags")
+    val parentBackdropImageTags: List<String>? = null,
     @SerializedName("UserData")
     val userData: EmbyUserDataDto? = null
 )
@@ -113,7 +119,7 @@ interface EmbyApi {
         @Query("ParentId") parentId: String,
         @Query("Recursive") recursive: Boolean = true,
         @Query("IncludeItemTypes") includeItemTypes: String = "Movie,Series,Episode,Video",
-        @Query("Fields") fields: String = "Overview,ProductionYear,SeriesId,SeriesName,ParentIndexNumber,IndexNumber,RunTimeTicks,ChildCount,ImageTags,CommunityRating,UserData",
+        @Query("Fields") fields: String = "Overview,ProductionYear,SeriesId,SeriesName,ParentIndexNumber,IndexNumber,RunTimeTicks,ChildCount,ImageTags,BackdropImageTags,ParentBackdropImageTags,CommunityRating,UserData",
         @Query("SortBy") sortBy: String = "DateCreated",
         @Query("SortOrder") sortOrder: String = "Descending",
         @Query("StartIndex") startIndex: Int = 0,

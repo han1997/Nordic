@@ -646,6 +646,178 @@ class EmbyRepositoryTest {
     }
 
     @Test
+    fun getCatalog_requestsBackdropImageTagsInItemsFields() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson("""{"Items":[],"TotalRecordCount":0}""")
+
+        repository(apiKey = "api-key").getCatalog()
+
+        server.takeRequest()
+        server.takeRequest()
+        val itemsRequest = server.takeRequest()
+        assertTrue(itemsRequest.path.orEmpty().contains("BackdropImageTags"))
+        assertTrue(itemsRequest.path.orEmpty().contains("ParentBackdropImageTags"))
+    }
+
+    @Test
+    fun getCatalog_mapsBackdropUrlFromOwnBackdropImageTags() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {
+                      "Id":"movie-1",
+                      "Name":"Dune",
+                      "Type":"Movie",
+                      "ImageTags":{"Primary":"p1"},
+                      "BackdropImageTags":["b1","b2"]
+                    }
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+
+        val catalog = repository(apiKey = "api-key").getCatalog()
+
+        val item = catalog.items.single()
+        assertTrue(item.backdropImageUrl.orEmpty().contains("/Items/movie-1/Images/Backdrop"))
+        assertTrue(item.backdropImageUrl.orEmpty().contains("tag=b1"))
+        assertFalse(item.backdropImageUrl.orEmpty().contains("tag=b2"))
+        assertFalse(item.backdropImageUrl.orEmpty().contains("api_key="))
+    }
+
+    @Test
+    fun getCatalog_mapsBackdropUrlFromParentBackdropForEpisodes() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-tv","Name":"TV","Type":"CollectionFolder","CollectionType":"tvshows"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {
+                      "Id":"episode-1",
+                      "Name":"Episode 2",
+                      "Type":"Episode",
+                      "SeriesId":"series-1",
+                      "ParentBackdropItemId":"series-1",
+                      "ParentBackdropImageTags":["sb1"]
+                    }
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+
+        val catalog = repository(apiKey = "api-key").getCatalog()
+
+        val item = catalog.items.single()
+        assertTrue(item.backdropImageUrl.orEmpty().contains("/Items/series-1/Images/Backdrop"))
+        assertTrue(item.backdropImageUrl.orEmpty().contains("tag=sb1"))
+    }
+
+    @Test
+    fun getCatalog_mapsBackdropUrlFromSeriesIdWithoutTagWhenNoBackdropTags() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-tv","Name":"TV","Type":"CollectionFolder","CollectionType":"tvshows"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {
+                      "Id":"episode-1",
+                      "Name":"Episode 2",
+                      "Type":"Episode",
+                      "SeriesId":"series-1"
+                    }
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+
+        val catalog = repository(apiKey = "api-key").getCatalog()
+
+        val item = catalog.items.single()
+        assertTrue(item.backdropImageUrl.orEmpty().contains("/Items/series-1/Images/Backdrop"))
+        assertFalse(item.backdropImageUrl.orEmpty().contains("tag="))
+    }
+
+    @Test
+    fun getCatalog_mapsNullBackdropUrlWhenNoBackdropAvailable() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {
+                      "Id":"movie-2",
+                      "Name":"Indie",
+                      "Type":"Movie",
+                      "ImageTags":{"Primary":"p2"}
+                    }
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+
+        val catalog = repository(apiKey = "api-key").getCatalog()
+
+        val item = catalog.items.single()
+        assertNull(item.backdropImageUrl)
+    }
+
+    @Test
     fun getCatalog_throwsTypedExceptionForHttpErrors() = runTest {
         server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
         server.enqueue(MockResponse().setResponseCode(500))
