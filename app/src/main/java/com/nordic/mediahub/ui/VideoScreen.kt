@@ -51,7 +51,8 @@ fun VideoScreen(
     colorScheme: ColorScheme,
     isDark: Boolean,
     onThemeToggle: (Boolean) -> Unit,
-    onPlayVideo: (VideoItem) -> Unit = {}
+    onPlayVideo: (VideoItem) -> Unit = {},
+    onPlayVideoFromStart: (VideoItem) -> Unit = {}
 ) {
     val context = LocalContext.current
     val configRepository = remember { ConfigRepository(context) }
@@ -63,6 +64,7 @@ fun VideoScreen(
     var videos by remember { mutableStateOf(emptyList<VideoItem>()) }
     var selectedVideo by remember { mutableStateOf<VideoItem?>(null) }
     var searchQuery by remember { mutableStateOf("") }
+    var searchExpanded by remember { mutableStateOf(false) }
     var selectedTypeFilter by remember { mutableStateOf(VideoTypeFilter.All) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -110,6 +112,7 @@ fun VideoScreen(
         videos = emptyList()
         selectedVideo = resolveVideoSelectionAfterConfigChange(selectedVideo)
         searchQuery = ""
+        searchExpanded = false
         selectedTypeFilter = resolveVideoTypeFilterAfterConfigChange(selectedTypeFilter)
         isLoading = false
         errorMessage = null
@@ -177,12 +180,15 @@ fun VideoScreen(
 
     selectedVideo?.let { video ->
         val relatedEpisodes = remember(video, videos) { videos.relatedEpisodesFor(video) }
+        val playAction = remember(video) { resolveVideoDetailPlayAction(video) }
         VideoDetailScreen(
             video = video,
             relatedEpisodes = relatedEpisodes,
+            playAction = playAction,
             colorScheme = colorScheme,
             onBack = { selectedVideo = null },
             onPlay = { onPlayVideo(video) },
+            onPlayFromStart = { onPlayVideoFromStart(video) },
             onPlayEpisode = onPlayVideo
         )
         return
@@ -284,6 +290,7 @@ fun VideoScreen(
                         selectedLibraryId = libraryId
                         selectedVideo = null
                         searchQuery = ""
+                        searchExpanded = false
                         selectedTypeFilter = VideoTypeFilter.All
                         val repo = embyRepository ?: return@VideoLibrarySelector
                         val requestVersion = videoConfigStateVersion
@@ -325,12 +332,29 @@ fun VideoScreen(
 
             item(span = { GridItemSpan(maxLineSpan) }) {
                 VideoBrowserControls(
+                    searchExpanded = searchExpanded,
                     searchQuery = searchQuery,
                     selectedTypeFilter = selectedTypeFilter,
                     filters = visibleTypeFilters,
                     colorScheme = colorScheme,
+                    onToggleSearch = { searchExpanded = true },
                     onSearchChange = { searchQuery = it },
+                    onSearchCollapse = {
+                        searchQuery = ""
+                        searchExpanded = false
+                    },
                     onFilterSelected = { selectedTypeFilter = it }
+                )
+            }
+
+            val catalogCount = if (hasActiveBrowserFilter) visibleVideos.size else videos.size
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Text(
+                    "全部 $catalogCount 项",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = colorScheme.onBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

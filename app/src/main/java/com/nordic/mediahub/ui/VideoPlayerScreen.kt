@@ -117,7 +117,7 @@ fun VideoPlayerScreen(
         { surface: SurfaceView -> currentOnSurfaceDisposed(surface) }
     }
 
-    var controlsVisible by remember { mutableStateOf(false) }
+    var controlsVisible by remember { mutableStateOf(true) }
 
     LaunchedEffect(controlsVisible, state.isPlaying, scrubPosition, statusTone) {
         if (controlsVisible && state.isPlaying && scrubPosition == null && statusTone == null) {
@@ -164,18 +164,18 @@ fun VideoPlayerScreen(
 
         if (video == null) {
             VideoPlayerCenterMessage(
-                title = "No video loaded",
-                subtitle = "Select a video from the library to start playback."
+                title = "暂无视频",
+                subtitle = "从媒体库选择一个视频开始播放"
             )
         } else if (errorMessage != null) {
             VideoPlayerCenterMessage(
-                title = "Playback issue",
+                title = "播放异常",
                 subtitle = errorMessage
             )
         } else if (state.isBuffering) {
             VideoPlayerCenterMessage(
-                title = "Buffering",
-                subtitle = "Preparing the stream."
+                title = "缓冲中",
+                subtitle = "正在准备视频流"
             )
         }
 
@@ -200,7 +200,7 @@ fun VideoPlayerScreen(
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 VideoPlayerTopBar(
-                    title = video?.title ?: "Video player",
+                    title = video?.title ?: "视频播放器",
                     subtitle = playerSubtitle,
                     statusText = statusText,
                     statusTone = statusTone,
@@ -529,7 +529,7 @@ private fun VideoPlayerControls(
 
             if (scrubPosition != null) {
                 Text(
-                    "Release to seek to ${formatDuration(scrubPosition.roundToInt())}",
+                    "松开以跳转至 ${formatDuration(scrubPosition.roundToInt())}",
                     modifier = Modifier.fillMaxWidth(),
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Normal,
@@ -652,9 +652,9 @@ internal fun videoPlayerStatusText(
     errorMessage: String?
 ): String? {
     return when {
-        !errorMessage.isNullOrBlank() -> "Issue"
-        isBuffering -> "Buffering"
-        !hasVideo -> "Idle"
+        !errorMessage.isNullOrBlank() -> "播放异常"
+        isBuffering -> "缓冲中"
+        !hasVideo -> "暂无视频"
         else -> null
     }
 }

@@ -332,6 +332,69 @@ class VideoScreenTest {
         assertTrue(videoMatchesSearch(video, "   "))
     }
 
+    @Test
+    fun resolveVideoDetailPlayAction_returnsResumeActionWhenPositionPresent() {
+        val video = video(
+            id = "movie-1",
+            title = "Resumable Movie",
+            playbackPositionSeconds = 90,
+            durationSeconds = 1200
+        )
+        val action = resolveVideoDetailPlayAction(video)
+
+        assertTrue(action.primaryLabel.contains("继续从"))
+        assertTrue(action.primaryLabel.contains("1m"))
+        assertEquals("从头播放", action.secondaryLabel)
+        assertEquals(90, action.primaryResumeSeconds)
+    }
+
+    @Test
+    fun resolveVideoDetailPlayAction_returnsPlayOnlyWhenNoResume() {
+        val video = video(
+            id = "movie-1",
+            title = "Fresh Movie",
+            playbackPositionSeconds = 0,
+            durationSeconds = 1200
+        )
+        val action = resolveVideoDetailPlayAction(video)
+
+        assertEquals("播放", action.primaryLabel)
+        assertNull(action.secondaryLabel)
+        assertEquals(0, action.primaryResumeSeconds)
+    }
+
+    @Test
+    fun resolveVideoDetailPlayAction_returnsPlayOnlyWhenPlayed() {
+        val video = video(
+            id = "movie-1",
+            title = "Already Watched",
+            playbackPositionSeconds = 90,
+            durationSeconds = 1200,
+            isPlayed = true
+        )
+        val action = resolveVideoDetailPlayAction(video)
+
+        assertEquals("播放", action.primaryLabel)
+        assertNull(action.secondaryLabel)
+        assertEquals(0, action.primaryResumeSeconds)
+    }
+
+    @Test
+    fun resolveVideoDetailPlayAction_returnsResumeWhenDurationUnknown() {
+        val video = video(
+            id = "movie-1",
+            title = "Unknown Duration",
+            playbackPositionSeconds = 150,
+            durationSeconds = 0
+        )
+        val action = resolveVideoDetailPlayAction(video)
+
+        assertTrue(action.primaryLabel.contains("继续从"))
+        assertTrue(action.primaryLabel.contains("2m"))
+        assertEquals("从头播放", action.secondaryLabel)
+        assertEquals(150, action.primaryResumeSeconds)
+    }
+
     private fun episode(
         id: String,
         title: String,

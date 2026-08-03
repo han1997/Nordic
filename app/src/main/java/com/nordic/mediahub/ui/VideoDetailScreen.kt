@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,7 +28,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,11 +51,21 @@ import com.nordic.mediahub.ui.theme.NordicSpacing
 internal fun VideoDetailScreen(
     video: VideoItem,
     relatedEpisodes: List<VideoItem>,
+    playAction: VideoDetailPlayAction,
     colorScheme: ColorScheme,
     onBack: () -> Unit,
     onPlay: () -> Unit,
+    onPlayFromStart: () -> Unit,
     onPlayEpisode: (VideoItem) -> Unit
 ) {
+    var episodeFilter by remember { mutableStateOf(VideoEpisodeFilter.All) }
+    val filteredEpisodes = remember(relatedEpisodes, episodeFilter) {
+        when (episodeFilter) {
+            VideoEpisodeFilter.All -> relatedEpisodes
+            VideoEpisodeFilter.Unwatched -> relatedEpisodes.filter { !it.isPlayed }
+        }
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -62,9 +76,11 @@ internal fun VideoDetailScreen(
         item {
             VideoDetailHero(
                 video = video,
+                playAction = playAction,
                 colorScheme = colorScheme,
                 onBack = onBack,
-                onPlay = onPlay
+                onPlay = onPlay,
+                onPlayFromStart = onPlayFromStart
             )
         }
 
@@ -91,23 +107,80 @@ internal fun VideoDetailScreen(
 
         if (relatedEpisodes.isNotEmpty()) {
             item {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)
+                ) {
+                    Text(
+                        "分集",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = colorScheme.onBackground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    VideoEpisodeFilterRow(
+                        selectedFilter = episodeFilter,
+                        colorScheme = colorScheme,
+                        onSelect = { episodeFilter = it }
+                    )
+                }
+            }
+
+            if (filteredEpisodes.isEmpty()) {
+                item {
+                    Text(
+                        "没有未看的分集",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
+                    )
+                }
+            } else {
+                items(
+                    items = filteredEpisodes,
+                    key = { episode -> "video-episode-${episode.id}" },
+                    contentType = { "video-episode-row" }
+                ) { episode ->
+                    VideoEpisodeRow(
+                        episode = episode,
+                        colorScheme = colorScheme,
+                        onClick = { onPlayEpisode(episode) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VideoEpisodeFilterRow(
+    selectedFilter: VideoEpisodeFilter,
+    colorScheme: ColorScheme,
+    onSelect: (VideoEpisodeFilter) -> Unit
+) {
+    LazyRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
+    ) {
+        items(
+            items = VideoEpisodeFilter.values().toList(),
+            key = { it.name },
+            contentType = { "video-episode-filter" }
+        ) { filter ->
+            val selected = filter == selectedFilter
+            Surface(
+                color = if (selected) colorScheme.primary.copy(alpha = 0.16f) else colorScheme.surfaceVariant.copy(alpha = 0.50f),
+                contentColor = if (selected) colorScheme.primary else colorScheme.onSurface,
+                shape = NordicShapes.full,
+                border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
+                modifier = Modifier.clickable { onSelect(filter) }
+            ) {
                 Text(
-                    "分集",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = colorScheme.onBackground,
+                    text = filter.label,
+                    modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
-                )
-            }
-            items(
-                items = relatedEpisodes,
-                key = { episode -> "video-episode-${episode.id}" },
-                contentType = { "video-episode-row" }
-            ) { episode ->
-                VideoEpisodeRow(
-                    episode = episode,
-                    colorScheme = colorScheme,
-                    onClick = { onPlayEpisode(episode) }
                 )
             }
         }
@@ -117,9 +190,11 @@ internal fun VideoDetailScreen(
 @Composable
 private fun VideoDetailHero(
     video: VideoItem,
+    playAction: VideoDetailPlayAction,
     colorScheme: ColorScheme,
     onBack: () -> Unit,
-    onPlay: () -> Unit
+    onPlay: () -> Unit,
+    onPlayFromStart: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -201,12 +276,69 @@ private fun VideoDetailHero(
                 }
             }
 
-            PrimaryActionButton(
-                text = "播放",
-                colorScheme = colorScheme,
-                enabled = !video.streamUrl.isNullOrBlank(),
-                onClick = onPlay,
-                icon = Icons.Filled.PlayArrow
+            val playEnabled = !video.streamUrl.isNullOrBlank()
+            Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+                PrimaryActionButton(
+                    text = playAction.primaryLabel,
+                    colorScheme = colorScheme,
+                    enabled = playEnabled,
+                    onClick = onPlay,
+                    icon = Icons.Filled.PlayArrow
+                )
+                if (playAction.secondaryLabel != null) {
+                    SecondaryActionButton(
+                        text = playAction.secondaryLabel,
+                        colorScheme = colorScheme,
+                        enabled = playEnabled,
+                        onClick = onPlayFromStart
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SecondaryActionButton(
+    text: String,
+    colorScheme: ColorScheme,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val scale = rememberPressScale(
+        interactionSource = interactionSource,
+        pressedScale = 0.985f,
+        enabled = enabled
+    )
+    Surface(
+        color = if (enabled) colorScheme.primary.copy(alpha = 0.18f) else colorScheme.primary.copy(alpha = 0.10f),
+        contentColor = colorScheme.primary,
+        shape = NordicShapes.full,
+        border = BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.22f)),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .scale(scale)
+            .clickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+    ) {
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text,
+                style = MaterialTheme.typography.titleSmall,
+                color = colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }

@@ -129,6 +129,11 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         engine.play(video)
     }
 
+    fun playFromStart(video: VideoItem) {
+        _error.value = null
+        engine.playFromStart(video)
+    }
+
     fun stop() = engine.stop()
 
     fun seekTo(positionSeconds: Int) = engine.seekTo(positionSeconds)

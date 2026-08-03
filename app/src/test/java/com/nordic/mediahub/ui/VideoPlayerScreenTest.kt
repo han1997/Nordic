@@ -63,7 +63,7 @@ class VideoPlayerScreenTest {
     @Test
     fun videoPlayerStatusText_prioritizesErrors() {
         assertEquals(
-            "Issue",
+            "播放异常",
             videoPlayerStatusText(
                 hasVideo = true,
                 isBuffering = true,
@@ -75,7 +75,7 @@ class VideoPlayerScreenTest {
     @Test
     fun videoPlayerStatusText_reportsBufferingWhenVideoIsLoading() {
         assertEquals(
-            "Buffering",
+            "缓冲中",
             videoPlayerStatusText(
                 hasVideo = true,
                 isBuffering = true,
@@ -87,7 +87,7 @@ class VideoPlayerScreenTest {
     @Test
     fun videoPlayerStatusText_reportsIdleWhenNoVideoIsLoaded() {
         assertEquals(
-            "Idle",
+            "暂无视频",
             videoPlayerStatusText(
                 hasVideo = false,
                 isBuffering = false,

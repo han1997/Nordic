@@ -10,6 +10,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,7 +21,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -336,35 +339,92 @@ internal fun ContinueWatchingCard(
 
 @Composable
 internal fun VideoBrowserControls(
+    searchExpanded: Boolean,
     searchQuery: String,
     selectedTypeFilter: VideoTypeFilter,
     filters: List<VideoTypeFilter>,
     colorScheme: ColorScheme,
+    onToggleSearch: () -> Unit,
     onSearchChange: (String) -> Unit,
+    onSearchCollapse: () -> Unit,
     onFilterSelected: (VideoTypeFilter) -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)
     ) {
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = onSearchChange,
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            placeholder = {
-                Text(
-                    "搜索标题、简介、年份",
-                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.faint)
+        if (searchExpanded) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = onSearchChange,
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    placeholder = {
+                        Text(
+                            "搜索标题、简介、年份",
+                            color = colorScheme.onSurface.copy(alpha = NordicAlpha.faint)
+                        )
+                    },
+                    shape = NordicShapes.md,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = colorScheme.surfaceVariant.copy(alpha = 0.42f),
+                        unfocusedContainerColor = colorScheme.surfaceVariant.copy(alpha = 0.42f),
+                        disabledContainerColor = colorScheme.surfaceVariant.copy(alpha = 0.28f)
+                    )
                 )
-            },
-            shape = NordicShapes.md,
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = colorScheme.surfaceVariant.copy(alpha = 0.42f),
-                unfocusedContainerColor = colorScheme.surfaceVariant.copy(alpha = 0.42f),
-                disabledContainerColor = colorScheme.surfaceVariant.copy(alpha = 0.28f)
-            )
-        )
+                Surface(
+                    color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
+                    contentColor = colorScheme.onSurface,
+                    shape = NordicShapes.full,
+                    border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clickable { onSearchCollapse() }
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = "收起搜索",
+                            tint = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+        } else {
+            Surface(
+                color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
+                contentColor = colorScheme.onSurface,
+                shape = NordicShapes.full,
+                border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
+                modifier = Modifier.clickable { onToggleSearch() }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.md),
+                    horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Search,
+                        contentDescription = "搜索",
+                        tint = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        "搜索",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
 
         LazyRow(
             modifier = Modifier.fillMaxWidth(),

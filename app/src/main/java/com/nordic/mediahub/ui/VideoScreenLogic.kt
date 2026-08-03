@@ -12,6 +12,37 @@ internal fun VideoItem.metaText(): String {
     }.joinToString("  /  ")
 }
 
+internal data class VideoDetailPlayAction(
+    val primaryLabel: String,
+    val primaryResumeSeconds: Int,
+    val secondaryLabel: String?
+)
+
+internal fun resolveVideoDetailPlayAction(video: VideoItem): VideoDetailPlayAction {
+    val canResume = video.playbackPositionSeconds > 0 &&
+        !video.isPlayed &&
+        (video.durationSeconds == 0 || video.playbackPositionSeconds < video.durationSeconds)
+
+    return if (canResume) {
+        VideoDetailPlayAction(
+            primaryLabel = "继续从 ${formatLongDuration(video.playbackPositionSeconds)} 播放",
+            primaryResumeSeconds = video.playbackPositionSeconds,
+            secondaryLabel = "从头播放"
+        )
+    } else {
+        VideoDetailPlayAction(
+            primaryLabel = "播放",
+            primaryResumeSeconds = 0,
+            secondaryLabel = null
+        )
+    }
+}
+
+internal enum class VideoEpisodeFilter(val label: String) {
+    All("全部"),
+    Unwatched("未看")
+}
+
 internal fun VideoItem.detailChips(): List<String> {
     return buildList {
         type.takeIf { it.isNotBlank() }?.let { add(it) }

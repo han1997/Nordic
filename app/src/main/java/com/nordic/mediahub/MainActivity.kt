@@ -327,6 +327,20 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             showVideoPlayer = true
         }
     }
+    val onPlayVideoFromStart = remember(videoVM, musicVM, closeAudiobookPlayback, closeVideoPlayback) {
+        { video: VideoItem ->
+            closeAudiobookPlayback(false)
+            musicVM.stop()
+            val currentVideo = videoVM.state.value.video
+            if (currentVideo != null && currentVideo.id != video.id) {
+                closeVideoPlayback()
+            }
+            videoVM.clearError()
+            videoVM.playFromStart(video)
+            showPlayer = false
+            showVideoPlayer = true
+        }
+    }
     val openPlayer = remember { { showPlayer = true } }
 
     LaunchedEffect(showAudiobookPlayer) {
@@ -484,7 +498,8 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                     colorScheme = colorScheme,
                                     isDark = isDark,
                                     onThemeToggle = onThemeToggle,
-                                    onPlayVideo = onPlayVideo
+                                    onPlayVideo = onPlayVideo,
+                                    onPlayVideoFromStart = onPlayVideoFromStart
                                 )
                             }
                         }

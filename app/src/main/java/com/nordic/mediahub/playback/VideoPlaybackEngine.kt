@@ -173,6 +173,36 @@ class VideoPlaybackEngine(context: Context) {
         publishPlayerState()
     }
 
+    fun playFromStart(video: VideoItem) {
+        if (video.streamUrl.isNullOrBlank()) {
+            _state.value = VideoPlaybackState(
+                video = video,
+                durationSeconds = video.durationSeconds,
+                errorMessage = "这个视频缺少播放地址"
+            )
+            return
+        }
+
+        if (shouldReplaceCurrentVideoItem(_state.value.video, video)) {
+            _state.value = VideoPlaybackState(
+                video = video,
+                durationSeconds = video.durationSeconds,
+                isBuffering = true
+            )
+            player.setMediaItem(video.toMediaItem())
+            player.prepare()
+        } else {
+            _state.update { it.copy(errorMessage = null) }
+        }
+
+        if (player.playbackState == Player.STATE_IDLE) {
+            player.prepare()
+        }
+        player.seekTo(0L)
+        player.play()
+        publishPlayerState()
+    }
+
     fun togglePlayPause() {
         val video = _state.value.video ?: return
         if (video.streamUrl.isNullOrBlank()) return
