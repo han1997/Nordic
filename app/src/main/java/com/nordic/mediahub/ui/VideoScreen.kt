@@ -1,24 +1,13 @@
 package com.nordic.mediahub.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
-import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,10 +18,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -42,7 +29,6 @@ import com.nordic.mediahub.data.VideoItem
 import com.nordic.mediahub.data.VideoLibrary
 import com.nordic.mediahub.data.VideoServerConfig
 import com.nordic.mediahub.data.isReadyForVideoSync
-import com.nordic.mediahub.ui.theme.NordicAlpha
 import com.nordic.mediahub.ui.theme.NordicSpacing
 import kotlinx.coroutines.launch
 
@@ -70,7 +56,6 @@ fun VideoScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var videoConfigStateVersion by remember { mutableStateOf(0) }
     val scope = rememberCoroutineScope()
-    val loadingCardIndexes = remember { List(3) { it } }
     val visibleTypeFilters = remember(videos) {
         VideoTypeFilter.values().filter { filter ->
             filter == VideoTypeFilter.All || videos.any(filter::matches)
@@ -170,11 +155,28 @@ fun VideoScreen(
         }
     }
 
+    fun openVideoDetail(video: VideoItem) {
+        showConfig = false
+        selectedVideo = video
+    }
+
     BackHandler(enabled = selectedVideo != null) {
         selectedVideo = null
     }
 
-    BackHandler(enabled = showConfig) {
+    BackHandler(
+        enabled = selectedVideo == null && shouldHandleVideoBrowserBack(
+            searchExpanded = searchExpanded,
+            searchQuery = searchQuery,
+            selectedTypeFilter = selectedTypeFilter
+        )
+    ) {
+        searchQuery = ""
+        searchExpanded = false
+        selectedTypeFilter = VideoTypeFilter.All
+    }
+
+    BackHandler(enabled = selectedVideo == null && showConfig) {
         showConfig = false
     }
 
@@ -202,60 +204,34 @@ fun VideoScreen(
         horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-                ) {
-                    Text(
-                        "视频",
-                        style = MaterialTheme.typography.displaySmall,
-                        color = colorScheme.onBackground,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        when {
-                            isLoading && videos.isNotEmpty() -> "正在刷新，先显示当前 Emby 内容"
-                            hasActiveBrowserFilter -> "${visibleVideos.size} / ${videos.size} 个匹配条目"
-                            selectedLibraryId != null -> "共 ${videos.size} 个条目，点击海报播放"
-                            savedConfig.isReadyForVideoSync() -> "已连接 Emby，选择媒体库浏览内容"
-                            else -> "连接 Emby 后显示真实媒体库、海报和视频信息"
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                HeaderActionGroup(
-                    actions = buildList {
-                        if (savedConfig.isReadyForVideoSync()) {
-                            add(
-                                HeaderAction(
-                                    icon = if (isLoading) "…" else "↻",
-                                    enabled = !isLoading,
-                                    onClick = { scope.launch { refreshVideo() } }
-                                )
+            MediaPageHeader(
+                title = "视频",
+                subtitle = when {
+                    isLoading && videos.isNotEmpty() -> "正在刷新，先显示当前 Emby 内容"
+                    hasActiveBrowserFilter -> "${visibleVideos.size} / ${videos.size} 个匹配条目"
+                    selectedLibraryId != null -> "共 ${videos.size} 个条目，点击海报播放"
+                    savedConfig.isReadyForVideoSync() -> "已连接 Emby，选择媒体库浏览内容"
+                    else -> "连接 Emby 后显示真实媒体库、海报和视频信息"
+                },
+                actions = buildList {
+                    if (savedConfig.isReadyForVideoSync()) {
+                        add(
+                            HeaderAction(
+                                icon = if (isLoading) "…" else "↻",
+                                enabled = !isLoading,
+                                onClick = { scope.launch { refreshVideo() } }
                             )
-                        }
-                        add(HeaderAction(if (isDark) "☀" else "☾") { onThemeToggle(!isDark) })
-                        add(HeaderAction("⚙") { showConfig = !showConfig })
+                        )
                     }
-                )
-            }
+                    add(HeaderAction(if (isDark) "☀" else "☾") { onThemeToggle(!isDark) })
+                    add(HeaderAction("⚙") { showConfig = !showConfig })
+                },
+                colorScheme = colorScheme
+            )
         }
 
         item(span = { GridItemSpan(maxLineSpan) }) {
-            AnimatedVisibility(
-                visible = showConfig,
-                enter = fadeIn(tween(300, easing = FastOutSlowInEasing)) + expandVertically(),
-                exit = fadeOut(tween(200)) + shrinkVertically()
-            ) {
+            MediaConfigPanel(visible = showConfig) {
                 VideoConfigCard(
                     config = config,
                     colorScheme = colorScheme,
@@ -272,10 +248,10 @@ fun VideoScreen(
 
         if (errorMessage != null) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                VideoMessageCard(
+                MediaStateCard(
                     title = "Emby 连接错误",
                     subtitle = errorMessage.orEmpty(),
-                    isError = true
+                    tone = MediaStateTone.Error
                 )
             }
         }
@@ -325,7 +301,7 @@ fun VideoScreen(
                         topRated = topRatedVideos,
                         unplayed = unplayedVideos,
                         colorScheme = colorScheme,
-                        onVideoSelected = { selectedVideo = it }
+                        onVideoSelected = ::openVideoDetail
                     )
                 }
             }
@@ -361,26 +337,27 @@ fun VideoScreen(
 
         when {
             isLoading && videos.isEmpty() -> {
-                gridItemsIndexed(
-                    items = loadingCardIndexes,
-                    contentType = { _, _ -> "video-loading-card" }
-                ) { index, _ ->
-                    VideoLoadingCard(index = index, colorScheme = colorScheme)
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    MediaLoadingCard(
+                        title = "正在同步 Emby",
+                        subtitle = "加载媒体库、海报和继续观看进度..."
+                    )
                 }
             }
 
             !savedConfig.isReadyForVideoSync() -> {
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    VideoMessageCard(
+                    MediaStateCard(
                         title = "先接入你的 Emby 服务器",
-                        subtitle = "填写服务器地址，并使用 API Key 或用户名密码登录。这里会显示真实媒体库和视频缩略图。"
+                        subtitle = "填写服务器地址，并使用 API Key 或用户名密码登录。这里会显示真实媒体库和视频缩略图。",
+                        hint = "点右上角设置开始连接"
                     )
                 }
             }
 
             libraries.isEmpty() && !isLoading -> {
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    VideoMessageCard(
+                    MediaStateCard(
                         title = "没有可用视频媒体库",
                         subtitle = "Emby 已连接，但当前用户没有可浏览的电影、剧集或家庭视频媒体库。"
                     )
@@ -389,7 +366,7 @@ fun VideoScreen(
 
             videos.isEmpty() && !isLoading -> {
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    VideoMessageCard(
+                    MediaStateCard(
                         title = "这个媒体库暂时没有内容",
                         subtitle = "切换其他媒体库，或回到 Emby 服务端检查扫描结果和用户权限。"
                     )
@@ -398,9 +375,10 @@ fun VideoScreen(
 
             visibleVideos.isEmpty() && !isLoading -> {
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    VideoMessageCard(
+                    MediaStateCard(
                         title = "没有匹配的视频",
-                        subtitle = "换一个关键词，或切换类型筛选查看这个媒体库中的其他内容。"
+                        subtitle = "换一个关键词，或切换类型筛选查看这个媒体库中的其他内容。",
+                        density = MediaStateDensity.Compact
                     )
                 }
             }
@@ -414,7 +392,7 @@ fun VideoScreen(
                     VideoCard(
                         video = video,
                         colorScheme = colorScheme,
-                        onClick = { selectedVideo = video }
+                        onClick = { openVideoDetail(video) }
                     )
                 }
             }

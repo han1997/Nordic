@@ -219,6 +219,43 @@ class VideoScreenTest {
     }
 
     @Test
+    fun shouldHandleVideoBrowserBack_whenSearchOrFilterIsActive() {
+        assertTrue(
+            shouldHandleVideoBrowserBack(
+                searchExpanded = true,
+                searchQuery = "",
+                selectedTypeFilter = VideoTypeFilter.All
+            )
+        )
+        assertTrue(
+            shouldHandleVideoBrowserBack(
+                searchExpanded = false,
+                searchQuery = "movie",
+                selectedTypeFilter = VideoTypeFilter.All
+            )
+        )
+        assertTrue(
+            shouldHandleVideoBrowserBack(
+                searchExpanded = false,
+                searchQuery = "",
+                selectedTypeFilter = VideoTypeFilter.Episodes
+            )
+        )
+    }
+
+    @Test
+    fun shouldHandleVideoBrowserBack_ignoresDefaultBrowseState() {
+        assertEquals(
+            false,
+            shouldHandleVideoBrowserBack(
+                searchExpanded = false,
+                searchQuery = "   ",
+                selectedTypeFilter = VideoTypeFilter.All
+            )
+        )
+    }
+
+    @Test
     fun relatedEpisodesFor_usesSeriesNameFallbackOnlyWhenSeriesIdIsMissing() {
         val series = video(
             id = "series-1",

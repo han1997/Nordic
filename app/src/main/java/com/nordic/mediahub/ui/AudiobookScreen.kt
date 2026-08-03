@@ -1,8 +1,6 @@
 package com.nordic.mediahub.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -222,9 +220,13 @@ fun AudiobookScreen(
         }
     }
 
-    BackHandler(enabled = libraryPage != AudiobookLibraryPage.Home) {
+    fun navigateBackFromAudiobookPage() {
         libraryPage = AudiobookLibraryPage.Home
         errorMessage = null
+    }
+
+    BackHandler(enabled = libraryPage != AudiobookLibraryPage.Home) {
+        navigateBackFromAudiobookPage()
     }
 
     BackHandler(enabled = showConfig) {
@@ -237,66 +239,36 @@ fun AudiobookScreen(
         verticalArrangement = Arrangement.spacedBy(NordicSpacing.lg)
     ) {
         item {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
-                verticalAlignment = Alignment.Top
-            ) {
-                if (libraryPage != AudiobookLibraryPage.Home) {
-                    ScreenBackButton(colorScheme = colorScheme) {
-                        libraryPage = AudiobookLibraryPage.Home
-                        errorMessage = null
+            MediaPageHeader(
+                title = if (libraryPage == AudiobookLibraryPage.Home) "有声书" else selectedItem?.title ?: "详情",
+                subtitle = when (libraryPage) {
+                    AudiobookLibraryPage.Home -> when {
+                        isLoading && items.isNotEmpty() -> "正在刷新，先显示当前书库"
+                        selectedLibraryId != null -> "共 ${items.size} 本，点开查看章节和续播进度"
+                        else -> "连接 AudiobookShelf 后自动加载书库"
                     }
-                }
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-                ) {
-                    Text(
-                        if (libraryPage == AudiobookLibraryPage.Home) "有声书" else selectedItem?.title ?: "详情",
-                        style = MaterialTheme.typography.displaySmall,
-                        color = colorScheme.onBackground,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        when (libraryPage) {
-                            AudiobookLibraryPage.Home -> when {
-                                isLoading && items.isNotEmpty() -> "正在刷新，先显示当前书库"
-                                selectedLibraryId != null -> "共 ${items.size} 本，点开查看章节和续播进度"
-                                else -> "连接 AudiobookShelf 后自动加载书库"
-                            }
-                            AudiobookLibraryPage.Detail -> selectedItem?.authors?.joinToString(" / ").orEmpty()
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                HeaderActionGroup(
-                    actions = buildList {
-                        if (config.isReadyForAudiobookSync()) {
-                            add(
-                                HeaderAction(
-                                    icon = if (isLoading) "…" else "↻",
-                                    enabled = !isLoading,
-                                    onClick = { scope.launch { refreshAudiobooks() } }
-                                )
+                    AudiobookLibraryPage.Detail -> selectedItem?.authors?.joinToString(" / ").orEmpty()
+                },
+                actions = buildList {
+                    if (config.isReadyForAudiobookSync()) {
+                        add(
+                            HeaderAction(
+                                icon = if (isLoading) "…" else "↻",
+                                enabled = !isLoading,
+                                onClick = { scope.launch { refreshAudiobooks() } }
                             )
-                        }
-                        add(HeaderAction(if (isDark) "☀" else "☾") { onThemeToggle(!isDark) })
-                        add(HeaderAction("⚙") { showConfig = !showConfig })
+                        )
                     }
-                )
-            }
+                    add(HeaderAction(if (isDark) "☀" else "☾") { onThemeToggle(!isDark) })
+                    add(HeaderAction("⚙") { showConfig = !showConfig })
+                },
+                colorScheme = colorScheme,
+                showBack = libraryPage != AudiobookLibraryPage.Home,
+                onBack = ::navigateBackFromAudiobookPage
+            )
         }
         item {
-            AnimatedVisibility(
-                visible = showConfig,
-                enter = fadeIn(tween(300, easing = FastOutSlowInEasing)) + expandVertically(),
-                exit = fadeOut(tween(200)) + shrinkVertically()
-            ) {
+            MediaConfigPanel(visible = showConfig) {
                 AudiobookConfigCard(config, colorScheme,
                     onConfigChange = { config = it },
                     onSave = {
@@ -358,14 +330,14 @@ fun AudiobookScreen(
 
             if (isLoading && items.isEmpty()) {
                 item {
-                    AudiobookLoadingCard(
+                    MediaLoadingCard(
                         title = "正在同步 AudiobookShelf",
                         subtitle = "加载书库、封面和续播进度..."
                     )
                 }
             } else if (!config.isReadyForAudiobookSync()) {
                 item {
-                    AudiobookEmptyState(
+                    MediaStateCard(
                         title = "先接入你的有声书书库",
                         subtitle = "填入 AudiobookShelf 地址、用户名和密码后，这里会显示真实书目、章节和续播进度。",
                         hint = "点右上角设置开始连接",
@@ -373,7 +345,7 @@ fun AudiobookScreen(
                 }
             } else if (libraries.isEmpty() && !isLoading) {
                 item {
-                    AudiobookEmptyState(
+                    MediaStateCard(
                         title = "没有可用书库",
                         subtitle = "已连接 AudiobookShelf，但当前账号下没有可访问的 audiobook library。",
                         hint = "检查服务器权限或书库类型",
@@ -381,7 +353,7 @@ fun AudiobookScreen(
                 }
             } else if (items.isEmpty() && !isLoading) {
                 item {
-                    AudiobookEmptyState(
+                    MediaStateCard(
                         title = "这个书库还没有内容",
                         subtitle = "已连接 AudiobookShelf，但当前书库里没有可展示的有声书条目。",
                         hint = "切换其他书库或回到服务端检查扫描结果",
@@ -402,7 +374,7 @@ fun AudiobookScreen(
             when {
                 isLoading && item == null -> {
                     item {
-                        AudiobookLoadingCard(
+                        MediaLoadingCard(
                             title = "正在加载详情",
                             subtitle = "同步章节、简介和续播进度..."
                         )
@@ -410,10 +382,11 @@ fun AudiobookScreen(
                 }
                 item == null -> {
                     item {
-                        AudiobookEmptyState(
+                        MediaStateCard(
                             title = "未选中条目",
                             subtitle = "返回列表选择一本有声书。",
                             hint = "",
+                            density = MediaStateDensity.Compact
                         )
                     }
                 }
@@ -654,23 +627,5 @@ private fun AudiobookChapterRow(chapter: AudiobookChapter, colorScheme: ColorSch
             )
         }
     }
-}
-
-@Composable
-private fun AudiobookEmptyState(
-    title: String,
-    subtitle: String,
-    hint: String
-) {
-    MediaStateCard(
-        title = title,
-        subtitle = subtitle,
-        hint = hint
-    )
-}
-
-@Composable
-private fun AudiobookLoadingCard(title: String, subtitle: String) {
-    MediaLoadingCard(title = title, subtitle = subtitle)
 }
 

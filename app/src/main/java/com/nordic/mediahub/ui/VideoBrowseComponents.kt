@@ -1,8 +1,5 @@
 package com.nordic.mediahub.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -33,11 +30,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -446,67 +440,6 @@ internal fun VideoBrowserControls(
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-internal fun VideoMessageCard(
-    title: String,
-    subtitle: String,
-    isError: Boolean = false
-) {
-    MediaStateCard(
-        title = title,
-        subtitle = subtitle,
-        tone = if (isError) MediaStateTone.Error else MediaStateTone.Neutral
-    )
-}
-
-@Composable
-internal fun VideoLoadingCard(index: Int, colorScheme: ColorScheme) {
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(index * 50L)
-        visible = true
-    }
-
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(tween(300))
-    ) {
-        Surface(
-            color = colorScheme.surfaceVariant.copy(alpha = 0.76f),
-            shape = NordicShapes.md,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(2f / 3f)
-                        .background(colorScheme.surface.copy(alpha = 0.34f))
-                )
-                Column(
-                    modifier = Modifier.padding(NordicSpacing.md),
-                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(14.dp)
-                            .clip(NordicShapes.full)
-                            .background(colorScheme.onSurface.copy(alpha = 0.12f))
-                    )
-                    Box(
-                        modifier = Modifier
-                            .width(96.dp)
-                            .height(12.dp)
-                            .clip(NordicShapes.full)
-                            .background(colorScheme.onSurface.copy(alpha = 0.08f))
                     )
                 }
             }

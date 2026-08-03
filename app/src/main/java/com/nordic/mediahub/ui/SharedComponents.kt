@@ -1,5 +1,12 @@
 package com.nordic.mediahub.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -11,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +46,66 @@ import androidx.compose.ui.unit.sp
 import com.nordic.mediahub.ui.theme.NordicAlpha
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
+
+@Composable
+internal fun MediaPageHeader(
+    title: String,
+    subtitle: String,
+    actions: List<HeaderAction>,
+    colorScheme: ColorScheme,
+    modifier: Modifier = Modifier,
+    showBack: Boolean = false,
+    onBack: () -> Unit = {}
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
+        verticalAlignment = Alignment.Top
+    ) {
+        if (showBack) {
+            ScreenBackButton(
+                colorScheme = colorScheme,
+                onClick = onBack
+            )
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
+        ) {
+            Text(
+                title,
+                style = MaterialTheme.typography.displaySmall,
+                color = colorScheme.onBackground,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
+                maxLines = if (showBack) 1 else 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        HeaderActionGroup(actions = actions)
+    }
+}
+
+@Composable
+internal fun MediaConfigPanel(
+    visible: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(tween(300, easing = FastOutSlowInEasing)) + expandVertically(),
+        exit = fadeOut(tween(200)) + shrinkVertically(),
+        modifier = modifier
+    ) {
+        content()
+    }
+}
 
 @Composable
 internal fun MetaChip(

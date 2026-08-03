@@ -107,6 +107,14 @@ internal fun resolveVideoTypeFilterAfterConfigChange(
     }
 }
 
+internal fun shouldHandleVideoBrowserBack(
+    searchExpanded: Boolean,
+    searchQuery: String,
+    selectedTypeFilter: VideoTypeFilter
+): Boolean {
+    return searchExpanded || searchQuery.isNotBlank() || selectedTypeFilter != VideoTypeFilter.All
+}
+
 private fun VideoItem.isContinueWatchingCandidate(): Boolean {
     if (playbackPositionSeconds <= 0 || isPlayed) return false
 

@@ -1,13 +1,6 @@
 package com.nordic.mediahub.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -455,7 +448,7 @@ fun MusicScreenV2(
         }
     }
 
-    BackHandler(enabled = libraryPage != MusicLibraryPage.Home) {
+    fun navigateBackFromMusicPage() {
         if (libraryPage == MusicLibraryPage.PlaylistDetail) {
             selectedTab = 2
             libraryPage = MusicLibraryPage.Playlists
@@ -463,6 +456,10 @@ fun MusicScreenV2(
             selectedTab = 0
             libraryPage = MusicLibraryPage.Home
         }
+    }
+
+    BackHandler(enabled = libraryPage != MusicLibraryPage.Home) {
+        navigateBackFromMusicPage()
     }
 
     BackHandler(enabled = showConfig) {
@@ -547,53 +544,17 @@ fun MusicScreenV2(
         verticalArrangement = Arrangement.spacedBy(if (isHomePage) NordicSpacing.lg else NordicSpacing.md)
     ) {
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
-                verticalAlignment = Alignment.Top
-            ) {
-                if (!isHomePage) {
-                    ScreenBackButton(
-                        colorScheme = colorScheme,
-                        onClick = {
-                            if (libraryPage == MusicLibraryPage.PlaylistDetail) {
-                                selectedTab = 2
-                                libraryPage = MusicLibraryPage.Playlists
-                            } else {
-                                selectedTab = 0
-                                libraryPage = MusicLibraryPage.Home
-                            }
-                        }
-                    )
-                }
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-                ) {
-                    Text(
-                        headerTitle,
-                        style = MaterialTheme.typography.displaySmall,
-                        color = colorScheme.onBackground,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        headerSubtitle,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-                HeaderActionGroup(actions = headerActions)
-            }
+            MediaPageHeader(
+                title = headerTitle,
+                subtitle = headerSubtitle,
+                actions = headerActions,
+                colorScheme = colorScheme,
+                showBack = !isHomePage,
+                onBack = ::navigateBackFromMusicPage
+            )
         }
         item {
-            AnimatedVisibility(
-                visible = showConfig,
-                enter = fadeIn(tween(300, easing = FastOutSlowInEasing)) + expandVertically(),
-                exit = fadeOut(tween(200)) + shrinkVertically()
-            ) {
+            MediaConfigPanel(visible = showConfig) {
                 NavidromeConfigCard(
                     config = config,
                     colorScheme = colorScheme,
