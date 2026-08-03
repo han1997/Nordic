@@ -7,8 +7,8 @@
 ## Current Status
 
 <!-- @@@auto:current-status -->
-- **Active File**: `journal-2.md`
-- **Total Sessions**: 116
+- **Active File**: `journal-3.md`
+- **Total Sessions**: 117
 - **Last Active**: 2026-08-04
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,8 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~1990 | Active |
+| `journal-3.md` | ~40 | Active |
+| `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +31,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 117 | 2026-08-04 | 中文化沟通与文档规范 | `cd63f27` | `main` |
 | 116 | 2026-08-04 | UI unification and operation logic | `f063a72`, `9bb0096` | `main` |
 | 115 | 2026-08-03 | Video interface logic: resume/restart actions, search collapse, episode filter, player chrome polish | `4e1ae70`, `d227996` | `main` |
 | 114 | 2026-08-03 | Video UI overhaul: player chrome, browse layouts, detail backdrop | `67114ae`, `69096fa`, `e4b32da`, `e43af3d` | `main` |
