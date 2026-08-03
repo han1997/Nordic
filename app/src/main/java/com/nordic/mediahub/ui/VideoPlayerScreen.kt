@@ -3,6 +3,11 @@ package com.nordic.mediahub.ui
 import android.view.SurfaceView
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,7 +25,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AspectRatio
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -28,6 +43,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -50,7 +67,11 @@ import com.nordic.mediahub.playback.AspectRatioMode
 import com.nordic.mediahub.playback.VideoPlaybackState
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
+
+internal const val VIDEO_PLAYER_CONTROLS_AUTO_HIDE_MS = 4000L
+private const val VIDEO_PLAYER_CHROME_FADE_MS = 200
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
@@ -63,6 +84,7 @@ fun VideoPlayerScreen(
     onSeek: (Int) -> Unit,
     onSeekBack: () -> Unit = {},
     onSeekForward: () -> Unit = {},
+    onSeekRelative: (Int) -> Unit = {},
     onPlayPause: () -> Unit,
     onCycleAspectRatio: () -> Unit = {},
     onToggleFullscreen: () -> Unit = {},
@@ -72,13 +94,7 @@ fun VideoPlayerScreen(
 ) {
     val video = state.video
     val durationSeconds = state.durationSeconds.coerceAtLeast(video?.durationSeconds ?: 0)
-    val timeline = resolveVideoPlayerTimeline(
-        positionSeconds = state.positionSeconds,
-        durationSeconds = durationSeconds
-    )
     var scrubPosition by remember(video?.id) { mutableStateOf<Float?>(null) }
-    val visiblePosition = (scrubPosition ?: timeline.positionSeconds.toFloat())
-        .coerceIn(0f, timeline.sliderMaxSeconds.toFloat())
     val errorMessage = externalError ?: state.errorMessage
     val statusText = videoPlayerStatusText(
         hasVideo = video != null,
@@ -101,6 +117,15 @@ fun VideoPlayerScreen(
         { surface: SurfaceView -> currentOnSurfaceDisposed(surface) }
     }
 
+    var controlsVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(controlsVisible, state.isPlaying, scrubPosition, statusTone) {
+        if (controlsVisible && state.isPlaying && scrubPosition == null && statusTone == null) {
+            delay(VIDEO_PLAYER_CONTROLS_AUTO_HIDE_MS)
+            controlsVisible = false
+        }
+    }
+
     BackHandler(enabled = isFullscreen) {
         onToggleFullscreen()
     }
@@ -109,6 +134,17 @@ fun VideoPlayerScreen(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
+            .videoPlayerGestures(
+                enabled = video != null,
+                isFullscreen = isFullscreen,
+                durationSeconds = durationSeconds,
+                currentPositionSeconds = state.positionSeconds,
+                onToggleControls = { controlsVisible = !controlsVisible },
+                onSeekRelative = onSeekRelative,
+                onScrubChange = { scrubPosition = it },
+                onSeek = onSeek,
+                onCycleAspectRatio = onCycleAspectRatio
+            )
     ) {
         VideoPlayerSurface(
             aspectRatioMode = state.aspectRatioMode,
@@ -118,7 +154,13 @@ fun VideoPlayerScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        VideoPlayerScrim()
+        AnimatedVisibility(
+            visible = controlsVisible,
+            enter = fadeIn(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = FastOutSlowInEasing)),
+            exit = fadeOut(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = FastOutSlowInEasing))
+        ) {
+            VideoPlayerScrim()
+        }
 
         if (video == null) {
             VideoPlayerCenterMessage(
@@ -137,45 +179,57 @@ fun VideoPlayerScreen(
             )
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(if (isFullscreen) Modifier else Modifier.statusBarsPadding())
-                .then(if (isFullscreen) Modifier else Modifier.navigationBarsPadding())
-                .padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.md),
-            verticalArrangement = Arrangement.SpaceBetween
+        AnimatedVisibility(
+            visible = controlsVisible,
+            enter = fadeIn(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = FastOutSlowInEasing)),
+            exit = fadeOut(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = FastOutSlowInEasing))
         ) {
-            VideoPlayerTopBar(
-                title = video?.title ?: "Video player",
-                subtitle = playerSubtitle,
-                statusText = statusText,
-                statusTone = statusTone,
-                colorScheme = colorScheme,
-                onClose = onClose
+            val timeline = resolveVideoPlayerTimeline(
+                positionSeconds = state.positionSeconds,
+                durationSeconds = durationSeconds
             )
+            val visiblePosition = (scrubPosition ?: timeline.positionSeconds.toFloat())
+                .coerceIn(0f, timeline.sliderMaxSeconds.toFloat())
 
-            VideoPlayerControls(
-                visiblePosition = visiblePosition,
-                durationSeconds = durationSeconds,
-                timeline = timeline,
-                scrubPosition = scrubPosition,
-                isPlaying = state.isPlaying,
-                hasVideo = video != null,
-                aspectRatioMode = state.aspectRatioMode,
-                isFullscreen = isFullscreen,
-                colorScheme = colorScheme,
-                onScrubChange = { scrubPosition = it },
-                onScrubFinished = {
-                    val target = scrubPosition ?: visiblePosition
-                    onSeek(target.roundToInt())
-                    scrubPosition = null
-                },
-                onSeekBack = onSeekBack,
-                onPlayPause = onPlayPause,
-                onSeekForward = onSeekForward,
-                onCycleAspectRatio = onCycleAspectRatio,
-                onToggleFullscreen = onToggleFullscreen
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(if (isFullscreen) Modifier else Modifier.statusBarsPadding())
+                    .then(if (isFullscreen) Modifier else Modifier.navigationBarsPadding())
+                    .padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.md),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                VideoPlayerTopBar(
+                    title = video?.title ?: "Video player",
+                    subtitle = playerSubtitle,
+                    statusText = statusText,
+                    statusTone = statusTone,
+                    colorScheme = colorScheme,
+                    onClose = onClose
+                )
+
+                VideoPlayerControls(
+                    visiblePosition = visiblePosition,
+                    durationSeconds = durationSeconds,
+                    timeline = timeline,
+                    scrubPosition = scrubPosition,
+                    isPlaying = state.isPlaying,
+                    hasVideo = video != null,
+                    isFullscreen = isFullscreen,
+                    colorScheme = colorScheme,
+                    onScrubChange = { scrubPosition = it },
+                    onScrubFinished = {
+                        val target = scrubPosition ?: visiblePosition
+                        onSeek(target.roundToInt())
+                        scrubPosition = null
+                    },
+                    onSeekBack = onSeekBack,
+                    onPlayPause = onPlayPause,
+                    onSeekForward = onSeekForward,
+                    onCycleAspectRatio = onCycleAspectRatio,
+                    onToggleFullscreen = onToggleFullscreen
+                )
+            }
         }
     }
 }
@@ -262,7 +316,7 @@ private fun VideoPlayerTopBar(
         verticalAlignment = Alignment.Top
     ) {
         VideoPlayerChromeButton(
-            text = "X",
+            icon = Icons.Filled.Close,
             colorScheme = colorScheme,
             primary = false,
             onClick = onClose
@@ -368,7 +422,6 @@ private fun VideoPlayerControls(
     scrubPosition: Float?,
     isPlaying: Boolean,
     hasVideo: Boolean,
-    aspectRatioMode: AspectRatioMode,
     isFullscreen: Boolean,
     colorScheme: ColorScheme,
     onScrubChange: (Float) -> Unit,
@@ -433,7 +486,7 @@ private fun VideoPlayerControls(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 VideoPlayerChromeButton(
-                    text = aspectRatioMode.label,
+                    icon = Icons.Filled.AspectRatio,
                     colorScheme = colorScheme,
                     enabled = hasVideo,
                     size = 44.dp,
@@ -441,7 +494,7 @@ private fun VideoPlayerControls(
                 )
                 Spacer(modifier = Modifier.width(NordicSpacing.md))
                 VideoPlayerChromeButton(
-                    text = "-10",
+                    icon = Icons.Filled.FastRewind,
                     colorScheme = colorScheme,
                     enabled = hasVideo,
                     size = 48.dp,
@@ -449,7 +502,7 @@ private fun VideoPlayerControls(
                 )
                 Spacer(modifier = Modifier.width(NordicSpacing.lg))
                 VideoPlayerChromeButton(
-                    text = if (isPlaying) "||" else ">",
+                    icon = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                     colorScheme = colorScheme,
                     primary = true,
                     enabled = hasVideo,
@@ -458,7 +511,7 @@ private fun VideoPlayerControls(
                 )
                 Spacer(modifier = Modifier.width(NordicSpacing.lg))
                 VideoPlayerChromeButton(
-                    text = "+30",
+                    icon = Icons.Filled.FastForward,
                     colorScheme = colorScheme,
                     enabled = hasVideo,
                     size = 48.dp,
@@ -466,7 +519,7 @@ private fun VideoPlayerControls(
                 )
                 Spacer(modifier = Modifier.width(NordicSpacing.md))
                 VideoPlayerChromeButton(
-                    text = if (isFullscreen) "Exit" else "Full",
+                    icon = if (isFullscreen) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
                     colorScheme = colorScheme,
                     enabled = hasVideo,
                     size = 44.dp,
@@ -491,7 +544,8 @@ private fun VideoPlayerControls(
 
 @Composable
 private fun VideoPlayerChromeButton(
-    text: String,
+    icon: ImageVector? = null,
+    text: String? = null,
     colorScheme: ColorScheme,
     primary: Boolean = false,
     enabled: Boolean = true,
@@ -533,18 +587,27 @@ private fun VideoPlayerChromeButton(
             )
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text(
-                text,
-                fontSize = when {
-                    text.length > 2 -> 13.sp
-                    size > 50.dp -> 24.sp
-                    else -> 18.sp
-                },
-                fontWeight = FontWeight.Bold,
-                color = contentColor,
-                maxLines = 1,
-                overflow = TextOverflow.Clip
-            )
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size((size.value * 0.52f).dp)
+                )
+            } else if (!text.isNullOrBlank()) {
+                Text(
+                    text,
+                    fontSize = when {
+                        text.length > 2 -> 13.sp
+                        size > 50.dp -> 24.sp
+                        else -> 18.sp
+                    },
+                    fontWeight = FontWeight.Bold,
+                    color = contentColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Clip
+                )
+            }
         }
     }
 }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -27,6 +28,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -204,7 +206,8 @@ internal fun PrimaryActionButton(
     colorScheme: ColorScheme,
     enabled: Boolean = true,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val scale = rememberPressScale(
@@ -230,9 +233,18 @@ internal fun PrimaryActionButton(
             )
     ) {
         Row(
-            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(horizontal = NordicSpacing.lg),
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = colorScheme.onPrimary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
             Text(
                 text,
                 style = MaterialTheme.typography.titleMedium,
