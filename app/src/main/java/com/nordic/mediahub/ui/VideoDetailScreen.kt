@@ -1,20 +1,28 @@
 package com.nordic.mediahub.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -22,7 +30,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -49,105 +60,32 @@ internal fun VideoDetailScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                ScreenBackButton(
-                    colorScheme = colorScheme,
-                    onClick = onBack
-                )
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
-                ) {
-                    Text(
-                        "视频详情",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        video.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = colorScheme.onBackground,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
-
-        item {
-            Surface(
-                color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
-                shape = NordicShapes.xl,
-                border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
-                shadowElevation = 10.dp,
-                modifier = Modifier.fillMaxWidth(0.72f)
-            ) {
-                CoverArt(
-                    imageUrl = video.imageUrl,
-                    contentDescription = video.title,
-                    colorScheme = colorScheme,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(2f / 3f),
-                    shape = NordicShapes.md,
-                    fallbackText = "VIDEO"
-                )
-            }
+            VideoDetailHero(
+                video = video,
+                colorScheme = colorScheme,
+                onBack = onBack,
+                onPlay = onPlay
+            )
         }
 
         item {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)
+                verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
             ) {
                 Text(
-                    video.title,
-                    style = MaterialTheme.typography.displaySmall,
-                    lineHeight = 32.sp,
-                    color = colorScheme.onBackground,
-                    maxLines = 3,
+                    "简介",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = colorScheme.onSurface,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-
-                val chips = remember(video) { video.detailChips() }
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-                ) {
-                    items(chips, key = { it }, contentType = { "video-detail-chip" }) { chip ->
-                        MetaChip(text = chip, colorScheme = colorScheme)
-                    }
-                }
-
-                PrimaryActionButton(
-                    text = "▶  播放",
-                    colorScheme = colorScheme,
-                    enabled = !video.streamUrl.isNullOrBlank(),
-                    onClick = onPlay
+                Text(
+                    video.overview.ifBlank { "暂无简介" },
+                    style = MaterialTheme.typography.bodyMedium,
+                    lineHeight = 21.sp,
+                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium)
                 )
-
-                Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
-                    Text(
-                        "简介",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        video.overview.ifBlank { "暂无简介" },
-                        style = MaterialTheme.typography.bodyMedium,
-                        lineHeight = 21.sp,
-                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium)
-                    )
-                }
             }
         }
 
@@ -177,6 +115,104 @@ internal fun VideoDetailScreen(
 }
 
 @Composable
+private fun VideoDetailHero(
+    video: VideoItem,
+    colorScheme: ColorScheme,
+    onBack: () -> Unit,
+    onPlay: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(16f / 9f)
+    ) {
+        if (!video.backdropImageUrl.isNullOrBlank()) {
+            CoverArt(
+                imageUrl = video.backdropImageUrl,
+                contentDescription = video.title,
+                colorScheme = colorScheme,
+                modifier = Modifier.fillMaxSize(),
+                shape = NordicShapes.md,
+                fallbackText = video.title
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(NordicShapes.md)
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0f to colorScheme.primary.copy(alpha = 0.18f),
+                                0.5f to colorScheme.secondary.copy(alpha = 0.10f),
+                                1f to colorScheme.surfaceVariant.copy(alpha = 0.82f)
+                            )
+                        )
+                    )
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(NordicShapes.md)
+                .background(
+                    Brush.verticalGradient(
+                        colorStops = arrayOf(
+                            0f to Color.Black.copy(alpha = 0.40f),
+                            0.5f to Color.Transparent,
+                            1f to Color.Black.copy(alpha = 0.70f)
+                        )
+                    )
+                )
+        )
+
+        ScreenBackButton(
+            colorScheme = colorScheme,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(NordicSpacing.md),
+            onClick = onBack
+        )
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(NordicSpacing.lg),
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)
+        ) {
+            Text(
+                video.title,
+                style = MaterialTheme.typography.displaySmall,
+                lineHeight = 32.sp,
+                color = Color.White,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            val chips = remember(video) { video.detailChips() }
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
+            ) {
+                items(chips, key = { it }, contentType = { "video-detail-chip" }) { chip ->
+                    MetaChip(text = chip, colorScheme = colorScheme)
+                }
+            }
+
+            PrimaryActionButton(
+                text = "播放",
+                colorScheme = colorScheme,
+                enabled = !video.streamUrl.isNullOrBlank(),
+                onClick = onPlay,
+                icon = Icons.Filled.PlayArrow
+            )
+        }
+    }
+}
+
+@Composable
 internal fun VideoEpisodeRow(
     episode: VideoItem,
     colorScheme: ColorScheme,
@@ -188,6 +224,16 @@ internal fun VideoEpisodeRow(
         pressedScale = 0.985f,
         enabled = !episode.streamUrl.isNullOrBlank()
     )
+    val progressFraction = remember(episode) {
+        if (episode.durationSeconds > 0 && episode.playbackPositionSeconds > 0 && !episode.isPlayed) {
+            (episode.playbackPositionSeconds.toFloat() / episode.durationSeconds).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+    }
+    val showProgress = episode.playbackPositionSeconds > 0 &&
+        !episode.isPlayed &&
+        episode.durationSeconds > 0
 
     Row(
         modifier = Modifier
@@ -208,16 +254,41 @@ internal fun VideoEpisodeRow(
             border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
             modifier = Modifier.width(116.dp)
         ) {
-            CoverArt(
-                imageUrl = episode.imageUrl,
-                contentDescription = episode.title,
-                colorScheme = colorScheme,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(16f / 9f),
-                shape = NordicShapes.md,
-                fallbackText = "VIDEO"
-            )
+                    .aspectRatio(16f / 9f)
+            ) {
+                CoverArt(
+                    imageUrl = episode.imageUrl,
+                    contentDescription = episode.title,
+                    colorScheme = colorScheme,
+                    modifier = Modifier.fillMaxSize(),
+                    shape = NordicShapes.md,
+                    fallbackText = "VIDEO"
+                )
+
+                if (episode.isPlayed) {
+                    Icon(
+                        imageVector = Icons.Filled.CheckCircle,
+                        contentDescription = "已播放",
+                        tint = colorScheme.primary,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(NordicSpacing.xs)
+                            .size(18.dp)
+                    )
+                } else if (showProgress) {
+                    LinearProgressIndicator(
+                        progress = progressFraction,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth(),
+                        color = colorScheme.primary,
+                        trackColor = Color.White.copy(alpha = 0.22f)
+                    )
+                }
+            }
         }
         Column(
             modifier = Modifier.weight(1f),

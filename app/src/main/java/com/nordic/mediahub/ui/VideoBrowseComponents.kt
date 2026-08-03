@@ -11,13 +11,19 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -29,9 +35,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -182,6 +191,7 @@ internal fun VideoSpotlightRow(
     onVideoSelected: (VideoItem) -> Unit
 ) {
     if (videos.isEmpty()) return
+    val isContinueWatching = keyPrefix == "continue"
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -201,13 +211,122 @@ internal fun VideoSpotlightRow(
             items(
                 items = videos,
                 key = { video -> "$keyPrefix-${video.libraryId}:${video.id}" },
-                contentType = { "video-spotlight-card" }
+                contentType = { if (isContinueWatching) "video-continue-card" else "video-spotlight-card" }
             ) { video ->
-                Box(modifier = Modifier.width(132.dp)) {
-                    VideoCard(
+                if (isContinueWatching) {
+                    ContinueWatchingCard(
                         video = video,
                         colorScheme = colorScheme,
                         onClick = { onVideoSelected(video) }
+                    )
+                } else {
+                    Box(modifier = Modifier.width(132.dp)) {
+                        VideoCard(
+                            video = video,
+                            colorScheme = colorScheme,
+                            onClick = { onVideoSelected(video) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun ContinueWatchingCard(
+    video: VideoItem,
+    colorScheme: ColorScheme,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val scale = rememberPressScale(interactionSource)
+    val progressFraction = remember(video) {
+        if (video.durationSeconds > 0) {
+            (video.playbackPositionSeconds.toFloat() / video.durationSeconds).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+    }
+
+    Surface(
+        color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
+        shape = NordicShapes.md,
+        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
+        modifier = Modifier
+            .width(240.dp)
+            .scale(scale)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            )
+    ) {
+        Box(modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
+            CoverArt(
+                imageUrl = video.imageUrl,
+                contentDescription = video.title,
+                colorScheme = colorScheme,
+                modifier = Modifier.fillMaxSize(),
+                shape = NordicShapes.md,
+                fallbackText = video.title
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0f to Color.Transparent,
+                                0.55f to Color.Transparent,
+                                1f to Color.Black.copy(alpha = 0.72f)
+                            )
+                        )
+                    )
+            )
+
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    color = Color.Black.copy(alpha = 0.46f),
+                    contentColor = Color.White,
+                    shape = NordicShapes.full,
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Filled.PlayArrow,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(NordicSpacing.md),
+                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
+            ) {
+                Text(
+                    video.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (video.durationSeconds > 0) {
+                    LinearProgressIndicator(
+                        progress = progressFraction,
+                        modifier = Modifier.fillMaxWidth(),
+                        color = colorScheme.primary,
+                        trackColor = Color.White.copy(alpha = 0.22f)
                     )
                 }
             }
