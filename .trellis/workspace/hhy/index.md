@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 113
+- **Total Sessions**: 114
 - **Last Active**: 2026-08-03
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~1886 | Active |
+| `journal-2.md` | ~1922 | Active |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 114 | 2026-08-03 | Video UI overhaul: player chrome, browse layouts, detail backdrop | `67114ae`, `69096fa`, `e4b32da`, `e43af3d` | `main` |
 | 113 | 2026-08-03 | Performance-first media chrome spec | `17f1a3a` | `main` |
 | 112 | 2026-08-02 | UI design token system (Shapes/Spacing/Type/Alpha) + 17-file migration | `78e3e67` | `main` |
 | 111 | 2026-08-02 | Optimize scroll jank — isolate playback state collection | `9013c10` | `main` |

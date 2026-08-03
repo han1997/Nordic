@@ -1884,3 +1884,39 @@ Added performance-first persistent media chrome guideline to backend quality-gui
 ### Next Steps
 
 - None - task complete
+
+
+## Session 114: Video UI overhaul: player chrome, browse layouts, detail backdrop
+
+**Date**: 2026-08-03
+**Task**: Video UI overhaul: player chrome, browse layouts, detail backdrop
+**Branch**: `main`
+
+### Summary
+
+Brought video UI up to Plex/Infuse/Apple TV parity across three surfaces. (1) Data: added Emby backdrop image URL pipeline with BackdropImageTags + ParentBackdrop fields, fallback chain own→parent→SeriesId→null, 5 new repository tests. (2) Player: controls auto-hide after 4s when playing (performance-first spec application), full gesture suite (tap toggle, double-tap seek ∓10/±30, horizontal drag scrub, pinch cycle aspect in fullscreen), replaced text glyphs with Material Symbols icons (added material-icons-core+extended deps). (3) Browse: dedicated ContinueWatchingCard (16:9 + progress bar) distinct from the 2:3 movie grid. (4) Detail: full-bleed 16:9 backdrop hero with gradient scrim + overlaid title/meta/play, episode rows show CheckCircle watched state + progress bar. (5) Spec: recorded Emby backdrop URL contract (emby-integration.md new scenario) and player chrome auto-hide implementation pattern (quality-guidelines.md new section). Verification: compileDebugKotlin + 271 unit tests + lintDebug all green; no regressions in VideoScreenTest/VideoPlayerScreenTest/EmbyRepositoryTest/MainActivityTest.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `67114ae` | (see git log) |
+| `69096fa` | (see git log) |
+| `e4b32da` | (see git log) |
+| `e43af3d` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
