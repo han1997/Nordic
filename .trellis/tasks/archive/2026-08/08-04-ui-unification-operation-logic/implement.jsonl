@@ -1,0 +1,4 @@
+{"file":".trellis/spec/backend/index.md","reason":"Android app pre-development checklist and verification commands for Compose UI work."}
+{"file":".trellis/spec/backend/directory-structure.md","reason":"Guidance for placing or refactoring Compose UI components without crossing package boundaries."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Shared UI state component quality requirements and anti-patterns relevant to UI unification."}
+{"file":".trellis/spec/backend/error-handling.md","reason":"UI error propagation and state presentation guidance for loading/error/empty state consistency."}
