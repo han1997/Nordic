@@ -84,6 +84,36 @@ Use `MediaStateDensity.Compact` for detail-level empty states and the default pr
 
 **Why**: These surfaces encode the design-system alpha levels (`0.72f` empty, `0.76f` loading, error container for errors). Repeating local `Surface` blocks causes visual drift and makes copy/encoding fixes harder to audit.
 
+### Shared media page shell
+
+Top-level Music, Audiobook, and Video browsing screens should use the shared page-shell components for headers and inline config panels instead of reimplementing local title/action/config animation rows.
+
+**Contracts**:
+- Use `MediaPageHeader(...)` for the screen title, dynamic subtitle, optional visible back button, and header actions.
+- Header actions should stay in `HeaderActionGroup` / `HeaderAction` so refresh, theme, config, and search affordances keep the same surface, sizing, and disabled behavior across media domains.
+- Use `MediaConfigPanel(visible = showConfig) { ... }` for inline config expansion so enter/exit timing and layout ownership stay consistent.
+- If opening a detail page from a screen where `showConfig` can be true, close the config panel before setting the detail selection, or scope the config `BackHandler` to the browse page. Hidden config handlers must not consume Back while the detail page is visible.
+
+```kotlin
+MediaPageHeader(
+    title = "视频",
+    subtitle = browserSubtitle,
+    actions = buildList {
+        add(HeaderAction(if (isLoading) "…" else "↻", enabled = !isLoading) { refresh() })
+        add(HeaderAction("⚙") { showConfig = !showConfig })
+    },
+    colorScheme = colorScheme,
+    showBack = libraryPage != MusicLibraryPage.Home,
+    onBack = ::returnToHome
+)
+
+MediaConfigPanel(visible = showConfig) {
+    VideoConfigCard(...)
+}
+```
+
+**Why**: Media browse screens are parallel product surfaces. Keeping header/config chrome shared preserves visual consistency, reduces duplicated animation code, and prevents BackHandler priority bugs where an off-screen expanded config panel intercepts system Back.
+
 ### Compose media list stability
 
 Image-heavy `LazyColumn` and `LazyRow` sections should provide stable `key` values from domain identity and a stable `contentType` for each row/card family. Small fixed control rows such as sort chips do not need this.
@@ -221,6 +251,8 @@ Every composable that manages page-level state visible to the user (e.g., `libra
 
 **Priority rule**: `BackHandler` uses last-registered-wins priority. Declare `showConfig` handlers AFTER page-level handlers so collapsing a config panel takes precedence over page navigation when both conditions are true.
 
+**Visibility rule**: Scope each handler to the visible surface it owns. For example, a config-panel handler should be enabled only when the browse surface is visible and `showConfig` is true; it should not stay enabled after a detail page replaces the browse surface.
+
 ```kotlin
 // Page-level back — declared first (lower priority)
 BackHandler(enabled = libraryPage != MusicLibraryPage.Home) {
@@ -235,6 +267,13 @@ BackHandler(enabled = libraryPage != MusicLibraryPage.Home) {
 
 // Config dismiss back — declared after (higher priority)
 BackHandler(enabled = showConfig) {
+    showConfig = false
+}
+```
+
+```kotlin
+// Correct: hidden browse config cannot intercept Back from a visible detail page.
+BackHandler(enabled = selectedVideo == null && showConfig) {
     showConfig = false
 }
 ```
@@ -1025,7 +1064,9 @@ Playback logic tests should isolate pure calculations where possible, as in `app
 - [ ] No string-based error type checks (use typed exceptions)
 - [ ] No duplicate utility functions across files
 - [ ] Shared Compose primitives use `internal` visibility
+- [ ] Top-level media browse screens use shared page-shell components (`MediaPageHeader`, `MediaConfigPanel`) instead of duplicated local header/config animation code
 - [ ] Repeated loading/error/empty state cards use shared media state components
+- [ ] Hidden config/search/filter state cannot consume Back while a detail/player surface is visible
 - [ ] Persistent player/navigation chrome is hidden, collapsed, or explicitly justified when static, with performance and content readability prioritized
 - [ ] `NavidromeRepository` is `remember`ed, not constructed per call
 - [ ] Config readiness checks use `isReadyForMusicSync()`, not inlined
