@@ -1,0 +1,4 @@
+{"file": ".trellis/tasks/08-03-video-ui-overhaul/prd.md", "reason": "Acceptance criteria to verify the implementation against"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify design tokens, performance-first chrome compliance, BackHandler parity, shared media state components"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Verify backdrop plumbing follows the Emby DTO/repository contract"}
+{"file": ".trellis/tasks/08-03-video-ui-overhaul/research/emby-image-api.md", "reason": "Verify backdrop fallback chain matches the researched Emby API contract"}

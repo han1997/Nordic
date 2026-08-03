@@ -503,3 +503,118 @@ addQueryParameter("api_key", token)
 if (!EMBY_HEADER_AUTH_ENABLED) addQueryParameter("api_key", token)
 // and register X-Emby-Token into MediaAuthHeaderRegistry when session() resolves.
 ```
+
+## Scenario: Emby Backdrop Image URL Mapping
+
+### 1. Scope / Trigger
+- Trigger: The video detail screen leads with a full-bleed 16:9 backdrop hero instead of a centered portrait poster.
+- Scope: `EmbyItemDto` backdrop image-tag fields, `Fields` query extension, `EmbyRepository` backdrop URL builder, episode→series backdrop fallback chain, and repository tests.
+- Out of scope: Thumb / Logo image fetching (documented as a follow-up), multiple-backdrop carousel, backdrop image caching policy.
+
+### 2. Signatures
+- DTO fields on `EmbyItemDto`:
+```kotlin
+@SerializedName("BackdropImageTags") val backdropImageTags: List<String>? = null
+@SerializedName("ParentBackdropItemId") val parentBackdropItemId: String? = null
+@SerializedName("ParentBackdropImageTags") val parentBackdropImageTags: List<String>? = null
+```
+- `VideoItem` field:
+```kotlin
+val backdropImageUrl: String? = null
+```
+- Repository helper:
+```kotlin
+private fun backdropImageUrl(itemId: String, token: String, backdropTag: String?): String?
+```
+- `Fields` query default appends `BackdropImageTags,ParentBackdropImageTags` to the existing comma-delimited list.
+
+### 3. Contracts
+- `BackdropImageTags` is a JSON **array of strings** (separate from `ImageTags`, which is a `Map<String,String>` keyed by single-image type names). `Backdrop` is **never** a key in `ImageTags` because Backdrop allows multiple images.
+- The backdrop URL follows the Primary URL pattern: `/Items/{itemId}/Images/Backdrop?maxWidth=1280&quality=90&tag={tag}`. `maxWidth=1280` (vs `640` for Primary) because a full-bleed hero needs more pixels than a grid thumbnail.
+- Auth follows the existing `EMBY_HEADER_AUTH_ENABLED` contract: the URL omits `api_key` when header auth is enabled (default); `MediaAuthHeaderInterceptor` injects `X-Emby-Token`. No new auth plumbing is needed.
+- `tag` is included for cache hygiene (strong cache headers), matching the Primary pattern.
+- The fallback chain resolves in `EmbyItemDto.toVideoItem(...)` in priority order:
+  1. Own `BackdropImageTags[0]` (non-blank) → `backdropImageUrl(itemId, token, ownTag)` — Movie / Series case.
+  2. `ParentBackdropImageTags[0]` (non-blank) + non-blank `ParentBackdropItemId` → `backdropImageUrl(parentBackdropItemId.trim(), token, parentTag)` — Episode inherits Series backdrop.
+  3. Non-blank `SeriesId` → build `/Items/{SeriesId.trim()}/Images/Backdrop?maxWidth=1280&quality=90` with **no `tag`** (Emby still serves the image; weak caching is the last-resort tradeoff).
+  4. Otherwise → `backdropImageUrl = null`; the UI renders the gradient placeholder (`primary(0.18f) → secondary(0.10f) → surfaceVariant(0.82f)`).
+- Blank/whitespace-only tags are treated as absent at every branch (use `takeIf { it.isNotBlank() }`).
+- `ParentBackdropItemId` and `SeriesId` are trimmed before being inserted into the URL path, matching the existing id-trim contract.
+
+### 4. Validation & Error Matrix
+- Own `BackdropImageTags` non-empty with non-blank first tag → use own tag + own id.
+- Own `BackdropImageTags` missing/null/empty → fall through to parent.
+- `ParentBackdropImageTags` non-empty + non-blank `ParentBackdropItemId` → use parent tag + parent id.
+- `ParentBackdropImageTags` missing/null/empty but `SeriesId` non-blank → use SeriesId, no tag.
+- `SeriesId` blank/null and no own/parent backdrop → `backdropImageUrl = null`.
+- First tag blank (`""` or `"   "`) → skip to next branch; do not build a URL with an empty `tag`.
+- `ParentBackdropItemId` blank while `ParentBackdropImageTags` is non-empty → skip to SeriesId branch; do not build a URL with an empty id segment.
+- Backdrop URL must NOT contain `api_key=` when `EMBY_HEADER_AUTH_ENABLED=true`.
+- Backdrop URL must contain `api_key=<token>` when `EMBY_HEADER_AUTH_ENABLED=false`.
+
+### 5. Good/Base/Bad Cases
+- Good: A Movie with `BackdropImageTags: ["b1"]` resolves `backdropImageUrl` to `/Items/{id}/Images/Backdrop?...&tag=b1`.
+- Good: An Episode with no own backdrop but `ParentBackdropItemId: "s1"` + `ParentBackdropImageTags: ["sb1"]` resolves to `/Items/s1/Images/Backdrop?...&tag=sb1`.
+- Good: An Episode with no own/parent backdrop but `SeriesId: "s1"` resolves to `/Items/s1/Images/Backdrop?maxWidth=1280&quality=90` (no tag).
+- Good: An item with no backdrop anywhere resolves to `null` and the UI shows the gradient placeholder.
+- Base: A Movie with `BackdropImageTags: [""]` (blank first tag) falls through to the SeriesId/no-backdrop path instead of building a broken URL.
+- Bad: Reading `imageTags["Backdrop"]` — Backdrop is never a key in `ImageTags`; it always returns null.
+- Bad: Building the backdrop URL with `api_key` in the query while header auth is enabled (token leaks into the disk cache key).
+- Bad: Skipping the SeriesId no-tag fallback and returning null when parent tags are missing but SeriesId is present (misses a cheap image render).
+
+### 6. Tests Required
+- Repository unit test asserting the `Fields` query parameter contains `BackdropImageTags` and `ParentBackdropImageTags`.
+- Repository unit test asserting an item with own `BackdropImageTags: ["b1"]` maps to a backdrop URL containing `/Items/{id}/Images/Backdrop` and `tag=b1`.
+- Repository unit test asserting an episode with `ParentBackdropItemId` + `ParentBackdropImageTags` maps to a backdrop URL using the parent id and parent tag.
+- Repository unit test asserting an item with `SeriesId` but no own/parent backdrop maps to a backdrop URL containing the series id with no `tag` query.
+- Repository unit test asserting an item with no backdrop data anywhere maps to `backdropImageUrl = null`.
+- Repository unit test asserting the backdrop URL does not contain `api_key=` when `EMBY_HEADER_AUTH_ENABLED=true`.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```kotlin
+// Backdrop is NOT a key in ImageTags — this always returns null.
+val backdropTag = imageTags.orEmpty()["Backdrop"]
+```
+
+```kotlin
+// Token leaks into the disk cache key when header auth is enabled.
+addQueryParameter("api_key", token)
+addQueryParameter("tag", backdropTag)
+```
+
+```kotlin
+// Blank tag becomes tag= in the URL.
+val tag = backdropImageTags?.firstOrNull() // "" survives
+backdropImageUrl(itemId, token, tag)
+```
+
+#### Correct
+```kotlin
+// Backdrop tags live in the separate BackdropImageTags array; blank tags are skipped.
+val ownTag = backdropImageTags.orEmpty().firstOrNull()?.takeIf { it.isNotBlank() }
+val parentTag = parentBackdropImageTags.orEmpty().firstOrNull()?.takeIf { it.isNotBlank() }
+val resolved = when {
+    ownTag != null -> backdropImageUrl(itemId, token, ownTag)
+    parentTag != null && !parentBackdropItemId.isNullOrBlank() ->
+        backdropImageUrl(parentBackdropItemId!!.trim(), token, parentTag)
+    !seriesId.isNullOrBlank() -> backdropUrlNoTag(seriesId!!.trim(), token)
+    else -> null
+}
+```
+
+```kotlin
+// Token stays out of the URL when header auth is enabled.
+private fun backdropImageUrl(itemId: String, token: String, tag: String?): String? {
+    if (tag.isNullOrBlank()) return null
+    return baseUrl.toHttpUrl().newBuilder()
+        .addPathSegment("Items").addPathSegment(itemId)
+        .addPathSegment("Images").addPathSegment("Backdrop")
+        .addQueryParameter("maxWidth", "1280")
+        .addQueryParameter("quality", "90")
+        .addQueryParameter("tag", tag)
+        .apply { if (!EMBY_HEADER_AUTH_ENABLED) addQueryParameter("api_key", token) }
+        .build().toString()
+}
+```

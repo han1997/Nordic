@@ -165,6 +165,55 @@ if (playbackState.isPlaying || showPlayerControls) {
 
 **Why**: Always-visible overlays reduce usable screen space and can keep expensive Compose surfaces alive. Media UI should spend recomposition and screen real estate only where it improves the current workflow.
 
+### Compose media player chrome auto-hide
+
+Video / audio player overlays that subscribe to high-frequency playback position must hide their chrome when the user is not interacting with it. This is the concrete implementation pattern for the "Performance-first persistent media chrome" rule above.
+
+**Contracts**:
+- Player chrome (top bar, control row, scrim) starts hidden (`controlsVisible = false`) and is toggled by a tap on the video surface.
+- While playing, chrome auto-hides after 4 seconds of inactivity. The auto-hide timer is suppressed while paused, while the user is scrubbing (`scrubPosition != null`), or while an error/buffering state is visible (`statusTone != null`).
+- Chrome is wrapped in `AnimatedVisibility` so the hidden branch leaves the composition tree entirely — the control row does not stay subscribed to per-second `positionSeconds` ticks when hidden.
+- The auto-hide `LaunchedEffect` must key on every condition it reads (`controlsVisible`, `isPlaying`, `scrubPosition`, `statusTone`) so any change restarts the timer.
+- Error / buffering / no-video center messages are composed independently of `controlsVisible` so they remain visible when chrome is hidden.
+- Gestures (double-tap to seek, horizontal drag to scrub, pinch to cycle aspect) do not toggle `controlsVisible`; only a bare tap does. `detectTapGestures` `onDoubleTap` priority handles this disambiguation.
+
+```kotlin
+var controlsVisible by remember { mutableStateOf(false) }
+
+LaunchedEffect(controlsVisible, isPlaying, scrubPosition, statusTone) {
+    if (isPlaying && controlsVisible && scrubPosition == null && statusTone == null) {
+        delay(4000)
+        controlsVisible = false
+    }
+}
+
+Box(Modifier.fillMaxSize().videoPlayerGestures(
+    onToggleControls = { controlsVisible = !controlsVisible },
+    onSeekRelative = { delta -> onSeek((state.positionSeconds + delta).coerceAtLeast(0)) },
+    onScrub = { scrubPosition = it },
+    onScrubFinished = { scrubPosition?.let { onSeek(it.roundToInt()) }; scrubPosition = null },
+    onCycleAspectRatio = onCycleAspectRatio,
+    isFullscreen = isFullscreen,
+    durationSeconds = durationSeconds
+)) {
+    VideoPlayerSurface(...)
+    AnimatedVisibility(visible = controlsVisible, enter = fadeIn(), exit = fadeOut()) {
+        VideoPlayerScrim()
+    }
+    if (statusTone != null || state.isBuffering || video == null) {
+        VideoPlayerCenterMessage(...) // independent of controlsVisible
+    }
+    AnimatedVisibility(visible = controlsVisible, enter = fadeIn(), exit = fadeOut()) {
+        Column(verticalArrangement = Arrangement.SpaceBetween) {
+            VideoPlayerTopBar(...)
+            VideoPlayerControls(visiblePosition = visiblePosition, ...) // only composed when visible
+        }
+    }
+}
+```
+
+**Why**: A `LaunchedEffect` with stale keys silently keeps chrome visible forever; gating chrome composition behind `AnimatedVisibility` is what actually delivers the performance win (hidden controls stop reading `positionSeconds`). Error/buffering visibility must not depend on `controlsVisible` or the user loses feedback on a frozen stream.
+
 ### Compose BackHandler for sub-navigation
 
 Every composable that manages page-level state visible to the user (e.g., `libraryPage`, `selectedVideo`, `showConfig`, `showPlayer`) must declare a `BackHandler` with the same logic as its manual back button. Without it, the Android system back gesture finishes the Activity and exits the app instead of returning to the previous screen.

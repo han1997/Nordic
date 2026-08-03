@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Spec layer overview + pre-development checklist routing"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Design tokens (NordicShapes/Spacing/Alpha/Typography), Performance-first persistent media chrome spec (this task applies it), shared media state components, BackHandler rules, Color.White overlay exception"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Emby DTO/repository contract — adding BackdropImageTags/ParentBackdrop fields and backdropImageUrl to VideoItem must follow this contract's patterns"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Typed exception patterns (EmbyApiException) for repository/DTO work"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Placing new VideoPlayerGestures.kt and ContinueWatchingCard in the correct ui/ layer"}
+{"file": ".trellis/tasks/08-03-video-ui-overhaul/research/emby-image-api.md", "reason": "Backdrop image API research: Fields value, DTO shape (List<String>?), URL builder, episode→series fallback chain"}
