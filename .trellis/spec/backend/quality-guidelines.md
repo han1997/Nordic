@@ -170,7 +170,7 @@ if (playbackState.isPlaying || showPlayerControls) {
 Video / audio player overlays that subscribe to high-frequency playback position must hide their chrome when the user is not interacting with it. This is the concrete implementation pattern for the "Performance-first persistent media chrome" rule above.
 
 **Contracts**:
-- Player chrome (top bar, control row, scrim) starts hidden (`controlsVisible = false`) and is toggled by a tap on the video surface.
+- Player chrome (top bar, control row, scrim) starts **visible on first open** (`controlsVisible = true`) so first-time users see that controls exist before they fade. A tap on the video surface toggles `controlsVisible` thereafter.
 - While playing, chrome auto-hides after 4 seconds of inactivity. The auto-hide timer is suppressed while paused, while the user is scrubbing (`scrubPosition != null`), or while an error/buffering state is visible (`statusTone != null`).
 - Chrome is wrapped in `AnimatedVisibility` so the hidden branch leaves the composition tree entirely — the control row does not stay subscribed to per-second `positionSeconds` ticks when hidden.
 - The auto-hide `LaunchedEffect` must key on every condition it reads (`controlsVisible`, `isPlaying`, `scrubPosition`, `statusTone`) so any change restarts the timer.
@@ -178,7 +178,8 @@ Video / audio player overlays that subscribe to high-frequency playback position
 - Gestures (double-tap to seek, horizontal drag to scrub, pinch to cycle aspect) do not toggle `controlsVisible`; only a bare tap does. `detectTapGestures` `onDoubleTap` priority handles this disambiguation.
 
 ```kotlin
-var controlsVisible by remember { mutableStateOf(false) }
+// Visible on first open so users discover chrome before it auto-hides.
+var controlsVisible by remember { mutableStateOf(true) }
 
 LaunchedEffect(controlsVisible, isPlaying, scrubPosition, statusTone) {
     if (isPlaying && controlsVisible && scrubPosition == null && statusTone == null) {

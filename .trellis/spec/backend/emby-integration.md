@@ -124,6 +124,13 @@ data class EmbyItemDto(
   - Items marked `isPlayed == true`, or items with no positive resume position, start at `0`.
   - If `durationSeconds` is known, use a resume position only when it is less than duration. Resume positions at or beyond duration are effectively complete and start at `0`.
   - If `durationSeconds` is unknown, keep positive resume positions because there is no reliable completion boundary.
+- Video detail resume/restart play action:
+  - `internal data class VideoDetailPlayAction(val primaryLabel: String, val primaryResumeSeconds: Int, val secondaryLabel: String?)` and `internal fun resolveVideoDetailPlayAction(video: VideoItem): VideoDetailPlayAction` live in `VideoScreenLogic.kt`.
+  - Resume action is offered when `playbackPositionSeconds > 0 && !isPlayed && (durationSeconds == 0 || playbackPositionSeconds < durationSeconds)` — the same eligibility rule as the continue-watching shelf. `primaryLabel = "继续从 ${formatLongDuration(playbackPositionSeconds)} 播放"`, `primaryResumeSeconds = playbackPositionSeconds`, `secondaryLabel = "从头播放"`.
+  - Otherwise `primaryLabel = "播放"`, `primaryResumeSeconds = 0`, `secondaryLabel = null`. Already-played items never offer a resume action even with a positive position.
+  - `VideoPlaybackEngine.play(video)` is the resume path (uses `resolveVideoInitialStartPositionMs`). `VideoPlaybackEngine.playFromStart(video)` is the restart path: it mirrors `play(video)` (same `shouldReplaceCurrentVideoItem` media-item wiring) but forces `seekTo(0)` after the item is prepared, skipping the resume resolver.
+  - The app shell routes the primary (resume) action through `onPlayVideo` and the secondary (restart) action through `onPlayVideoFromStart`; both must run the existing close-handoff / stop-progress-snapshot path before starting the new item.
+  - The detail hero primary play action remains disabled when `streamUrl == null` (e.g. `Series` items); the secondary restart action is disabled whenever the primary is.
 - Direct playback controls:
   - Video playback supports fixed relative seek controls: 10 seconds backward and 30 seconds forward.
   - Relative seek commands must resolve to an absolute player position and use the same `seekTo(positionSeconds)` path as the scrubber.
