@@ -38,3 +38,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 118: 视频电视剧整体展示逻辑
+
+**Date**: 2026-08-05
+**Task**: 视频电视剧整体展示逻辑
+**Branch**: `main`
+
+### Summary
+
+调整视频浏览集合：浏览网格、搜索、类型筛选和非继续观看推荐排除 Episode，继续观看和 Series 详情分集列表保留单集；补充测试、CHANGELOG 和 Emby 规范。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `253ff4f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
