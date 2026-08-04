@@ -65,6 +65,40 @@ internal fun continueWatchingShelf(videos: List<VideoItem>, limit: Int = 12): Li
         .take(limit)
 }
 
+internal fun browseCatalogVideos(videos: List<VideoItem>): List<VideoItem> {
+    return videos.filterNot { video -> video.isEpisode() }
+}
+
+internal fun visibleBrowseVideos(
+    videos: List<VideoItem>,
+    searchQuery: String,
+    selectedTypeFilter: VideoTypeFilter
+): List<VideoItem> {
+    return browseCatalogVideos(videos).filter { video ->
+        selectedTypeFilter.matches(video) && video.matchesSearch(searchQuery)
+    }
+}
+
+internal fun visibleVideoTypeFilters(videos: List<VideoItem>): List<VideoTypeFilter> {
+    val browseVideos = browseCatalogVideos(videos)
+    return VideoTypeFilter.values().filter { filter ->
+        filter.isBrowseVisible && (filter == VideoTypeFilter.All || browseVideos.any(filter::matches))
+    }
+}
+
+internal fun topRatedVideoShelf(videos: List<VideoItem>, limit: Int = 12): List<VideoItem> {
+    return browseCatalogVideos(videos)
+        .filter { video -> (video.communityRating ?: 0f) > 0f }
+        .sortedByDescending { video -> video.communityRating ?: 0f }
+        .take(limit)
+}
+
+internal fun unplayedVideoShelf(videos: List<VideoItem>, limit: Int = 12): List<VideoItem> {
+    return browseCatalogVideos(videos)
+        .filter { video -> !video.isPlayed && video.playbackPositionSeconds <= 0 }
+        .take(limit)
+}
+
 internal fun resolveVideoSelectionAfterCatalogRefresh(
     selectedVideo: VideoItem?,
     selectedLibraryId: String?,
@@ -84,7 +118,7 @@ internal fun resolveVideoTypeFilterAfterCatalogRefresh(
     videos: List<VideoItem>
 ): VideoTypeFilter {
     return selectedTypeFilter.takeIf { filter ->
-        filter == VideoTypeFilter.All || videos.any(filter::matches)
+        visibleVideoTypeFilters(videos).contains(filter)
     } ?: VideoTypeFilter.All
 }
 
@@ -120,6 +154,10 @@ private fun VideoItem.isContinueWatchingCandidate(): Boolean {
 
     val knownDuration = durationSeconds.coerceAtLeast(0)
     return knownDuration == 0 || playbackPositionSeconds < knownDuration
+}
+
+private fun VideoItem.isEpisode(): Boolean {
+    return type.equals("Episode", ignoreCase = true)
 }
 
 internal fun List<VideoItem>.relatedEpisodesFor(series: VideoItem): List<VideoItem> {
@@ -169,6 +207,9 @@ internal enum class VideoTypeFilter(val label: String) {
             Videos -> video.type.equals("Video", ignoreCase = true)
         }
     }
+
+    val isBrowseVisible: Boolean
+        get() = this != Episodes
 }
 
 internal fun videoMatchesSearch(video: VideoItem, query: String): Boolean {

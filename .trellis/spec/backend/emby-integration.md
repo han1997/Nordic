@@ -27,6 +27,11 @@ class EmbyRepository(private val config: VideoServerConfig) {
 }
 internal fun resolveEmbyPlaybackPositionTicks(positionSeconds: Int, durationSeconds: Int): Long
 internal fun resolveVideoProgressSyncBaselineSeconds(statePositionSeconds: Int, video: VideoItem): Int
+internal fun browseCatalogVideos(videos: List<VideoItem>): List<VideoItem>
+internal fun visibleBrowseVideos(videos: List<VideoItem>, searchQuery: String, selectedTypeFilter: VideoTypeFilter): List<VideoItem>
+internal fun visibleVideoTypeFilters(videos: List<VideoItem>): List<VideoTypeFilter>
+internal fun topRatedVideoShelf(videos: List<VideoItem>, limit: Int = 12): List<VideoItem>
+internal fun unplayedVideoShelf(videos: List<VideoItem>, limit: Int = 12): List<VideoItem>
 internal fun videoMatchesSearch(video: VideoItem, query: String): Boolean
 internal fun resolveVideoTypeFilterAfterCatalogRefresh(selectedTypeFilter: VideoTypeFilter, videos: List<VideoItem>): VideoTypeFilter
 internal fun resolveVideoSelectionAfterConfigChange(selectedVideo: VideoItem?): VideoItem?
@@ -92,18 +97,20 @@ data class EmbyItemDto(
   - `VideoItem.seriesId`, `seriesName`, `seasonNumber`, and `episodeNumber` map from `SeriesId`, `SeriesName`, `ParentIndexNumber`, and `IndexNumber`
   - Missing `UserData` or `CommunityRating` must fall back to `0`/`false`/`null` rather than excluding the item
 - Video browsing UI:
+  - The browse catalog is a UI projection of the loaded Emby item list that excludes `Episode` items. Movies, `Series`, and standalone `Video` items may appear in the browse grid and search results.
+  - Keep the full loaded item list available for exceptions that need episode identity: continue-watching can show resumable episodes, and `Series` detail pages derive their episode rows from the full list.
   - Yamby-style spotlight shelves may be derived from the already-loaded Emby item list:
     - Continue watching: `playbackPositionSeconds > 0 && !isPlayed`, and when `durationSeconds > 0` the resume position must be less than duration; sort by `lastPlayedDate` descending when present, then `playbackPositionSeconds` descending as the compatibility fallback
-    - Top rated: non-null positive `communityRating`, sorted descending
-    - Unplayed: `!isPlayed && playbackPositionSeconds <= 0`
+    - Top rated: browse-catalog items only, non-null positive `communityRating`, sorted descending
+    - Unplayed: browse-catalog items only, `!isPlayed && playbackPositionSeconds <= 0`
   - These shelves are view state only. Do not persist local video history unless the PRD explicitly adds that scope.
   - After a catalog refresh, selected video detail state must resolve against the refreshed item list. Keep the selection only when the same item id still exists in the selected library, and replace it with the refreshed `VideoItem`; otherwise clear the detail state.
-  - After a catalog refresh, selected type filter state must resolve against the refreshed item list. Keep `All`, keep a specific type only when at least one refreshed item still matches it, and reset unavailable specific filters to `All`.
+  - After a catalog refresh, selected type filter state must resolve against the refreshed browse catalog. Keep `All`, keep a specific browse-visible type only when at least one refreshed browse item still matches it, and reset unavailable or episode-specific filters to `All`.
   - Saved video config changes are catalog boundaries. Clear libraries, selected library id, catalog items, selected detail video, local search text, stale loading state, and stale errors before loading the new account.
   - Saved video config changes must reset the type filter to `All` and load the ready new config without passing a previous config's selected library id.
   - In-flight catalog refresh or library-selection responses from a previous saved config must not write catalog/detail/filter/error/loading state after the config boundary. Guard these writes with a config-state version or equivalent request identity.
   - Same-config manual refresh keeps existing catalog reconciliation behavior: selected detail and type filters may be preserved only when they still exist in the refreshed same-catalog response.
-  - Search is local to the already-loaded catalog and composes with the selected type filter; do not add server-side search unless the PRD explicitly includes it.
+  - Search is local to the browse catalog and composes with the selected type filter; do not add server-side search unless the PRD explicitly includes it.
   - Blank or whitespace-only queries must match all currently visible videos.
   - Search must match title, overview, type, year, and non-blank `seriesName`.
   - When `seasonNumber` or `episodeNumber` is positive, search must match common episode tokens such as `S1`, `E2`, `S1E2`, `S1 E2`, and zero-padded variants such as `S01E02`.
@@ -194,6 +201,9 @@ data class EmbyItemDto(
 - Periodic sync failure -> keep playback UI unchanged and do not advance the baseline
 - Missing episode relationship fields -> keep the episode playable, but only show it under a series detail when `seriesId` is missing/blank and the `seriesName` fallback matches
 - `Series` item -> `VideoItem.streamUrl == null`; UI must not call playback for the series item directly
+- `Episode` item in loaded catalog -> exclude from browse grid, search results, browse type filters, top-rated shelf, and unplayed shelf
+- `Episode` item with resume progress -> keep eligible for continue-watching shelf
+- Selected type filter is `Episodes` after refresh or app upgrade -> reset to `All` even when episodes exist in the loaded catalog
 - Video search query is blank or whitespace -> return `true` so clearing search restores the full filtered catalog
 - Video search query is a series title and an episode has matching `seriesName` -> include the episode even when the episode title does not contain the series title
 - Video search query is a compact or zero-padded episode code and season/episode numbers are present -> include the episode
@@ -211,26 +221,26 @@ data class EmbyItemDto(
 - Good: User starts an unfinished continue-watching item; playback seeks to the Emby resume position before playing.
 - Good: User replays a refreshed Emby item with the same id but a changed stream URL; playback replaces ExoPlayer so the fresh URL is used.
 - Good: User refreshes a video library while viewing details; if the item still exists, detail metadata updates from the refreshed catalog, and if it disappeared the app returns to the catalog instead of showing stale detail.
-- Good: User refreshes while filtered to Episodes and the refreshed catalog still has episodes; the Episodes filter remains active.
-- Good: User refreshes while filtered to Episodes and the refreshed catalog no longer has episodes; the browser resets to All instead of leaving a hidden active filter.
+- Good: User refreshes after an older app state had selected Episodes; the browser resets to All because episode filtering is not browse-visible.
 - Good: User switches Emby server/account from a detail page with an active search/filter; the app clears the old detail/search/filter state and loads the new account from its default library selection.
 - Good: User can use video skip controls to quickly jump 10 seconds back or 30 seconds forward without leaving player bounds.
 - Good: User closes or switches away from video playback; Nordic sends the stopped position to Emby so the next catalog refresh has current resume metadata.
 - Good: User watches a long video session; Nordic periodically sends progress so Emby resume metadata stays fresh before close.
-- Good: A TV library returns both a `Series` item and its `Episode` items; series detail shows sorted episode rows, and tapping an episode plays the episode stream.
-- Good: Searching a show name in the video browser returns matching episode rows via `seriesName`.
+- Good: A TV library returns both a `Series` item and its `Episode` items; the browse grid shows the `Series` once, series detail shows sorted episode rows, and tapping an episode plays the episode stream.
+- Good: Searching a show name in the video browser returns the matching `Series` item without returning its episode rows.
 - Good: Searching `S01E02` returns the episode whose season is `1` and episode is `2`.
 - Base: Username/password login, one video library, empty item list, UI shows an empty media-library state.
 - Base: Older/incomplete Emby responses omit `UserData` and `CommunityRating`; catalog still loads and spotlight shelves simply omit unavailable groups.
 - Base: A `Series` item has no matching loaded episodes; detail still shows metadata/overview and disables primary playback.
-- Bad: Video browser search checks only episode title/overview and hides loaded episodes when the user searches the show name.
+- Bad: Video browser search runs against the full loaded list and returns episode rows when the user searches the show name.
 - Bad: `EmbyItemsResponse.Items` is modeled as a non-null Kotlin list and repository mapping calls `.filter`/`.map` directly, allowing Gson-omitted fields to become runtime nulls.
 - Bad: `EmbyItemDto.Id` or `Name` is modeled as a non-null Kotlin string and mapped directly, allowing compatible partial rows to crash catalog browsing.
 - Bad: Item pagination compares `TotalRecordCount` to mapped video count after filtering, causing extra page requests when unusable rows were already included in the fetched total.
 - Bad: Video playback compares only `VideoItem.id` and keeps an expired same-item stream URL.
 - Bad: Emby returns HTTP 500 for views, repository throws `EmbyApiException.Kind.HTTP` and UI shows the error card.
 - Bad: Server has music and movie collections, repository filters out music by `CollectionType`.
-- Bad: TV library browsing requests or renders `Episode` items, flattening a show into individual episode cards instead of Series cards.
+- Bad: TV library browsing renders `Episode` items, flattening a show into individual episode cards instead of Series cards.
+- Bad: Keeping `VideoTypeFilter.Episodes` visible in browse controls; users should enter a `Series` detail page to choose episodes.
 
 ### 6. Tests Required
 - Readiness:
@@ -261,6 +271,7 @@ data class EmbyItemDto(
   - asserts `Fields` requests `UserData` and `CommunityRating`
   - asserts `UserData.PlaybackPositionTicks`, `UserData.Played`, and `CommunityRating` map to `VideoItem`
   - asserts `UserData.LastPlayedDate` maps to `VideoItem.lastPlayedDate`
+  - asserts browse catalog filtering excludes `Episode` from grid/search/type filters/top-rated/unplayed while keeping episodes in continue-watching and series detail
   - asserts continue-watching shelf sorting uses last-played recency before resume-position fallback
   - asserts continue-watching shelf excludes resume positions at or beyond known duration, while keeping unknown-duration resume items eligible
   - asserts selected video detail resolution keeps a refreshed matching item and clears selection when the library changes or the item disappears

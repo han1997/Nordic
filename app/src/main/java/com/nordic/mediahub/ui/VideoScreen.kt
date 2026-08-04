@@ -57,29 +57,23 @@ fun VideoScreen(
     var videoConfigStateVersion by remember { mutableStateOf(0) }
     val scope = rememberCoroutineScope()
     val visibleTypeFilters = remember(videos) {
-        VideoTypeFilter.values().filter { filter ->
-            filter == VideoTypeFilter.All || videos.any(filter::matches)
-        }
+        visibleVideoTypeFilters(videos)
     }
     val visibleVideos = remember(videos, searchQuery, selectedTypeFilter) {
-        videos.filter { video ->
-            selectedTypeFilter.matches(video) && video.matchesSearch(searchQuery)
-        }
+        visibleBrowseVideos(videos, searchQuery, selectedTypeFilter)
+    }
+    val browseVideos = remember(videos) {
+        browseCatalogVideos(videos)
     }
     val hasActiveBrowserFilter = searchQuery.isNotBlank() || selectedTypeFilter != VideoTypeFilter.All
     val continueWatchingVideos = remember(videos) {
         continueWatchingShelf(videos)
     }
     val topRatedVideos = remember(videos) {
-        videos
-            .filter { video -> (video.communityRating ?: 0f) > 0f }
-            .sortedByDescending { video -> video.communityRating ?: 0f }
-            .take(12)
+        topRatedVideoShelf(videos)
     }
     val unplayedVideos = remember(videos) {
-        videos
-            .filter { video -> !video.isPlayed && video.playbackPositionSeconds <= 0 }
-            .take(12)
+        unplayedVideoShelf(videos)
     }
 
     val embyRepository = remember(savedConfig) {
@@ -208,8 +202,8 @@ fun VideoScreen(
                 title = "视频",
                 subtitle = when {
                     isLoading && videos.isNotEmpty() -> "正在刷新，先显示当前 Emby 内容"
-                    hasActiveBrowserFilter -> "${visibleVideos.size} / ${videos.size} 个匹配条目"
-                    selectedLibraryId != null -> "共 ${videos.size} 个条目，点击海报播放"
+                    hasActiveBrowserFilter -> "${visibleVideos.size} / ${browseVideos.size} 个匹配条目"
+                    selectedLibraryId != null -> "共 ${browseVideos.size} 个条目，点击海报播放"
                     savedConfig.isReadyForVideoSync() -> "已连接 Emby，选择媒体库浏览内容"
                     else -> "连接 Emby 后显示真实媒体库、海报和视频信息"
                 },
@@ -323,7 +317,7 @@ fun VideoScreen(
                 )
             }
 
-            val catalogCount = if (hasActiveBrowserFilter) visibleVideos.size else videos.size
+            val catalogCount = if (hasActiveBrowserFilter) visibleVideos.size else browseVideos.size
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Text(
                     "全部 $catalogCount 项",

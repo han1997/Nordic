@@ -2,6 +2,7 @@ package com.nordic.mediahub.ui
 
 import com.nordic.mediahub.data.VideoItem
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -106,6 +107,92 @@ class VideoScreenTest {
     }
 
     @Test
+    fun continueWatchingShelf_keepsEpisodesAsResumeEntries() {
+        val episode = video(
+            id = "episode-1",
+            title = "Episode One",
+            type = "Episode",
+            playbackPositionSeconds = 60,
+            durationSeconds = 1200
+        )
+
+        val shelf = continueWatchingShelf(listOf(episode))
+
+        assertEquals(listOf("episode-1"), shelf.map { it.id })
+    }
+
+    @Test
+    fun browseCatalogVideos_excludesEpisodes() {
+        val movie = video(id = "movie-1", title = "Movie One", type = "Movie")
+        val series = video(id = "series-1", title = "Series One", type = "Series")
+        val episode = video(id = "episode-1", title = "Episode One", type = "Episode")
+        val standaloneVideo = video(id = "video-1", title = "Video One", type = "Video")
+
+        val catalog = browseCatalogVideos(listOf(movie, episode, series, standaloneVideo))
+
+        assertEquals(listOf("movie-1", "series-1", "video-1"), catalog.map { it.id })
+    }
+
+    @Test
+    fun visibleBrowseVideos_appliesSearchAndFilterWithoutEpisodes() {
+        val series = video(id = "series-1", title = "Nordic Show", type = "Series")
+        val matchingEpisode = video(
+            id = "episode-1",
+            title = "The Pilot",
+            type = "Episode",
+            seriesName = "Nordic Show"
+        )
+        val otherSeries = video(id = "series-2", title = "Other Show", type = "Series")
+
+        val visible = visibleBrowseVideos(
+            videos = listOf(series, matchingEpisode, otherSeries),
+            searchQuery = "Nordic",
+            selectedTypeFilter = VideoTypeFilter.All
+        )
+
+        assertEquals(listOf("series-1"), visible.map { it.id })
+    }
+
+    @Test
+    fun visibleVideoTypeFilters_neverIncludesEpisodeFilter() {
+        val filters = visibleVideoTypeFilters(
+            listOf(
+                video(id = "movie-1", title = "Movie One", type = "Movie"),
+                video(id = "episode-1", title = "Episode One", type = "Episode")
+            )
+        )
+
+        assertFalse(filters.contains(VideoTypeFilter.Episodes))
+        assertTrue(filters.contains(VideoTypeFilter.All))
+        assertTrue(filters.contains(VideoTypeFilter.Movies))
+    }
+
+    @Test
+    fun topRatedVideoShelf_excludesEpisodes() {
+        val movie = video(id = "movie-1", title = "Movie One", communityRating = 8.5f)
+        val episode = video(
+            id = "episode-1",
+            title = "Episode One",
+            type = "Episode",
+            communityRating = 9.5f
+        )
+
+        val shelf = topRatedVideoShelf(listOf(episode, movie))
+
+        assertEquals(listOf("movie-1"), shelf.map { it.id })
+    }
+
+    @Test
+    fun unplayedVideoShelf_excludesEpisodes() {
+        val series = video(id = "series-1", title = "Series One", type = "Series")
+        val episode = video(id = "episode-1", title = "Episode One", type = "Episode")
+
+        val shelf = unplayedVideoShelf(listOf(episode, series))
+
+        assertEquals(listOf("series-1"), shelf.map { it.id })
+    }
+
+    @Test
     fun resolveVideoSelectionAfterCatalogRefresh_keepsRefreshedItemWhenStillPresent() {
         val selected = video(
             id = "movie-1",
@@ -176,11 +263,21 @@ class VideoScreenTest {
     @Test
     fun resolveVideoTypeFilterAfterCatalogRefresh_keepsFilterWhenTypeStillPresent() {
         val resolved = resolveVideoTypeFilterAfterCatalogRefresh(
+            selectedTypeFilter = VideoTypeFilter.Series,
+            videos = listOf(video(id = "series-1", title = "Series One", type = "Series"))
+        )
+
+        assertEquals(VideoTypeFilter.Series, resolved)
+    }
+
+    @Test
+    fun resolveVideoTypeFilterAfterCatalogRefresh_resetsEpisodeFilterEvenWhenEpisodesExist() {
+        val resolved = resolveVideoTypeFilterAfterCatalogRefresh(
             selectedTypeFilter = VideoTypeFilter.Episodes,
             videos = listOf(video(id = "episode-1", title = "Episode One", type = "Episode"))
         )
 
-        assertEquals(VideoTypeFilter.Episodes, resolved)
+        assertEquals(VideoTypeFilter.All, resolved)
     }
 
     @Test
@@ -457,6 +554,7 @@ class VideoScreenTest {
         durationSeconds: Int = 0,
         libraryId: String = "library-1",
         type: String = "Movie",
+        communityRating: Float? = null,
         seriesId: String? = null,
         seriesName: String? = null,
         seasonNumber: Int? = null,
@@ -467,6 +565,7 @@ class VideoScreenTest {
             libraryId = libraryId,
             title = title,
             type = type,
+            communityRating = communityRating,
             durationSeconds = durationSeconds,
             playbackPositionSeconds = playbackPositionSeconds,
             lastPlayedDate = lastPlayedDate,
