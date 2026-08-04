@@ -1,0 +1,4 @@
+{"file":".trellis/spec/backend/index.md","reason":"Android app verification commands and spec index."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Review Compose UI state, list filtering stability, tests, and quality rules."}
+{"file":".trellis/spec/backend/emby-integration.md","reason":"Review Emby series/episode browsing behavior against integration contract."}
+{"file":".trellis/spec/backend/documentation-guidelines.md","reason":"Review changelog and Chinese-first documentation requirements."}
