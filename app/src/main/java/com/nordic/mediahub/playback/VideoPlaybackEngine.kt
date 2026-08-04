@@ -30,8 +30,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-private const val VIDEO_SKIP_BACK_SECONDS = 10
-private const val VIDEO_SKIP_FORWARD_SECONDS = 30
+internal const val VIDEO_SKIP_BACK_SECONDS = 10
+internal const val VIDEO_SKIP_FORWARD_SECONDS = 30
 
 internal fun shouldReplaceCurrentVideoItem(
     currentVideo: VideoItem?,
@@ -60,8 +60,24 @@ data class VideoPlaybackState(
     val videoAspectRatio: Float = 16f / 9f
 )
 
+interface VideoPlaybackBackend {
+    val state: StateFlow<VideoPlaybackState>
+
+    fun attachSurface(surfaceView: SurfaceView)
+    fun detachSurface(surfaceView: SurfaceView)
+    fun play(video: VideoItem)
+    fun playFromStart(video: VideoItem)
+    fun togglePlayPause()
+    fun seekTo(positionSeconds: Int)
+    fun seekBackBy(intervalSeconds: Int = VIDEO_SKIP_BACK_SECONDS)
+    fun seekForwardBy(intervalSeconds: Int = VIDEO_SKIP_FORWARD_SECONDS)
+    fun cycleAspectRatio()
+    fun stop()
+    fun release()
+}
+
 @androidx.annotation.OptIn(UnstableApi::class)
-class VideoPlaybackEngine(context: Context) {
+class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val okHttpClient = OkHttpClient.Builder()
@@ -85,7 +101,7 @@ class VideoPlaybackEngine(context: Context) {
     private var positionUpdateJob: Job? = null
 
     private val _state = MutableStateFlow(VideoPlaybackState())
-    val state: StateFlow<VideoPlaybackState> = _state.asStateFlow()
+    override val state: StateFlow<VideoPlaybackState> = _state.asStateFlow()
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -129,15 +145,15 @@ class VideoPlaybackEngine(context: Context) {
         player.addListener(playerListener)
     }
 
-    fun attachSurface(surfaceView: SurfaceView) {
+    override fun attachSurface(surfaceView: SurfaceView) {
         player.setVideoSurfaceView(surfaceView)
     }
 
-    fun detachSurface(surfaceView: SurfaceView) {
+    override fun detachSurface(surfaceView: SurfaceView) {
         player.clearVideoSurfaceView(surfaceView)
     }
 
-    fun play(video: VideoItem) {
+    override fun play(video: VideoItem) {
         if (video.streamUrl.isNullOrBlank()) {
             _state.value = VideoPlaybackState(
                 video = video,
@@ -173,7 +189,7 @@ class VideoPlaybackEngine(context: Context) {
         publishPlayerState()
     }
 
-    fun playFromStart(video: VideoItem) {
+    override fun playFromStart(video: VideoItem) {
         if (video.streamUrl.isNullOrBlank()) {
             _state.value = VideoPlaybackState(
                 video = video,
@@ -203,7 +219,7 @@ class VideoPlaybackEngine(context: Context) {
         publishPlayerState()
     }
 
-    fun togglePlayPause() {
+    override fun togglePlayPause() {
         val video = _state.value.video ?: return
         if (video.streamUrl.isNullOrBlank()) return
 
@@ -222,24 +238,24 @@ class VideoPlaybackEngine(context: Context) {
         publishPlayerState()
     }
 
-    fun seekTo(positionSeconds: Int) {
+    override fun seekTo(positionSeconds: Int) {
         player.seekTo(positionSeconds.coerceAtLeast(0) * 1000L)
         publishPlayerState()
     }
 
-    fun seekBackBy(intervalSeconds: Int = VIDEO_SKIP_BACK_SECONDS) {
+    override fun seekBackBy(intervalSeconds: Int) {
         seekBy(-intervalSeconds)
     }
 
-    fun seekForwardBy(intervalSeconds: Int = VIDEO_SKIP_FORWARD_SECONDS) {
+    override fun seekForwardBy(intervalSeconds: Int) {
         seekBy(intervalSeconds)
     }
 
-    fun cycleAspectRatio() {
+    override fun cycleAspectRatio() {
         _state.update { it.copy(aspectRatioMode = resolveNextAspectRatioMode(it.aspectRatioMode)) }
     }
 
-    fun stop() {
+    override fun stop() {
         stopPositionUpdates()
         player.pause()
         player.stop()
@@ -247,7 +263,7 @@ class VideoPlaybackEngine(context: Context) {
         _state.value = VideoPlaybackState()
     }
 
-    fun release() {
+    override fun release() {
         stopPositionUpdates()
         scope.cancel()
         player.removeListener(playerListener)

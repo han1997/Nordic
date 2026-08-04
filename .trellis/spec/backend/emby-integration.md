@@ -391,6 +391,21 @@ data class VideoPlaybackState(
     val videoAspectRatio: Float = 16f / 9f
 )
 
+interface VideoPlaybackBackend {
+    val state: StateFlow<VideoPlaybackState>
+    fun attachSurface(surfaceView: SurfaceView)
+    fun detachSurface(surfaceView: SurfaceView)
+    fun play(video: VideoItem)
+    fun playFromStart(video: VideoItem)
+    fun togglePlayPause()
+    fun seekTo(positionSeconds: Int)
+    fun seekBackBy(intervalSeconds: Int = 10)
+    fun seekForwardBy(intervalSeconds: Int = 30)
+    fun cycleAspectRatio()
+    fun stop()
+    fun release()
+}
+
 fun VideoPlaybackEngine.cycleAspectRatio()
 internal fun resolveNextAspectRatioMode(current: AspectRatioMode): AspectRatioMode
 internal fun resolveVideoAspectRatio(width: Int, height: Int, pixelWidthHeightRatio: Float): Float
@@ -403,6 +418,7 @@ fun VideoPlayerScreen(
 ```
 
 ### 3. Contracts
+- `VideoPlaybackBackend` is the UI-facing playback boundary. `VideoPlaybackEngine` is the Media3/ExoPlayer implementation behind that boundary; UI surfaces and view models should issue commands and observe `VideoPlaybackState` without depending on ExoPlayer types beyond the `SurfaceView` attach/detach contract.
 - `VideoPlaybackEngine` owns the current `AspectRatioMode`; Compose UI only renders the selected label and sends `onCycleAspectRatio`.
 - `onVideoSizeChanged` must publish the actual content aspect ratio using Media3 `VideoSize.width`, `height`, and `pixelWidthHeightRatio`.
 - Invalid video dimensions or invalid pixel ratios must fall back to `16f / 9f` so the surface never receives a zero or negative aspect ratio.

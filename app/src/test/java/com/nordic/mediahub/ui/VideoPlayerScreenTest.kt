@@ -2,9 +2,11 @@ package com.nordic.mediahub.ui
 
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
+import com.nordic.mediahub.data.VideoItem
 import com.nordic.mediahub.playback.AspectRatioMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -167,6 +169,100 @@ class VideoPlayerScreenTest {
         assertEquals(
             AspectRatioFrameLayout.RESIZE_MODE_FILL,
             resolveVideoPlayerResizeMode(AspectRatioMode.FILL)
+        )
+    }
+
+    @Test
+    fun videoPlayerInfoChips_usesExistingVisibleMetadata() {
+        val chips = videoPlayerInfoChips(
+            video(
+                type = "Episode",
+                year = 2024,
+                durationSeconds = 3661
+            )
+        )
+
+        assertEquals(listOf("Episode", "2024", "61:01"), chips)
+    }
+
+    @Test
+    fun videoPlayerInfoRows_omitsMissingMetadata() {
+        val rows = videoPlayerInfoRows(
+            video = video(
+                type = "",
+                durationSeconds = 0,
+                communityRating = null,
+                seriesName = " "
+            ),
+            positionSeconds = 0,
+            durationSeconds = 0
+        )
+
+        assertTrue(rows.isEmpty())
+    }
+
+    @Test
+    fun videoPlayerInfoRows_formatsEpisodeRatingDurationAndProgress() {
+        val rows = videoPlayerInfoRows(
+            video = video(
+                seriesName = "Nordic Show",
+                seasonNumber = 2,
+                episodeNumber = 5,
+                communityRating = 8.25f,
+                durationSeconds = 120
+            ),
+            positionSeconds = 40,
+            durationSeconds = 180
+        )
+
+        assertEquals(
+            listOf(
+                VideoPlayerInfoLine("剧集", "Nordic Show"),
+                VideoPlayerInfoLine("分集", "S2E5"),
+                VideoPlayerInfoLine("评分", "8.3"),
+                VideoPlayerInfoLine("时长", "3:00"),
+                VideoPlayerInfoLine("进度", "0:40 / 3:00")
+            ),
+            rows
+        )
+    }
+
+    @Test
+    fun videoPlayerProgressLabel_formatsUnknownDurationProgress() {
+        assertEquals(
+            "1:30",
+            videoPlayerProgressLabel(positionSeconds = 90, durationSeconds = 0)
+        )
+        assertNull(videoPlayerProgressLabel(positionSeconds = 0, durationSeconds = 120))
+    }
+
+    private fun video(
+        type: String = "Movie",
+        overview: String = "",
+        year: Int? = null,
+        durationSeconds: Int = 0,
+        playbackPositionSeconds: Int = 0,
+        isPlayed: Boolean = false,
+        communityRating: Float? = null,
+        seriesName: String? = null,
+        seasonNumber: Int? = null,
+        episodeNumber: Int? = null
+    ): VideoItem {
+        return VideoItem(
+            id = "video-1",
+            libraryId = "library-1",
+            title = "Video",
+            type = type,
+            overview = overview,
+            year = year,
+            durationSeconds = durationSeconds,
+            playbackPositionSeconds = playbackPositionSeconds,
+            isPlayed = isPlayed,
+            communityRating = communityRating,
+            seriesName = seriesName,
+            seasonNumber = seasonNumber,
+            episodeNumber = episodeNumber,
+            streamUrl = "https://example.test/video.mp4"
         )
     }
 }
