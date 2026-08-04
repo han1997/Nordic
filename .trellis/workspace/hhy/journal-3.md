@@ -71,3 +71,36 @@
 ### Next Steps
 
 - None - task complete
+
+
+## Session 119: Polish video player experience
+
+**Date**: 2026-08-05
+**Task**: Polish video player experience
+**Branch**: `main`
+
+### Summary
+
+Redesigned the video player chrome with an immersive overlay, added a lightweight metadata info panel, introduced a VideoPlaybackBackend boundary around the Media3 implementation, updated tests, changelog, and Emby playback specs.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `02a0930` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
