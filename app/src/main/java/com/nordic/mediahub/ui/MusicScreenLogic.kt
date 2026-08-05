@@ -96,18 +96,6 @@ internal fun MusicSongSort.displayLabel(): String {
     }
 }
 
-internal fun formatCacheAge(updatedAtMillis: Long?): String? {
-    if (updatedAtMillis == null || updatedAtMillis <= 0L) return null
-
-    val elapsedMillis = (System.currentTimeMillis() - updatedAtMillis).coerceAtLeast(0L)
-    val elapsedMinutes = elapsedMillis / 60_000L
-    val elapsedHours = elapsedMillis / 3_600_000L
-    val elapsedDays = elapsedMillis / 86_400_000L
-
-    return when {
-        elapsedMinutes < 1L -> "刚刚更新"
-        elapsedMinutes < 60L -> "${elapsedMinutes} 分钟前更新"
-        elapsedHours < 24L -> "${elapsedHours} 小时前更新"
-        else -> "${elapsedDays} 天前更新"
-    }
-}
+// `formatCacheAge(...)` lives in `data/CacheTtl.kt` so every media domain
+// (Music / Audiobook / Video) shares a single wording source for the header
+// cache-age subtitle. Import it from `com.nordic.mediahub.data`.

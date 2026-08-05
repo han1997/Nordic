@@ -80,13 +80,16 @@ class EncryptedConfigStoreTest {
 
     @Test
     fun encryptedConfigKeys_allExcludesNonCredentialDataStoreKeys() {
-        // Play history, audiobook bookmarks, and the music cache share the same
-        // "settings" DataStore file but are NOT credentials. The credential-key
-        // removal must never touch them, so they must stay out of the ALL list.
+        // Play history, audiobook bookmarks, and the per-domain browse/detail caches
+        // share the same "settings" DataStore file but are NOT credentials. The
+        // credential-key removal must never touch them, so they must stay out of the
+        // ALL list.
         val nonCredentialKeys = setOf(
             "navidrome_play_history",
             "audiobook_bookmarks",
-            "navidrome_music_cache"
+            "navidrome_music_cache",
+            "audiobook_library_cache",
+            "emby_video_cache"
         )
         EncryptedConfigKeys.ALL.forEach { key ->
             assertFalse(nonCredentialKeys.contains(key))

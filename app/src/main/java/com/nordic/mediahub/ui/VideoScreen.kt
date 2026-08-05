@@ -25,9 +25,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.EmbyRepository
+import com.nordic.mediahub.data.EmbyVideoCacheRepository
 import com.nordic.mediahub.data.VideoItem
 import com.nordic.mediahub.data.VideoLibrary
 import com.nordic.mediahub.data.VideoServerConfig
+import com.nordic.mediahub.data.cacheKey
+import com.nordic.mediahub.data.formatCacheAge
+import com.nordic.mediahub.data.isCacheFresh
 import com.nordic.mediahub.data.isReadyForVideoSync
 import com.nordic.mediahub.ui.theme.NordicSpacing
 import kotlinx.coroutines.launch
@@ -42,6 +46,7 @@ fun VideoScreen(
 ) {
     val context = LocalContext.current
     val configRepository = remember { ConfigRepository(context) }
+    val cacheRepository = remember { EmbyVideoCacheRepository(context) }
     val savedConfig by configRepository.videoConfig.collectAsStateWithLifecycle(VideoServerConfig())
     var config by remember { mutableStateOf(VideoServerConfig()) }
     var showConfig by remember { mutableStateOf(false) }
@@ -54,7 +59,9 @@ fun VideoScreen(
     var selectedTypeFilter by remember { mutableStateOf(VideoTypeFilter.All) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var cacheUpdatedAtMillis by remember { mutableStateOf<Long?>(null) }
     var videoConfigStateVersion by remember { mutableStateOf(0) }
+    var previousVideoConfig by remember { mutableStateOf<VideoServerConfig?>(null) }
     val scope = rememberCoroutineScope()
     val visibleTypeFilters = remember(videos) {
         visibleVideoTypeFilters(videos)
@@ -95,6 +102,34 @@ fun VideoScreen(
         selectedTypeFilter = resolveVideoTypeFilterAfterConfigChange(selectedTypeFilter)
         isLoading = false
         errorMessage = null
+        cacheUpdatedAtMillis = null
+    }
+
+    suspend fun applyCachedVideo(
+        targetConfig: VideoServerConfig,
+        requestVersion: Int? = null
+    ): Boolean {
+        val cached = cacheRepository.load(targetConfig)
+        if (!isCurrentVideoConfigRequest(requestVersion)) {
+            return false
+        }
+
+        if (cached == null) {
+            libraries = emptyList()
+            selectedLibraryId = null
+            videos = emptyList()
+            selectedVideo = null
+            cacheUpdatedAtMillis = null
+            return false
+        }
+
+        libraries = cached.libraries
+        selectedLibraryId = cached.selectedLibraryId
+        videos = cached.videos
+        selectedVideo = null
+        cacheUpdatedAtMillis = cached.updatedAtMillis
+        errorMessage = null
+        return true
     }
 
     suspend fun refreshVideo(
@@ -129,9 +164,22 @@ fun VideoScreen(
                 selectedLibraryId = catalog.selectedLibraryId,
                 videos = catalog.items
             )
+            val freshCache = cacheRepository.buildCache(
+                config = targetConfig,
+                libraries = catalog.libraries,
+                videos = catalog.items,
+                selectedLibraryId = catalog.selectedLibraryId
+            )
+            cacheUpdatedAtMillis = freshCache.updatedAtMillis
+            cacheRepository.save(targetConfig, freshCache)
         } catch (e: Exception) {
             if (isCurrentVideoConfigRequest(requestVersion)) {
-                errorMessage = e.message ?: "连接 Emby 失败"
+                val hasCachedContent = libraries.isNotEmpty() || videos.isNotEmpty()
+                errorMessage = if (hasCachedContent) {
+                    "正在显示上次缓存：${e.message ?: "未知错误"}"
+                } else {
+                    "连接失败: ${e.message ?: "未知错误"}"
+                }
             }
         } finally {
             if (isCurrentVideoConfigRequest(requestVersion)) {
@@ -142,10 +190,21 @@ fun VideoScreen(
 
     LaunchedEffect(savedConfig) {
         config = savedConfig
+        val previousConfig = previousVideoConfig
+        previousVideoConfig = savedConfig
         resetVideoStateAfterConfigChange()
         val requestVersion = videoConfigStateVersion
+        // Clear the previous config's persisted cache so switching Emby accounts/servers
+        // does not leave dead cache JSON in DataStore.
+        if (previousConfig != null && previousConfig.cacheKey() != savedConfig.cacheKey()) {
+            cacheRepository.clear(previousConfig)
+        }
         if (savedConfig.isReadyForVideoSync()) {
-            refreshVideo(savedConfig, targetLibraryId = null, requestVersion = requestVersion)
+            applyCachedVideo(savedConfig, requestVersion)
+            // Launch-path refresh is TTL-gated; manual refresh (↻) bypasses TTL.
+            if (!isCacheFresh(cacheUpdatedAtMillis)) {
+                refreshVideo(savedConfig, targetLibraryId = null, requestVersion = requestVersion)
+            }
         }
     }
 
@@ -190,6 +249,8 @@ fun VideoScreen(
         return
     }
 
+    val cacheAgeLabel = formatCacheAge(cacheUpdatedAtMillis)
+
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 156.dp),
         modifier = Modifier.fillMaxSize(),
@@ -201,8 +262,9 @@ fun VideoScreen(
             MediaPageHeader(
                 title = "视频",
                 subtitle = when {
-                    isLoading && videos.isNotEmpty() -> "正在刷新，先显示当前 Emby 内容"
+                    isLoading && videos.isNotEmpty() -> "正在刷新，先显示本地缓存"
                     hasActiveBrowserFilter -> "${visibleVideos.size} / ${browseVideos.size} 个匹配条目"
+                    cacheAgeLabel != null -> "本地缓存，$cacheAgeLabel"
                     selectedLibraryId != null -> "共 ${browseVideos.size} 个条目，点击海报播放"
                     savedConfig.isReadyForVideoSync() -> "已连接 Emby，选择媒体库浏览内容"
                     else -> "连接 Emby 后显示真实媒体库、海报和视频信息"

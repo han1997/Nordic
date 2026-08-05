@@ -19,12 +19,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nordic.mediahub.data.AudiobookChapter
+import com.nordic.mediahub.data.AudiobookCacheRepository
 import com.nordic.mediahub.data.AudiobookShelfConfig
 import com.nordic.mediahub.data.AudiobookShelfRepository
 import com.nordic.mediahub.data.AudiobookItemDetail
 import com.nordic.mediahub.data.AudiobookItemSummary
 import com.nordic.mediahub.data.AudiobookLibrarySummary
 import com.nordic.mediahub.data.ConfigRepository
+import com.nordic.mediahub.data.cacheKey
+import com.nordic.mediahub.data.formatCacheAge
+import com.nordic.mediahub.data.isCacheFresh
 import com.nordic.mediahub.data.isReadyForAudiobookSync
 import com.nordic.mediahub.ui.theme.NordicAlpha
 import com.nordic.mediahub.ui.theme.NordicShapes
@@ -99,6 +103,7 @@ fun AudiobookScreen(
 ) {
     val context = LocalContext.current
     val repository = remember { ConfigRepository(context) }
+    val cacheRepository = remember { AudiobookCacheRepository(context) }
     val savedConfig by repository.audiobookConfig.collectAsStateWithLifecycle(AudiobookShelfConfig())
     var config by remember { mutableStateOf(AudiobookShelfConfig()) }
     var showConfig by remember { mutableStateOf(false) }
@@ -110,7 +115,9 @@ fun AudiobookScreen(
     var loadingItemDetailId by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var cacheUpdatedAtMillis by remember { mutableStateOf<Long?>(null) }
     var audiobookConfigStateVersion by remember { mutableStateOf(0) }
+    var previousAudiobookConfig by remember { mutableStateOf<AudiobookShelfConfig?>(null) }
     val scope = rememberCoroutineScope()
 
     val audiobookRepository = remember(savedConfig) {
@@ -135,6 +142,35 @@ fun AudiobookScreen(
         loadingItemDetailId = null
         isLoading = false
         errorMessage = null
+        cacheUpdatedAtMillis = null
+    }
+
+    suspend fun applyCachedAudiobooks(
+        targetConfig: AudiobookShelfConfig,
+        requestVersion: Int? = null
+    ): Boolean {
+        val cached = cacheRepository.load(targetConfig)
+        if (!isCurrentAudiobookConfigRequest(requestVersion)) {
+            return false
+        }
+
+        if (cached == null) {
+            libraries = emptyList()
+            selectedLibraryId = null
+            items = emptyList()
+            selectedItem = null
+            cacheUpdatedAtMillis = null
+            return false
+        }
+
+        libraries = cached.libraries
+        selectedLibraryId = cached.selectedLibraryId
+            ?: resolveAudiobookSelectedLibraryId(null, cached.libraries)
+        items = cached.items
+        selectedItem = null
+        cacheUpdatedAtMillis = cached.updatedAtMillis
+        errorMessage = null
+        return true
     }
 
     suspend fun refreshAudiobooks(
@@ -173,9 +209,22 @@ fun AudiobookScreen(
                 previousSelectedItem = previousSelectedItem,
                 refreshedSelectedItem = refreshedSelectedItem
             )
+            val freshCache = cacheRepository.buildCache(
+                config = targetConfig,
+                libraries = loadedLibraries,
+                items = refreshedItems,
+                selectedLibraryId = resolvedLibraryId
+            )
+            cacheUpdatedAtMillis = freshCache.updatedAtMillis
+            cacheRepository.save(targetConfig, freshCache)
         } catch (e: Exception) {
             if (isCurrentAudiobookConfigRequest(requestVersion)) {
-                errorMessage = e.message ?: "连接 AudiobookShelf 失败"
+                val hasCachedContent = libraries.isNotEmpty() || items.isNotEmpty()
+                errorMessage = if (hasCachedContent) {
+                    "正在显示上次缓存：${e.message ?: "未知错误"}"
+                } else {
+                    "连接失败: ${e.message ?: "未知错误"}"
+                }
             }
         } finally {
             if (isCurrentAudiobookConfigRequest(requestVersion)) {
@@ -191,16 +240,28 @@ fun AudiobookScreen(
         selectedItem = null
         loadingItemDetailId = item.id
         errorMessage = null
+        isLoading = true
         scope.launch {
-            isLoading = true
+            // Cache-then-refresh: show cached detail first, then refresh in the
+            // background and write the fresh detail back to the cache. Detail
+            // caches have no TTL — opening always refreshes.
+            val cachedDetail = cacheRepository.loadItemDetail(savedConfig, item.id)
+            if (audiobookConfigStateVersion == requestVersion && loadingItemDetailId == item.id) {
+                selectedItem = cachedDetail
+            }
             try {
                 val detail = repo.getLibraryItem(item.id)
                 if (audiobookConfigStateVersion == requestVersion && loadingItemDetailId == item.id) {
                     selectedItem = detail
+                    cacheRepository.saveItemDetail(savedConfig, item.id, detail)
                 }
             } catch (e: Exception) {
                 if (audiobookConfigStateVersion == requestVersion && loadingItemDetailId == item.id) {
-                    errorMessage = e.message ?: "加载详情失败"
+                    errorMessage = if (cachedDetail != null) {
+                        "正在显示上次缓存：${e.message ?: "未知错误"}"
+                    } else {
+                        e.message ?: "加载详情失败"
+                    }
                 }
             } finally {
                 if (audiobookConfigStateVersion == requestVersion && loadingItemDetailId == item.id) {
@@ -213,10 +274,21 @@ fun AudiobookScreen(
 
     LaunchedEffect(savedConfig) {
         config = savedConfig
+        val previousConfig = previousAudiobookConfig
+        previousAudiobookConfig = savedConfig
         resetAudiobookStateAfterConfigChange()
         val requestVersion = audiobookConfigStateVersion
+        // Clear the previous config's persisted cache so switching AudiobookShelf
+        // accounts/servers does not leave dead cache JSON in DataStore.
+        if (previousConfig != null && previousConfig.cacheKey() != savedConfig.cacheKey()) {
+            cacheRepository.clear(previousConfig)
+        }
         if (savedConfig.isReadyForAudiobookSync()) {
-            refreshAudiobooks(savedConfig, requestVersion)
+            applyCachedAudiobooks(savedConfig, requestVersion)
+            // Launch-path refresh is TTL-gated; manual refresh (↻) bypasses TTL.
+            if (!isCacheFresh(cacheUpdatedAtMillis)) {
+                refreshAudiobooks(savedConfig, requestVersion)
+            }
         }
     }
 
@@ -233,6 +305,8 @@ fun AudiobookScreen(
         showConfig = false
     }
 
+    val cacheAgeLabel = formatCacheAge(cacheUpdatedAtMillis)
+
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(NordicSpacing.lg),
@@ -243,7 +317,8 @@ fun AudiobookScreen(
                 title = if (libraryPage == AudiobookLibraryPage.Home) "有声书" else selectedItem?.title ?: "详情",
                 subtitle = when (libraryPage) {
                     AudiobookLibraryPage.Home -> when {
-                        isLoading && items.isNotEmpty() -> "正在刷新，先显示当前书库"
+                        isLoading && items.isNotEmpty() -> "正在刷新，先显示本地缓存"
+                        cacheAgeLabel != null -> "本地缓存，$cacheAgeLabel"
                         selectedLibraryId != null -> "共 ${items.size} 本，点开查看章节和续播进度"
                         else -> "连接 AudiobookShelf 后自动加载书库"
                     }

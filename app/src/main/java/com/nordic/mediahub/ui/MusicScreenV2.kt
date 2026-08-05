@@ -47,6 +47,9 @@ import com.nordic.mediahub.data.NavidromeConfig
 import com.nordic.mediahub.data.NavidromeMusicCacheRepository
 import com.nordic.mediahub.data.NavidromeRepository
 import com.nordic.mediahub.data.SearchMusicResult
+import com.nordic.mediahub.data.cacheKey
+import com.nordic.mediahub.data.formatCacheAge
+import com.nordic.mediahub.data.isCacheFresh
 import com.nordic.mediahub.data.isReadyForMusicSync
 import com.nordic.mediahub.data.loadNavidromeMusicRefresh
 import com.nordic.mediahub.ui.theme.NordicAlpha
@@ -119,6 +122,7 @@ fun MusicScreenV2(
     val searchJob = remember { AtomicReference<Job?>(null) }
     var cacheUpdatedAtMillis by remember { mutableStateOf<Long?>(null) }
     var musicConfigStateVersion by remember { mutableStateOf(0) }
+    var previousMusicConfig by remember { mutableStateOf<NavidromeConfig?>(null) }
     val scope = rememberCoroutineScope()
 
     fun isCurrentMusicConfigRequest(requestVersion: Int?): Boolean {
@@ -151,6 +155,7 @@ fun MusicScreenV2(
         searchError = null
         isSearching = false
         albumSort = NavidromeAlbumSort.RecentlyAdded
+        cacheUpdatedAtMillis = null
     }
 
     suspend fun applyCachedMusicData(targetConfig: NavidromeConfig, requestVersion: Int? = null): Boolean {
@@ -360,16 +365,28 @@ fun MusicScreenV2(
         errorMsg = null
         libraryPage = MusicLibraryPage.AlbumDetail
         scope.launch {
+            // Cache-then-refresh: render the cached songs instantly, then refresh
+            // in the background. Detail caches have no TTL — opening always refreshes.
+            val cachedSongs = cacheRepository.loadAlbumDetailSongs(savedConfig, album.id)
+            if (musicConfigStateVersion == requestVersion && selectedAlbum?.id == album.id && cachedSongs != null) {
+                albumDetailSongs = cachedSongs
+                isLoadingAlbumDetail = false
+            }
             try {
                 navidromeRepository?.let { repo ->
                     val songs = repo.getAlbumSongs(album.id)
                     if (musicConfigStateVersion == requestVersion && selectedAlbum?.id == album.id) {
                         albumDetailSongs = songs
+                        cacheRepository.saveAlbumDetailSongs(savedConfig, album.id, songs)
                     }
                 }
             } catch (e: Exception) {
                 if (musicConfigStateVersion == requestVersion && selectedAlbum?.id == album.id) {
-                    errorMsg = musicAlbumDetailLoadErrorMessage(e)
+                    errorMsg = if (cachedSongs != null) {
+                        "正在显示上次缓存：${e.message ?: "未知错误"}"
+                    } else {
+                        musicAlbumDetailLoadErrorMessage(e)
+                    }
                 }
             }
             if (musicConfigStateVersion == requestVersion && selectedAlbum?.id == album.id) {
@@ -386,16 +403,26 @@ fun MusicScreenV2(
         errorMsg = null
         libraryPage = MusicLibraryPage.ArtistDetail
         scope.launch {
+            val cachedAlbums = cacheRepository.loadArtistAlbums(savedConfig, artist.id)
+            if (musicConfigStateVersion == requestVersion && selectedArtist?.id == artist.id && cachedAlbums != null) {
+                artistAlbums = cachedAlbums
+                isLoadingArtistDetail = false
+            }
             try {
                 navidromeRepository?.let { repo ->
                     val albums = repo.getArtistAlbums(artist.id)
                     if (musicConfigStateVersion == requestVersion && selectedArtist?.id == artist.id) {
                         artistAlbums = albums
+                        cacheRepository.saveArtistAlbums(savedConfig, artist.id, albums)
                     }
                 }
             } catch (e: Exception) {
                 if (musicConfigStateVersion == requestVersion && selectedArtist?.id == artist.id) {
-                    errorMsg = musicArtistDetailLoadErrorMessage(e)
+                    errorMsg = if (cachedAlbums != null) {
+                        "正在显示上次缓存：${e.message ?: "未知错误"}"
+                    } else {
+                        musicArtistDetailLoadErrorMessage(e)
+                    }
                 }
             }
             if (musicConfigStateVersion == requestVersion && selectedArtist?.id == artist.id) {
@@ -412,32 +439,54 @@ fun MusicScreenV2(
         errorMsg = null
         libraryPage = MusicLibraryPage.PlaylistDetail
         scope.launch {
+            val cachedSongs = cacheRepository.loadPlaylistSongs(savedConfig, playlist.id)
+            if (musicConfigStateVersion == requestVersion && selectedPlaylist?.id == playlist.id && cachedSongs != null) {
+                playlistSongs = cachedSongs
+                isLoadingPlaylistDetail = false
+            }
             try {
                 navidromeRepository?.let { repo ->
                     val songs = repo.getPlaylistSongs(playlist.id)
                     if (musicConfigStateVersion == requestVersion && selectedPlaylist?.id == playlist.id) {
                         playlistSongs = songs
+                        cacheRepository.savePlaylistSongs(savedConfig, playlist.id, songs)
                     }
                 }
             } catch (e: Exception) {
                 if (musicConfigStateVersion == requestVersion && selectedPlaylist?.id == playlist.id) {
-                    errorMsg = "获取歌单曲目失败: ${e.message}"
+                    errorMsg = if (cachedSongs != null) {
+                        "正在显示上次缓存：${e.message ?: "未知错误"}"
+                    } else {
+                        "获取歌单曲目失败: ${e.message ?: "未知错误"}"
+                    }
                 }
-            } finally {
-                if (musicConfigStateVersion == requestVersion && selectedPlaylist?.id == playlist.id) {
-                    isLoadingPlaylistDetail = false
-                }
+            }
+            if (musicConfigStateVersion == requestVersion && selectedPlaylist?.id == playlist.id) {
+                isLoadingPlaylistDetail = false
             }
         }
     }
 
     LaunchedEffect(savedConfig) {
         config = savedConfig
+        val previousConfig = previousMusicConfig
+        previousMusicConfig = savedConfig
         resetMusicStateAfterConfigChange()
         val requestVersion = musicConfigStateVersion
+        // Clear the previous config's persisted cache so switching accounts/servers
+        // does not leave dead cache JSON in DataStore. Only clear when the cache key
+        // actually changed; never touch the freshly-saved config's own cache.
+        if (previousConfig != null && previousConfig.cacheKey() != savedConfig.cacheKey()) {
+            cacheRepository.clear(previousConfig)
+        }
         if (savedConfig.isReadyForMusicSync()) {
             applyCachedMusicData(savedConfig, requestVersion)
-            refreshMusicData(savedConfig, requestVersion)
+            // Launch-path refresh is TTL-gated: skip the network when the cache is
+            // still fresh. Manual refresh (the ↻ button) bypasses TTL by calling
+            // refreshMusicData(...) directly.
+            if (!isCacheFresh(cacheUpdatedAtMillis)) {
+                refreshMusicData(savedConfig, requestVersion)
+            }
         } else {
             albums = emptyList()
             songs = emptyList()
