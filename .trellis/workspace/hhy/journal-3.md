@@ -104,3 +104,37 @@ Redesigned the video player chrome with an immersive overlay, added a lightweigh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 120: 完善缓存与刷新机制
+
+**Date**: 2026-08-05
+**Task**: 完善缓存与刷新机制
+**Branch**: `main`
+
+### Summary
+
+为 Music/Audiobook/Video 三域补齐 config-scoped JSON 缓存，统一 cache-then-refresh + 失败兜底 + 30 分钟 browse TTL + 手动刷新绕过 TTL + 切号缓存清理。Music 增加 album/artist/playlist detail cache-then-refresh；Audiobook 增加 item detail cache-then-refresh；Video detail 由 cached videos 派生。新增 AudiobookShelfCacheRepository、EmbyVideoCacheRepository 与共享 CacheTtl.kt（CACHE_TTL_MILLIS / isCacheFresh / formatCacheAge）。384 单测通过；spec 新增 Cross-Domain Media Cache Refresh scenario。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `44c3eb4` | (see git log) |
+| `0799d4b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
