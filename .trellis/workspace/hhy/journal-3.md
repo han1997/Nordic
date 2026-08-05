@@ -138,3 +138,37 @@ Redesigned the video player chrome with an immersive overlay, added a lightweigh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 121: 服务器配置页面提取与优化
+
+**Date**: 2026-08-05
+**Task**: 服务器配置页面提取与优化
+**Branch**: `main`
+
+### Summary
+
+新增底部配置 tab 与统一 ServerConfigScreen，集中管理 Navidrome、AudiobookShelf、Video Server 三类配置；移除各媒体页旧配置齿轮和内联配置面板；新增轻量测试连接：Navidrome ping.view、AudiobookShelf auth + libraries、Emby auth + views；保存仍通过 ConfigRepository 并保持媒体页 savedConfig flow 刷新。补充 server config screen code-spec contract。compileDebugKotlin、testDebugUnitTest、lintDebug 均通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f58ca1d` | (see git log) |
+| `eaa4b7c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
