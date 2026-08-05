@@ -1,0 +1,8 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Verification checklist and Gradle gates"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Verify new files stay in correct ui/data/api layers"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Verify config saves still go through ConfigRepository and storage contracts are unchanged"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify page shell consistency, BackHandler cleanup, shared UI patterns, and no duplicate helpers"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Verify connection-test success/failure feedback and no swallowed errors"}
+{"file": ".trellis/spec/backend/audiobookshelf-integration.md", "reason": "Verify ABS test connection does not pull full item/detail data or violate auth/library contract"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Verify Emby test connection avoids full catalog item pull and respects auth/views contract"}
+{"file": ".trellis/spec/backend/navidrome-integration.md", "reason": "Verify Navidrome ping/test connection respects Subsonic auth conventions"}

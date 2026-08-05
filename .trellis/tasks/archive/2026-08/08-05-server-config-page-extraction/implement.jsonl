@@ -1,0 +1,8 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Spec index and pre-development checklist for Android app changes"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "New ServerConfigScreen placement in ui/ and repository/API test helpers in data/api layers"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "ConfigRepository/EncryptedConfigStore contract, readiness helpers, and no direct config persistence from UI"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Shared media page shell, header actions, BackHandler scope, design tokens, and duplicate helper avoidance"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Typed/contextual error behavior for connection-test feedback"}
+{"file": ".trellis/spec/backend/audiobookshelf-integration.md", "reason": "AudiobookShelf lightweight auth/library test connection must respect ABS contract"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Emby lightweight auth/views test connection must respect Emby auth/library contract"}
+{"file": ".trellis/spec/backend/navidrome-integration.md", "reason": "Navidrome/Subsonic ping/test connection must respect existing Navidrome API/auth conventions"}
