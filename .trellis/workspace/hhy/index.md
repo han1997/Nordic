@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-3.md`
-- **Total Sessions**: 121
-- **Last Active**: 2026-08-05
+- **Total Sessions**: 122
+- **Last Active**: 2026-08-06
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-3.md` | ~174 | Active |
+| `journal-3.md` | ~209 | Active |
 | `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
@@ -31,6 +31,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 122 | 2026-08-06 | 底部导航显示机制优化 | `61ab6cb`, `0d87e90`, `cadfa8a` | `main` |
 | 121 | 2026-08-05 | 服务器配置页面提取与优化 | `f58ca1d`, `eaa4b7c` | `main` |
 | 120 | 2026-08-05 | 完善缓存与刷新机制 | `44c3eb4`, `0799d4b` | `main` |
 | 119 | 2026-08-05 | Polish video player experience | `02a0930` | `main` |

@@ -172,3 +172,38 @@ Redesigned the video player chrome with an immersive overlay, added a lightweigh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 122: 底部导航显示机制优化
+
+**Date**: 2026-08-06
+**Task**: 底部导航显示机制优化
+**Branch**: `main`
+
+### Summary
+
+移除底部 Dock 滚动/惯性滑动后的 650ms 自动恢复定时器，改为隐藏后显示低干扰底部小把手（64x18dp 胶囊 + 4dp 抓手，NordicAlpha.faint + NordicShapes.full），点击恢复完整 Dock；切 tab / 关闭播放器仍通过 LaunchedEffect 自动恢复 Dock。新增 resolveBottomDockPresentation 枚举解析（Full/Handle/Hidden），Hidden 仅在播放器层（Music/Audiobook/Video）激活。新增 BottomDockHandle internal Composable 与 3 个 resolveBottomDockPresentation_* 单测。更新 quality-guidelines.md 记录 no-auto-reveal 持久 chrome 规约，补充 CHANGELOG 改进条目。compileDebugKotlin、testDebugUnitTest（17 tests / 0 fail）、lintDebug 全部通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `61ab6cb` | (see git log) |
+| `0d87e90` | (see git log) |
+| `cadfa8a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
