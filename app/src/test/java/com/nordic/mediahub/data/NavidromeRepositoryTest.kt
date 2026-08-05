@@ -26,6 +26,18 @@ class NavidromeRepositoryTest {
     }
 
     @Test
+    fun testConnection_usesSubsonicPingOnly() = runTest {
+        server.enqueueJson(subsonicOkResponse())
+
+        repository().testConnection()
+
+        val request = server.takeRequest().path.orEmpty()
+        assertTrue(request.startsWith("/rest/ping.view?"))
+        assertTrue(request.contains("u=demo"))
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
     fun getAllSongs_expandsSongsFromAllPagedAlbums() = runTest {
         server.enqueueJson(
             subsonicResponse(

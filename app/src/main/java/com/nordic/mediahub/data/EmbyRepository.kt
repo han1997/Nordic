@@ -107,6 +107,14 @@ class EmbyRepository(private val config: VideoServerConfig) {
         throw Exception("连接 Emby 失败: ${e.message}")
     }
 
+    suspend fun testConnection(): Int = try {
+        getLibraries(session()).size
+    } catch (e: EmbyApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("测试 Emby 连接失败: ${e.message}")
+    }
+
     suspend fun getLibraryItems(libraryId: String): List<VideoItem> = try {
         getLibraryItems(session(), libraryId)
     } catch (e: EmbyApiException) {

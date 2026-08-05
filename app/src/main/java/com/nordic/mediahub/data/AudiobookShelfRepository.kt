@@ -163,6 +163,19 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
         }
     }
 
+    suspend fun testConnection(): Int {
+        return try {
+            getLibraries().size
+        } catch (e: AudiobookShelfApiException) {
+            throw e
+        } catch (e: Exception) {
+            throw AudiobookShelfApiException(
+                "测试 AudiobookShelf 连接失败: ${e.message}",
+                AudiobookShelfApiException.Kind.API
+            )
+        }
+    }
+
     suspend fun getLibraryItems(libraryId: String): List<AudiobookItemSummary> {
         val items = mutableListOf<AudiobookItemSummary>()
         var page = 0

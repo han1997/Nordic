@@ -115,6 +115,28 @@ class AudiobookShelfRepositoryTest {
     }
 
     @Test
+    fun testConnection_fetchesLibrariesOnlyWithoutItemsOrDetails() = runTest {
+        server.enqueueJson("""{"user":{"id":"u1","username":"demo","token":"token-123"}}""")
+        server.enqueueJson(
+            """
+                {
+                  "libraries": [
+                    {"id":"lib-1","name":"Books","mediaType":"book"},
+                    {"id":"lib-2","name":"Podcasts","mediaType":"podcast"}
+                  ]
+                }
+            """.trimIndent()
+        )
+
+        val libraryCount = repository().testConnection()
+
+        assertEquals(1, libraryCount)
+        assertEquals("/login", server.takeRequest().path)
+        assertEquals("/api/libraries", server.takeRequest().path)
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
     fun getLibraries_throwsTypedAuthExceptionForMissingLoginUsers() = runTest {
         listOf(
             """{}""",

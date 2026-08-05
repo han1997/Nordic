@@ -105,8 +105,6 @@ fun AudiobookScreen(
     val repository = remember { ConfigRepository(context) }
     val cacheRepository = remember { AudiobookCacheRepository(context) }
     val savedConfig by repository.audiobookConfig.collectAsStateWithLifecycle(AudiobookShelfConfig())
-    var config by remember { mutableStateOf(AudiobookShelfConfig()) }
-    var showConfig by remember { mutableStateOf(false) }
     var libraryPage by remember { mutableStateOf(AudiobookLibraryPage.Home) }
     var libraries by remember { mutableStateOf(emptyList<AudiobookLibrarySummary>()) }
     var selectedLibraryId by remember { mutableStateOf<String?>(null) }
@@ -174,7 +172,7 @@ fun AudiobookScreen(
     }
 
     suspend fun refreshAudiobooks(
-        targetConfig: AudiobookShelfConfig = config,
+        targetConfig: AudiobookShelfConfig = savedConfig,
         requestVersion: Int? = audiobookConfigStateVersion
     ) {
         if (!targetConfig.isReadyForAudiobookSync() || isLoading) return
@@ -273,7 +271,6 @@ fun AudiobookScreen(
     }
 
     LaunchedEffect(savedConfig) {
-        config = savedConfig
         val previousConfig = previousAudiobookConfig
         previousAudiobookConfig = savedConfig
         resetAudiobookStateAfterConfigChange()
@@ -301,10 +298,6 @@ fun AudiobookScreen(
         navigateBackFromAudiobookPage()
     }
 
-    BackHandler(enabled = showConfig) {
-        showConfig = false
-    }
-
     val cacheAgeLabel = formatCacheAge(cacheUpdatedAtMillis)
 
     LazyColumn(
@@ -325,7 +318,7 @@ fun AudiobookScreen(
                     AudiobookLibraryPage.Detail -> selectedItem?.authors?.joinToString(" / ").orEmpty()
                 },
                 actions = buildList {
-                    if (config.isReadyForAudiobookSync()) {
+                    if (savedConfig.isReadyForAudiobookSync()) {
                         add(
                             HeaderAction(
                                 icon = if (isLoading) "…" else "↻",
@@ -335,27 +328,12 @@ fun AudiobookScreen(
                         )
                     }
                     add(HeaderAction(if (isDark) "☀" else "☾") { onThemeToggle(!isDark) })
-                    add(HeaderAction("⚙") { showConfig = !showConfig })
                 },
                 colorScheme = colorScheme,
                 showBack = libraryPage != AudiobookLibraryPage.Home,
                 onBack = ::navigateBackFromAudiobookPage
             )
         }
-        item {
-            MediaConfigPanel(visible = showConfig) {
-                AudiobookConfigCard(config, colorScheme,
-                    onConfigChange = { config = it },
-                    onSave = {
-                        scope.launch {
-                            repository.saveAudiobookConfig(config)
-                            showConfig = false
-                        }
-                    }
-                )
-            }
-        }
-
         if (errorMessage != null) {
             item {
                 MediaStateCard(
@@ -410,12 +388,12 @@ fun AudiobookScreen(
                         subtitle = "加载书库、封面和续播进度..."
                     )
                 }
-            } else if (!config.isReadyForAudiobookSync()) {
+            } else if (!savedConfig.isReadyForAudiobookSync()) {
                 item {
                     MediaStateCard(
                         title = "先接入你的有声书书库",
                         subtitle = "填入 AudiobookShelf 地址、用户名和密码后，这里会显示真实书目、章节和续播进度。",
-                        hint = "点右上角设置开始连接",
+                        hint = "前往配置 tab 开始连接",
                     )
                 }
             } else if (libraries.isEmpty() && !isLoading) {

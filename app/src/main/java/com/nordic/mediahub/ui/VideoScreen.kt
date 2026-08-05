@@ -48,8 +48,6 @@ fun VideoScreen(
     val configRepository = remember { ConfigRepository(context) }
     val cacheRepository = remember { EmbyVideoCacheRepository(context) }
     val savedConfig by configRepository.videoConfig.collectAsStateWithLifecycle(VideoServerConfig())
-    var config by remember { mutableStateOf(VideoServerConfig()) }
-    var showConfig by remember { mutableStateOf(false) }
     var libraries by remember { mutableStateOf(emptyList<VideoLibrary>()) }
     var selectedLibraryId by remember { mutableStateOf<String?>(null) }
     var videos by remember { mutableStateOf(emptyList<VideoItem>()) }
@@ -189,7 +187,6 @@ fun VideoScreen(
     }
 
     LaunchedEffect(savedConfig) {
-        config = savedConfig
         val previousConfig = previousVideoConfig
         previousVideoConfig = savedConfig
         resetVideoStateAfterConfigChange()
@@ -209,7 +206,6 @@ fun VideoScreen(
     }
 
     fun openVideoDetail(video: VideoItem) {
-        showConfig = false
         selectedVideo = video
     }
 
@@ -227,10 +223,6 @@ fun VideoScreen(
         searchQuery = ""
         searchExpanded = false
         selectedTypeFilter = VideoTypeFilter.All
-    }
-
-    BackHandler(enabled = selectedVideo == null && showConfig) {
-        showConfig = false
     }
 
     selectedVideo?.let { video ->
@@ -280,26 +272,9 @@ fun VideoScreen(
                         )
                     }
                     add(HeaderAction(if (isDark) "☀" else "☾") { onThemeToggle(!isDark) })
-                    add(HeaderAction("⚙") { showConfig = !showConfig })
                 },
                 colorScheme = colorScheme
             )
-        }
-
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            MediaConfigPanel(visible = showConfig) {
-                VideoConfigCard(
-                    config = config,
-                    colorScheme = colorScheme,
-                    onConfigChange = { config = it },
-                    onSave = {
-                        scope.launch {
-                            configRepository.saveVideoConfig(config)
-                            showConfig = false
-                        }
-                    }
-                )
-            }
         }
 
         if (errorMessage != null) {
@@ -406,7 +381,7 @@ fun VideoScreen(
                     MediaStateCard(
                         title = "先接入你的 Emby 服务器",
                         subtitle = "填写服务器地址，并使用 API Key 或用户名密码登录。这里会显示真实媒体库和视频缩略图。",
-                        hint = "点右上角设置开始连接"
+                        hint = "前往配置 tab 开始连接"
                     )
                 }
             }

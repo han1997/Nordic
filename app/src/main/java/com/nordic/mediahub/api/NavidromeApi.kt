@@ -72,6 +72,16 @@ data class ArtistIndex(
 )
 
 interface NavidromeApi {
+    @GET("rest/ping.view")
+    suspend fun ping(
+        @Query("u") username: String,
+        @Query("t") token: String,
+        @Query("s") salt: String,
+        @Query("v") version: String = "1.16.1",
+        @Query("c") client: String = "Nordic",
+        @Query("f") format: String = "json"
+    ): Response<SubsonicResponse>
+
     @GET("rest/getAlbumList2.view")
     suspend fun getAlbumList2(
         @Query("u") username: String,

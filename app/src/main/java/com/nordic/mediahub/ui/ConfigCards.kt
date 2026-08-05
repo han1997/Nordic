@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -44,7 +45,11 @@ fun NavidromeConfigCard(
     config: NavidromeConfig,
     colorScheme: ColorScheme,
     onConfigChange: (NavidromeConfig) -> Unit,
-    onSave: () -> Unit
+    onSave: () -> Unit,
+    onTestConnection: (() -> Unit)? = null,
+    isTestingConnection: Boolean = false,
+    statusMessage: String? = null,
+    statusIsError: Boolean = false
 ) {
     ServerConfigCard(title = "Navidrome 服务器", colorScheme = colorScheme) {
         ConfigTextField("服务器地址", config.serverUrl, "https://music.example.com", colorScheme) {
@@ -56,9 +61,14 @@ fun NavidromeConfigCard(
         ConfigTextField("密码", config.password, "password", colorScheme, true) {
             onConfigChange(config.copy(password = it))
         }
-        Button(onClick = onSave, modifier = Modifier.fillMaxWidth()) {
-            Text("保存配置")
-        }
+        ServerConfigActions(
+            colorScheme = colorScheme,
+            onSave = onSave,
+            onTestConnection = onTestConnection,
+            isTestingConnection = isTestingConnection,
+            statusMessage = statusMessage,
+            statusIsError = statusIsError
+        )
     }
 }
 
@@ -67,7 +77,11 @@ fun AudiobookConfigCard(
     config: AudiobookShelfConfig,
     colorScheme: ColorScheme,
     onConfigChange: (AudiobookShelfConfig) -> Unit,
-    onSave: () -> Unit
+    onSave: () -> Unit,
+    onTestConnection: (() -> Unit)? = null,
+    isTestingConnection: Boolean = false,
+    statusMessage: String? = null,
+    statusIsError: Boolean = false
 ) {
     ServerConfigCard(title = "AudiobookShelf 服务器", colorScheme = colorScheme) {
         ConfigTextField("服务器地址", config.serverUrl, "https://audiobook.example.com", colorScheme) {
@@ -79,9 +93,14 @@ fun AudiobookConfigCard(
         ConfigTextField("密码", config.password, "password", colorScheme, true) {
             onConfigChange(config.copy(password = it))
         }
-        Button(onClick = onSave, modifier = Modifier.fillMaxWidth()) {
-            Text("保存配置")
-        }
+        ServerConfigActions(
+            colorScheme = colorScheme,
+            onSave = onSave,
+            onTestConnection = onTestConnection,
+            isTestingConnection = isTestingConnection,
+            statusMessage = statusMessage,
+            statusIsError = statusIsError
+        )
     }
 }
 
@@ -90,7 +109,11 @@ fun VideoConfigCard(
     config: VideoServerConfig,
     colorScheme: ColorScheme,
     onConfigChange: (VideoServerConfig) -> Unit,
-    onSave: () -> Unit
+    onSave: () -> Unit,
+    onTestConnection: (() -> Unit)? = null,
+    isTestingConnection: Boolean = false,
+    statusMessage: String? = null,
+    statusIsError: Boolean = false
 ) {
     ServerConfigCard(title = "视频服务器", colorScheme = colorScheme) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
@@ -140,11 +163,53 @@ fun VideoConfigCard(
                         VideoServerCredentialsFields(config, colorScheme, onConfigChange)
                     }
                 }
-                Button(onClick = onSave, modifier = Modifier.fillMaxWidth()) {
-                    Text("保存配置")
-                }
+                ServerConfigActions(
+                    colorScheme = colorScheme,
+                    onSave = onSave,
+                    onTestConnection = onTestConnection,
+                    isTestingConnection = isTestingConnection,
+                    statusMessage = statusMessage,
+                    statusIsError = statusIsError
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun ServerConfigActions(
+    colorScheme: ColorScheme,
+    onSave: () -> Unit,
+    onTestConnection: (() -> Unit)?,
+    isTestingConnection: Boolean,
+    statusMessage: String?,
+    statusIsError: Boolean
+) {
+    if (onTestConnection == null) {
+        Button(onClick = onSave, modifier = Modifier.fillMaxWidth()) {
+            Text("保存配置")
+        }
+    } else {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+            OutlinedButton(
+                onClick = onTestConnection,
+                enabled = !isTestingConnection,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(if (isTestingConnection) "测试中..." else "测试连接")
+            }
+            Button(onClick = onSave, modifier = Modifier.weight(1f)) {
+                Text("保存配置")
+            }
+        }
+    }
+
+    if (statusMessage != null) {
+        Text(
+            text = statusMessage,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (statusIsError) colorScheme.error else colorScheme.primary
+        )
     }
 }
 

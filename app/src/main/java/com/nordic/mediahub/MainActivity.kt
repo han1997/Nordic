@@ -501,6 +501,11 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                     onPlayVideo = onPlayVideo,
                                     onPlayVideoFromStart = onPlayVideoFromStart
                                 )
+                                3 -> ServerConfigScreen(
+                                    colorScheme = colorScheme,
+                                    isDark = isDark,
+                                    onThemeToggle = onThemeToggle
+                                )
                             }
                         }
                     }

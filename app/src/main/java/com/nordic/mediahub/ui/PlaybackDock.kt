@@ -111,6 +111,7 @@ fun PolishedBottomNav(selected: Int, colorScheme: ColorScheme, onSelect: (Int) -
         PolishedNavItem("♪", "音乐", selected == 0, colorScheme, Modifier.weight(1f)) { onSelect(0) }
         PolishedNavItem("▤", "有声书", selected == 1, colorScheme, Modifier.weight(1f)) { onSelect(1) }
         PolishedNavItem("▶", "视频", selected == 2, colorScheme, Modifier.weight(1f)) { onSelect(2) }
+        PolishedNavItem("⚙", "配置", selected == 3, colorScheme, Modifier.weight(1f)) { onSelect(3) }
     }
 }
 

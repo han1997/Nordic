@@ -89,8 +89,6 @@ fun MusicScreenV2(
     val navidromeRepository = remember(savedConfig) {
         if (savedConfig.isReadyForMusicSync()) NavidromeRepository(savedConfig) else null
     }
-    var config by remember { mutableStateOf(NavidromeConfig()) }
-    var showConfig by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf(0) }
     var libraryPage by remember { mutableStateOf(MusicLibraryPage.Home) }
     var albums by remember { mutableStateOf(emptyList<NavidromeAlbum>()) }
@@ -468,7 +466,6 @@ fun MusicScreenV2(
     }
 
     LaunchedEffect(savedConfig) {
-        config = savedConfig
         val previousConfig = previousMusicConfig
         previousMusicConfig = savedConfig
         resetMusicStateAfterConfigChange()
@@ -511,10 +508,6 @@ fun MusicScreenV2(
         navigateBackFromMusicPage()
     }
 
-    BackHandler(enabled = showConfig) {
-        showConfig = false
-    }
-
     val hasContent = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty() || playlists.isNotEmpty()
     val visibleSongs = remember(songs, songSort) {
         sortMusicSongs(songs, songSort)
@@ -525,14 +518,14 @@ fun MusicScreenV2(
     val homeArtists = remember(artists) { artists.take(10) }
     val cacheAgeLabel = formatCacheAge(cacheUpdatedAtMillis)
     val headerActions = buildList {
-        if (config.isReadyForMusicSync()) {
+        if (savedConfig.isReadyForMusicSync()) {
             add(
                 HeaderAction(
                     icon = if (isLoading) "…" else "↻",
                     enabled = !isLoading,
                     onClick = {
                         scope.launch {
-                            if (refreshMusicData(config) && libraryPage == MusicLibraryPage.Albums) {
+                            if (refreshMusicData(savedConfig) && libraryPage == MusicLibraryPage.Albums) {
                                 loadAlbumList(albumSort)
                             }
                             if (libraryPage == MusicLibraryPage.Playlists) {
@@ -544,7 +537,6 @@ fun MusicScreenV2(
             )
         }
         add(HeaderAction(if (isDark) "☀" else "☾") { onThemeToggle(!isDark) })
-        add(HeaderAction("⚙") { showConfig = !showConfig })
     }
     val isHomePage = libraryPage == MusicLibraryPage.Home
     val headerTitle = when (libraryPage) {
@@ -602,22 +594,6 @@ fun MusicScreenV2(
                 onBack = ::navigateBackFromMusicPage
             )
         }
-        item {
-            MediaConfigPanel(visible = showConfig) {
-                NavidromeConfigCard(
-                    config = config,
-                    colorScheme = colorScheme,
-                    onConfigChange = { config = it },
-                    onSave = {
-                        scope.launch {
-                            repository.saveNavidromeConfig(config)
-                            showConfig = false
-                        }
-                    }
-                )
-            }
-        }
-
         if (isHomePage) {
             item {
                 MusicSegmentedTabs(
@@ -665,7 +641,7 @@ fun MusicScreenV2(
                 MediaStateCard(
                     title = "先接入你的音乐库",
                     subtitle = "填入 Navidrome 地址、用户名和密码后，最近添加的专辑和歌曲会直接出现在这里。",
-                    hint = "点右上角设置开始连接"
+                    hint = "前往配置 tab 开始连接"
                 )
             }
         }

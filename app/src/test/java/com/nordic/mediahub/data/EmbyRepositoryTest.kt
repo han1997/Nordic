@@ -129,6 +129,29 @@ class EmbyRepositoryTest {
     }
 
     @Test
+    fun testConnection_fetchesUsersAndViewsOnlyWithoutCatalogItems() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"},
+                    {"Id":"lib-music","Name":"Music","Type":"CollectionFolder","CollectionType":"music"}
+                  ],
+                  "TotalRecordCount": 2
+                }
+            """.trimIndent()
+        )
+
+        val libraryCount = repository(apiKey = "api-key").testConnection()
+
+        assertEquals(1, libraryCount)
+        assertEquals("/Users", server.takeRequest().path)
+        assertEquals("/Users/u1/Views", server.takeRequest().path)
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
     fun getCatalog_usesFirstUsableApiKeyUserWhenMatchingUserIdIsMissing() = runTest {
         server.enqueueJson("""[{"Name":"demo"},{"Id":"u-fallback","Name":"fallback"}]""")
         server.enqueueJson(

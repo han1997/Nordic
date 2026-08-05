@@ -153,6 +153,18 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
         )
     }
 
+    suspend fun testConnection() = try {
+        val auth = config.authParams()
+        requestSubsonic {
+            api.ping(config.username, auth.token, auth.salt)
+        }
+        Unit
+    } catch (e: NavidromeApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("测试 Navidrome 连接失败: ${e.message}")
+    }
+
     private suspend fun getAlbumList(
         type: String,
         size: Int,
