@@ -86,13 +86,13 @@ Use `MediaStateDensity.Compact` for detail-level empty states and the default pr
 
 ### Shared media page shell
 
-Top-level Music, Audiobook, and Video browsing screens should use the shared page-shell components for headers and inline config panels instead of reimplementing local title/action/config animation rows.
+Top-level Music, Audiobook, and Video browsing screens should use the shared page-shell components for headers instead of reimplementing local title/action rows. Server connection editing belongs in the unified `ServerConfigScreen`, not in per-media inline config panels.
 
 **Contracts**:
 - Use `MediaPageHeader(...)` for the screen title, dynamic subtitle, optional visible back button, and header actions.
-- Header actions should stay in `HeaderActionGroup` / `HeaderAction` so refresh, theme, config, and search affordances keep the same surface, sizing, and disabled behavior across media domains.
-- Use `MediaConfigPanel(visible = showConfig) { ... }` for inline config expansion so enter/exit timing and layout ownership stay consistent.
-- If opening a detail page from a screen where `showConfig` can be true, close the config panel before setting the detail selection, or scope the config `BackHandler` to the browse page. Hidden config handlers must not consume Back while the detail page is visible.
+- Header actions should stay in `HeaderActionGroup` / `HeaderAction` so refresh, theme, and search affordances keep the same surface, sizing, and disabled behavior across media domains.
+- Do not add new per-media config gear actions, `showConfig` state, or `MediaConfigPanel` server forms to Music, Audiobook, or Video screens. Use the bottom-nav `配置` tab and `ServerConfigScreen` instead.
+- First-run/setup empty states should direct users to the `配置` tab instead of referencing an off-screen header gear.
 
 ```kotlin
 MediaPageHeader(
@@ -100,19 +100,116 @@ MediaPageHeader(
     subtitle = browserSubtitle,
     actions = buildList {
         add(HeaderAction(if (isLoading) "…" else "↻", enabled = !isLoading) { refresh() })
-        add(HeaderAction("⚙") { showConfig = !showConfig })
     },
     colorScheme = colorScheme,
     showBack = libraryPage != MusicLibraryPage.Home,
     onBack = ::returnToHome
 )
+```
 
-MediaConfigPanel(visible = showConfig) {
-    VideoConfigCard(...)
+**Why**: Media browse screens are parallel product surfaces and should stay focused on browsing/playback. Centralizing server configuration reduces duplicated save/test logic and prevents hidden config `BackHandler` priority bugs from detail pages.
+
+## Scenario: Server Configuration Screen and Connection Tests
+
+### 1. Scope / Trigger
+
+- Trigger: Any change to `ServerConfigScreen`, bottom-nav server configuration entry, `ConfigCards`, `NavidromeRepository.testConnection`, `AudiobookShelfRepository.testConnection`, `EmbyRepository.testConnection`, or the lightweight API endpoints they call.
+- Scope: centralized server configuration UI, save behavior through `ConfigRepository`, connection-test behavior, and removal of per-media inline config panels.
+
+### 2. Signatures
+
+- UI:
+```kotlin
+@Composable
+fun ServerConfigScreen(colorScheme: ColorScheme, isDark: Boolean, onThemeToggle: (Boolean) -> Unit)
+```
+- Repository probes:
+```kotlin
+suspend fun NavidromeRepository.testConnection()
+suspend fun AudiobookShelfRepository.testConnection(): Int
+suspend fun EmbyRepository.testConnection(): Int
+```
+- Retrofit:
+```kotlin
+@GET("rest/ping.view")
+suspend fun NavidromeApi.ping(...): Response<SubsonicResponse>
+```
+
+### 3. Contracts
+
+- Server editing belongs in the bottom-nav `配置` tab through `ServerConfigScreen`. Music, Audiobook, and Video screens must not define per-media config gear actions, `showConfig` state, or inline `MediaConfigPanel` server forms.
+- `ServerConfigScreen` owns temporary form state initialized from the saved config flows. Test connection uses the current form values, even when the user has not saved them yet.
+- Saving must call `ConfigRepository.saveNavidromeConfig(...)`, `saveAudiobookConfig(...)`, and `saveVideoConfig(...)`. Do not write directly to `EncryptedConfigStore` or DataStore from UI.
+- Test connection is a lightweight probe only. It must not save config, write media caches, start playback, sync progress, or trigger full media-library/catalog refresh.
+- Navidrome test uses Subsonic `ping.view` with normal auth params. Success requires a valid Subsonic `ok` response through the existing `requireResponse` path.
+- AudiobookShelf test performs login/token resolution and `getLibraries()` only; it must not request library items, item detail, playback sessions, progress endpoints, or cache writes.
+- Emby test authenticates and requests user views/libraries only; it must not request `Users/{userId}/Items`, item catalog pages, playback progress, or cache writes.
+- Connection test results are UI state only: show pending, success, and contextual failure messages per card. A failed test must not mutate saved config.
+- Existing media screens continue to observe saved config flows and refresh from their own `LaunchedEffect(savedConfig)` paths after a save.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+|---|---|
+| User edits form fields but does not save, then taps test | Probe uses the edited in-memory form values |
+| Test succeeds | Show success feedback on that service card; do not save config automatically |
+| Test fails | Show contextual error on that service card; keep current form state unchanged |
+| User taps save | Persist only through `ConfigRepository`; saved-config flows notify media screens |
+| Music/Audiobook/Video screen rendered | No server config gear, `showConfig`, inline config form, or config BackHandler exists |
+| Navidrome test | Calls `ping.view`; does not fetch albums/songs/artists/playlists |
+| AudiobookShelf test | Calls login + libraries only; does not fetch items/detail or start playback |
+| Emby test | Calls auth + views only; does not fetch item catalog or report progress |
+
+### 5. Good/Base/Bad Cases
+
+- Good: User enters unsaved Navidrome credentials, taps `测试连接`, gets success, then taps `保存配置`; Music refreshes from the saved flow afterward.
+- Good: User tests Emby with an API key and the test counts available libraries without pulling any item pages.
+- Base: Empty config fields fail readiness/test gracefully and leave saved config unchanged.
+- Bad: Test connection reuses `refreshMusicData` / `refreshAudiobooks` / `refreshVideo`, causing a full sync and cache writes just to validate credentials.
+- Bad: Media pages keep old hidden `showConfig` BackHandlers after the config UI moved to a dedicated tab.
+- Bad: Test connection saves form values implicitly, surprising users who expected a dry run.
+
+### 6. Tests Required
+
+- Repository tests: Navidrome test calls `/rest/ping.view`; ABS test calls login + `/api/libraries` only; Emby test calls auth + views only and does not request `/Items`.
+- UI/helper tests where feasible: bottom nav preserves Music/Audiobook/Video indexes (`0/1/2`) and maps `3` to `配置`.
+- Compile/lint gates after removing per-media config actions to catch stale state, imports, and BackHandlers.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+```kotlin
+// Testing a server by running the full domain refresh performs unnecessary sync work.
+Button(onClick = { scope.launch { refreshVideo() } }) {
+    Text("测试连接")
 }
 ```
 
-**Why**: Media browse screens are parallel product surfaces. Keeping header/config chrome shared preserves visual consistency, reduces duplicated animation code, and prevents BackHandler priority bugs where an off-screen expanded config panel intercepts system Back.
+```kotlin
+// Media pages keep stale config UI after the dedicated config tab exists.
+add(HeaderAction("⚙") { showConfig = !showConfig })
+MediaConfigPanel(visible = showConfig) { VideoConfigCard(...) }
+```
+
+#### Correct
+```kotlin
+// Test uses current form values, is lightweight, and does not persist.
+Button(onClick = {
+    scope.launch { EmbyRepository(videoForm).testConnection() }
+}) {
+    Text("测试连接")
+}
+```
+
+```kotlin
+// Media pages stay focused on browsing/playback; config lives in selectedTab == 3.
+when (selectedTab) {
+    0 -> MusicScreenV2(...)
+    1 -> AudiobookScreen(...)
+    2 -> VideoScreen(...)
+    3 -> ServerConfigScreen(...)
+}
+```
 
 ### Compose media list stability
 
@@ -1064,7 +1161,8 @@ Playback logic tests should isolate pure calculations where possible, as in `app
 - [ ] No string-based error type checks (use typed exceptions)
 - [ ] No duplicate utility functions across files
 - [ ] Shared Compose primitives use `internal` visibility
-- [ ] Top-level media browse screens use shared page-shell components (`MediaPageHeader`, `MediaConfigPanel`) instead of duplicated local header/config animation code
+- [ ] Top-level media browse screens use shared page-shell headers and do not reintroduce per-media config gear/actions/forms
+- [ ] Server editing and connection tests live in the bottom-nav `配置` tab / `ServerConfigScreen`
 - [ ] Repeated loading/error/empty state cards use shared media state components
 - [ ] Hidden config/search/filter state cannot consume Back while a detail/player surface is visible
 - [ ] Persistent player/navigation chrome is hidden, collapsed, or explicitly justified when static, with performance and content readability prioritized
