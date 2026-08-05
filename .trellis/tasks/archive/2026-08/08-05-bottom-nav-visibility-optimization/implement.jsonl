@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Spec index and required Gradle verification gates"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "UI file placement and layer ownership for MainActivity/PlaybackDock changes"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Persistent media chrome, shared page shell, design token, BackHandler, and bottom navigation conventions"}
+{"file": ".trellis/spec/backend/documentation-guidelines.md", "reason": "Chinese UI copy and task documentation conventions if user-visible labels/hints are changed"}

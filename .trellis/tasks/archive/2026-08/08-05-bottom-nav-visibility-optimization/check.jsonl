@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Verification checklist and Gradle gates"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Verify UI changes stay in correct app/ui boundaries"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify persistent media chrome no longer auto-reappears and uses design tokens/BackHandler correctly"}
+{"file": ".trellis/spec/backend/documentation-guidelines.md", "reason": "Verify user-visible Chinese copy/hints are appropriate"}
