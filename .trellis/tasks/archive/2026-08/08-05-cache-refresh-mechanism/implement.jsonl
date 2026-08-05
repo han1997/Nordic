@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Spec index + pre-dev checklist; lists all guideline files relevant to this caching task"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Core: cache storage conventions (DataStore+Gson, schema version, config-scoped key), NavidromeMusicCacheRepository reference, config-scoped refresh contract — directly governs new cache repositories"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Placement of new cache repository files in data/ layer; layer ownership rules (repositories belong in data/)"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Cache contracts, code reuse rules (shared helpers single-source), repository instance reuse, config readiness centralization"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Failure fallback patterns for cache-then-refresh error paths and contextual error wrapping"}
+{"file": ".trellis/spec/backend/audiobookshelf-integration.md", "reason": "AudiobookShelf domain contract — required when adding AudiobookCacheRepository and caching audiobook items/detail"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Emby domain contract — required when adding EmbyVideoCacheRepository and caching video catalog"}
