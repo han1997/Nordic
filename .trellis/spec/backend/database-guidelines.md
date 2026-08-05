@@ -39,6 +39,8 @@ Rules:
 - Invalidate incompatible cached data by bumping `MUSIC_CACHE_SCHEMA_VERSION`.
 - Bump `MUSIC_CACHE_SCHEMA_VERSION` when adding persisted DTO fields required by UI behavior, such as `NavidromeSong.created` for added-time sorting.
 - Include config identity in cache keys via `NavidromeConfig.cacheKey()` so one server/user cache is not shown for another.
+- Each media domain owns its own cache repository and schema version: `NavidromeMusicCacheRepository` (`MUSIC_CACHE_SCHEMA_VERSION`), `AudiobookShelfCacheRepository` (`AUDIOBOOK_CACHE_SCHEMA_VERSION`), `EmbyVideoCacheRepository` (`VIDEO_CACHE_SCHEMA_VERSION`).
+- Shared cache TTL and age-label helpers live in `data/CacheTtl.kt` (`CACHE_TTL_MILLIS`, `isCacheFresh(...)`, `formatCacheAge(...)`). Do NOT duplicate these in screen or logic files.
 
 ## Scenario: Local Audiobook Bookmarks
 
@@ -265,6 +267,157 @@ val freshData = loadNavidromeMusicRefresh(
 ) ?: return false
 val freshCache = cacheRepository.buildCache(config = targetConfig, ...)
 cacheRepository.save(targetConfig, freshCache)
+```
+
+## Scenario: Cross-Domain Media Cache Refresh
+
+### 1. Scope / Trigger
+
+- Trigger: Any change to a media domain cache repository (`NavidromeMusicCacheRepository` / `AudiobookShelfCacheRepository` / `EmbyVideoCacheRepository`), the shared `CacheTtl.kt` helpers, or a screen's `LaunchedEffect(savedConfig)` launch refresh / manual refresh / detail-open / config-switch path.
+- Scope: cache-then-refresh launch flow, browse TTL, manual-refresh TTL bypass, detail cache-then-refresh, config-switch cache cleanup, and cross-domain consistency. Applies to Music, Audiobook, and Video.
+
+### 2. Signatures
+
+- Shared helpers (`data/CacheTtl.kt`):
+  - `val CACHE_TTL_MILLIS: Long = 30 * 60 * 1000L`
+  - `fun isCacheFresh(updatedAtMillis: Long?): Boolean`
+  - `fun formatCacheAge(updatedAtMillis: Long?): String`
+- Per-domain cache key:
+  - `fun NavidromeConfig.cacheKey(): String`
+  - `fun AudiobookShelfConfig.cacheKey(): String`
+  - `fun VideoServerConfig.cacheKey(): String`
+- Per-domain cache repository (`data/`):
+  - `suspend fun load(config): <DomainCache>?`
+  - `suspend fun save(config, cache)`
+  - `fun buildCache(config, ...): <DomainCache>`
+  - `suspend fun clear(config)` — removes the stored JSON only when the stored `configKey` matches `config.cacheKey()`
+
+### 3. Contracts
+
+- Each domain cache is JSON under a DataStore string preference key, scoped by a `cacheKey()` that embeds `url|user|schemaVersion`. Emby's key additionally includes the apiKey identity (or username for password-login) so apiKey-only configs at the same `url|user` do not collide.
+- Launch flow (`LaunchedEffect(savedConfig)`): apply cached data first, then gate the background refresh on `isCacheFresh(cacheUpdatedAtMillis)`. If fresh, skip refresh. If stale or null, run the refresh and write back to cache.
+- Manual refresh (the ↻ header action): MUST bypass the TTL gate. The `onClick = { scope.launch { refreshXxx() } }` path calls the refresh function directly, NOT through the `isCacheFresh` check.
+- On refresh failure with cached content present: keep cached content and surface a hint such as `"正在显示上次缓存：..."`. On refresh failure with no cached content: surface a connection error such as `"连接失败: ..."`. The error branch must check `hasCachedContent` and never collapse to an empty error state when a cache exists.
+- Detail cache-then-refresh (Music album/artist/playlist detail, Audiobook item detail): on open, load cached detail first (show it), then fetch fresh in the background, save to cache, and update UI. Detail caches have NO TTL (always refresh on open). Failure with cached detail: keep cached + hint; failure without cache: show error.
+- Browse-refresh save must MERGE detail-cache maps, not wipe them. When a browse refresh writes a new cache object, existing detail-cache entries (album songs / artist albums / playlist songs / audiobook item detail by id) must be preserved so the user does not lose cached detail state on every browse refresh. Browse list fields (`albums`, `songs`, `libraries`, `items`, `videos`) are authoritative and overwritten; detail maps are merged.
+- Video detail has NO separate detail cache. `relatedEpisodes` is derived from the cached `videos` list at render time, so no extra request or detail-cache map is needed.
+- Config-switch cleanup: track the previous saved config. When the new config's `cacheKey()` differs from the previous, call `cacheRepository.clear(previousConfig)`. Never call `clear(newConfig)` — that would wipe the cache the launch flow just applied. `clear()` only removes the stored JSON when the stored `configKey` matches the argument.
+- Bump the domain's `*_CACHE_SCHEMA_VERSION` whenever persisted cache field semantics change (e.g. adding the Music detail-cache maps bumped Music v3→v4). Old caches are auto-invalidated because the `schemaVersion` in the key changes.
+- Existing `xxxConfigStateVersion` guards must remain in place so stale async writes after a config change cannot repopulate state. Cache apply/refresh must respect the same request-version checks.
+- Cache repositories are constructed once per screen via `remember { XxxCacheRepository(context) }`. Do not construct them per refresh call.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+|---|---|
+| Launch with cache fresh (< 30 min) | Apply cached data; skip background refresh |
+| Launch with cache stale (>= 30 min) or null | Apply cached data if any; run background refresh; write back on success |
+| Manual refresh button tapped | Bypass TTL; force network refresh regardless of cache age |
+| Refresh fails and cached browse content exists | Keep cached content; show `"正在显示上次缓存：…"` hint |
+| Refresh fails and no cached content exists | Show `"连接失败: …"` error; do not show empty content |
+| Detail open with cached detail | Show cached detail; fetch fresh in background; update UI on success |
+| Detail fetch fails with cached detail present | Keep cached detail; show hint |
+| Detail fetch fails with no cached detail | Show contextual detail-load error |
+| Browse refresh saves a new cache | Overwrite browse list fields; preserve existing detail-cache maps (merge) |
+| Empty server response on browse refresh | Overwrite browse fields with empty lists; do NOT keep stale browse content |
+| Config switch and new cacheKey differs from previous | Call `clear(previousConfig)`; do NOT clear `newConfig` |
+| Config switch and cacheKey unchanged | Do not call clear (same account re-emission) |
+| `clear(config)` called but stored configKey does not match | No-op; do not remove another config's cache |
+| Cache schema version bumped | Old caches under the previous version are ignored (key mismatch) |
+| Old async refresh writes after config change | Ignored by `xxxConfigStateVersion` guard; cache not repopulated |
+
+### 5. Good/Base/Bad Cases
+
+- Good: User opens the app within 30 min of last sync; Music home shows cached content instantly and skips the network. Tapping ↻ forces a fresh fetch.
+- Good: User is offline with a 2-hour-old cache; Music/Audiobook/Video show stale cache with an offline hint instead of an empty error state.
+- Good: User switches Navidrome account; the previous account's cache is cleared from DataStore and does not accumulate across multiple switches.
+- Good: User opens an album detail, sees cached songs instantly, and the songs refresh in the background; a later browse refresh preserves the cached album-detail map.
+- Good: User opens a Video Series; episode rows derive from the cached `videos` list without an extra network request or a separate video detail cache.
+- Base: First launch with no cache; refresh runs immediately and caches the result.
+- Bad: Launch refresh always hits the network even when the cache is 1 minute old (TTL gate missing or bypassed on the launch path).
+- Bad: Manual ↻ refresh is accidentally TTL-gated, so the user cannot force a fresh fetch when the cache is "fresh".
+- Bad: Browse refresh wipes the detail-cache maps, so reopening an album detail after a browse refresh shows a loading state instead of the cached songs.
+- Bad: `clear(newConfig)` is called on config switch, wiping the cache that was just applied for the new account.
+- Bad: Emby `cacheKey` uses only `url|user` and two apiKey-only configs at the same URL collide, showing one user's video library under another.
+
+### 6. Tests Required
+
+- Per-domain cache repository unit tests: load/save round-trip, config-scoped isolation (different `cacheKey` does not load another config's cache), `clear(config)` removes only matching configKey, malformed JSON returns null without crashing.
+- `CacheTtlTest`: `isCacheFresh` boundary (just under TTL → true, exactly TTL → false, null → false), `formatCacheAge` formatting.
+- `CacheKeyTest`: each domain's `cacheKey()` embeds `url|user|schemaVersion`; Emby key distinguishes apiKey vs username identity at the same URL.
+- Detail-cache merge test: save a browse cache with detail entries, then save a new browse cache with empty detail maps; assert the previous detail entries are preserved.
+- Browse-refresh-preserves-detail test: after a browse refresh save, existing detail entries remain loadable by id.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```kotlin
+// Launch path always refreshes, ignoring TTL.
+LaunchedEffect(savedConfig) {
+    applyCachedMusicData(savedConfig, requestVersion)
+    refreshMusicData(savedConfig, requestVersion)  // no TTL gate
+}
+```
+
+```kotlin
+// Manual refresh accidentally goes through the TTL gate.
+onClick = { scope.launch {
+    if (isCacheFresh(cacheUpdatedAtMillis)) return@launch  // wrong: blocks user-requested refresh
+    refreshMusicData()
+} }
+```
+
+```kotlin
+// Browse refresh wipes detail caches by replacing the whole object.
+cacheRepository.save(config, freshBrowseCache)  // freshBrowseCache has empty detail maps → detail cache lost
+```
+
+```kotlin
+// clear() removes regardless of which config the stored cache belongs to.
+suspend fun clear(config: VideoServerConfig) {
+    context.dataStore.edit { it.remove(videoCacheKey) }  // unconditional wipe
+}
+```
+
+#### Correct
+
+```kotlin
+// Launch path: TTL-gated; manual path: direct.
+LaunchedEffect(savedConfig) {
+    applyCachedMusicData(savedConfig, requestVersion)
+    if (!isCacheFresh(cacheUpdatedAtMillis)) {
+        refreshMusicData(savedConfig, requestVersion)
+    }
+}
+// ↻ button:
+onClick = { scope.launch { refreshMusicData() } }  // bypasses TTL
+```
+
+```kotlin
+// Browse refresh merges detail maps (Music example).
+suspend fun save(config, incoming: NavidromeMusicCache) {
+    val merged = loadRaw(config)?.copy(
+        albums = incoming.albums,
+        songs = incoming.songs,
+        recentlyAddedSongs = incoming.recentlyAddedSongs,
+        artists = incoming.artists,
+        updatedAtMillis = incoming.updatedAtMillis
+    ) ?: incoming
+    context.dataStore.edit { it[musicCacheKey] = gson.toJson(merged.copy(configKey = config.cacheKey())) }
+}
+```
+
+```kotlin
+// clear() only removes when the stored configKey matches.
+suspend fun clear(config: VideoServerConfig) {
+    val key = config.cacheKey()
+    context.dataStore.edit { prefs ->
+        val json = prefs[videoCacheKey] ?: return@edit
+        val stored = runCatching { gson.fromJson(json, EmbyVideoCache::class.java) }.getOrNull()
+        if (stored?.configKey == key) prefs.remove(videoCacheKey)
+    }
+}
 ```
 
 ## Readiness Helpers

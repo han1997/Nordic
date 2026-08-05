@@ -18,12 +18,13 @@ This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. 
 | [Logging Guidelines](./logging-guidelines.md) | Adding or changing `Log.*` calls or OkHttp logging interceptors |
 | [AudiobookShelf Integration Contract](./audiobookshelf-integration.md) | Changing audiobook auth, library browsing, playback sessions, progress sync, or Media3 audiobook state |
 | [Emby Integration Contract](./emby-integration.md) | Changing Emby auth, library/item mapping, video playback, progress reporting, or season/episode browsing |
-| [Navidrome Integration Contract](./navidrome-integration.md) | Changing star/favorite toggles, playlist CRUD, or Subsonic API star/unstar/getStarred2 endpoints |
+| [Navidrome Integration Contract](./navidrome-integration.md) | Changing star/favorite toggles, playlist CRUD, or Subsonic API star/unstar/getStarled2 endpoints |
 
 ## Pre-Development Checklist
 
 - Read [Directory Structure](./directory-structure.md) before adding files or moving code between layers.
 - Read [Persistence Guidelines](./database-guidelines.md) before changing `ConfigRepository`, server config models, or cache models.
+- Read the "Cross-Domain Media Cache Refresh" scenario in [Persistence Guidelines](./database-guidelines.md) before changing any cache repository, TTL helpers, launch/manual refresh flow, or config-switch cache cleanup.
 - Read [Error Handling](./error-handling.md) before adding repository methods or changing exception behavior.
 - Read [Quality Guidelines](./quality-guidelines.md) before modifying shared UI state components, music library navigation, or cache contracts.
 - 修改用户可见文案、项目文档、任务文档、发布记录或开发规范前，先阅读 [文档规范](./documentation-guidelines.md)。
