@@ -273,6 +273,7 @@ Floating playback bars, bottom navigation, and other persistent media chrome mus
 - Prefer state gates such as `isPlaying`, active media identity, or explicit user expansion to decide when player chrome is shown.
 - Keep collapsed/hidden chrome detached from high-frequency playback position updates so idle screens do not recompose on every tick.
 - Preserve clear recovery paths: users must still be able to reopen playback controls or navigate back to the active player through an explicit affordance.
+- Bottom navigation dock must NOT auto-reveal on a timer after scroll/fling stops. Scroll and fling hide the full dock; it stays hidden until an explicit user action (a small `BottomDockHandle` tap) or a tab/player state reset restores it. Timer-based `delay(...)` reveal for the bottom dock is forbidden — it re-interrupts content reading the user explicitly chose to do.
 
 ```kotlin
 // Wrong: idle chrome permanently covers content and stays subscribed to ticks.
@@ -290,7 +291,19 @@ if (playbackState.isPlaying || showPlayerControls) {
 }
 ```
 
-**Why**: Always-visible overlays reduce usable screen space and can keep expensive Compose surfaces alive. Media UI should spend recomposition and screen real estate only where it improves the current workflow.
+```kotlin
+// Wrong: bottom dock auto-reappears after scroll stops, re-interrupting reading.
+fun scheduleBottomDockReveal() {
+    scope.launch { delay(650); bottomDockVisible = true }
+}
+
+// Correct: full dock stays hidden after scroll; a small handle restores it on tap.
+if (!showPlayer && !bottomDockVisible) {
+    BottomDockHandle(colorScheme = colorScheme, onClick = { bottomDockVisible = true })
+}
+```
+
+**Why**: Always-visible overlays reduce usable screen space and can keep expensive Compose surfaces alive. Media UI should spend recomposition and screen real estate only where it improves the current workflow. The bottom dock is persistent chrome: a timer that re-shows it while the user is reading static content defeats the hide-on-scroll intent and causes "自动出现" discomfort.
 
 ### Compose media player chrome auto-hide
 
