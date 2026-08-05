@@ -17,6 +17,8 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -26,6 +28,11 @@ import com.nordic.mediahub.ui.theme.NordicAlpha
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
 
+private const val DOCK_SURFACE_ALPHA = 0.94f
+private const val DOCK_HANDLE_SURFACE_ALPHA = 0.92f
+private const val DOCK_BORDER_ALPHA = 0.08f
+private const val DOCK_DIVIDER_ALPHA = 0.07f
+private const val DOCK_SELECTED_CONTAINER_ALPHA = 0.13f
 
 @Composable
 private fun DockPlayPauseButton(
@@ -64,12 +71,12 @@ fun PolishedPlaybackDock(
     onSelect: (Int) -> Unit
 ) {
     Surface(
-        color = colorScheme.surface.copy(alpha = 0.94f),
+        color = colorScheme.surface.copy(alpha = DOCK_SURFACE_ALPHA),
         contentColor = colorScheme.onSurface,
         shape = NordicShapes.xl,
         tonalElevation = 6.dp,
         shadowElevation = 12.dp,
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.08f)),
+        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = DOCK_BORDER_ALPHA)),
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
@@ -92,9 +99,52 @@ fun PolishedPlaybackDock(
                     .padding(horizontal = NordicSpacing.lg, vertical = 2.dp)
                     .height(1.dp)
                     .fillMaxWidth()
-                    .background(colorScheme.onSurface.copy(alpha = 0.07f))
+                    .background(colorScheme.onSurface.copy(alpha = DOCK_DIVIDER_ALPHA))
             )
             PolishedBottomNav(selected, colorScheme, onSelect)
+        }
+    }
+}
+
+@Composable
+internal fun BottomDockHandle(
+    colorScheme: ColorScheme,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(bottom = NordicSpacing.sm),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            color = colorScheme.surface.copy(alpha = DOCK_HANDLE_SURFACE_ALPHA),
+            contentColor = colorScheme.onSurface,
+            shape = NordicShapes.full,
+            tonalElevation = 3.dp,
+            shadowElevation = 6.dp,
+            border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = DOCK_BORDER_ALPHA)),
+            modifier = Modifier
+                .clip(NordicShapes.full)
+                .semantics { contentDescription = "显示底部导航" }
+                .clickable(onClick = onClick)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(64.dp)
+                    .height(18.dp)
+                    .padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.xs),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(4.dp)
+                        .clip(NordicShapes.full)
+                        .background(colorScheme.onSurface.copy(alpha = NordicAlpha.faint))
+                )
+            }
         }
     }
 }
@@ -131,7 +181,7 @@ fun PolishedNavItem(
         animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
     )
     val itemColor by animateColorAsState(
-        targetValue = if (selected) colorScheme.primary.copy(alpha = 0.13f) else Color.Transparent,
+        targetValue = if (selected) colorScheme.primary.copy(alpha = DOCK_SELECTED_CONTAINER_ALPHA) else Color.Transparent,
         animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
     )
     val contentColor by animateColorAsState(

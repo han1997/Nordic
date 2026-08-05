@@ -10,6 +10,47 @@ import org.junit.Test
 
 class MainActivityTest {
     @Test
+    fun resolveBottomDockPresentation_hidesEverythingForPlayerLayers() {
+        assertEquals(
+            BottomDockPresentation.Hidden,
+            resolveBottomDockPresentation(
+                hasPlayerLayer = true,
+                fullDockVisible = true
+            )
+        )
+
+        assertEquals(
+            BottomDockPresentation.Hidden,
+            resolveBottomDockPresentation(
+                hasPlayerLayer = true,
+                fullDockVisible = false
+            )
+        )
+    }
+
+    @Test
+    fun resolveBottomDockPresentation_showsDockWhenVisibleAndNoPlayerLayer() {
+        assertEquals(
+            BottomDockPresentation.Dock,
+            resolveBottomDockPresentation(
+                hasPlayerLayer = false,
+                fullDockVisible = true
+            )
+        )
+    }
+
+    @Test
+    fun resolveBottomDockPresentation_showsHandleWhenDockHiddenAndNoPlayerLayer() {
+        assertEquals(
+            BottomDockPresentation.Handle,
+            resolveBottomDockPresentation(
+                hasPlayerLayer = false,
+                fullDockVisible = false
+            )
+        )
+    }
+
+    @Test
     fun resolveAudiobookProgressSyncBaselineSeconds_usesSessionResumeWhenStateIsZero() {
         assertEquals(
             120,

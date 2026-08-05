@@ -42,17 +42,30 @@ import com.nordic.mediahub.ui.*
 import com.nordic.mediahub.ui.theme.*
 import coil.Coil
 import coil.ImageLoader
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 import android.graphics.Color as AndroidColor
 
-private const val BOTTOM_DOCK_REVEAL_DELAY_MS = 650L
 private const val BOTTOM_DOCK_ENTER_ANIMATION_MS = 260
 private const val BOTTOM_DOCK_EXIT_ANIMATION_MS = 150
 private const val BOTTOM_DOCK_ENTER_FADE_DELAY_MS = 40
+
+internal enum class BottomDockPresentation {
+    Hidden,
+    Handle,
+    Dock
+}
+
+internal fun resolveBottomDockPresentation(
+    hasPlayerLayer: Boolean,
+    fullDockVisible: Boolean
+): BottomDockPresentation {
+    return when {
+        hasPlayerLayer -> BottomDockPresentation.Hidden
+        fullDockVisible -> BottomDockPresentation.Dock
+        else -> BottomDockPresentation.Handle
+    }
+}
 
 internal fun resolveAudiobookProgressSyncBaselineSeconds(
     statePositionSeconds: Int,
@@ -125,10 +138,6 @@ internal fun resolveAudiobookCloseFailurePresentation(
             errorMessage = null
         )
     }
-}
-
-private class BottomDockRevealController {
-    var revealJob: Job? = null
 }
 
 @Composable
@@ -247,7 +256,6 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     val configRepository = remember { ConfigRepository(context) }
     val audiobookConfig by configRepository.audiobookConfig.collectAsStateWithLifecycle(AudiobookShelfConfig())
     val colorScheme = MaterialTheme.colorScheme
-    val scope = rememberCoroutineScope()
 
     val closeAudiobookPlayback = remember(audiobookVM) {
         { reopenPlayerOnFailure: Boolean ->
@@ -348,25 +356,16 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     }
 
     var bottomDockVisible by remember { mutableStateOf(true) }
-    val bottomDockRevealController = remember { BottomDockRevealController() }
+    val hasPlayerLayer = showPlayer || showAudiobookPlayer || showVideoPlayer
+    val bottomDockPresentation = resolveBottomDockPresentation(
+        hasPlayerLayer = hasPlayerLayer,
+        fullDockVisible = bottomDockVisible
+    )
 
-    fun scheduleBottomDockReveal() {
-        bottomDockRevealController.revealJob?.cancel()
-        bottomDockRevealController.revealJob = scope.launch {
-            delay(BOTTOM_DOCK_REVEAL_DELAY_MS)
-            bottomDockVisible = true
-        }
-    }
-
-    fun hideBottomDockForScroll(scheduleReveal: Boolean) {
+    fun hideBottomDockForScroll() {
         if (showPlayer || showAudiobookPlayer || showVideoPlayer) return
         if (bottomDockVisible) {
             bottomDockVisible = false
-        }
-        if (scheduleReveal) {
-            scheduleBottomDockReveal()
-        } else {
-            bottomDockRevealController.revealJob?.cancel()
         }
     }
 
@@ -374,7 +373,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (available.y != 0f) {
-                    hideBottomDockForScroll(scheduleReveal = true)
+                    hideBottomDockForScroll()
                 }
                 return Offset.Zero
             }
@@ -385,21 +384,21 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                 source: NestedScrollSource
             ): Offset {
                 if (consumed.y != 0f || available.y != 0f) {
-                    hideBottomDockForScroll(scheduleReveal = true)
+                    hideBottomDockForScroll()
                 }
                 return Offset.Zero
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
                 if (available.y != 0f) {
-                    hideBottomDockForScroll(scheduleReveal = false)
+                    hideBottomDockForScroll()
                 }
                 return Velocity.Zero
             }
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
                 if (consumed.y != 0f || available.y != 0f) {
-                    scheduleBottomDockReveal()
+                    hideBottomDockForScroll()
                 }
                 return Velocity.Zero
             }
@@ -407,7 +406,6 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     }
 
     LaunchedEffect(selectedTab, showPlayer, showAudiobookPlayer, showVideoPlayer) {
-        bottomDockRevealController.revealJob?.cancel()
         bottomDockVisible = true
     }
 
@@ -427,7 +425,6 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
 
     DisposableEffect(context) {
         onDispose {
-            bottomDockRevealController.revealJob?.cancel()
             val activity = context as? ComponentActivity
             if (activity != null) {
                 WindowInsetsControllerCompat(activity.window, activity.window.decorView)
@@ -441,7 +438,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         containerColor = colorScheme.background,
         bottomBar = {
             AnimatedBottomDock(
-                visible = !showPlayer && !showAudiobookPlayer && !showVideoPlayer && bottomDockVisible
+                visible = bottomDockPresentation == BottomDockPresentation.Dock
             ) {
                 PlaybackDockSlot(
                     musicVM = musicVM,
@@ -449,6 +446,14 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                     colorScheme = colorScheme,
                     onOpenPlayer = openPlayer,
                     onSelect = { selectedTab = it }
+                )
+            }
+            AnimatedBottomDock(
+                visible = bottomDockPresentation == BottomDockPresentation.Handle
+            ) {
+                BottomDockHandle(
+                    colorScheme = colorScheme,
+                    onClick = { bottomDockVisible = true }
                 )
             }
         }
