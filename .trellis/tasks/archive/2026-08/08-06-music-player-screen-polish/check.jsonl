@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Verification checklist + Gradle gates (compile/test/lint)"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify token compliance (no hardcoded shape/spacing/alpha/sp), BackHandler still wired, persistent media chrome rules, internal visibility of shared components, performance state isolation for swipe/slider"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Verify UI/data layer boundaries respected (NavidromeSong in data/, player UI in ui/, orchestration in MainActivity)"}
+{"file": ".trellis/spec/backend/documentation-guidelines.md", "reason": "Verify Chinese-first user-visible copy and that CHANGELOG.md was updated for the player-screen behavior change"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Verify the cache schema version decision for the added starred field is sound"}
+{"file": "research/mainstream-music-player-ui.md", "reason": "Verify the implementation matches the chosen Option B (Apple-Music-like) conventions from the research"}
