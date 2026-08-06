@@ -1143,6 +1143,72 @@ if (
 **Tests Required**:
 - Unit tests for `firstPlayableSongIndex(...)` covering playable first match, null/blank stream URLs, and no playable songs.
 
+### Navidrome song favorite (star) optimistic update
+
+**Scope / Trigger**: Any change to the favorite/heart toggle on `MusicPlayerScreen`, `MusicPlaybackViewModel.toggleFavorite`, `MusicPlaybackEngine.setCurrentSongStarred`, or the `NavidromeSong.starred` field semantics.
+
+**Signatures**:
+- `data class NavidromeSong(..., val starred: String? = null)`
+- `fun MusicPlaybackEngine.setCurrentSongStarred(starred: Boolean)`
+- `fun MusicPlaybackViewModel.toggleFavorite(songId: String, starred: Boolean)`
+- `onToggleFavorite: (songId: String, starred: Boolean) -> Unit` (player screen callback)
+- Repository: `suspend fun NavidromeRepository.star(id: String)` / `unstar(id: String)` (already exist)
+
+**Contract**:
+- `NavidromeSong` is reused directly as the Subsonic wire DTO, so `starred` binds automatically from the Subsonic `starred` attribute via Gson (a non-null timestamp string == favorited; absent/null == not favorited). No manual DTO mapping is needed.
+- The player ♥ display is derived from `song.starred != null`, read straight from the published playback state's `currentSong` — no separate UI-side favorite state. The VM owns optimistic updates, so reading the published song covers both initial state and revert-after-failure.
+- The toggle flow is: UI calls `onToggleFavorite(songId, desiredStarred)` → VM optimistically calls `engine.setCurrentSongStarred(desiredStarred)` → VM calls `repo.star(id)` / `unstar(id)` → on failure VM calls `engine.setCurrentSongStarred(!desiredStarred)` to revert.
+- `setCurrentSongStarred(starred)` must write `currentSong.starred = if (starred) "" else null` so the non-null/empty-string value keeps `starred != null` true for the favorited state, while `null` correctly signals not-favorited. Do NOT use a boolean field — the DTO semantics are timestamp-or-null.
+- The UI must key any local optimistic override on `song?.id` so switching tracks resets displayed state to the new song's `starred`.
+- Star/unstar failures must not crash; the revert path restores the ♥ to its previous value. The repository already wraps `"收藏失败: ..."` / `"取消收藏失败: ..."` contextual messages.
+- `starred` is a persisted cache field (cached songs carry it). Bump `MUSIC_CACHE_SCHEMA_VERSION` when the cache model's `starred` semantics change; adding the field as nullable-with-default is additive and still requires a bump so old caches rehydrate the field from the server rather than serving stale unstarred entries.
+
+**Validation & Error Matrix**:
+- `song.starred` is a non-null timestamp → ♥ shows favorited.
+- `song.starred` is null → ♥ shows not favorited.
+- User taps ♥ while favorited → VM calls `setCurrentSongStarred(false)` then `unstar`; on failure, reverts to `setCurrentSongStarred(true)`.
+- User taps ♥ while not favorited → VM calls `setCurrentSongStarred(true)` then `star`; on failure, reverts to `setCurrentSongStarred(false)`.
+- Repository null (config not ready) → VM reverts optimistic state and returns; no crash.
+- Song switches mid-flight → the new `currentSong` carries its own `starred`; the UI reads it directly so no stale per-song override lingers.
+
+**Good/Base/Bad Cases**:
+- Good: User taps ♥, UI flips immediately, server call succeeds; state stays.
+- Good: User taps ♥, server call fails, ♥ flips back automatically via the revert path.
+- Base: First song load with `starred = "2026-08-06T..."` shows ♥ favorited immediately.
+- Bad: UI keeps a separate `mutableStateOf<Boolean>` for favorite not keyed on `song?.id`, so switching to a different song shows the previous song's favorite state.
+- Bad: `setCurrentSongStarred` writes `starred = null` for the favorited case, making `starred != null` always false and the ♥ never shows favorited.
+- Bad: VM calls `star`/`unstar` without the optimistic update, so the ♥ only flips after the network round-trip (feels broken on slow networks).
+
+**Tests Required**:
+- Unit test for `setCurrentSongStarred(true)` asserting `currentSong.starred != null` (favorited); `setCurrentSongStarred(false)` asserting `currentSong.starred == null` (not favorited).
+- VM test asserting `toggleFavorite(starred=true)` calls `engine.setCurrentSongStarred(true)` then `repo.star`, and reverts on `repo.star` failure.
+- VM test asserting `toggleFavorite` with a null repository reverts the optimistic state and does not crash.
+
+**Wrong vs Correct**:
+```kotlin
+// Wrong: separate UI state not keyed on song id — stale across track switches.
+var isFavorite by remember { mutableStateOf(song?.starred != null) }
+```
+
+```kotlin
+// Correct: read straight from the published currentSong; the VM owns the optimistic write.
+private fun resolveFavoriteDisplay(song: NavidromeSong?): Boolean = song?.starred != null
+```
+
+```kotlin
+// Wrong: optimistic update writes null for the favorited case.
+fun setCurrentSongStarred(starred: Boolean) {
+    _state.update { it.copy(currentSong = it.currentSong?.copy(starred = if (starred) null else null)) }
+}
+```
+
+```kotlin
+// Correct: favorited writes a non-null value (empty string) so starred != null stays true.
+fun setCurrentSongStarred(starred: Boolean) {
+    _state.update { it.copy(currentSong = it.currentSong?.copy(starred = if (starred) "" else null)) }
+}
+```
+
 ---
 
 ## Testing Requirements
