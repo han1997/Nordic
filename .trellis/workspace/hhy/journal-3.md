@@ -207,3 +207,37 @@ Redesigned the video player chrome with an immersive overlay, added a lightweigh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 123: 音乐播放页面美化（Apple Music 风格）
+
+**Date**: 2026-08-06
+**Task**: 音乐播放页面美化（Apple Music 风格）
+**Branch**: `main`
+
+### Summary
+
+按 Option B（Apple Music 富信息）重写 MusicPlayerScreen：控件全部换 Material 矢量图标（PlayArrow/Pause/SkipPrevious/SkipNext/Shuffle/Repeat/RepeatOne/KeyboardArrowDown/Favorite/QueueMusic），进度条改为自绘细线+小圆 thumb（PlayerThinSlider），控制行重排为 Shuffle→Prev→Play/Pause→Next→Repeat，单曲循环显示小 '1' 角标；标题/艺人移到封面下方，顶栏瘦身为 KeyboardArrowDown + '正在播放'；新增封面下方 meta 行（♥ 收藏 + 队列图标，队列移出主控制行）；新增下滑关闭手势（仅顶部 50% 区域起始触发，避开歌词/进度条）；加深封面背景毛玻璃质感。收藏跨层 plumbing：NavidromeSong 加 starred:String?（Gson 自动绑定 Subsonic starred 属性），MUSIC_CACHE_SCHEMA_VERSION 4→5，MusicPlaybackEngine.setCurrentSongStarred 乐观更新（favorited 写 '' 保持非空语义），MusicPlaybackViewModel.toggleFavorite 调 repo.star/unstar 并失败回滚，MainActivity 接线 onToggleFavorite。trellis-check 子代理核验 10/10 AC PASS 并自修 8 处令牌合规（RoundedCornerShape(50)→NordicShapes.full、清理无用 import、QueueMusic→AutoMirrored）。spec 新增 'Navidrome song favorite (star) optimistic update' 场景记录跨层乐观更新契约。compileDebugKotlin、testDebugUnitTest、lintDebug 全部 BUILD SUCCESSFUL。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `dcd3529` | (see git log) |
+| `570c564` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
