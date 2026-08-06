@@ -8,7 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.first
 
-private const val MUSIC_CACHE_SCHEMA_VERSION = 4
+private const val MUSIC_CACHE_SCHEMA_VERSION = 5
 
 data class NavidromeMusicCache(
     val configKey: String = "",

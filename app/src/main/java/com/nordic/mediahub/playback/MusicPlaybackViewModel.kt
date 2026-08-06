@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.launch
 
 class MusicPlaybackViewModel(application: Application) : AndroidViewModel(application) {
     private val engine = MusicPlaybackEngine(application)
@@ -97,6 +98,28 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
     fun removeQueueItem(index: Int) = engine.removeQueueItem(index)
 
     fun clearUpcomingQueueItems() = engine.clearUpcomingQueueItems()
+
+    /**
+     * Toggles the favorite (star) state of the current song. Optimistically
+     * updates the playback state's `currentSong.starred` so the UI reflects the
+     * change immediately, then calls the repository's `star`/`unstar`. Reverts
+     * the optimistic state on failure so the ♥ returns to its previous value.
+     */
+    fun toggleFavorite(songId: String, starred: Boolean) {
+        viewModelScope.launch {
+            engine.setCurrentSongStarred(starred)
+            val repo = repository.value
+            if (repo == null) {
+                engine.setCurrentSongStarred(!starred)
+                return@launch
+            }
+            runCatching {
+                if (starred) repo.star(id = songId) else repo.unstar(id = songId)
+            }.onFailure {
+                engine.setCurrentSongStarred(!starred)
+            }
+        }
+    }
 
     override fun onCleared() {
         engine.release()

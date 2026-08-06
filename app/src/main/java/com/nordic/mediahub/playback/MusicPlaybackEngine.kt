@@ -488,6 +488,18 @@ class MusicPlaybackEngine(context: Context) {
         _state.value = MusicPlaybackState()
     }
 
+    /**
+     * Optimistically updates the current song's `starred` field in playback
+     * state. Used by the favorite toggle so the UI reflects the new state
+     * immediately while the server request is in flight. Revert by calling
+     * again with the opposite value on failure.
+     */
+    fun setCurrentSongStarred(starred: Boolean) {
+        _state.update {
+            it.copy(currentSong = it.currentSong?.copy(starred = if (starred) "" else null))
+        }
+    }
+
     fun release() {
         stopPositionUpdates()
         scope.cancel()

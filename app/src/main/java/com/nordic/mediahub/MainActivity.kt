@@ -622,6 +622,7 @@ private fun MusicPlayerLayer(
         onToggleRepeat = musicVM::toggleRepeatMode,
         onToggleShuffle = musicVM::toggleShuffleMode,
         onOpenQueue = onOpenQueue,
+        onToggleFavorite = musicVM::toggleFavorite,
         modifier = modifier
     )
 }

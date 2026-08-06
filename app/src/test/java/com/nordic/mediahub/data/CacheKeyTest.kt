@@ -26,7 +26,7 @@ class CacheKeyTest {
     @Test
     fun navidromeCacheKey_embedsSchemaVersion() {
         val cfg = NavidromeConfig(serverUrl = "http://example.test", username = "u", password = "p")
-        assertTrue(cfg.cacheKey().endsWith("|v4"))
+        assertTrue(cfg.cacheKey().endsWith("|v5"))
     }
 
     @Test
