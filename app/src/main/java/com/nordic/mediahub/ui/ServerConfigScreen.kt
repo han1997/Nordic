@@ -23,6 +23,7 @@ import com.nordic.mediahub.data.EmbyRepository
 import com.nordic.mediahub.data.NavidromeConfig
 import com.nordic.mediahub.data.NavidromeRepository
 import com.nordic.mediahub.data.VideoServerConfig
+import com.nordic.mediahub.data.VideoServerType
 import com.nordic.mediahub.data.isReadyForAudiobookSync
 import com.nordic.mediahub.data.isReadyForMusicSync
 import com.nordic.mediahub.data.isReadyForVideoSync
@@ -34,6 +35,10 @@ private data class ConnectionTestState(
     val message: String? = null,
     val isError: Boolean = false
 )
+
+private fun VideoServerConfig.asSupportedVideoConfig(): VideoServerConfig {
+    return if (type == VideoServerType.EMBY) this else copy(type = VideoServerType.EMBY)
+}
 
 @Composable
 fun ServerConfigScreen(
@@ -57,7 +62,7 @@ fun ServerConfigScreen(
 
     LaunchedEffect(savedNavidromeConfig) { navidromeConfig = savedNavidromeConfig }
     LaunchedEffect(savedAudiobookConfig) { audiobookConfig = savedAudiobookConfig }
-    LaunchedEffect(savedVideoConfig) { videoConfig = savedVideoConfig }
+    LaunchedEffect(savedVideoConfig) { videoConfig = savedVideoConfig.asSupportedVideoConfig() }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -159,19 +164,23 @@ fun ServerConfigScreen(
                 },
                 onSave = {
                     scope.launch {
-                        configRepository.saveVideoConfig(videoConfig)
+                        val supportedConfig = videoConfig.asSupportedVideoConfig()
+                        videoConfig = supportedConfig
+                        configRepository.saveVideoConfig(supportedConfig)
                         videoTestState = ConnectionTestState(message = "视频服务器配置已保存")
                     }
                 },
                 onTestConnection = {
                     scope.launch {
-                        if (!videoConfig.isReadyForVideoSync()) {
+                        val supportedConfig = videoConfig.asSupportedVideoConfig()
+                        videoConfig = supportedConfig
+                        if (!supportedConfig.isReadyForVideoSync()) {
                             videoTestState = ConnectionTestState(message = "请先填写 Emby 服务器地址和认证信息", isError = true)
                             return@launch
                         }
                         videoTestState = ConnectionTestState(isTesting = true, message = "正在测试 Emby...")
                         try {
-                            val libraryCount = EmbyRepository(videoConfig).testConnection()
+                            val libraryCount = EmbyRepository(supportedConfig).testConnection()
                             videoTestState = ConnectionTestState(message = "Emby 连接成功，找到 $libraryCount 个媒体库")
                         } catch (error: Exception) {
                             videoTestState = ConnectionTestState(

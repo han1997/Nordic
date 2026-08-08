@@ -115,47 +115,73 @@ fun VideoConfigCard(
     statusMessage: String? = null,
     statusIsError: Boolean = false
 ) {
+    val supportedType = VideoServerType.EMBY
     ServerConfigCard(title = "视频服务器", colorScheme = colorScheme) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
             VideoServerType.values().forEach { type ->
-                val selected = config.type == type
+                val supported = type == supportedType
+                val selected = type == supportedType
                 val scale by animateFloatAsState(
                     targetValue = if (selected) 1.01f else 1f,
                     animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
                 )
                 Surface(
-                    color = if (selected) colorScheme.primary.copy(alpha = 0.16f) else colorScheme.surfaceVariant.copy(alpha = 0.56f),
-                    contentColor = if (selected) colorScheme.primary else colorScheme.onSurface,
+                    color = when {
+                        selected -> colorScheme.primary.copy(alpha = 0.16f)
+                        supported -> colorScheme.surfaceVariant.copy(alpha = 0.56f)
+                        else -> colorScheme.surfaceVariant.copy(alpha = 0.32f)
+                    },
+                    contentColor = when {
+                        selected -> colorScheme.primary
+                        supported -> colorScheme.onSurface
+                        else -> colorScheme.onSurface.copy(alpha = NordicAlpha.faint)
+                    },
                     shape = NordicShapes.full,
                     border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
                     modifier = Modifier
                         .weight(1f)
                         .scale(scale)
-                        .clickable { onConfigChange(config.copy(type = type)) }
+                        .clickable(enabled = supported) { onConfigChange(config.copy(type = type)) }
                 ) {
-                    Text(
-                        type.name,
+                    Column(
                         modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.md),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Medium
-                    )
+                        verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
+                    ) {
+                        Text(
+                            videoServerTypeLabel(type),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                        if (!supported) {
+                            Text(
+                                "后续支持",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colorScheme.onSurface.copy(alpha = NordicAlpha.faint)
+                            )
+                        }
+                    }
                 }
             }
         }
+        Text(
+            "当前版本仅支持 Emby 视频媒体库；Plex 和 WebDAV 将在后续版本接入。",
+            style = MaterialTheme.typography.bodySmall,
+            color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium)
+        )
         AnimatedContent(
-            targetState = config.type,
+            targetState = supportedType,
             transitionSpec = { fadeIn(tween(NordicMotion.durationMedium)) togetherWith fadeOut(tween(NordicMotion.durationShort)) },
             label = "video-config-type"
         ) { type ->
             Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
                 ConfigTextField("服务器地址", config.serverUrl, "https://video.example.com", colorScheme) {
-                    onConfigChange(config.copy(serverUrl = it))
+                    onConfigChange(config.copy(type = supportedType, serverUrl = it))
                 }
                 when (type) {
                     VideoServerType.EMBY -> {
                         VideoServerCredentialsFields(config, colorScheme, onConfigChange)
                         ConfigTextField("API Key（可选）", config.apiKey, "api key", colorScheme) {
-                            onConfigChange(config.copy(apiKey = it))
+                            onConfigChange(config.copy(type = supportedType, apiKey = it))
                         }
                     }
 
@@ -173,6 +199,14 @@ fun VideoConfigCard(
                 )
             }
         }
+    }
+}
+
+private fun videoServerTypeLabel(type: VideoServerType): String {
+    return when (type) {
+        VideoServerType.EMBY -> "Emby"
+        VideoServerType.PLEX -> "Plex"
+        VideoServerType.WEBDAV -> "WebDAV"
     }
 }
 
@@ -220,10 +254,10 @@ private fun VideoServerCredentialsFields(
     onConfigChange: (VideoServerConfig) -> Unit
 ) {
     ConfigTextField("用户名", config.username, "username", colorScheme) {
-        onConfigChange(config.copy(username = it))
+        onConfigChange(config.copy(type = VideoServerType.EMBY, username = it))
     }
     ConfigTextField("密码", config.password, "password", colorScheme, true) {
-        onConfigChange(config.copy(password = it))
+        onConfigChange(config.copy(type = VideoServerType.EMBY, password = it))
     }
 }
 
