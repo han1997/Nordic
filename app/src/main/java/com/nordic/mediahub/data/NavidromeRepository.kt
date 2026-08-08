@@ -4,6 +4,11 @@ import android.util.Log
 import com.nordic.mediahub.api.NavidromeApi
 import com.nordic.mediahub.api.SubsonicData
 import com.nordic.mediahub.api.SubsonicResponse
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -15,6 +20,7 @@ import java.io.EOFException
 private const val RECENT_ALBUM_LIMIT = 20
 private const val RECENT_SONG_LIMIT = 20
 private const val ALBUM_PAGE_SIZE = 100
+private const val ALBUM_DETAIL_CONCURRENCY = 6
 private const val RELEASE_YEAR_SORT_FROM_YEAR = 2100
 private const val RELEASE_YEAR_SORT_TO_YEAR = 1900
 private val lrcTimestampPattern = Regex("""\[(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?]""")
@@ -230,20 +236,24 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
     private suspend fun getSongsFromAlbums(albums: List<NavidromeAlbum>, limit: Int? = RECENT_SONG_LIMIT): List<NavidromeSong> {
         if (albums.isEmpty()) return emptyList()
 
-        val songs = mutableListOf<NavidromeSong>()
-        for (album in albums) {
-            if (limit != null && songs.size >= limit) break
+        val auth = config.authParams()
+        val semaphore = Semaphore(ALBUM_DETAIL_CONCURRENCY)
+        val songs = coroutineScope {
+            albums.map { album ->
+                async {
+                    semaphore.withPermit {
+                        val subsonic = requestSubsonic {
+                            api.getAlbum(config.username, auth.token, auth.salt, albumId = album.id)
+                        }
+                        val albumDetail = subsonic.album ?: return@withPermit emptyList()
+                        val fallbackCoverArt = albumDetail.coverArt
 
-            val auth = config.authParams()
-            val subsonic = requestSubsonic {
-                api.getAlbum(config.username, auth.token, auth.salt, albumId = album.id)
-            }
-            val albumDetail = subsonic.album ?: continue
-            val fallbackCoverArt = albumDetail.coverArt
-
-            songs += albumDetail.song.orEmpty().map { song ->
-                song.withCoverArtUrl(fallbackCoverArt)
-            }
+                        albumDetail.song.orEmpty().map { song ->
+                            song.withCoverArtUrl(fallbackCoverArt)
+                        }
+                    }
+                }
+            }.awaitAll().flatten()
         }
 
         return if (limit == null) songs else songs.take(limit)

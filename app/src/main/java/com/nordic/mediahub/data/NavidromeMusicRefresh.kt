@@ -1,6 +1,8 @@
 package com.nordic.mediahub.data
 
 import androidx.compose.runtime.Stable
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 @Stable
 data class NavidromeMusicRefreshData(
@@ -30,12 +32,17 @@ suspend fun loadNavidromeMusicRefresh(
     } else {
         repositoryFactory(targetConfig)
     }
-    val freshAlbums = repository.getRecentAlbums()
+    return coroutineScope {
+        val freshAlbums = repository.getRecentAlbums()
+        val recentlyAddedSongs = async { repository.getRecentlyAddedSongs(freshAlbums) }
+        val songs = async { repository.getAllSongs() }
+        val artists = async { repository.getArtists() }
 
-    return NavidromeMusicRefreshData(
-        albums = freshAlbums,
-        recentlyAddedSongs = repository.getRecentlyAddedSongs(freshAlbums),
-        songs = repository.getAllSongs(),
-        artists = repository.getArtists()
-    )
+        NavidromeMusicRefreshData(
+            albums = freshAlbums,
+            recentlyAddedSongs = recentlyAddedSongs.await(),
+            songs = songs.await(),
+            artists = artists.await()
+        )
+    }
 }

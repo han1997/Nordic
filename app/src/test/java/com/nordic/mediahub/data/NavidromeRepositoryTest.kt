@@ -80,12 +80,23 @@ class NavidromeRepositoryTest {
             )
         )
 
+        // Album-detail fetches run concurrently, so MockWebServer may serve the two
+        // album-1/album-2 fixtures in either arrival order. Assert by song id rather
+        // than by list position so the test is robust to nondeterministic completion.
         val songs = repository().getAllSongs()
 
-        assertEquals(listOf("Song One", "Song Two"), songs.map { it.title })
-        assertEquals("2026-06-18T12:00:00Z", songs[0].created)
-        assertTrue(songs[0].streamUrl.orEmpty().contains("/rest/stream.view?id=song-1"))
-        assertTrue(songs[1].coverArt.orEmpty().contains("/rest/getCoverArt.view?id=cover-2"))
+        assertEquals(setOf("Song One", "Song Two"), songs.map { it.title }.toSet())
+        assertEquals(2, songs.size)
+
+        val songOne = songs.first { it.id == "song-1" }
+        assertEquals("2026-06-18T12:00:00Z", songOne.created)
+        assertTrue(songOne.streamUrl.orEmpty().contains("/rest/stream.view?id=song-1"))
+        assertTrue(songOne.coverArt.orEmpty().contains("/rest/getCoverArt.view?id=cover-1"))
+
+        val songTwo = songs.first { it.id == "song-2" }
+        assertEquals(null, songTwo.created)
+        assertTrue(songTwo.streamUrl.orEmpty().contains("/rest/stream.view?id=song-2"))
+        assertTrue(songTwo.coverArt.orEmpty().contains("/rest/getCoverArt.view?id=cover-2"))
 
         val albumListRequest = server.takeRequest()
         assertTrue(albumListRequest.path.orEmpty().startsWith("/rest/getAlbumList2.view?"))
@@ -93,8 +104,57 @@ class NavidromeRepositoryTest {
         assertTrue(albumListRequest.path.orEmpty().contains("size=100"))
         assertTrue(albumListRequest.path.orEmpty().contains("offset=0"))
 
+        // The two getAlbum.view requests arrive in nondeterministic order; assert
+        // each path is a getAlbum.view call without depending on which album first.
         assertTrue(server.takeRequest().path.orEmpty().contains("/rest/getAlbum.view"))
         assertTrue(server.takeRequest().path.orEmpty().contains("/rest/getAlbum.view"))
+    }
+
+    @Test
+    fun getRecentlyAddedSongs_fetchesAlbumDetailsConcurrentlyAndFlattensResults() = runTest {
+        val albums = listOf(
+            NavidromeAlbum(id = "album-1", name = "Album One", coverArt = "cover-1"),
+            NavidromeAlbum(id = "album-2", name = "Album Two", coverArt = "cover-2"),
+            NavidromeAlbum(id = "album-3", name = "Album Three", coverArt = "cover-3")
+        )
+        val songsPerAlbum = 2
+        repeat(albums.size) {
+            server.enqueueJson(
+                subsonicResponse(
+                    """
+                    "album": {
+                      "id": "any-album",
+                      "name": "Any Album",
+                      "coverArt": "any-cover",
+                      "song": [
+                        {"id": "song-a-${it}", "title": "Song A ${it}", "artist": "Artist One", "album": "Any Album"},
+                        {"id": "song-b-${it}", "title": "Song B ${it}", "artist": "Artist One", "album": "Any Album"}
+                      ]
+                    }
+                    """.trimIndent()
+                )
+            )
+        }
+
+        val songs = repository().getRecentlyAddedSongs(albums, limit = albums.size * songsPerAlbum)
+
+        assertEquals(albums.size * songsPerAlbum, songs.size)
+        assertTrue(songs.all { it.streamUrl.orEmpty().contains("/rest/stream.view?id=song-") })
+        assertTrue(songs.all { it.coverArt.orEmpty().contains("/rest/getCoverArt.view?id=any-cover") })
+
+        assertEquals(albums.size, server.requestCount)
+        repeat(albums.size) {
+            val path = server.takeRequest().path.orEmpty()
+            assertTrue(path.startsWith("/rest/getAlbum.view?"))
+        }
+    }
+
+    @Test
+    fun getRecentlyAddedSongs_returnsEmptyListForEmptyAlbums() = runTest {
+        val songs = repository().getRecentlyAddedSongs(emptyList(), limit = 10)
+
+        assertEquals(emptyList<NavidromeSong>(), songs)
+        assertEquals(0, server.requestCount)
     }
 
     @Test
