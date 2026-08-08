@@ -276,3 +276,38 @@ Redesigned the video player chrome with an immersive overlay, added a lightweigh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 125: 修复音乐播放页歌词同步与封面切换
+
+**Date**: 2026-08-08
+**Task**: 修复音乐播放页歌词同步与封面切换
+**Branch**: `main`
+
+### Summary
+
+修复 MusicPlayerScreen 两个播放页回归：新增 MusicPlaybackEngine.currentPositionMillis() 与 MusicPlaybackViewModel.positionMillis 100ms WhileSubscribed sidecar，让歌词高亮使用毫秒级 positionMillis，保留原 positionSeconds/1s engine publish 节拍用于进度条和控制台；MainActivity 将新的 positionMillis 传入播放页；selectVisibleLyricLines 改用 clamped raw millis 并新增分秒级/负值/0 点单测。手势方面，trellis-check 发现 detectDragGesturesAfterLongPress 会回归快速下拉关闭，改为 detectVerticalDragGestures 并记录 top-half 起始条件，既保留快速下拉关闭也避免父级拖拽吞掉封面 tap；spec 记录高频歌词 sidecar 与 player gesture priority 规则。compileDebugKotlin / testDebugUnitTest / lintDebug 全部通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7cc8dca` | (see git log) |
+| `92ced98` | (see git log) |
+| `d6ccce7` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

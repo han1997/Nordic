@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-3.md`
-- **Total Sessions**: 124
+- **Total Sessions**: 125
 - **Last Active**: 2026-08-08
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-3.md` | ~278 | Active |
+| `journal-3.md` | ~313 | Active |
 | `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
@@ -31,6 +31,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 125 | 2026-08-08 | 修复音乐播放页歌词同步与封面切换 | `7cc8dca`, `92ced98`, `d6ccce7` | `main` |
 | 124 | 2026-08-08 | Navidrome server sync 性能优化（并发化） | `012376d`, `9375bc2`, `0612476` | `main` |
 | 123 | 2026-08-06 | 音乐播放页面美化（Apple Music 风格） | `dcd3529`, `570c564` | `main` |
 | 122 | 2026-08-06 | 底部导航显示机制优化 | `61ab6cb`, `0d87e90`, `cadfa8a` | `main` |
