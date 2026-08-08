@@ -17,6 +17,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 
 object NordicMotion {
+    const val durationMicro = 150
     const val durationShort = 200
     const val durationMedium = 300
     const val durationLong = 450

@@ -1,7 +1,6 @@
 package com.nordic.mediahub.ui
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -37,6 +36,7 @@ import com.nordic.mediahub.data.NavidromeConfig
 import com.nordic.mediahub.data.VideoServerConfig
 import com.nordic.mediahub.data.VideoServerType
 import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicMotion
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
 
@@ -121,7 +121,7 @@ fun VideoConfigCard(
                 val selected = config.type == type
                 val scale by animateFloatAsState(
                     targetValue = if (selected) 1.01f else 1f,
-                    animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
+                    animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
                 )
                 Surface(
                     color = if (selected) colorScheme.primary.copy(alpha = 0.16f) else colorScheme.surfaceVariant.copy(alpha = 0.56f),
@@ -144,7 +144,7 @@ fun VideoConfigCard(
         }
         AnimatedContent(
             targetState = config.type,
-            transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(200)) },
+            transitionSpec = { fadeIn(tween(NordicMotion.durationMedium)) togetherWith fadeOut(tween(NordicMotion.durationShort)) },
             label = "video-config-type"
         ) { type ->
             Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {

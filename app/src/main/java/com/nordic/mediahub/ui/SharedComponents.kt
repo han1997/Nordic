@@ -1,7 +1,6 @@
 package com.nordic.mediahub.ui
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -44,6 +43,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicMotion
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
 
@@ -99,8 +99,8 @@ internal fun MediaConfigPanel(
 ) {
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(tween(300, easing = FastOutSlowInEasing)) + expandVertically(),
-        exit = fadeOut(tween(200)) + shrinkVertically(),
+        enter = fadeIn(tween(NordicMotion.durationMedium, easing = NordicMotion.easingStandard)) + expandVertically(),
+        exit = fadeOut(tween(NordicMotion.durationShort)) + shrinkVertically(),
         modifier = modifier
     ) {
         content()

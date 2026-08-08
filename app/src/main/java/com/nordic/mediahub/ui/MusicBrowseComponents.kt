@@ -1,7 +1,6 @@
 package com.nordic.mediahub.ui
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -41,6 +40,7 @@ import com.nordic.mediahub.data.NavidromeArtist
 import com.nordic.mediahub.data.NavidromePlaylist
 import com.nordic.mediahub.data.NavidromeSong
 import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicMotion
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
 
@@ -371,11 +371,11 @@ internal fun MusicSegmentedTabs(
                     val selected = selectedTab == index
                     val tabColor by animateColorAsState(
                         targetValue = if (selected) colorScheme.surface.copy(alpha = 0.96f) else Color.Transparent,
-                        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                        animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
                     )
                     val textColor by animateColorAsState(
                         targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                        animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
                     )
 
                     Surface(
@@ -459,11 +459,11 @@ internal fun SongSortSegmentedControl(
             val selected = selectedSort == sort
             val background by animateColorAsState(
                 targetValue = if (selected) colorScheme.surface.copy(alpha = 0.96f) else colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
             )
             val textColor by animateColorAsState(
                 targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-                animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
             )
 
             Surface(
@@ -525,11 +525,11 @@ internal fun AlbumSortSegmentedControl(
                 val selected = selectedSort == sort
                 val tabColor by animateColorAsState(
                     targetValue = if (selected) colorScheme.surface.copy(alpha = 0.96f) else Color.Transparent,
-                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                    animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
                 )
                 val textColor by animateColorAsState(
                     targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                    animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
                 )
 
                 Surface(

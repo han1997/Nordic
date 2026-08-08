@@ -1,6 +1,5 @@
 package com.nordic.mediahub.ui
 
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -29,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicMotion
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
 
@@ -44,12 +44,12 @@ fun rememberPressScale(
     pressedScale: Float = 0.985f,
     defaultScale: Float = 1f,
     enabled: Boolean = true,
-    durationMillis: Int = 150
+    durationMillis: Int = NordicMotion.durationMicro
 ): Float {
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (enabled && isPressed) pressedScale else defaultScale,
-        animationSpec = tween(durationMillis = durationMillis, easing = FastOutSlowInEasing)
+        animationSpec = tween(durationMillis = durationMillis, easing = NordicMotion.easingStandard)
     )
     return scale
 }

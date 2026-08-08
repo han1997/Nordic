@@ -4,7 +4,6 @@ import android.view.SurfaceView
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -72,6 +71,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import com.nordic.mediahub.data.VideoItem
 import com.nordic.mediahub.playback.AspectRatioMode
 import com.nordic.mediahub.playback.VideoPlaybackState
+import com.nordic.mediahub.ui.theme.NordicMotion
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
 import kotlinx.coroutines.delay
@@ -79,7 +79,7 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 internal const val VIDEO_PLAYER_CONTROLS_AUTO_HIDE_MS = 4000L
-private const val VIDEO_PLAYER_CHROME_FADE_MS = 200
+private const val VIDEO_PLAYER_CHROME_FADE_MS = NordicMotion.durationShort
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
@@ -169,8 +169,8 @@ fun VideoPlayerScreen(
 
         AnimatedVisibility(
             visible = controlsVisible,
-            enter = fadeIn(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = FastOutSlowInEasing)),
-            exit = fadeOut(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = FastOutSlowInEasing))
+            enter = fadeIn(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard)),
+            exit = fadeOut(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard))
         ) {
             VideoPlayerScrim()
         }
@@ -194,8 +194,8 @@ fun VideoPlayerScreen(
 
         AnimatedVisibility(
             visible = controlsVisible,
-            enter = fadeIn(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = FastOutSlowInEasing)),
-            exit = fadeOut(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = FastOutSlowInEasing))
+            enter = fadeIn(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard)),
+            exit = fadeOut(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard))
         ) {
             val timeline = resolveVideoPlayerTimeline(
                 positionSeconds = state.positionSeconds,
@@ -250,8 +250,8 @@ fun VideoPlayerScreen(
 
         AnimatedVisibility(
             visible = infoVisible && video != null,
-            enter = fadeIn(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = FastOutSlowInEasing)),
-            exit = fadeOut(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = FastOutSlowInEasing)),
+            enter = fadeIn(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard)),
+            exit = fadeOut(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard)),
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .then(if (isFullscreen) Modifier else Modifier.statusBarsPadding())

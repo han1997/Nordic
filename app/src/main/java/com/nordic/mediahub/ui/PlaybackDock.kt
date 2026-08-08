@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nordic.mediahub.data.NavidromeSong
 import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicMotion
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
 
@@ -178,15 +179,15 @@ fun PolishedNavItem(
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = tween(durationMillis = 150, easing = FastOutSlowInEasing)
+        animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
     )
     val itemColor by animateColorAsState(
         targetValue = if (selected) colorScheme.primary.copy(alpha = DOCK_SELECTED_CONTAINER_ALPHA) else Color.Transparent,
-        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+        animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
     )
     val contentColor by animateColorAsState(
         targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+        animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
     )
 
     Box(
