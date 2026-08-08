@@ -41,7 +41,7 @@ UI files under `ui/` must use the design tokens defined in `ui/theme/Shapes.kt`,
 object NordicShapes  { val none, sm(12), md(16), lg(20), xl(24), full(50%) }
 object NordicSpacing { val xs(4), sm(8), md(12), lg(16), xl(20), xxl(24), xxxl(32), content(16) }
 object NordicAlpha   { val medium(0.68f), subtle(0.5f), faint(0.3f) }
-object NordicMotion  { val durationShort=200, durationMedium=300, durationLong=450, easingStandard=FastOutSlowInEasing, easingDecelerate=LinearOutSlowInEasing, easingAccelerate=FastOutLinearInEasing, enterSlideUp, exitSlideDown, enterFade, exitFade, crossfadeSpec, slideDirectionSpec(forward) }
+object NordicMotion  { val durationMicro=150, durationShort=200, durationMedium=300, durationLong=450, easingStandard=FastOutSlowInEasing, easingDecelerate=LinearOutSlowInEasing, easingAccelerate=FastOutLinearInEasing, enterSlideUp, exitSlideDown, enterFade, exitFade, crossfadeSpec, slideDirectionSpec(forward) }
 val NordicTypography = Typography(
     displaySmall(32/Bold), headlineMedium(22/Bold), titleMedium(16/SemiBold),
     titleSmall(14/SemiBold), bodyMedium(14/Normal), labelLarge(13/SemiBold), bodySmall(12/Medium)
@@ -61,7 +61,7 @@ val NordicTypography = Typography(
 - `Color.White.copy(alpha=…)` in `VideoPlayerScreen` — video-overlay white-on-black context, separate from the `onSurface` secondary-text scope.
 - Component dimensions (cover-art `size`, control heights, grid `minSize`) — these are layout sizing, not spacing tokens.
 - `spacedBy(2.dp)` below `NordicSpacing.xs` (4.dp) — no tier to converge to; forcing `xs` would double the gap.
-- Pre-existing micro-interaction `tween(...)` / `FastOutSlowInEasing` literals inside `AnimatedComponents.kt`, `ConfigCards.kt`, `MusicBrowseComponents.kt`, `PlaybackDock.kt`, `SharedComponents.kt`, `VideoPlayerScreen.kt` (press scale, chip selection, chrome fade) — these are component-internal micro-interactions, not screen transitions. A future convergence pass may migrate them to `NordicMotion.durationShort` / `easingStandard`; until then they are left explicit to avoid scope creep in unrelated tasks.
+- Pre-existing micro-interaction `tween(...)` / `FastOutSlowInEasing` literals inside `AnimatedComponents.kt`, `ConfigCards.kt`, `MusicBrowseComponents.kt`, `PlaybackDock.kt`, `SharedComponents.kt`, `VideoPlayerScreen.kt` (press scale, chip selection, chrome fade) — **migrated** to `NordicMotion.durationMicro` / `durationShort` / `durationMedium` + `easingStandard`. The only remaining explicit `tween(...)` calls in these files are (a) the constant-driven `VIDEO_PLAYER_CHROME_FADE_MS` (which itself references `NordicMotion.durationShort`) and (b) `ConfigCards.kt` / `SharedComponents.kt` no-easing `tween(...)` calls where `LinearEasing` was the original behavior and is intentionally preserved (see "Micro-interaction convergence" below).
 
 ### Screen-transition animation contract
 
@@ -136,6 +136,65 @@ AnimatedVisibility(visible = showPlayer, enter = fadeIn(), exit = fadeOut()) { M
 ```kotlin
 // Correct: slide up from bottom + fade; directional cue matches "overlay rises from the playback affordance".
 AnimatedVisibility(visible = showPlayer, enter = NordicMotion.enterSlideUp, exit = NordicMotion.exitSlideDown) { MusicPlayerScreen(...) }
+```
+
+### Micro-interaction convergence
+
+**Scope / Trigger**: Any change to a component-internal micro-interaction animation site (press-scale, chip-select, chrome-fade, dock fade, config-panel expand/shrink) in `ui/`.
+
+**Signatures**:
+- `NordicMotion.durationMicro = 150` (Int millis) — for < 200ms micro-interactions (press-scale, chip-select, chrome-fade).
+- `NordicMotion.durationShort = 200` — for slightly heavier transitions (expand/shrink, short fade).
+- `NordicMotion.easingStandard: Easing = FastOutSlowInEasing` — covers all micro-interaction easings.
+
+**Contracts**:
+- Micro-interaction durations / easings MUST reference `NordicMotion.durationMicro` / `durationShort` / `durationMedium` + `easingStandard`. Do NOT inline `tween(<num>, easing = FastOutSlowInEasing)` in micro-interaction code.
+- `durationMicro` (150ms) is for press-scale / chip-select / chrome-fade (< 200ms). `durationShort` (200ms) is for slightly heavier transitions (expand/shrink). Do NOT use `durationMicro` for screen transitions; do NOT use `durationShort`/`durationMedium` for press-scale.
+- **Behavior-preservation rule (CRITICAL)**: when converging a literal `tween`, if the original had NO `easing` arg (defaults to `LinearEasing`), keep it that way — only swap the duration source; do NOT add `easing = NordicMotion.easingStandard` where it didn't exist. Adding `easingStandard` where `LinearEasing` was intended changes the animation feel (linear vs eased) and is a behavior regression.
+- When the original HAD `easing = FastOutSlowInEasing`, replace with `easing = NordicMotion.easingStandard`. Do NOT drop the easing arg.
+- Enter/exit combinations (`+ expandVertically()`, `+ shrinkVertically()`, `togetherWith`, `+ fadeIn()`) MUST be preserved structurally — only the duration/easing source changes.
+- `VideoPlayerScreen.VIDEO_PLAYER_CHROME_FADE_MS` is a named constant that references `NordicMotion.durationShort` (the 6 chrome-fade sites use the constant, not a direct token ref, so the fade duration can be tuned in one place).
+
+**Validation & Error Matrix**:
+| Condition | Behavior |
+|---|---|
+| New micro-interaction animation site | Duration ∈ {`durationMicro`, `durationShort`}; easing ∈ {`easingStandard`} or absent (if LinearEasing intended); no inline `tween(<num>)` literal |
+| Original `tween(<num>)` had no easing | Converge to `tween(NordicMotion.duration<tier>)` — NO easing arg added |
+| Original `tween(<num>, easing = FastOutSlowInEasing)` | Converge to `tween(NordicMotion.duration<tier>, easing = NordicMotion.easingStandard)` — easing preserved |
+| Enter/exit combination (`+ expandVertically()`, `togetherWith`) | Structure preserved; only duration/easing source changes |
+| `VIDEO_PLAYER_CHROME_FADE_MS` | References `NordicMotion.durationShort`; 6 chrome-fade sites use the constant |
+
+**Good/Base/Bad Cases**:
+- Good: `rememberPressScale(durationMillis = NordicMotion.durationMicro)`; chip-select `tween(durationMicro, easingStandard)`; `fadeOut(tween(durationShort))` (no easing, LinearEasing preserved).
+- Base: Single micro-interaction site converges in one line; no structural change.
+- Bad: `tween(150, easing = FastOutSlowInEasing)` left inline — magic number, not a token.
+- Bad: `fadeOut(tween(NordicMotion.durationShort, easing = NordicMotion.easingStandard))` where the original was `fadeOut(tween(200))` (no easing) — adds easing where none was intended, changes LinearEasing → FastOutSlowInEasing, a feel regression.
+- Bad: `tween(NordicMotion.durationShort)` where the original was `tween(150, easing = FastOutSlowInEasing)` — dropped the easing arg, changes FastOutSlowInEasing → LinearEasing, a feel regression.
+
+**Tests Required**:
+- No unit tests needed for pure token replacement (no logic change).
+- Compile + `testDebugUnitTest` + `lintDebug` sequential gates after any micro-interaction convergence.
+- If a constant like `VIDEO_PLAYER_CHROME_FADE_MS` is retargeted to a token, verify no test hardcoded the old literal value.
+
+**Wrong vs Correct**:
+```kotlin
+// Wrong: inline literal; easing added where original had none (LinearEasing → FastOutSlowInEasing, feel regression).
+fadeOut(tween(200, easing = NordicMotion.easingStandard))
+```
+
+```kotlin
+// Correct: duration token; no easing arg (preserves original LinearEasing).
+fadeOut(tween(NordicMotion.durationShort))
+```
+
+```kotlin
+// Wrong: easing dropped where original had FastOutSlowInEasing (FastOutSlowInEasing → LinearEasing, feel regression).
+tween(NordicMotion.durationMicro)
+```
+
+```kotlin
+// Correct: duration + easing both tokenized; easing preserved.
+tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
 ```
 
 **Why**: Centralizing the token scale prevents visual drift across 20+ UI files, makes the design intent legible at the call site (`NordicShapes.md` vs `RoundedCornerShape(14.dp)`), and gives future theme variants (dynamic color, window-size buckets) a single extension point instead of a full-UI re-scan.
