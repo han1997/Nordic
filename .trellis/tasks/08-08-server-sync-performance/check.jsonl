@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Verification commands to run (compileDebugKotlin/testDebugUnitTest/lintDebug) after checking the optimized sync path."}
+{"file": ".trellis/spec/backend/navidrome-integration.md", "reason": "Verify parallelized getAlbum / getArtists / getRecentlyAddedSongs calls still match the Subsonic API contract."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Verify coroutineScope + async error handling preserves the typed-exception / requestSubsonic pattern."}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Verify the parallelized sync path keeps detail-view cache contracts (cross-domain refresh) intact."}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify cache semantics, test coverage for the optimized sync path, and absence of known anti-patterns (e.g. unbounded concurrency)."}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "Spot any new Log.* calls introduced by the parallelization that violate logging rules."}

@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Pre-development checklist + verification commands (compileDebugKotlin/testDebugUnitTest/lintDebug) for the Android app spec layer."}
+{"file": ".trellis/spec/backend/navidrome-integration.md", "reason": "Navidrome API contract: Subsonic endpoints, getAlbum/getArtists/getStarled2; required when changing NavidromeRepository sync / album-detail fetch paths."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Repository requestSubsonic / typed-exception pattern that the parallelized getAlbum calls and loadNavidromeMusicRefresh must follow."}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Cross-domain cache refresh + cache TTL contracts; prd requires existing detail-view cache behavior to stay intact while the network sync path is parallelized."}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Shared-component / cache-contract quality rules + known anti-patterns; needed before adding coroutine concurrency + tests for the optimized sync path."}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "Logging rules for NavidromeRepository diagnostics; relevant if the parallelized paths add Log.* calls or OkHttp log noise."}
