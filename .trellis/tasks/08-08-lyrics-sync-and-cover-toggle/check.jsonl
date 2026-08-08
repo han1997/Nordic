@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Sequential Gradle verification commands to run after the fix (compileDebugKotlin / testDebugUnitTest / lintDebug)."}
+{"file": ".trellis/spec/backend/navidrome-integration.md", "reason": "Lyrics parsing scenario — verify the sub-second sync change does not alter LRC startMillis/offset semantics or break the existing test invariants."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Verify any new positionMillisFlow sidecar preserves the typed-exception pattern and does not swallow Media3 controller errors."}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify Compose performance state isolation (high-frequency tick kept out of broad recomposition), Compose pointerInput/LaunchedEffect key correctness for the gesture priority fix, and testing requirements for the new sub-second lyric helper tests."}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Verify no cache schema bump / no cache repository change leaked in (lyric timing is view-only)."}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "Spot any accidental Log.* brought in by the 100ms sidecar or gesture refactor."}
