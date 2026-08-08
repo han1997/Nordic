@@ -500,6 +500,15 @@ class MusicPlaybackEngine(context: Context) {
         }
     }
 
+    fun currentPositionMillis(): Long {
+        val activeController = controller
+        return if (activeController != null) {
+            activeController.currentPosition.coerceAtLeast(0L)
+        } else {
+            _state.value.positionSeconds.toLong() * 1000L
+        }
+    }
+
     fun release() {
         stopPositionUpdates()
         scope.cancel()

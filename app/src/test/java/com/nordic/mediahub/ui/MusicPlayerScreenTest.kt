@@ -18,7 +18,7 @@ class MusicPlayerScreenTest {
                     MusicLyricsLine(startMillis = 20_000, text = "Second timed line")
                 )
             ),
-            positionSeconds = 5,
+            positionMillis = 5_000L,
             maxLineCount = 3
         )
 
@@ -36,7 +36,7 @@ class MusicPlayerScreenTest {
                     MusicLyricsLine(startMillis = 20_000, text = "Second timed line")
                 )
             ),
-            positionSeconds = 10,
+            positionMillis = 10_000L,
             maxLineCount = 3
         )
 
@@ -54,7 +54,7 @@ class MusicPlayerScreenTest {
                     MusicLyricsLine(startMillis = 24_000, text = "Second timed line")
                 )
             ),
-            positionSeconds = 5,
+            positionMillis = 5_000L,
             maxLineCount = 3
         )
 
@@ -73,11 +73,86 @@ class MusicPlayerScreenTest {
                     MusicLyricsLine(text = "Plain second line")
                 )
             ),
-            positionSeconds = 30,
+            positionMillis = 30_000L,
             maxLineCount = 2
         )
 
         assertEquals(listOf("Plain first line", "Plain second line"), result.map { it.text })
         assertEquals(listOf(false, false), result.map { it.active })
+    }
+
+    @Test
+    fun selectVisibleLyricLines_subSecondStartMillis_activatesExactlyAtTimestamp() {
+        val lyrics = MusicLyrics(
+            synced = true,
+            lines = listOf(
+                MusicLyricsLine(startMillis = 0, text = "Intro"),
+                MusicLyricsLine(startMillis = 10_500, text = "Line A"),
+                MusicLyricsLine(startMillis = 11_500, text = "Line B")
+            )
+        )
+
+        // 10499ms — still before Line A timestamp → Intro (first line) active.
+        val justBefore = selectVisibleLyricLines(
+            lyrics = lyrics,
+            positionMillis = 10_499L,
+            maxLineCount = 3
+        )
+        assertEquals("Intro", justBefore.single { it.active }.text)
+
+        // 10500ms — exactly at Line A → Line A active, not the prior tick-1s of 11s.
+        val atTimestamp = selectVisibleLyricLines(
+            lyrics = lyrics,
+            positionMillis = 10_500L,
+            maxLineCount = 3
+        )
+        assertEquals("Line A", atTimestamp.single { it.active }.text)
+
+        // 11500ms — at Line B → Line B active.
+        val atLineB = selectVisibleLyricLines(
+            lyrics = lyrics,
+            positionMillis = 11_500L,
+            maxLineCount = 3
+        )
+        assertEquals("Line B", atLineB.single { it.active }.text)
+    }
+
+    @Test
+    fun selectVisibleLyricLines_zeroPosition_activatesFirstTimestamp() {
+        val lyrics = MusicLyrics(
+            synced = true,
+            lines = listOf(
+                MusicLyricsLine(startMillis = 0, text = "First line"),
+                MusicLyricsLine(startMillis = 5_000, text = "Second line")
+            )
+        )
+
+        val result = selectVisibleLyricLines(
+            lyrics = lyrics,
+            positionMillis = 0L,
+            maxLineCount = 2
+        )
+
+        assertEquals("First line", result.single { it.active }.text)
+    }
+
+    @Test
+    fun selectVisibleLyricLines_negativePosition_clampsToZero() {
+        val lyrics = MusicLyrics(
+            synced = true,
+            lines = listOf(
+                MusicLyricsLine(startMillis = 0, text = "First line"),
+                MusicLyricsLine(startMillis = 5_000, text = "Second line")
+            )
+        )
+
+        // Defensive: a negative position should never select a line behind 0.
+        val result = selectVisibleLyricLines(
+            lyrics = lyrics,
+            positionMillis = -300L,
+            maxLineCount = 2
+        )
+
+        assertEquals("First line", result.single { it.active }.text)
     }
 }

@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -74,6 +75,7 @@ fun MusicPlayerScreen(
     isBuffering: Boolean,
     playbackError: String?,
     positionSeconds: Int,
+    positionMillis: Long,
     durationSeconds: Int,
     lyrics: MusicLyrics?,
     isLyricsLoading: Boolean,
@@ -157,16 +159,18 @@ fun MusicPlayerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(Unit) {
-                    detectDragGestures(
+                    var dragStartedInTopHalf = false
+                    detectVerticalDragGestures(
+                        onDragStart = { offset ->
+                            dragStartedInTopHalf = offset.y < swipeThreshold.toPx()
+                        },
                         onDragEnd = { },
-                        onDragCancel = { },
-                        onDragStart = { }
-                    ) { change, dragAmount ->
+                        onDragCancel = { }
+                    ) { change, dragAmountY ->
                         change.consume()
-                        val netDown = dragAmount.y
+                        val netDown = dragAmountY
                         if (netDown > 1f) {
-                            val startTop = change.position.y < swipeThreshold.toPx()
-                            if (startTop && netDown > 6f) {
+                            if (dragStartedInTopHalf && netDown > 6f) {
                                 onClose()
                             }
                         }
@@ -195,7 +199,7 @@ fun MusicPlayerScreen(
                     lyrics = lyrics,
                     isLyricsLoading = isLyricsLoading,
                     lyricsError = lyricsError,
-                    positionSeconds = visiblePosition.toInt(),
+                    positionMillis = positionMillis,
                     showLyrics = showLyrics,
                     colorScheme = colorScheme,
                     compact = compact,
@@ -279,7 +283,7 @@ private fun PlayerPrimaryDisplay(
     lyrics: MusicLyrics?,
     isLyricsLoading: Boolean,
     lyricsError: String?,
-    positionSeconds: Int,
+    positionMillis: Long,
     showLyrics: Boolean,
     colorScheme: ColorScheme,
     compact: Boolean,
@@ -296,7 +300,7 @@ private fun PlayerPrimaryDisplay(
                 lyrics = lyrics,
                 isLoading = isLyricsLoading,
                 error = lyricsError,
-                positionSeconds = positionSeconds,
+                positionMillis = positionMillis,
                 colorScheme = colorScheme,
                 compact = compact,
                 modifier = Modifier.fillMaxSize()
@@ -378,14 +382,14 @@ private fun PlayerLyricsDisplay(
     lyrics: MusicLyrics?,
     isLoading: Boolean,
     error: String?,
-    positionSeconds: Int,
+    positionMillis: Long,
     colorScheme: ColorScheme,
     compact: Boolean,
     modifier: Modifier = Modifier
 ) {
     val lineCount = if (compact) 5 else 7
-    val visibleLines = remember(lyrics, positionSeconds, lineCount) {
-        selectVisibleLyricLines(lyrics, positionSeconds, lineCount)
+    val visibleLines = remember(lyrics, positionMillis, lineCount) {
+        selectVisibleLyricLines(lyrics, positionMillis, lineCount)
     }
 
     Box(
@@ -791,7 +795,7 @@ internal data class VisibleLyricLine(
 
 internal fun selectVisibleLyricLines(
     lyrics: MusicLyrics?,
-    positionSeconds: Int,
+    positionMillis: Long,
     maxLineCount: Int
 ): List<VisibleLyricLine> {
     val lines = lyrics?.lines?.filter { it.text.isNotBlank() }.orEmpty()
@@ -801,9 +805,9 @@ internal fun selectVisibleLyricLines(
         return lines.take(maxLineCount).map { VisibleLyricLine(it.text, active = false) }
     }
 
-    val positionMillis = positionSeconds.coerceAtLeast(0) * 1000
+    val normalizedPositionMillis = positionMillis.coerceAtLeast(0L)
     val activeIndex = lines.indexOfLast { line ->
-        line.startMillis != null && line.startMillis <= positionMillis
+        line.startMillis != null && line.startMillis <= normalizedPositionMillis
     }.takeIf { it >= 0 }
     val halfWindow = maxLineCount / 2
     val startIndex = when {

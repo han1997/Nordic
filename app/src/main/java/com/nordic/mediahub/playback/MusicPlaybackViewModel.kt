@@ -9,20 +9,37 @@ import com.nordic.mediahub.data.NavidromeRepository
 import com.nordic.mediahub.data.NavidromeSong
 import com.nordic.mediahub.data.isReadyForMusicSync
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.coroutines.coroutineContext
 
 class MusicPlaybackViewModel(application: Application) : AndroidViewModel(application) {
     private val engine = MusicPlaybackEngine(application)
     private val configRepository = ConfigRepository(application)
 
     val state: StateFlow<MusicPlaybackState> = engine.state
+
+    val positionMillis: StateFlow<Long> = flow {
+        while (coroutineContext.isActive) {
+            emit(engine.currentPositionMillis())
+            delay(POSITION_MILLIS_SAMPLE_INTERVAL_MS)
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(POSITION_MILLIS_SUBSCRIPTION_TIMEOUT_MS),
+        initialValue = 0L
+    )
 
     private val _lyrics = MutableStateFlow<MusicLyrics?>(null)
     val lyrics: StateFlow<MusicLyrics?> = _lyrics.asStateFlow()
@@ -123,5 +140,10 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
 
     override fun onCleared() {
         engine.release()
+    }
+
+    companion object {
+        private const val POSITION_MILLIS_SAMPLE_INTERVAL_MS = 100L
+        private const val POSITION_MILLIS_SUBSCRIPTION_TIMEOUT_MS = 5_000L
     }
 }
