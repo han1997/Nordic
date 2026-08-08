@@ -241,3 +241,38 @@ Redesigned the video player chrome with an immersive overlay, added a lightweigh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 124: Navidrome server sync 性能优化（并发化）
+
+**Date**: 2026-08-08
+**Task**: Navidrome server sync 性能优化（并发化）
+**Branch**: `main`
+
+### Summary
+
+将 Navidrome 初始音乐同步从顺序请求改为有界并发：loadNavidromeMusicRefresh 把 getRecentlyAddedSongs/getAllSongs/getArtists 包进 coroutineScope{async{...}}（getRecentAlbums 仍先行顺序执行，因为后续依赖其结果）；NavidromeRepository.getSongsFromAlbums 用 Semaphore(ALBUM_DETAIL_CONCURRENCY=6) + async{withPermit{...}}.awaitAll().flatten() 取代 for-album 顺序循环，awaitAll 保持 album 顺序，flatten 后 take(limit) 结果集与旧 early-break 路径一致。审阅 detail-load 方法（getAlbumSongs/getArtistAlbums/getPlaylistSongs）均为单次 round trip，无可并发化点，AC#2 由 browse pipeline 并发化间接收益。新增 3 个测试（NavidromeMusicRefreshTest 1 + NavidromeRepositoryTest 2），trellis-check 子代理额外加固 getAllSongs_expandsSongsFromAllPagedAlbums 对并发 MockWebServer FIFO 的顺序无关断言，消除潜在 flake。spec 新增 bounded-concurrency 同步模式 + MockWebServer 并发 async 测试规则两条。compileDebugKotlin / testDebugUnitTest（393 tests / 0 fail）/ lintDebug 全部 BUILD SUCCESSFUL。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `012376d` | (see git log) |
+| `9375bc2` | (see git log) |
+| `0612476` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
