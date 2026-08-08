@@ -1,7 +1,7 @@
 # Nordic Media Hub
 
 ## Product Purpose
-统一的多媒体管理客户端，整合音乐（Navidrome）、有声书（AudiobookShelf）、视频（Emby/Plex/WebDAV）三种媒体服务。
+统一的多媒体管理客户端，整合音乐（Navidrome）、有声书（AudiobookShelf）、视频（当前为 Emby，Plex/WebDAV 后续扩展）三种媒体服务。
 
 ## Users
 个人用户，需要在Android设备上访问自托管媒体服务器的内容。

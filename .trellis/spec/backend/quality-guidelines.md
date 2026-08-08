@@ -1493,6 +1493,14 @@ Playback logic tests should isolate pure calculations where possible, as in `app
 
 **Do**: Prefer `apply_patch` for source edits. If a whole-file rewrite is unavoidable, write with an explicit UTF-8 encoding and verify the file still starts with ASCII bytes such as `70 61 63 6B` for `package`.
 
+### Mistaking PowerShell display mojibake for source corruption
+
+**Don't**: Treat garbled Chinese shown by PowerShell `Get-Content` as proof that the source file is corrupted.
+
+**Why**: The console code page can render valid UTF-8 text as mojibake while the file bytes, `rg` output, `git diff`, and tests still see the correct Chinese. Fixing a false-positive "encoding bug" risks rewriting good files and introducing real corruption.
+
+**Do**: Confirm with `rg "<expected Chinese text>" <file>`, `git diff`, or an existing encoding guard such as `UiCopyEncodingTest` before editing. Only repair encoding when the source bytes or tests prove the file itself contains mojibake markers.
+
 ### Asserting position-indexed results against concurrent repository fetches in MockWebServer tests
 
 **Don't**: Assert `listOf(...) == songs.map { ... }` (or `songs[0].id == ...`, `songs[1].coverArt == ...`) in a MockWebServer test that exercises a `coroutineScope { async { ... }.awaitAll() }` code path where the concurrent requests receive **distinct, per-id fixture bodies**.

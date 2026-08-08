@@ -1,12 +1,12 @@
 # Nordic Media Hub
 
-统一的多媒体管理客户端，面向音乐（Navidrome）、有声书（AudiobookShelf）、视频（Emby/Plex/WebDAV）三类自托管媒体服务。
+统一的多媒体管理客户端，面向音乐（Navidrome）、有声书（AudiobookShelf）、视频（当前为 Emby）三类自托管媒体服务。
 
 ## 特性
 
 - 🎵 **音乐** - 支持 Navidrome 服务器
 - 📚 **有声书** - 支持 AudiobookShelf 书库同步、详情浏览、播放会话和进度同步
-- 📺 **视频** - 支持 Emby、Plex、WebDAV
+- 📺 **视频** - 支持 Emby 媒体库浏览、海报、播放和进度同步；Plex、WebDAV 为后续计划
 - 🌓 **主题切换** - 日间/深色模式自由切换
 - 🔐 **完整认证** - 支持用户名、密码、API Key
 
@@ -34,15 +34,7 @@
 - 用户名、密码
 - API Key（可选）
 
-**Plex:**
-
-- 服务器地址
-- 用户名、密码
-
-**WebDAV:**
-
-- 服务器地址
-- 用户名、密码
+当前版本的视频同步、浏览和播放以 Emby 为主。Plex 和 WebDAV 入口保留为后续扩展方向，尚未作为可用视频服务接入。
 
 ## 技术栈
 
