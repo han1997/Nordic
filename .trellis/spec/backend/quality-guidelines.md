@@ -1209,6 +1209,74 @@ fun setCurrentSongStarred(starred: Boolean) {
 }
 ```
 
+### Navidrome repository bounded-concurrency sync pattern
+
+**Scope / Trigger**: Any change to `NavidromeRepository` per-item server-call loops (e.g. `getSongsFromAlbums` backing `getAllSongs` / `getRecentlyAddedSongs` / `getRecentSongsFromAlbums`), or any new repository method that expands a list by issuing one server request per element.
+
+**Signatures**:
+- `private const val ALBUM_DETAIL_CONCURRENCY = 6`
+- `private suspend fun NavidromeRepository.getSongsFromAlbums(albums: List<NavidromeAlbum>, limit: Int? = RECENT_SONG_LIMIT): List<NavidromeSong>`
+- `suspend fun loadNavidromeMusicRefresh(...)` — wraps the 4 source fetches in `coroutineScope { async { ... } }`
+
+**Contract**:
+- When a repository method must issue one server request per element of a list (e.g. `getAlbum` per album to expand tracks), use `coroutineScope { albums.map { async { semaphore.withPermit { requestSubsonic { ... } } } }.awaitAll().flatten() }` with a bounded `Semaphore(<N>)`. `ALBUM_DETAIL_CONCURRENCY = 6` is the established cap for album-detail expansion; reuse it for sibling album-detail paths and introduce a sibling constant only if a different server endpoint family needs a different bound.
+- Do NOT replace sequential per-item server calls with unbounded `async`/`launch` — that risks swamping the server, OkHttp Dispatcher, or device radios. The `Semaphore` bound is required.
+- `awaitAll()` returns results in the same order as the original `async` list, so `.flatten()` preserves the caller-visible album iteration order. Do NOT shuffle, `.groupBy`, or otherwise reorder after `.flatten()` — the Songs navigation "歌曲" page order depends on `getAlbumList2(type = "alphabeticalByName")` order being preserved through expansion.
+- Exception propagation: a failing `requestSubsonic { api.getAlbum(...) }` inside `async` surfaces at `awaitAll()`. Do NOT wrap the inner call in `runCatching` — let the typed `NavidromeApiException` propagate naturally so the surrounding public method's `catch (e: NavidromeApiException) { throw e }` block still rethrows it unchanged.
+- Independent top-level fetches in `loadNavidromeMusicRefresh` may run concurrently via `coroutineScope { async { ... } }` when they don't share data dependencies. `getRecentAlbums()` must run first (sequentially) because `getRecentlyAddedSongs(freshAlbums)` consumes its result; the other three (`getRecentlyAddedSongs`, `getAllSongs`, `getArtists`) are independent and may be parallelized.
+- When a method applies a `limit` (e.g. `getRecentlyAddedSongs(..., limit = RECENT_SONG_LIMIT)`), parallelizing removes the per-item early-break optimization — all items are now fetched in bounded batches and `take(limit)` is applied after `.flatten()`. The result set is identical to the previous sequential early-break path BECAUSE `awaitAll()` preserves list order; do NOT treat "fetches everything then trims" as a behavior regression, but DO note it when reviewing wall-clock expectations for small `limit` values on slow networks.
+
+**Validation & Error Matrix**:
+- One album's `getAlbum` HTTP/Subsonic/API error → `awaitAll()` rethrows the `NavidromeApiException` → public caller's `catch (e: NavidromeApiException) { throw e }` surfaces it unchanged.
+- Empty album list input → early `return emptyList()` before constructing any `async` — no coroutine allocation, no server load.
+- All album details succeed but return no songs → result is an empty flattened list (not an error).
+- Limit applied → `.take(limit)` after `.flatten()` returns the same first-N set the sequential early-break path would have returned.
+
+**Good/Base/Bad Cases**:
+- Good: 20-album recent-song expansion completes in ⌈20/6⌉ = 4 concurrent batches instead of 20 sequential round trips; album order preserved; first-N limit deterministic.
+- Good: One album 503s mid-batch → the typed `NavidromeApiException(Kind.HTTP, ...)` propagates unchanged through `awaitAll()`.
+- Base: Single album → one `async` + `awaitAll()` is equivalent to a direct call; no concurrency cost.
+- Bad: Unbounded `albums.map { async { requestSubsonic { ... } } }` → 100 simultaneous `getAlbum` requests on a large library, swamping the server and the OkHttp dispatch queue.
+- Bad: Reordering results after `.flatten()` (e.g. by song id) → Songs navigation shows a different order than the server's alphabeticalByName album order.
+- Bad: Wrapping the inner `requestSubsonic` in `runCatching { ... }.getOrNull()` → a failed `getAlbum` silently produces an empty list, hiding a server error from the user.
+
+**Tests Required**:
+- Repository test asserting the concurrent expansion requests the expected number of `getAlbum.view` calls (one per album) and returns results in album order after `.flatten()`. Use `runTest` and the existing fake `NavidromeApi` or `MockWebServer` patterns.
+- Repository test asserting `getSongsFromAlbums(emptyList())` short-circuits without issuing any `getAlbum` request.
+- When parallelizing a method with a `limit`, add a test asserting the first-N result is identical to the sequential early-break path for a known fixture (i.e. `awaitAll().flatten().take(limit)` matches the documented album-iteration order).
+
+**Wrong vs Correct**:
+```kotlin
+// Wrong: unbounded async swamps the server and OkHttp dispatch queue.
+val songs = coroutineScope {
+    albums.map { async { requestSubsonic { api.getAlbum(...) } } }.awaitAll().flatten()
+}
+```
+
+```kotlin
+// Correct: Semaphore bounds concurrency to ALBUM_DETAIL_CONCURRENCY; awaitAll preserves order.
+val semaphore = Semaphore(ALBUM_DETAIL_CONCURRENCY)
+val songs = coroutineScope {
+    albums.map { album ->
+        async {
+            semaphore.withPermit {
+                requestSubsonic { api.getAlbum(config.username, auth.token, auth.salt, albumId = album.id) }
+            }
+        }
+    }.awaitAll().flatten()
+}
+```
+
+```kotlin
+// Wrong: runCatching swallows typed errors and silently produces an empty list on failure.
+async { runCatching { requestSubsonic { api.getAlbum(...) } }.getOrNull() }
+```
+
+```kotlin
+// Correct: let NavidromeApiException propagate through awaitAll to the public method's catch block.
+async { requestSubsonic { api.getAlbum(...) } }
+```
+
 ---
 
 ## Testing Requirements
@@ -1276,3 +1344,16 @@ Playback logic tests should isolate pure calculations where possible, as in `app
 **Why**: Older Windows PowerShell defaults can rewrite UTF-8 files as UTF-16 LE with a BOM. Git then treats the file as binary, and non-ASCII UI copy can appear corrupted in diffs.
 
 **Do**: Prefer `apply_patch` for source edits. If a whole-file rewrite is unavoidable, write with an explicit UTF-8 encoding and verify the file still starts with ASCII bytes such as `70 61 63 6B` for `package`.
+
+### Asserting position-indexed results against concurrent repository fetches in MockWebServer tests
+
+**Don't**: Assert `listOf(...) == songs.map { ... }` (or `songs[0].id == ...`, `songs[1].coverArt == ...`) in a MockWebServer test that exercises a `coroutineScope { async { ... }.awaitAll() }` code path where the concurrent requests receive **distinct, per-id fixture bodies**.
+
+**Why**: MockWebServer serves enqueued responses in FIFO order, but `async` blocks dispatch concurrent requests whose completion order is nondeterministic. The request for album-1 may land at the server after the request for album-2, so the server attaches album-1's request to the first enqueued fixture (which was built for album-2). The test then intermittently fails because `songs[0]` is album-2's track instead of album-1's, depending on dispatcher timing.
+
+**Do**: When a test exercises a parallelized repository path against MockWebServer, use ONE of:
+- Enqueue **identical response bodies** for every concurrent request and assert only aggregate/order-independent facts (total count, per-song id presence via `.first { it.id == "..." }`, stream/cover URL mapping, request count).
+- Or assert by **identity lookup**, never by list position: `val song1 = songs.first { it.id == "song-1" }; assertEquals(..., song1.streamUrl)`.
+- Or use a single non-concurrent path for the order-sensitive assertion and a separate concurrent-path test with identical fixtures for the parallelism assertion.
+
+**Detection signal**: if a test that was green before parallelization becomes flaky (passes 10× then fails once) after the production code changed from a `for (item in list)` sequential loop to `list.map { async { } }.awaitAll()`, this is almost certainly the FIFO-vs-completion-order mismatch. Fix the test assertions, do not revert the parallelization.
