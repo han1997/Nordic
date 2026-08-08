@@ -346,3 +346,38 @@ Redesigned the video player chrome with an immersive overlay, added a lightweigh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 127: Micro-interaction token 收敛(NordicMotion.durationMicro)
+
+**Date**: 2026-08-08
+**Task**: Micro-interaction token 收敛(NordicMotion.durationMicro)
+**Branch**: `main`
+
+### Summary
+
+延续上轮 NordicMotion token,把 6 个 UI 文件(AnimatedComponents/ConfigCards/MusicBrowseComponents/PlaybackDock/SharedComponents/VideoPlayerScreen)中遗留的 ~20 处内联 tween(<num>, easing = FastOutSlowInEasing) / tween(<num>) literal 收敛到 NordicMotion token:新增 durationMicro=150 档位(Micro→Short→Medium→Long 升序),press-scale/chip-select/chrome-fade 用 durationMicro,expand/shrink 用 durationShort,ConfigCards enter/exit 用 durationMedium/durationShort(保留原 300/200 不对称设计)。VideoPlayerScreen 的 VIDEO_PLAYER_CHROME_FADE_MS 常量原值 200 == durationShort,收敛为 NordicMotion.durationShort;rememberPressScale 默认 durationMillis 改为 NordicMotion.durationMicro。行为语义保持:原无 easing 的 tween(200)(LinearEasing)不加 easingStandard;原有 FastOutSlowInEasing 的替换为 easingStandard;enter/exit 组合(+ expandVertically / togetherWith)结构不变。移除 5 个文件的 FastOutSlowInEasing 显式 import(PlaybackDock 用 core.* 通配符无需移除)。trellis-check 子代理逐行核查 8 个动画点的行为保持(原无 easing 不加 / 原有 easing 不丢),全部 PASS 无修复。spec 更新:Out-of-token-scope bullet 标记为 migrated;新增 Micro-interaction convergence Scenario(含 behavior-preservation rule + Wrong vs Correct)。compileDebugKotlin / testDebugUnitTest / lintDebug 全部 BUILD SUCCESSFUL。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `bcc4a28` | (see git log) |
+| `3a86b5d` | (see git log) |
+| `d2253b1` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
