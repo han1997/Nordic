@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Pre-development checklist + Windows Gradle verification commands."}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Design token system (Shape/Spacing/Typography/Alpha/Motion) + Screen-transition animation contract — the rules this convergence pass follows; also the spec to update (Out of token scope bullet + micro-interaction note)."}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Confirms no cache schema / cache repo changes (pure UI token convergence)."}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "Avoid ad hoc Log.* / println in animation code."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Token convergence must not alter error-state UI propagation (MediaStateCard/MediaLoadingCard messages unchanged)."}
