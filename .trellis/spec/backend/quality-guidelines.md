@@ -249,6 +249,7 @@ High-frequency playback state, search debounce jobs, and other non-rendering han
 - Keep non-rendering mutable handles such as `Job?` in a remembered non-state holder, for example `remember { AtomicReference<Job?>(null) }`, when changing the handle should not redraw the screen.
 - Extract expensive or mostly static screen content into child composables whose parameters do not include fast-ticking playback position.
 - Cache derived lists and labels with `remember(source) { ... }` when they are passed into lazy lists or callbacks.
+- If one small player sub-surface needs higher-frequency position data than the shared playback state (for example synced lyric highlighting), expose a narrow `StateFlow` sidecar from the owning ViewModel with `SharingStarted.WhileSubscribed(...)` and a direct engine query. Keep the broad `MusicPlaybackState.positionSeconds` / player chrome path on the coarser cadence so the whole screen does not recompose every 100ms.
 
 ```kotlin
 // Wrong: every debounce job replacement invalidates the composable.
@@ -259,6 +260,16 @@ searchJob = scope.launch { /* search */ }
 val searchJob = remember { AtomicReference<Job?>(null) }
 searchJob.get()?.cancel()
 searchJob.set(scope.launch { /* search */ })
+```
+
+```kotlin
+// Correct: lyric timing gets a narrow high-frequency sidecar; the broad playback state remains coarse.
+val positionMillis: StateFlow<Long> = flow {
+    while (coroutineContext.isActive) {
+        emit(engine.currentPositionMillis())
+        delay(100L)
+    }
+}.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), 0L)
 ```
 
 **Why**: Playback ticks and debounce bookkeeping can update often. Isolating operational state prevents unrelated home/library content from being recomposed just because a handle changed.
@@ -316,6 +327,7 @@ Video / audio player overlays that subscribe to high-frequency playback position
 - The auto-hide `LaunchedEffect` must key on every condition it reads (`controlsVisible`, `isPlaying`, `scrubPosition`, `statusTone`) so any change restarts the timer.
 - Error / buffering / no-video center messages are composed independently of `controlsVisible` so they remain visible when chrome is hidden.
 - Gestures (double-tap to seek, horizontal drag to scrub, pinch to cycle aspect) do not toggle `controlsVisible`; only a bare tap does. `detectTapGestures` `onDoubleTap` priority handles this disambiguation.
+- When a player surface has both a child tap target and a parent swipe-to-dismiss area, avoid parent `detectDragGestures { change.consume() }` because it can consume short taps before the child `detectTapGestures` sees them. Prefer a direction-specific parent detector such as `detectVerticalDragGestures`, record whether the drag started inside the allowed region, and keep displacement thresholds in the drag callback. Do not use `detectDragGesturesAfterLongPress` for quick swipe dismissal; it fixes tap priority but regresses the expected quick-swipe UX.
 
 ```kotlin
 // Visible on first open so users discover chrome before it auto-hides.
