@@ -31,16 +31,17 @@ This document records project-specific code quality conventions discovered durin
 
 Small UI primitives reused across files (e.g., `MusicMetaChip`, `rememberPressScale`) must be `internal` (not `private`) so they can be imported without exposing them as public API. Private helpers that are duplicated across files should be lifted to a shared file with `internal` visibility.
 
-### Design token system (Shape / Spacing / Typography / Alpha)
+### Design token system (Shape / Spacing / Typography / Alpha / Motion)
 
-UI files under `ui/` must use the design tokens defined in `ui/theme/Shapes.kt`, `ui/theme/Spacing.kt`, and `ui/theme/Type.kt` — not hardcoded `RoundedCornerShape(<num>.dp)`, `CircleShape`, `Modifier.padding(<num>.dp)`, `fontSize = <num>.sp`, or `colorScheme.onSurface.copy(alpha = <magic>)` literals. `NordicTheme` wires `NordicTypography` and `NordicShapesMaterial` into `MaterialTheme`, so composables can resolve via `MaterialTheme.typography.<slot>` / `MaterialTheme.shapes.<slot>` or reference the `object`s directly.
+UI files under `ui/` must use the design tokens defined in `ui/theme/Shapes.kt`, `ui/theme/Spacing.kt`, `ui/theme/Type.kt`, `ui/theme/Alpha.kt`, and `ui/theme/Motion.kt` — not hardcoded `RoundedCornerShape(<num>.dp)`, `CircleShape`, `Modifier.padding(<num>.dp)`, `fontSize = <num>.sp`, `colorScheme.onSurface.copy(alpha = <magic>)`, or inline `tween(<num>, easing = FastOutSlowInEasing)` literals. `NordicTheme` wires `NordicTypography` and `NordicShapesMaterial` into `MaterialTheme`, so composables can resolve via `MaterialTheme.typography.<slot>` / `MaterialTheme.shapes.<slot>` or reference the `object`s directly.
 
 **Token scales** (finite, named):
 
 ```kotlin
-object NordicShapes { val none, sm(12), md(16), lg(20), xl(24), full(50%) }
+object NordicShapes  { val none, sm(12), md(16), lg(20), xl(24), full(50%) }
 object NordicSpacing { val xs(4), sm(8), md(12), lg(16), xl(20), xxl(24), xxxl(32), content(16) }
-object NordicAlpha  { val medium(0.68f), subtle(0.5f), faint(0.3f) }
+object NordicAlpha   { val medium(0.68f), subtle(0.5f), faint(0.3f) }
+object NordicMotion  { val durationShort=200, durationMedium=300, durationLong=450, easingStandard=FastOutSlowInEasing, easingDecelerate=LinearOutSlowInEasing, easingAccelerate=FastOutLinearInEasing, enterSlideUp, exitSlideDown, enterFade, exitFade, crossfadeSpec, slideDirectionSpec(forward) }
 val NordicTypography = Typography(
     displaySmall(32/Bold), headlineMedium(22/Bold), titleMedium(16/SemiBold),
     titleSmall(14/SemiBold), bodyMedium(14/Normal), labelLarge(13/SemiBold), bodySmall(12/Medium)
@@ -60,6 +61,82 @@ val NordicTypography = Typography(
 - `Color.White.copy(alpha=…)` in `VideoPlayerScreen` — video-overlay white-on-black context, separate from the `onSurface` secondary-text scope.
 - Component dimensions (cover-art `size`, control heights, grid `minSize`) — these are layout sizing, not spacing tokens.
 - `spacedBy(2.dp)` below `NordicSpacing.xs` (4.dp) — no tier to converge to; forcing `xs` would double the gap.
+- Pre-existing micro-interaction `tween(...)` / `FastOutSlowInEasing` literals inside `AnimatedComponents.kt`, `ConfigCards.kt`, `MusicBrowseComponents.kt`, `PlaybackDock.kt`, `SharedComponents.kt`, `VideoPlayerScreen.kt` (press scale, chip selection, chrome fade) — these are component-internal micro-interactions, not screen transitions. A future convergence pass may migrate them to `NordicMotion.durationShort` / `easingStandard`; until then they are left explicit to avoid scope creep in unrelated tasks.
+
+### Screen-transition animation contract
+
+**Scope / Trigger**: Any change to `MainActivity` Tab switch wiring, Music / Audiobook / Video player overlay enter/exit, `MusicScreenV2.libraryPage` branch rendering, or a new screen-transition animation site in `ui/`.
+
+**Signatures**:
+- `object NordicMotion` (`ui/theme/Motion.kt`) — peer to `NordicShapes`/`NordicSpacing`/`NordicAlpha`/`NordicTypography`.
+- `val durationShort = 200`, `durationMedium = 300`, `durationLong = 450` (Int millis)
+- `val easingStandard: CubicBezierEasing = FastOutSlowInEasing` (enter+exit symmetric)
+- `val easingDecelerate: CubicBezierEasing = LinearOutSlowInEasing` (enter)
+- `val easingAccelerate: CubicBezierEasing = FastOutLinearInEasing` (exit)
+- Reusable transitions: `enterSlideUp`, `exitSlideDown`, `enterFade`, `exitFade`, `crossfadeSpec: ContentTransform`, `slideDirectionSpec(forward: Boolean): ContentTransform`.
+- Pure helper: `internal fun resolveMusicLibraryPageForward(from: MusicLibraryPage, to: MusicLibraryPage): Boolean` (`MusicScreenLogic.kt`).
+
+**Contracts**:
+- Screen-transition durations / easings MUST reference `NordicMotion.durationShort/Medium/Long` and `NordicMotion.easingStandard/Decelerate/Accelerate`. Do NOT inline `tween(<num>, easing = FastOutSlowInEasing)` in screen-transition code.
+- Tab-level switch (`MainActivity` 0/1/2/3, incl. `ServerConfigScreen`) MUST use `Crossfade(targetState = selectedTab, animationSpec = tween(NordicMotion.durationMedium, easing = NordicMotion.easingStandard), label = "...")`. The `Crossfade` lambda MUST take a `tab` parameter and branch on it; do NOT read outer `selectedTab` inside the lambda.
+- Full-screen player overlay enter/exit (Music / Audiobook / Video) MUST use `AnimatedVisibility(enter = NordicMotion.enterSlideUp, exit = NordicMotion.exitSlideDown)` (slide from bottom + fade). Do not use `fadeIn()/fadeOut()` defaults for full-screen player overlays — the slide gives the user a directional cue that the overlay came from the playback affordance.
+- `MusicScreenV2.libraryPage` rendering MUST be wrapped in `AnimatedContent(targetState = libraryPage, transitionSpec = { NordicMotion.slideDirectionSpec(resolveMusicLibraryPageForward(initialState, targetState)) }, label = "...")`. Direction (forward = slide-left, back = slide-right) is resolved by nav-stack depth via `resolveMusicLibraryPageForward`. Each `libraryPage` branch renders its own inner `LazyColumn` with stable `key`/`contentType` per the "Compose media list stability" rule.
+- `ModalBottomSheet` (e.g. `MusicQueueSheet`) MAY keep Material3 default animation. Do NOT override the sheet's drag-to-dismiss animation spec with a custom `tween` — forcing a duration regresses drag-to-dismiss feel. Only calibrate a sheet spec if there was an explicit hardcoded duration to begin with.
+- Animation `transitionSpec` / `Crossfade` `animationSpec` / `AnimatedContent` lambda MUST NOT read outer Compose state (spec: Compose performance state isolation). Only `initialState` / `targetState` (provided by the animation container) + `NordicMotion` static tokens + pure helpers may be read inside.
+- `BackHandler`s MUST stay at the composable scope (outside `AnimatedContent` / `Crossfade` lambdas). Moving a `BackHandler` inside an animation lambda changes its registration priority (last-registered-wins) and can break sub-navigation back semantics.
+- No `delay(...)` timer-based chrome reveal may be introduced (spec: Performance-first persistent media chrome / no-timer-reveal). The only allowed `delay(...)` in `MusicScreenV2` is the pre-existing search debounce `Job` (held in an `AtomicReference`, per performance-state-isolation).
+
+**Validation & Error Matrix**:
+| Condition | Behavior |
+|---|---|
+| New screen-transition animation site | Duration/easing reference `NordicMotion.*`; no inline `tween(<num>)` literal |
+| Tab switch (incl. to/from `ServerConfigScreen`) | `Crossfade` with `durationMedium`/`easingStandard`; lambda takes `tab` param, does not read outer `selectedTab` |
+| Full-screen player overlay | `enterSlideUp`/`exitSlideDown`; no plain `fadeIn()`/`fadeOut()` |
+| `libraryPage` direction | `resolveMusicLibraryPageForward(initialState, targetState)` decides forward/back; forward = slide-left, back = slide-right |
+| `AnimatedContent` wrapping a `LazyColumn` | Inner `LazyColumn` retains stable `key` + `contentType` per item family |
+| `BackHandler` priority | Handler stays at composable scope, outside animation lambda |
+| Sheet (ModalBottomSheet) | Default Material3 animation; no custom spec override unless a hardcoded duration pre-existed |
+
+**Good/Base/Bad Cases**:
+- Good: Tab Music→Video crossfades 300ms; opening Music player slides up from bottom; Home→AlbumDetail slides left; `BackHandler` priority unchanged.
+- Base: Single-tab render (no transition) — `Crossfade`/`AnimatedContent` no-op, no animation cost.
+- Bad: Inline `tween(300, easing = FastOutSlowInEasing)` in a new screen-transition site — magic number, not a token.
+- Bad: `Crossfade { when (selectedTab) { ... } }` reads outer `selectedTab` instead of the lambda's `tab` param — causes broad recomposition + wrong transition target.
+- Bad: `AnimatedVisibility(enter = fadeIn(), exit = fadeOut())` on a full-screen player overlay — no directional cue.
+- Bad: `BackHandler` moved inside `AnimatedContent` lambda — registration priority changes, back semantics regress.
+
+**Tests Required**:
+- `resolveMusicLibraryPageForward(from, to)` unit tests covering: Home→AlbumDetail (true), AlbumDetail→Home (false), Playlists→PlaylistDetail (true), PlaylistDetail→Playlists (false), same-page (false), and every enum transition the navigation graph allows.
+- Compile + `testDebugUnitTest` + `lintDebug` sequential gates after any screen-transition-animation change.
+
+**Wrong vs Correct**:
+```kotlin
+// Wrong: inline tween literal; reads outer state inside lambda.
+Crossfade(targetState = selectedTab, animationSpec = tween(300, easing = FastOutSlowInEasing)) {
+    when (selectedTab) { ... }
+}
+```
+
+```kotlin
+// Correct: NordicMotion token; lambda takes tab param; no outer state read.
+Crossfade(
+    targetState = selectedTab,
+    animationSpec = tween(NordicMotion.durationMedium, easing = NordicMotion.easingStandard),
+    label = "main-tab-crossfade"
+) { tab ->
+    when (tab) { 0 -> MusicScreenV2(...); 1 -> AudiobookScreen(...); 2 -> VideoScreen(...); 3 -> ServerConfigScreen(...) }
+}
+```
+
+```kotlin
+// Wrong: plain fade for a full-screen player overlay; no directional cue.
+AnimatedVisibility(visible = showPlayer, enter = fadeIn(), exit = fadeOut()) { MusicPlayerScreen(...) }
+```
+
+```kotlin
+// Correct: slide up from bottom + fade; directional cue matches "overlay rises from the playback affordance".
+AnimatedVisibility(visible = showPlayer, enter = NordicMotion.enterSlideUp, exit = NordicMotion.exitSlideDown) { MusicPlayerScreen(...) }
+```
 
 **Why**: Centralizing the token scale prevents visual drift across 20+ UI files, makes the design intent legible at the call site (`NordicShapes.md` vs `RoundedCornerShape(14.dp)`), and gives future theme variants (dynamic color, window-size buckets) a single extension point instead of a full-UI re-scan.
 
