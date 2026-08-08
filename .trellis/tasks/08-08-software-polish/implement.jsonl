@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Pre-development checklist + Windows Gradle verification commands (compileDebugKotlin/testDebugUnitTest/lintDebug)."}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Compose performance state isolation, media chrome auto-hide, Bottom dock no-timer-reveal, list stability, BackHandler priority, pointerInput gesture priority — all must be respected by the animation polish."}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Confirms no cache schema / cache repository changes are needed (animation is pure UI; cache behavior untouched)."}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "Avoid ad hoc Log.* / println in animation code; relevant if animation diagnostics are added."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Animation changes must not swallow or alter existing typed-exception / contextual error-message UI propagation."}

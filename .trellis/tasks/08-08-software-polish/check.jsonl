@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Sequential Gradle verification commands to run after the polish (compileDebugKotlin / testDebugUnitTest / lintDebug)."}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify the animation polish honors Compose performance state isolation, chrome auto-hide / hide-on-scroll / no-timer-reveal, list stability, BackHandler priority, and pointerInput gesture priority rules."}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Verify no cache schema bump / no cache repository change leaked in (animation is view-only)."}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "Spot any accidental Log.* / println brought in by the animation code."}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Verify error-state UI propagation still surfaces typed exceptions and contextual messages after animation wrapping."}
