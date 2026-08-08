@@ -311,3 +311,38 @@ Redesigned the video player chrome with an immersive overlay, added a lightweigh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 126: 屏幕切换动画打磨（NordicMotion token + 屏幕过渡动画）
+
+**Date**: 2026-08-08
+**Task**: 屏幕切换动画打磨（NordicMotion token + 屏幕过渡动画）
+**Branch**: `main`
+
+### Summary
+
+新增 ui/theme/Motion.kt 的 NordicMotion token object（peer to NordicShapes/Spacing/Alpha/Typography），集中管理屏幕过渡动画的 durationShort/Medium/Long + easingStandard/Decelerate/Accelerate + 可复用 enterSlideUp/exitSlideDown/enterFade/exitFade/crossfadeSpec/slideDirectionSpec(forward)。MainActivity 用 Crossfade 包裹 0/1/2/3 四个 Tab（含 ServerConfigScreen），动画用 tween(durationMedium, easingStandard)；showPlayer/showAudiobookPlayer/showVideoPlayer 三个全屏播放器 overlay 用 AnimatedVisibility(enter=enterSlideUp, exit=exitSlideDown) 实现上推/下滑+fade，替代原 fadeIn/fadeOut。MusicScreenV2 把外层 LazyColumn 重构为 Column+AnimatedContent：header/MusicSegmentedTabs/error-loading-empty 卡片提为 Column 直子；when(libraryPage) 各分支渲染各自的 inner LazyColumn（保留 stable key + contentType），用 AnimatedContent + slideDirectionSpec(resolveMusicLibraryPageForward(initialState, targetState)) 做方向感 slide；resolveMusicLibraryPageForward 是纯 helper（MusicScreenLogic.kt），按 nav-stack depth 返回 forward/back。BackHandler 保持原 composable scope（未移入 AnimatedContent/Crossfade lambda，优先级不变）。MusicQueueSheet 沿用 ModalBottomSheet 默认动画（无显式 duration 可校准，强行覆盖会回归 drag-to-dismiss）。trellis-check 子代理逐项核查 LazyColumn→Column+AnimatedContent 重构的 5 项潜在回归（header 布局/inner LazyColumn keys/contentPadding/scroll state/MusicSegmentedTabs），全部无回归。新增 8 个 resolveMusicLibraryPageForward 单测。spec 扩展 Design token system 为 Shape/Spacing/Typography/Alpha/Motion 并新增 Screen-transition animation contract Scenario（含 Wrong vs Correct 与 Tests Required）。compileDebugKotlin / testDebugUnitTest / lintDebug 全部 BUILD SUCCESSFUL。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `def40f9` | (see git log) |
+| `3cda2b4` | (see git log) |
+| `f094fdc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
