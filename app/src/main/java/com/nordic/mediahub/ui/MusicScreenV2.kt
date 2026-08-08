@@ -1,6 +1,7 @@
 package com.nordic.mediahub.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,6 +54,7 @@ import com.nordic.mediahub.data.isCacheFresh
 import com.nordic.mediahub.data.isReadyForMusicSync
 import com.nordic.mediahub.data.loadNavidromeMusicRefresh
 import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicMotion
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
 import kotlinx.coroutines.Job
@@ -579,23 +581,24 @@ fun MusicScreenV2(
         }
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = NordicSpacing.lg, top = NordicSpacing.lg, end = NordicSpacing.lg, bottom = NordicSpacing.xxl),
-        verticalArrangement = Arrangement.spacedBy(if (isHomePage) NordicSpacing.lg else NordicSpacing.md)
+    Column(
+        modifier = Modifier.fillMaxSize()
     ) {
-        item {
-            MediaPageHeader(
-                title = headerTitle,
-                subtitle = headerSubtitle,
-                actions = headerActions,
-                colorScheme = colorScheme,
-                showBack = !isHomePage,
-                onBack = ::navigateBackFromMusicPage
-            )
-        }
+        MediaPageHeader(
+            title = headerTitle,
+            subtitle = headerSubtitle,
+            actions = headerActions,
+            colorScheme = colorScheme,
+            modifier = Modifier.padding(
+                start = NordicSpacing.lg,
+                top = NordicSpacing.lg,
+                end = NordicSpacing.lg
+            ),
+            showBack = !isHomePage,
+            onBack = ::navigateBackFromMusicPage
+        )
         if (isHomePage) {
-            item {
+            Box(modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.md)) {
                 MusicSegmentedTabs(
                     selectedTab = selectedTab,
                     colorScheme = colorScheme,
@@ -618,35 +621,62 @@ fun MusicScreenV2(
         }
 
         if (errorMsg != null) {
-            item {
-                MediaStateCard(
-                    title = if (hasContent) "刷新失败" else "连接失败",
-                    subtitle = errorMsg.orEmpty(),
-                    tone = MediaStateTone.Error
+            MediaStateCard(
+                title = if (hasContent) "刷新失败" else "连接失败",
+                subtitle = errorMsg.orEmpty(),
+                tone = MediaStateTone.Error,
+                modifier = Modifier.padding(
+                    horizontal = NordicSpacing.lg,
+                    vertical = NordicSpacing.md
                 )
-            }
+            )
         }
 
         if (isLoading && !hasContent) {
-            item {
-                MediaLoadingCard(
-                    title = "正在同步 Navidrome",
-                    subtitle = "加载专辑、歌曲和歌手..."
+            MediaLoadingCard(
+                title = "正在同步 Navidrome",
+                subtitle = "加载专辑、歌曲和歌手...",
+                modifier = Modifier.padding(
+                    horizontal = NordicSpacing.lg,
+                    vertical = NordicSpacing.md
                 )
-            }
+            )
         }
 
         if (!isLoading && !isLoadingPlaylists && !isLoadingPlaylistDetail && errorMsg == null && !hasContent) {
-            item {
-                MediaStateCard(
-                    title = "先接入你的音乐库",
-                    subtitle = "填入 Navidrome 地址、用户名和密码后，最近添加的专辑和歌曲会直接出现在这里。",
-                    hint = "前往配置 tab 开始连接"
+            MediaStateCard(
+                title = "先接入你的音乐库",
+                subtitle = "填入 Navidrome 地址、用户名和密码后,最近添加的专辑和歌曲会直接出现在这里。",
+                hint = "前往配置 tab 开始连接",
+                modifier = Modifier.padding(
+                    horizontal = NordicSpacing.lg,
+                    vertical = NordicSpacing.md
                 )
-            }
+            )
         }
 
-        when (libraryPage) {
+        AnimatedContent(
+            targetState = libraryPage,
+            transitionSpec = {
+                NordicMotion.slideDirectionSpec(
+                    resolveMusicLibraryPageForward(initialState, targetState)
+                )
+            },
+            label = "music-library-page",
+            modifier = Modifier.fillMaxWidth().weight(1f)
+        ) { page ->
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = NordicSpacing.lg,
+                    end = NordicSpacing.lg,
+                    bottom = NordicSpacing.xxl
+                ),
+                verticalArrangement = Arrangement.spacedBy(
+                    if (page == MusicLibraryPage.Home) NordicSpacing.lg else NordicSpacing.md
+                )
+            ) {
+                when (page) {
             MusicLibraryPage.Home -> {
                 if (albums.isNotEmpty()) {
                     item {
@@ -1240,6 +1270,8 @@ fun MusicScreenV2(
                     }
                 }
             }
+            }
+        }
         }
     }
 }

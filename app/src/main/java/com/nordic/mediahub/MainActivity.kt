@@ -466,9 +466,9 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             AnimatedContent(
                 targetState = showPlayer,
                 transitionSpec = {
-                    fadeIn(tween(300, easing = FastOutSlowInEasing)) togetherWith
-                        fadeOut(tween(200))
-                }
+                    NordicMotion.enterSlideUp togetherWith NordicMotion.exitSlideDown
+                },
+                label = "music-player-toggle"
             ) { playerVisible ->
                 if (playerVisible) {
                     MusicPlayerLayer(
@@ -480,12 +480,13 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                     )
                 } else {
                     Box(Modifier.fillMaxSize().padding(padding)) {
-                        AnimatedContent(
+                        Crossfade(
                             targetState = selectedTab,
-                            transitionSpec = {
-                                fadeIn(tween(300, easing = FastOutSlowInEasing)) togetherWith
-                                    fadeOut(tween(200))
-                            }
+                            animationSpec = tween(
+                                NordicMotion.durationMedium,
+                                easing = NordicMotion.easingStandard
+                            ),
+                            label = "main-tab-crossfade"
                         ) { tab ->
                             when (tab) {
                                 0 -> MusicScreenV2(
@@ -649,7 +650,11 @@ private fun VideoPlayerLayer(
         onToggleFullscreen()
     }
 
-    if (showVideoPlayer || videoPlaybackState.video != null) {
+    AnimatedVisibility(
+        visible = showVideoPlayer || videoPlaybackState.video != null,
+        enter = NordicMotion.enterSlideUp,
+        exit = NordicMotion.exitSlideDown
+    ) {
         VideoPlayerScreen(
             state = videoPlaybackState,
             colorScheme = colorScheme,
@@ -686,7 +691,11 @@ private fun AudiobookPlayerLayer(
         closeAudiobookPlayback(true)
     }
 
-    if (showAudiobookPlayer || audiobookPlaybackError != null) {
+    AnimatedVisibility(
+        visible = showAudiobookPlayer || audiobookPlaybackError != null,
+        enter = NordicMotion.enterSlideUp,
+        exit = NordicMotion.exitSlideDown
+    ) {
         AudiobookPlayerScreen(
             state = audiobookPlaybackState,
             colorScheme = colorScheme,

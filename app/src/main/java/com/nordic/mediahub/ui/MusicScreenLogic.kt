@@ -36,6 +36,24 @@ internal fun resolveMusicLibraryPageAfterConfigChange(currentPage: MusicLibraryP
     }
 }
 
+internal fun resolveMusicLibraryPageForward(from: MusicLibraryPage, to: MusicLibraryPage): Boolean {
+    return musicLibraryPageDepth(to) > musicLibraryPageDepth(from)
+}
+
+private fun musicLibraryPageDepth(page: MusicLibraryPage): Int {
+    return when (page) {
+        MusicLibraryPage.Home -> 0
+        MusicLibraryPage.Albums,
+        MusicLibraryPage.Songs,
+        MusicLibraryPage.Artists,
+        MusicLibraryPage.Search,
+        MusicLibraryPage.Playlists -> 1
+        MusicLibraryPage.AlbumDetail,
+        MusicLibraryPage.ArtistDetail,
+        MusicLibraryPage.PlaylistDetail -> 2
+    }
+}
+
 internal fun firstPlayableSongIndex(songs: List<NavidromeSong>): Int? {
     return songs.indexOfFirst { song -> !song.streamUrl.isNullOrBlank() }
         .takeIf { index -> index >= 0 }

@@ -28,6 +28,74 @@ class MusicScreenV2Test {
     }
 
     @Test
+    fun resolveMusicLibraryPageForward_homeToAlbumDetail_isTrue() {
+        assertEquals(
+            true,
+            resolveMusicLibraryPageForward(MusicLibraryPage.Home, MusicLibraryPage.AlbumDetail)
+        )
+    }
+
+    @Test
+    fun resolveMusicLibraryPageForward_albumDetailToHome_isFalse() {
+        assertEquals(
+            false,
+            resolveMusicLibraryPageForward(MusicLibraryPage.AlbumDetail, MusicLibraryPage.Home)
+        )
+    }
+
+    @Test
+    fun resolveMusicLibraryPageForward_playlistsToPlaylistDetail_isTrue() {
+        assertEquals(
+            true,
+            resolveMusicLibraryPageForward(MusicLibraryPage.Playlists, MusicLibraryPage.PlaylistDetail)
+        )
+    }
+
+    @Test
+    fun resolveMusicLibraryPageForward_playlistDetailToPlaylists_isFalse() {
+        assertEquals(
+            false,
+            resolveMusicLibraryPageForward(MusicLibraryPage.PlaylistDetail, MusicLibraryPage.Playlists)
+        )
+    }
+
+    @Test
+    fun resolveMusicLibraryPageForward_homeToAlbums_isTrue() {
+        assertEquals(
+            true,
+            resolveMusicLibraryPageForward(MusicLibraryPage.Home, MusicLibraryPage.Albums)
+        )
+    }
+
+    @Test
+    fun resolveMusicLibraryPageForward_albumsToAlbumDetail_isTrue() {
+        assertEquals(
+            true,
+            resolveMusicLibraryPageForward(MusicLibraryPage.Albums, MusicLibraryPage.AlbumDetail)
+        )
+    }
+
+    @Test
+    fun resolveMusicLibraryPageForward_homeToHome_isFalse() {
+        assertEquals(
+            false,
+            resolveMusicLibraryPageForward(MusicLibraryPage.Home, MusicLibraryPage.Home)
+        )
+    }
+
+    @Test
+    fun resolveMusicLibraryPageForward_sameDepthPeers_isFalse() {
+        assertEquals(
+            false,
+            resolveMusicLibraryPageForward(MusicLibraryPage.Albums, MusicLibraryPage.Songs)
+        )
+        assertEquals(
+            false,
+            resolveMusicLibraryPageForward(MusicLibraryPage.AlbumDetail, MusicLibraryPage.ArtistDetail)
+        )
+    }
+
+    @Test
     fun firstPlayableSongIndex_returnsFirstSongWithStreamUrl() {
         val songs = listOf(
             song(id = "missing"),
