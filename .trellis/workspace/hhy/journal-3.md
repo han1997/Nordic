@@ -381,3 +381,40 @@ Redesigned the video player chrome with an immersive overlay, added a lightweigh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 128: 软件完整度完善
+
+**Date**: 2026-08-09
+**Task**: 软件完整度完善
+**Branch**: `main`
+
+### Summary
+
+收敛视频配置入口与文档能力说明，补充 PowerShell 编码误判规范，并为共享加载状态卡片增加轻量进度反馈；完成编译、单测、lint 与设计检测。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9d97599` | (see git log) |
+| `96e022e` | (see git log) |
+| `fde1b62` | (see git log) |
+| `6d8e66d` | (see git log) |
+| `d07b917` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
