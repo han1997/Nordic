@@ -728,6 +728,7 @@ private fun MusicQueueLayer(
         onPlayNext = musicVM::moveQueueItemToPlayNext,
         onRemoveFromQueue = musicVM::removeQueueItem,
         onClearUpcoming = musicVM::clearUpcomingQueueItems,
+        onMoveQueueItem = musicVM::moveQueueItem,
         onDismiss = onDismiss
     )
 }

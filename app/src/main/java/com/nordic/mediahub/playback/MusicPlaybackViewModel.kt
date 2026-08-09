@@ -112,6 +112,8 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
 
     fun moveQueueItemToPlayNext(index: Int) = engine.moveQueueItemToPlayNext(index)
 
+    fun moveQueueItem(fromIndex: Int, targetIndex: Int) = engine.moveQueueItem(fromIndex, targetIndex)
+
     fun removeQueueItem(index: Int) = engine.removeQueueItem(index)
 
     fun clearUpcomingQueueItems() = engine.clearUpcomingQueueItems()

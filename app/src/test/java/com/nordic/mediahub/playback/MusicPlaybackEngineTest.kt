@@ -89,6 +89,14 @@ class MusicPlaybackEngineTest {
     }
 
     @Test
+    fun moveItemToIndex_ignoresInvalidSourceIndex() {
+        assertEquals(
+            listOf("A", "B", "C"),
+            listOf("A", "B", "C").moveItemToIndex(fromIndex = 5, targetIndex = 0)
+        )
+    }
+
+    @Test
     fun resolveCurrentIndexAfterMove_tracksCurrentItemWhenPreviousItemMovesAfterIt() {
         assertEquals(
             1,
@@ -101,6 +109,14 @@ class MusicPlaybackEngineTest {
         assertEquals(
             3,
             resolveCurrentIndexAfterMove(fromIndex = 3, targetIndex = 0, currentIndex = 2, itemCount = 4)
+        )
+    }
+
+    @Test
+    fun resolveCurrentIndexAfterMove_tracksCurrentItemWhenCurrentItemMoves() {
+        assertEquals(
+            3,
+            resolveCurrentIndexAfterMove(fromIndex = 1, targetIndex = 3, currentIndex = 1, itemCount = 4)
         )
     }
 

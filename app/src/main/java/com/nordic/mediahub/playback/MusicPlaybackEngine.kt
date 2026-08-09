@@ -401,6 +401,23 @@ class MusicPlaybackEngine(context: Context) {
         publishPlayerState()
     }
 
+    fun moveQueueItem(fromIndex: Int, targetIndex: Int) {
+        val activeController = controller
+        if (activeController == null) {
+            movePendingQueueItem(fromIndex, targetIndex)
+            return
+        }
+
+        val itemCount = activeController.mediaItemCount
+        if (itemCount <= 1 || fromIndex !in 0 until itemCount) return
+        val resolvedTargetIndex = targetIndex.coerceIn(0, itemCount - 1)
+        if (fromIndex == resolvedTargetIndex) return
+
+        activeController.moveMediaItem(fromIndex, resolvedTargetIndex)
+        cachedTimelineGeneration = -1
+        publishPlayerState()
+    }
+
     fun removeQueueItem(index: Int) {
         val activeController = controller
         if (activeController == null) {
@@ -569,6 +586,33 @@ class MusicPlaybackEngine(context: Context) {
                 shuffleModeEnabled = activeController.shuffleModeEnabled,
                 queue = cachedQueue,
                 queueIndex = currentIndex
+            )
+        }
+    }
+
+    private fun movePendingQueueItem(fromIndex: Int, targetIndex: Int) {
+        val queue = pendingQueue ?: _state.value.queue
+        val currentIndex = _state.value.queueIndex
+        if (queue.size <= 1 || fromIndex !in queue.indices || currentIndex !in queue.indices) {
+            return
+        }
+        val resolvedTargetIndex = targetIndex.coerceIn(queue.indices)
+        if (fromIndex == resolvedTargetIndex) return
+
+        val nextQueue = queue.moveItemToIndex(fromIndex, resolvedTargetIndex)
+        val nextIndex = resolveCurrentIndexAfterMove(
+            fromIndex = fromIndex,
+            targetIndex = resolvedTargetIndex,
+            currentIndex = currentIndex,
+            itemCount = queue.size
+        )
+        pendingQueue = nextQueue
+        pendingQueueStartIndex = nextIndex
+        _state.update {
+            it.copy(
+                currentSong = nextQueue.getOrNull(nextIndex),
+                queue = nextQueue,
+                queueIndex = nextIndex
             )
         }
     }
