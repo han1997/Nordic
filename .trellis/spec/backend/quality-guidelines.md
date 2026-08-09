@@ -357,6 +357,79 @@ When a shelf is only a visual preview of a longer playback source, keep the prev
 
 Playback scrubbers should keep local scrub state while dragging and call the playback engine's `seekTo(...)` only from `onValueChangeFinished`. Do not call seek on every slider `onValueChange`; it can flood Media3 with repeated seeks and make video/audio playback stutter.
 
+### Music player progress controls
+
+**Scope / Trigger**: Any change to `MusicPlayerScreen` progress slider gestures, music relative seek controls, `MusicPlaybackViewModel.seekBackBy` / `seekForwardBy`, or `MusicPlaybackEngine.seekBy` helpers.
+
+**Signatures**:
+- `internal fun resolvePlayerThinSliderPosition(pointerX: Float, trackWidth: Int, durationSeconds: Int): Float`
+- `internal fun resolvePlayerThinSliderThumbOffsetPx(trackWidthPx: Float, thumbSizePx: Float, progress: Float): Float`
+- `internal fun resolveMusicSeekByPosition(currentPositionSeconds: Int, deltaSeconds: Int, durationSeconds: Int): Int`
+- `fun MusicPlaybackEngine.seekBackBy(intervalSeconds: Int = MUSIC_SKIP_BACK_SECONDS)`
+- `fun MusicPlaybackEngine.seekForwardBy(intervalSeconds: Int = MUSIC_SKIP_FORWARD_SECONDS)`
+
+**Contracts**:
+- The music progress slider must use the pointer's absolute x position within the track to compute scrub position. Do not compute drag position from a stale external `position + dragAmount` value.
+- Dragging updates only local scrub display state. A real `seekTo(...)` happens only on normal drag release.
+- Drag cancel clears local scrub state and must not submit a real seek.
+- Relative music seek must clamp to `0..durationSeconds` when duration is known and positive.
+- When duration is unknown or `<= 0`, relative music seek should match video relative seek behavior: clamp only to non-negative `0..Int.MAX_VALUE`, allowing forward seek from the current non-negative position instead of forcing the target to `0`.
+- Music UI controls should expose short relative seek through the playback ViewModel/Engine, not by calculating target positions in Compose.
+
+**Validation & Error Matrix**:
+| Condition | Behavior |
+|---|---|
+| Pointer x before track start | Slider position resolves to `0f` |
+| Pointer x after track end | Slider position resolves to duration |
+| Track width `<= 0` | Slider position resolves to `0f`; no crash |
+| Duration `<= 0` for slider | Use a safe duration of `1` for display math; no crash |
+| Drag release | Submit one seek to the final scrub position |
+| Drag cancel | Clear scrub state; no seek submitted |
+| Relative seek with known duration | Clamp target inside `0..durationSeconds` |
+| Relative seek with unknown duration | Clamp target to non-negative int range only |
+
+**Good/Base/Bad Cases**:
+- Good: User drags the music slider from any start point and the thumb follows the finger's absolute track position.
+- Good: User cancels a drag and playback does not jump.
+- Good: 30-second forward seek at 20s with unknown duration resolves to 50s, matching video relative seek behavior.
+- Base: 10-second back seek at 6s resolves to 0s.
+- Bad: Slider uses `position + dragAmount.x / width * duration`, so recomposition-stale position makes the thumb lag or drift.
+- Bad: `onDragCancel` calls the same completion callback as `onDragEnd`, causing an accidental seek.
+- Bad: Unknown duration is treated as max position `0`, so every forward relative seek becomes a no-op jump to 0.
+
+**Tests Required**:
+- Unit tests for `resolvePlayerThinSliderPosition(...)` covering absolute x mapping, clamping, invalid width, and zero duration.
+- Unit tests for `resolvePlayerThinSliderThumbOffsetPx(...)` covering progress clamping and thumb travel bounds.
+- Unit tests for `resolveMusicSeekByPosition(...)` covering backward clamp to 0, forward clamp to known duration, and unknown-duration non-negative behavior.
+
+**Wrong vs Correct**:
+```kotlin
+// Wrong: dragAmount is incremental and `position` may be stale during the gesture.
+val newPosition = (position + dragAmount.x / size.width * duration).coerceIn(0f, duration.toFloat())
+onPositionChange(newPosition)
+```
+
+```kotlin
+// Correct: compute from the pointer's current absolute x inside the track.
+onPositionChange(resolvePlayerThinSliderPosition(change.position.x, size.width, safeDuration))
+```
+
+```kotlin
+// Wrong: unknown duration collapses all relative seeks to 0.
+val maxPosition = durationSeconds.coerceAtLeast(0)
+return (currentPositionSeconds + deltaSeconds).coerceIn(0, maxPosition)
+```
+
+```kotlin
+// Correct: known duration clamps to duration; unknown duration clamps only to non-negative int range.
+if (durationSeconds > 0) {
+    val target = currentPositionSeconds.coerceIn(0, durationSeconds).toLong() + deltaSeconds.toLong()
+    return target.coerceIn(0L, durationSeconds.toLong()).toInt()
+}
+val target = currentPositionSeconds.coerceAtLeast(0).toLong() + deltaSeconds.toLong()
+return target.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+```
+
 ```kotlin
 val homeSongs = remember(recentlyAddedSongs) { recentlyAddedSongs.take(12) }
 
