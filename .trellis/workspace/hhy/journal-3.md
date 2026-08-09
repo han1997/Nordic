@@ -452,3 +452,38 @@ Redesigned the video player chrome with an immersive overlay, added a lightweigh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 130: 打磨音乐播放进度控制
+
+**Date**: 2026-08-09
+**Task**: 打磨音乐播放进度控制
+**Branch**: `main`
+
+### Summary
+
+修复音乐播放页进度条拖动和取消行为，新增 10 秒后退 / 30 秒前进控制，补充测试、CHANGELOG 与质量规范，并归档 optional-software-polish-2 任务。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6a1c22e` | (see git log) |
+| `f0a4daf` | (see git log) |
+| `7d0454c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

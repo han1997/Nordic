@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-3.md`
-- **Total Sessions**: 129
+- **Total Sessions**: 130
 - **Last Active**: 2026-08-09
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-3.md` | ~454 | Active |
+| `journal-3.md` | ~489 | Active |
 | `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
@@ -31,6 +31,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 130 | 2026-08-09 | 打磨音乐播放进度控制 | `6a1c22e`, `f0a4daf`, `7d0454c` | `main` |
 | 129 | 2026-08-09 | 音乐播放队列排序打磨 | `7ab4890`, `357534c` | `main` |
 | 128 | 2026-08-09 | 软件完整度完善 | `9d97599`, `96e022e`, `fde1b62`, `6d8e66d`, `d07b917` | `main` |
 | 127 | 2026-08-08 | Micro-interaction token 收敛(NordicMotion.durationMicro) | `bcc4a28`, `3a86b5d`, `d2253b1` | `main` |
