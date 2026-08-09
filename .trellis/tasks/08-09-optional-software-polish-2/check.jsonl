@@ -1,0 +1,4 @@
+{"file":".trellis/spec/backend/index.md","reason":"Android app spec index and required Gradle verification commands."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Review expectations for playback state behavior, test coverage, and regression risk."}
+{"file":".trellis/spec/backend/documentation-guidelines.md","reason":"Validate changelog wording and Chinese documentation conventions."}
+{"file":".trellis/spec/backend/navidrome-integration.md","reason":"Check music playback changes do not violate Navidrome/music behavior contracts."}

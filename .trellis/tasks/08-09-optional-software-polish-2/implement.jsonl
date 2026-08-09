@@ -1,0 +1,5 @@
+{"file":".trellis/spec/backend/index.md","reason":"Android app spec index and verification commands for the music playback polish task."}
+{"file":".trellis/spec/backend/directory-structure.md","reason":"Guidance for placing any extracted UI/playback helpers and related tests."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Quality and test expectations for Compose UI and playback behavior changes."}
+{"file":".trellis/spec/backend/documentation-guidelines.md","reason":"Required before updating user-visible changelog and Chinese documentation text."}
+{"file":".trellis/spec/backend/navidrome-integration.md","reason":"Music/Navidrome behavior contract relevant to changing music playback controls."}
