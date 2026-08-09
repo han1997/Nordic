@@ -98,6 +98,10 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
 
     fun seekTo(positionSeconds: Int) = engine.seekTo(positionSeconds)
 
+    fun seekBackBy(intervalSeconds: Int = MUSIC_SKIP_BACK_SECONDS) = engine.seekBackBy(intervalSeconds)
+
+    fun seekForwardBy(intervalSeconds: Int = MUSIC_SKIP_FORWARD_SECONDS) = engine.seekForwardBy(intervalSeconds)
+
     fun seekToNext() = engine.seekToNext()
 
     fun seekToPrevious() = engine.seekToPrevious()

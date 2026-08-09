@@ -24,6 +24,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+internal const val MUSIC_SKIP_BACK_SECONDS = 10
+internal const val MUSIC_SKIP_FORWARD_SECONDS = 30
+
 data class MusicPlaybackState(
     val currentSong: NavidromeSong? = null,
     val isPlaying: Boolean = false,
@@ -115,6 +118,22 @@ internal fun shouldReplaceCurrentMusicItem(
 ): Boolean {
     return currentMediaId != requestedSong.id ||
         currentStreamUrl != requestedSong.streamUrl.orEmpty()
+}
+
+internal fun resolveMusicSeekByPosition(
+    currentPositionSeconds: Int,
+    deltaSeconds: Int,
+    durationSeconds: Int
+): Int {
+    if (durationSeconds > 0) {
+        val safePosition = currentPositionSeconds.coerceIn(0, durationSeconds)
+        val target = safePosition.toLong() + deltaSeconds.toLong()
+        return target.coerceIn(0L, durationSeconds.toLong()).toInt()
+    }
+
+    val safePosition = currentPositionSeconds.coerceAtLeast(0)
+    val target = safePosition.toLong() + deltaSeconds.toLong()
+    return target.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
 }
 
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -490,6 +509,14 @@ class MusicPlaybackEngine(context: Context) {
         publishPlayerState()
     }
 
+    fun seekBackBy(intervalSeconds: Int = MUSIC_SKIP_BACK_SECONDS) {
+        seekBy(-intervalSeconds)
+    }
+
+    fun seekForwardBy(intervalSeconds: Int = MUSIC_SKIP_FORWARD_SECONDS) {
+        seekBy(intervalSeconds)
+    }
+
     fun stop() {
         stopPositionUpdates()
         controller?.run {
@@ -588,6 +615,21 @@ class MusicPlaybackEngine(context: Context) {
                 queueIndex = currentIndex
             )
         }
+    }
+
+    private fun seekBy(deltaSeconds: Int) {
+        val currentState = _state.value
+        val controllerPosition = controller?.currentPosition
+            ?.coerceAtLeast(0L)
+            ?.div(1000L)
+            ?.toInt()
+        val currentPosition = controllerPosition ?: currentState.positionSeconds
+        val controllerDuration = controller?.duration
+            ?.takeIf { it > 0 && it != C.TIME_UNSET }
+            ?.div(1000L)
+            ?.toInt()
+        val duration = controllerDuration ?: currentState.durationSeconds
+        seekTo(resolveMusicSeekByPosition(currentPosition, deltaSeconds, duration))
     }
 
     private fun movePendingQueueItem(fromIndex: Int, targetIndex: Int) {

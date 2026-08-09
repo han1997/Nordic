@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -26,6 +27,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -54,10 +57,12 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.Player
@@ -66,6 +71,7 @@ import com.nordic.mediahub.data.NavidromeSong
 import com.nordic.mediahub.ui.theme.NordicAlpha
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
+import kotlin.math.roundToInt
 
 @Composable
 fun MusicPlayerScreen(
@@ -85,6 +91,8 @@ fun MusicPlayerScreen(
     onSeek: (Int) -> Unit,
     onPlayPause: () -> Unit,
     onClose: () -> Unit,
+    onSeekBack: () -> Unit = {},
+    onSeekForward: () -> Unit = {},
     onSeekToNext: () -> Unit = {},
     onSeekToPrevious: () -> Unit = {},
     onToggleRepeat: () -> Unit = {},
@@ -231,9 +239,12 @@ fun MusicPlayerScreen(
                         onSeek(target.toInt())
                         scrubPosition = null
                     },
+                    onPositionChangeCanceled = { scrubPosition = null },
                     onPlayPause = onPlayPause,
                     repeatMode = repeatMode,
                     shuffleModeEnabled = shuffleModeEnabled,
+                    onSeekBack = onSeekBack,
+                    onSeekForward = onSeekForward,
                     onSeekToNext = onSeekToNext,
                     onSeekToPrevious = onSeekToPrevious,
                     onToggleRepeat = onToggleRepeat,
@@ -550,9 +561,12 @@ private fun PlayerConsole(
     playbackStatusIsError: Boolean,
     onPositionChange: (Float) -> Unit,
     onPositionChangeFinished: () -> Unit,
+    onPositionChangeCanceled: () -> Unit,
     onPlayPause: () -> Unit,
     repeatMode: Int = Player.REPEAT_MODE_OFF,
     shuffleModeEnabled: Boolean = false,
+    onSeekBack: () -> Unit = {},
+    onSeekForward: () -> Unit = {},
     onSeekToNext: () -> Unit = {},
     onSeekToPrevious: () -> Unit = {},
     onToggleRepeat: () -> Unit = {},
@@ -565,7 +579,8 @@ private fun PlayerConsole(
             colorScheme = colorScheme,
             enabled = hasSong,
             onPositionChange = onPositionChange,
-            onPositionChangeFinished = onPositionChangeFinished
+            onPositionChangeFinished = onPositionChangeFinished,
+            onPositionChangeCanceled = onPositionChangeCanceled
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -600,8 +615,8 @@ private fun PlayerConsole(
                 Player.REPEAT_MODE_ONE -> Icons.Filled.RepeatOne
                 else -> Icons.Filled.Repeat
             }
-            val sideButtonSize: Dp = if (compact) 34.dp else 38.dp
-            val skipButtonSize: Dp = if (compact) 42.dp else 46.dp
+            val sideButtonSize: Dp = if (compact) 32.dp else 36.dp
+            val skipButtonSize: Dp = if (compact) 38.dp else 42.dp
             PlayerIconButton(
                 icon = Icons.Filled.Shuffle,
                 colorScheme = colorScheme,
@@ -620,6 +635,14 @@ private fun PlayerConsole(
                 contentDescription = "上一首"
             )
             PlayerIconButton(
+                icon = Icons.Filled.FastRewind,
+                colorScheme = colorScheme,
+                size = sideButtonSize,
+                enabled = hasSong,
+                onClick = onSeekBack,
+                contentDescription = "后退 10 秒"
+            )
+            PlayerIconButton(
                 icon = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                 colorScheme = colorScheme,
                 size = if (compact) 62.dp else 68.dp,
@@ -627,6 +650,14 @@ private fun PlayerConsole(
                 enabled = hasSong,
                 onClick = onPlayPause,
                 contentDescription = if (isPlaying) "暂停" else "播放"
+            )
+            PlayerIconButton(
+                icon = Icons.Filled.FastForward,
+                colorScheme = colorScheme,
+                size = sideButtonSize,
+                enabled = hasSong,
+                onClick = onSeekForward,
+                contentDescription = "前进 30 秒"
             )
             PlayerIconButton(
                 icon = Icons.Filled.SkipNext,
@@ -663,7 +694,8 @@ private fun PlayerThinSlider(
     colorScheme: ColorScheme,
     enabled: Boolean,
     onPositionChange: (Float) -> Unit,
-    onPositionChangeFinished: () -> Unit
+    onPositionChangeFinished: () -> Unit,
+    onPositionChangeCanceled: () -> Unit
 ) {
     val safeDuration = maxOf(duration, 1)
     val progress = (position / safeDuration).coerceIn(0f, 1f)
@@ -674,7 +706,7 @@ private fun PlayerThinSlider(
     val inactiveColor = colorScheme.onSurface.copy(alpha = if (enabled) 0.14f else 0.08f)
     val thumbColor = if (enabled) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.2f)
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
             .height(thumbSize + trackHeight) // touch target room
@@ -682,21 +714,24 @@ private fun PlayerThinSlider(
                 if (!enabled) return@pointerInput
                 detectDragGestures(
                     onDragStart = { offset ->
-                        val ratio = (offset.x / size.width).coerceIn(0f, 1f)
-                        onPositionChange(ratio * safeDuration)
+                        onPositionChange(resolvePlayerThinSliderPosition(offset.x, size.width, safeDuration))
                     },
                     onDragEnd = { onPositionChangeFinished() },
-                    onDragCancel = { onPositionChangeFinished() }
-                ) { change, dragAmount ->
+                    onDragCancel = { onPositionChangeCanceled() }
+                ) { change, _ ->
                     change.consume()
-                    val deltaRatio = dragAmount.x / size.width
-                    val newPosition = (position + deltaRatio * safeDuration).coerceIn(0f, safeDuration.toFloat())
-                    onPositionChange(newPosition)
+                    onPositionChange(resolvePlayerThinSliderPosition(change.position.x, size.width, safeDuration))
                 }
             }
             .padding(vertical = (thumbSize - trackHeight) / 2),
         contentAlignment = Alignment.CenterStart
     ) {
+        val density = LocalDensity.current
+        val thumbOffsetPx = resolvePlayerThinSliderThumbOffsetPx(
+            trackWidthPx = constraints.maxWidth.toFloat(),
+            thumbSizePx = with(density) { thumbSize.toPx() },
+            progress = progress
+        )
         // Inactive track
         Box(
             modifier = Modifier
@@ -716,6 +751,7 @@ private fun PlayerThinSlider(
         // Thumb
         Box(
             modifier = Modifier
+                .offset { IntOffset(thumbOffsetPx.roundToInt(), 0) }
                 .size(thumbSize)
                 .clip(NordicShapes.full)
                 .background(SolidColor(thumbColor))
@@ -825,6 +861,18 @@ internal fun selectVisibleLyricLines(
                 active = activeIndex != null && startIndex + index == activeIndex
             )
         }
+}
+
+internal fun resolvePlayerThinSliderPosition(pointerX: Float, trackWidth: Int, durationSeconds: Int): Float {
+    val safeDuration = maxOf(durationSeconds, 1)
+    if (trackWidth <= 0) return 0f
+    val ratio = (pointerX / trackWidth.toFloat()).coerceIn(0f, 1f)
+    return ratio * safeDuration
+}
+
+internal fun resolvePlayerThinSliderThumbOffsetPx(trackWidthPx: Float, thumbSizePx: Float, progress: Float): Float {
+    val travelPx = (trackWidthPx - thumbSizePx).coerceAtLeast(0f)
+    return travelPx * progress.coerceIn(0f, 1f)
 }
 
 /**

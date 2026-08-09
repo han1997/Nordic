@@ -9,6 +9,22 @@ import org.junit.Test
 
 class MusicPlaybackEngineTest {
     @Test
+    fun resolveMusicSeekByPosition_clampsBackwardToZero() {
+        assertEquals(0, resolveMusicSeekByPosition(currentPositionSeconds = 6, deltaSeconds = -10, durationSeconds = 200))
+    }
+
+    @Test
+    fun resolveMusicSeekByPosition_clampsForwardToDuration() {
+        assertEquals(200, resolveMusicSeekByPosition(currentPositionSeconds = 180, deltaSeconds = 30, durationSeconds = 200))
+    }
+
+    @Test
+    fun resolveMusicSeekByPosition_allowsNonNegativeSeekWhenDurationUnknown() {
+        assertEquals(50, resolveMusicSeekByPosition(currentPositionSeconds = 20, deltaSeconds = 30, durationSeconds = 0))
+        assertEquals(0, resolveMusicSeekByPosition(currentPositionSeconds = 20, deltaSeconds = -30, durationSeconds = 0))
+    }
+
+    @Test
     fun shouldReplaceCurrentMusicItem_returnsFalseForSameIdAndSameStreamUrl() {
         val song = song(id = "song-1", streamUrl = "https://music.example/stream?id=song-1&token=old")
 

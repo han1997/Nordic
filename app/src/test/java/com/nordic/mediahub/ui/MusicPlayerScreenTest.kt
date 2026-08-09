@@ -9,6 +9,37 @@ import org.junit.Test
 
 class MusicPlayerScreenTest {
     @Test
+    fun resolvePlayerThinSliderPosition_usesAbsolutePointerX() {
+        assertEquals(75f, resolvePlayerThinSliderPosition(pointerX = 150f, trackWidth = 200, durationSeconds = 100), 0.001f)
+    }
+
+    @Test
+    fun resolvePlayerThinSliderPosition_clampsOutsideTrack() {
+        assertEquals(0f, resolvePlayerThinSliderPosition(pointerX = -20f, trackWidth = 200, durationSeconds = 100), 0.001f)
+        assertEquals(100f, resolvePlayerThinSliderPosition(pointerX = 260f, trackWidth = 200, durationSeconds = 100), 0.001f)
+    }
+
+    @Test
+    fun resolvePlayerThinSliderPosition_handlesInvalidWidthAndDuration() {
+        assertEquals(0f, resolvePlayerThinSliderPosition(pointerX = 20f, trackWidth = 0, durationSeconds = 100), 0.001f)
+        assertEquals(1f, resolvePlayerThinSliderPosition(pointerX = 200f, trackWidth = 200, durationSeconds = 0), 0.001f)
+    }
+
+    @Test
+    fun resolvePlayerThinSliderThumbOffsetPx_centersThumbWithinTrackTravel() {
+        assertEquals(0f, resolvePlayerThinSliderThumbOffsetPx(trackWidthPx = 200f, thumbSizePx = 12f, progress = 0f), 0.001f)
+        assertEquals(94f, resolvePlayerThinSliderThumbOffsetPx(trackWidthPx = 200f, thumbSizePx = 12f, progress = 0.5f), 0.001f)
+        assertEquals(188f, resolvePlayerThinSliderThumbOffsetPx(trackWidthPx = 200f, thumbSizePx = 12f, progress = 1f), 0.001f)
+    }
+
+    @Test
+    fun resolvePlayerThinSliderThumbOffsetPx_clampsProgressAndInvalidTravel() {
+        assertEquals(0f, resolvePlayerThinSliderThumbOffsetPx(trackWidthPx = 8f, thumbSizePx = 12f, progress = 1f), 0.001f)
+        assertEquals(0f, resolvePlayerThinSliderThumbOffsetPx(trackWidthPx = 200f, thumbSizePx = 12f, progress = -1f), 0.001f)
+        assertEquals(188f, resolvePlayerThinSliderThumbOffsetPx(trackWidthPx = 200f, thumbSizePx = 12f, progress = 2f), 0.001f)
+    }
+
+    @Test
     fun syncedLyricsBeforeFirstTimestamp_haveNoActiveLine() {
         val result = selectVisibleLyricLines(
             lyrics = MusicLyrics(
