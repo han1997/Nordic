@@ -418,3 +418,37 @@ Redesigned the video player chrome with an immersive overlay, added a lightweigh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 129: 音乐播放队列排序打磨
+
+**Date**: 2026-08-09
+**Task**: 音乐播放队列排序打磨
+**Branch**: `main`
+
+### Summary
+
+接通音乐播放队列上移、下移和拖动排序到 playback 层，补充队列索引测试并更新发布记录；完成编译、单测、lint 和 diff 检查。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7ab4890` | (see git log) |
+| `357534c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
