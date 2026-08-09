@@ -30,6 +30,7 @@
 * 视频配置仍保留未来扩展空间，但用户界面必须明确当前仅支持 Emby；若保留 Plex/WebDAV 选项，需要显示“暂不可用/后续支持”的状态，并禁止保存/测试造成误导。
 * 更新 README/PRODUCT/CHANGELOG 中与服务能力、配置页、视频服务支持范围相关的描述，使其与当前实现一致。
 * 文档和 UI 文案使用中文优先；Navidrome、AudiobookShelf、Emby、Plex、WebDAV、API Key 等技术名保留原名。
+* 追加打磨：共享加载状态卡片需要有明确的进行中反馈，覆盖同步、搜索、详情加载等路径。
 
 ## Acceptance Criteria (evolving)
 
@@ -39,6 +40,7 @@
 * [ ] `README.md` 不再把 Plex/WebDAV 描述为当前已支持的视频能力，除非同时说明是后续计划或暂不可用。
 * [ ] `PRODUCT.md` 的产品能力描述与当前实现一致。
 * [ ] `CHANGELOG.md` 在 `[未发布]` 中记录本次配置页文案修复、视频入口收敛和文档说明更新。
+* [ ] 共享 `MediaLoadingCard` 在所有使用场景下呈现轻量进度反馈，不改变各页面加载条件或业务逻辑。
 * [ ] 用户可见文案符合中文优先规范，技术名如 Navidrome、AudiobookShelf、Emby、API Key 保持原名。
 * [ ] 相关单元测试、编译和 lint 按项目规范验证。
 
