@@ -4,7 +4,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -22,6 +24,8 @@ import com.nordic.mediahub.ui.theme.NordicSpacing
 private const val EMPTY_STATE_CONTAINER_ALPHA = 0.72f
 private const val LOADING_STATE_CONTAINER_ALPHA = 0.76f
 private const val ERROR_STATE_SUBTITLE_ALPHA = 0.82f
+private const val LOADING_PROGRESS_ALPHA = 0.72f
+private const val LOADING_PROGRESS_TRACK_ALPHA = 0.08f
 
 internal enum class MediaStateTone {
     Neutral,
@@ -120,6 +124,13 @@ internal fun MediaLoadingCard(
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Normal,
                 color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium)
+            )
+            LinearProgressIndicator(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(2.dp),
+                color = colorScheme.primary.copy(alpha = LOADING_PROGRESS_ALPHA),
+                trackColor = colorScheme.onSurface.copy(alpha = LOADING_PROGRESS_TRACK_ALPHA)
             )
         }
     }
