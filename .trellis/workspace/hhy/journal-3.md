@@ -487,3 +487,38 @@ Redesigned the video player chrome with an immersive overlay, added a lightweigh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 131: 打磨有声书相对跳转边界
+
+**Date**: 2026-08-10
+**Task**: 打磨有声书相对跳转边界
+**Branch**: `main`
+
+### Summary
+
+修复有声书在未知或非正时长下的相对 seek 边界，补充正负 duration 测试，更新 AudiobookShelf 集成契约与 CHANGELOG，并归档 audiobook seek polish 任务。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ec2567f` | (see git log) |
+| `bc14fff` | (see git log) |
+| `60f22b8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
