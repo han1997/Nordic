@@ -402,7 +402,12 @@ internal fun resolveAudiobookRelativeSeekPositionSeconds(
     durationSeconds: Int,
     deltaSeconds: Int
 ): Int {
-    val maxPosition = durationSeconds.coerceAtLeast(0)
+    if (durationSeconds <= 0) {
+        val target = positionSeconds.coerceAtLeast(0).toLong() + deltaSeconds.toLong()
+        return target.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+    }
+
+    val maxPosition = durationSeconds
     val safePosition = positionSeconds.coerceIn(0, maxPosition)
     val target = safePosition.toLong() + deltaSeconds.toLong()
     return target.coerceIn(0L, maxPosition.toLong()).toInt()

@@ -216,6 +216,42 @@ class AudiobookPlaybackEngineTest {
     }
 
     @Test
+    fun resolveAudiobookRelativeSeekPositionSeconds_allowsForwardSeekWithUnknownDuration() {
+        assertEquals(
+            50,
+            resolveAudiobookRelativeSeekPositionSeconds(
+                positionSeconds = 20,
+                durationSeconds = 0,
+                deltaSeconds = 30
+            )
+        )
+    }
+
+    @Test
+    fun resolveAudiobookRelativeSeekPositionSeconds_clampsBackwardSeekWithUnknownDurationAtStart() {
+        assertEquals(
+            0,
+            resolveAudiobookRelativeSeekPositionSeconds(
+                positionSeconds = 20,
+                durationSeconds = 0,
+                deltaSeconds = -30
+            )
+        )
+    }
+
+    @Test
+    fun resolveAudiobookRelativeSeekPositionSeconds_allowsForwardSeekWithNegativeDuration() {
+        assertEquals(
+            50,
+            resolveAudiobookRelativeSeekPositionSeconds(
+                positionSeconds = 20,
+                durationSeconds = -1,
+                deltaSeconds = 30
+            )
+        )
+    }
+
+    @Test
     fun resolveNextAudiobookPlaybackSpeed_cyclesKnownSpeeds() {
         assertEquals(1.25f, resolveNextAudiobookPlaybackSpeed(1f), 0.001f)
         assertEquals(0.75f, resolveNextAudiobookPlaybackSpeed(2f), 0.001f)
