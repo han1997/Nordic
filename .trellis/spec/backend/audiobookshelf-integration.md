@@ -95,7 +95,8 @@
 - Playback state must resolve absolute audiobook progress as `track.startOffsetSeconds + localPositionSeconds`, with the known-track local position clamped to `0..track.durationSeconds` before adding the track offset.
 - Absolute audiobook seek positions must be mapped to the Media3 track list as `(mediaItemIndex, localOffsetSeconds)` and the local offset must be clamped to `0..track.durationSeconds`.
 - Relative skip controls must resolve to an absolute audiobook position and use the same `seekTo(positionSeconds)` path as the scrubber.
-- Relative skip targets must be clamped to `0..durationSeconds`; do not seek negative or beyond the audiobook duration.
+- Relative skip targets with a known positive duration must be clamped to `0..durationSeconds`; do not seek negative or beyond the audiobook duration.
+- When duration is unknown or non-positive, relative skip targets must use the current non-negative position plus the delta and clamp only to `0..Int.MAX_VALUE`, so a forward skip does not collapse to position `0` while Media3 is still resolving duration.
 - Playback speed is Media3 player state. `AudiobookPlaybackState.playbackSpeed` must reflect `Player.playbackParameters.speed`, and `cyclePlaybackSpeed()` cycles common audiobook steps: `0.75x`, `1.0x`, `1.25x`, `1.5x`, `2.0x`.
 - Chapter navigation must seek by absolute audiobook seconds, using the same `seekTo(positionSeconds)` path as the scrubber. Do not seek by track-local time when moving between chapters.
 - Previous chapter behavior should restart the current chapter when playback is at or beyond a small threshold into it; before that threshold, it should jump to the previous chapter when one exists.
