@@ -127,6 +127,13 @@ class MusicScreenV2Test {
     }
 
     @Test
+    fun shouldShowMusicSearchClearAction_onlyShowsForNonBlankQuery() {
+        assertEquals(false, shouldShowMusicSearchClearAction(""))
+        assertEquals(false, shouldShowMusicSearchClearAction("   "))
+        assertEquals(true, shouldShowMusicSearchClearAction("北欧民谣"))
+    }
+
+    @Test
     fun musicAlbumDetailLoadErrorMessage_includesContextAndCause() {
         assertEquals(
             "获取专辑曲目失败: offline",

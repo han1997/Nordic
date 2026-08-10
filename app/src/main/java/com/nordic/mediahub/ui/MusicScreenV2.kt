@@ -17,6 +17,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
@@ -156,6 +160,14 @@ fun MusicScreenV2(
         isSearching = false
         albumSort = NavidromeAlbumSort.RecentlyAdded
         cacheUpdatedAtMillis = null
+    }
+
+    fun clearMusicSearch() {
+        searchQuery = ""
+        searchJob.getAndSet(null)?.cancel()
+        searchResult = null
+        searchError = null
+        isSearching = false
     }
 
     suspend fun applyCachedMusicData(targetConfig: NavidromeConfig, requestVersion: Int? = null): Boolean {
@@ -308,11 +320,7 @@ fun MusicScreenV2(
     }
 
     fun openSearch() {
-        searchJob.get()?.cancel()
-        searchQuery = ""
-        searchResult = null
-        searchError = null
-        isSearching = false
+        clearMusicSearch()
         libraryPage = MusicLibraryPage.Search
     }
 
@@ -1018,7 +1026,7 @@ fun MusicScreenV2(
                         value = searchQuery,
                         onValueChange = { newQuery ->
                             searchQuery = newQuery
-                            searchJob.get()?.cancel()
+                            searchJob.getAndSet(null)?.cancel()
                             searchError = null
                             val query = newQuery.trim()
                             if (query.isBlank()) {
@@ -1048,6 +1056,19 @@ fun MusicScreenV2(
                             }
                         },
                         placeholder = { Text("搜索歌曲、专辑、歌手...", color = colorScheme.onSurface.copy(alpha = NordicAlpha.faint)) },
+                        trailingIcon = if (shouldShowMusicSearchClearAction(searchQuery)) {
+                            {
+                                IconButton(onClick = { clearMusicSearch() }) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Close,
+                                        contentDescription = "清除搜索关键词",
+                                        tint = colorScheme.onSurface.copy(alpha = NordicAlpha.medium)
+                                    )
+                                }
+                            }
+                        } else {
+                            null
+                        },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = colorScheme.primary,

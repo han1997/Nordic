@@ -59,6 +59,10 @@ internal fun firstPlayableSongIndex(songs: List<NavidromeSong>): Int? {
         .takeIf { index -> index >= 0 }
 }
 
+internal fun shouldShowMusicSearchClearAction(query: String): Boolean {
+    return query.isNotBlank()
+}
+
 internal fun musicAlbumDetailLoadErrorMessage(error: Throwable): String {
     return "获取专辑曲目失败: ${error.message ?: "未知错误"}"
 }
