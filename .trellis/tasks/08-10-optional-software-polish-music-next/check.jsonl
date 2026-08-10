@@ -1,0 +1,4 @@
+{"file":".trellis/spec/backend/index.md","reason":"Android app spec index and sequential verification requirements."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Review Compose search state cleanup, performance isolation, accessibility, and regressions."}
+{"file":".trellis/spec/backend/navidrome-integration.md","reason":"Validate search API behavior and preserve Navidrome search mapping contracts."}
+{"file":".trellis/spec/backend/documentation-guidelines.md","reason":"Validate changelog placement and Chinese user-visible copy."}

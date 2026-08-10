@@ -1,0 +1,4 @@
+{"file":".trellis/spec/backend/index.md","reason":"Android app spec index and required Gradle verification commands."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Compose UI quality, state isolation, shared component, and test expectations for MusicScreenV2."}
+{"file":".trellis/spec/backend/navidrome-integration.md","reason":"Navidrome search behavior and repository/UI boundary contract."}
+{"file":".trellis/spec/backend/documentation-guidelines.md","reason":"Required before updating the Chinese user-visible CHANGELOG entry."}
