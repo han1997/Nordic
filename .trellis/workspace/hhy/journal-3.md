@@ -522,3 +522,37 @@ Redesigned the video player chrome with an immersive overlay, added a lightweigh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 132: 完善音乐搜索清除入口
+
+**Date**: 2026-08-11
+**Task**: 完善音乐搜索清除入口
+**Branch**: `main`
+
+### Summary
+
+为音乐搜索框新增一键清除入口，清空时取消待执行搜索并重置结果、错误和加载状态；补充逻辑测试、CHANGELOG 和 Trellis 任务材料。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a69c76c` | (see git log) |
+| `c4d2687` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
