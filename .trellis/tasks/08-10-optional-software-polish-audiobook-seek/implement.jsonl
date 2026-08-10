@@ -1,0 +1,4 @@
+{"file":".trellis/spec/backend/index.md","reason":"Android app spec index and verification commands for the audiobook seek polish task."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Playback seek boundary and test expectations, including recently documented relative seek behavior."}
+{"file":".trellis/spec/backend/audiobookshelf-integration.md","reason":"AudiobookShelf playback session and progress sync contract to avoid changing unrelated semantics."}
+{"file":".trellis/spec/backend/documentation-guidelines.md","reason":"Required before updating user-visible changelog text in Chinese."}

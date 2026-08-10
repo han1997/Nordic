@@ -1,0 +1,4 @@
+{"file":".trellis/spec/backend/index.md","reason":"Android app spec index and required Gradle verification commands."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Review relative seek boundary behavior and test coverage against quality contracts."}
+{"file":".trellis/spec/backend/audiobookshelf-integration.md","reason":"Validate audiobook playback changes do not affect session/progress integration contracts."}
+{"file":".trellis/spec/backend/documentation-guidelines.md","reason":"Validate changelog placement and Chinese user-visible wording."}
