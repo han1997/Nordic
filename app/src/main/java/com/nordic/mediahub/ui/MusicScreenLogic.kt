@@ -63,6 +63,20 @@ internal fun shouldShowMusicSearchClearAction(query: String): Boolean {
     return query.isNotBlank()
 }
 
+internal fun filterMusicSongs(
+    songs: List<NavidromeSong>,
+    query: String
+): List<NavidromeSong> {
+    val normalizedQuery = query.trim()
+    if (normalizedQuery.isBlank()) return songs
+
+    return songs.filter { song ->
+        listOf(song.title, song.artist, song.album)
+            .filterNotNull()
+            .any { term -> term.contains(normalizedQuery, ignoreCase = true) }
+    }
+}
+
 internal fun musicAlbumDetailLoadErrorMessage(error: Throwable): String {
     return "获取专辑曲目失败: ${error.message ?: "未知错误"}"
 }

@@ -433,6 +433,17 @@ private fun PlayerLyricsDisplay(
                         if (compact) NordicSpacing.sm else NordicSpacing.md
                     )
                 ) {
+                    resolveLyricsModeLabel(lyrics)?.let { label ->
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colorScheme.primary.copy(alpha = NordicAlpha.medium),
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                     visibleLines.forEach { line ->
                         Text(
                             line.text,
@@ -828,6 +839,16 @@ internal data class VisibleLyricLine(
     val text: String,
     val active: Boolean
 )
+
+internal fun resolveLyricsModeLabel(lyrics: MusicLyrics?): String? {
+    val lines = lyrics?.lines?.filter { it.text.isNotBlank() }.orEmpty()
+    if (lines.isEmpty()) return null
+    return if (lyrics?.synced == true && lines.any { it.startMillis != null }) {
+        "同步歌词"
+    } else {
+        "普通歌词"
+    }
+}
 
 internal fun selectVisibleLyricLines(
     lyrics: MusicLyrics?,

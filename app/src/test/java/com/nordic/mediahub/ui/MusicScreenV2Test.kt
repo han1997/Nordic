@@ -134,6 +134,25 @@ class MusicScreenV2Test {
     }
 
     @Test
+    fun filterMusicSongs_matchesTitleArtistAndAlbumCaseInsensitively() {
+        val songs = listOf(
+            song(id = "one").copy(title = "Quiet Harbor", artist = "Nordic Echo", album = "Morning"),
+            song(id = "two").copy(title = "Night Drive", artist = "Signal", album = "Harbor Lights"),
+            song(id = "three").copy(title = "Forest Walk", artist = "Field", album = "Green")
+        )
+
+        assertEquals(listOf("one", "two"), filterMusicSongs(songs, "harbor").map { it.id })
+        assertEquals(listOf("one"), filterMusicSongs(songs, "ECHO").map { it.id })
+    }
+
+    @Test
+    fun filterMusicSongs_blankQueryKeepsOriginalList() {
+        val songs = listOf(song(id = "one"), song(id = "two"))
+
+        assertEquals(songs, filterMusicSongs(songs, "   "))
+    }
+
+    @Test
     fun musicAlbumDetailLoadErrorMessage_includesContextAndCause() {
         assertEquals(
             "获取专辑曲目失败: offline",

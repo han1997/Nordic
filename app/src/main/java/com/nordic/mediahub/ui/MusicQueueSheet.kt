@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +23,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -64,6 +66,13 @@ fun MusicQueueSheet(
     } else {
         0
     }
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(resolvedCurrentIndex, queue.size) {
+        if (resolvedCurrentIndex >= 0) {
+            listState.scrollToItem(resolvedCurrentIndex)
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -85,7 +94,13 @@ fun MusicQueueSheet(
             if (queue.isEmpty()) {
                 QueueEmptyState(colorScheme = colorScheme)
             } else {
+                QueueCurrentHint(
+                    currentSong = queue.getOrNull(resolvedCurrentIndex),
+                    upcomingCount = upcomingCount,
+                    colorScheme = colorScheme
+                )
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 520.dp),
@@ -196,6 +211,49 @@ private fun QueueEmptyState(colorScheme: ColorScheme) {
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.xxl)
         )
+    }
+}
+
+@Composable
+private fun QueueCurrentHint(
+    currentSong: NavidromeSong?,
+    upcomingCount: Int,
+    colorScheme: ColorScheme
+) {
+    Surface(
+        color = colorScheme.primary.copy(alpha = 0.08f),
+        contentColor = colorScheme.onSurface,
+        shape = NordicShapes.md,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = NordicSpacing.md)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
+        ) {
+            Text(
+                currentSong?.title ?: "未定位当前播放",
+                style = MaterialTheme.typography.titleSmall,
+                color = colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                if (currentSong == null) {
+                    "点击任意歌曲即可开始播放"
+                } else if (upcomingCount > 0) {
+                    "已定位到当前播放，后续还有 $upcomingCount 首"
+                } else {
+                    "已定位到当前播放，后续队列为空"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 

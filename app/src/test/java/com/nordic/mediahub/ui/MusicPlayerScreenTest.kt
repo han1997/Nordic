@@ -40,6 +40,39 @@ class MusicPlayerScreenTest {
     }
 
     @Test
+    fun resolveLyricsModeLabel_distinguishesSyncedAndPlainLyrics() {
+        assertEquals(
+            "同步歌词",
+            resolveLyricsModeLabel(
+                MusicLyrics(
+                    synced = true,
+                    lines = listOf(MusicLyricsLine(startMillis = 1_000, text = "Timed"))
+                )
+            )
+        )
+        assertEquals(
+            "普通歌词",
+            resolveLyricsModeLabel(
+                MusicLyrics(
+                    synced = false,
+                    lines = listOf(MusicLyricsLine(text = "Plain"))
+                )
+            )
+        )
+    }
+
+    @Test
+    fun resolveLyricsModeLabel_returnsNullWhenLyricsAreEmpty() {
+        assertEquals(null, resolveLyricsModeLabel(null))
+        assertEquals(
+            null,
+            resolveLyricsModeLabel(
+                MusicLyrics(lines = listOf(MusicLyricsLine(text = "   ")))
+            )
+        )
+    }
+
+    @Test
     fun syncedLyricsBeforeFirstTimestamp_haveNoActiveLine() {
         val result = selectVisibleLyricLines(
             lyrics = MusicLyrics(

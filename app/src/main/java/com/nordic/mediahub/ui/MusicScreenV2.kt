@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -27,6 +28,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -101,6 +103,7 @@ fun MusicScreenV2(
     var sortedAlbums by remember { mutableStateOf(emptyList<NavidromeAlbum>()) }
     var albumSort by remember { mutableStateOf(NavidromeAlbumSort.RecentlyAdded) }
     var songSort by remember { mutableStateOf(MusicSongSort.Default) }
+    var songFilterQuery by remember { mutableStateOf("") }
     var songs by remember { mutableStateOf(emptyList<NavidromeSong>()) }
     var recentlyAddedSongs by remember { mutableStateOf(emptyList<NavidromeSong>()) }
     var artists by remember { mutableStateOf(emptyList<NavidromeArtist>()) }
@@ -119,6 +122,12 @@ fun MusicScreenV2(
     var selectedPlaylist by remember { mutableStateOf<NavidromePlaylist?>(null) }
     var playlistSongs by remember { mutableStateOf(emptyList<NavidromeSong>()) }
     var isLoadingPlaylistDetail by remember { mutableStateOf(false) }
+    var isCreatingPlaylist by remember { mutableStateOf(false) }
+    var renamingPlaylist by remember { mutableStateOf<NavidromePlaylist?>(null) }
+    var deletingPlaylist by remember { mutableStateOf<NavidromePlaylist?>(null) }
+    var playlistNameDraft by remember { mutableStateOf("") }
+    var playlistActionError by remember { mutableStateOf<String?>(null) }
+    var isPlaylistActionRunning by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var searchResult by remember { mutableStateOf<SearchMusicResult?>(null) }
     var isSearching by remember { mutableStateOf(false) }
@@ -159,6 +168,14 @@ fun MusicScreenV2(
         searchError = null
         isSearching = false
         albumSort = NavidromeAlbumSort.RecentlyAdded
+        songSort = MusicSongSort.Default
+        songFilterQuery = ""
+        isCreatingPlaylist = false
+        renamingPlaylist = null
+        deletingPlaylist = null
+        playlistNameDraft = ""
+        playlistActionError = null
+        isPlaylistActionRunning = false
         cacheUpdatedAtMillis = null
     }
 
@@ -316,6 +333,109 @@ fun MusicScreenV2(
         libraryPage = MusicLibraryPage.Playlists
         if (playlists.isEmpty()) {
             scope.launch { loadPlaylists() }
+        }
+    }
+
+    fun closePlaylistActionDialogs() {
+        isCreatingPlaylist = false
+        renamingPlaylist = null
+        deletingPlaylist = null
+        playlistNameDraft = ""
+        playlistActionError = null
+        isPlaylistActionRunning = false
+    }
+
+    fun createPlaylistFromDraft() {
+        val name = playlistNameDraft.trim()
+        if (name.isBlank() || isPlaylistActionRunning) return
+        val repo = navidromeRepository
+        if (repo == null) {
+            playlistActionError = "请先保存 Navidrome 配置"
+            return
+        }
+        val requestVersion = musicConfigStateVersion
+        isPlaylistActionRunning = true
+        playlistActionError = null
+        scope.launch {
+            try {
+                val created = repo.createPlaylist(name)
+                if (musicConfigStateVersion == requestVersion) {
+                    closePlaylistActionDialogs()
+                    selectedTab = 2
+                    libraryPage = MusicLibraryPage.Playlists
+                    loadPlaylists()
+                    selectedPlaylist = created
+                }
+            } catch (error: Exception) {
+                if (musicConfigStateVersion == requestVersion) {
+                    playlistActionError = "创建歌单失败: ${error.message ?: "未知错误"}"
+                    isPlaylistActionRunning = false
+                }
+            }
+        }
+    }
+
+    fun renamePlaylistFromDraft() {
+        val playlist = renamingPlaylist ?: return
+        val name = playlistNameDraft.trim()
+        if (name.isBlank() || isPlaylistActionRunning) return
+        val repo = navidromeRepository
+        if (repo == null) {
+            playlistActionError = "请先保存 Navidrome 配置"
+            return
+        }
+        val requestVersion = musicConfigStateVersion
+        isPlaylistActionRunning = true
+        playlistActionError = null
+        scope.launch {
+            try {
+                repo.renamePlaylist(playlist.id, name)
+                if (musicConfigStateVersion == requestVersion) {
+                    closePlaylistActionDialogs()
+                    playlists = playlists.map { item -> if (item.id == playlist.id) item.copy(name = name) else item }
+                    selectedPlaylist = selectedPlaylist?.let { item -> if (item.id == playlist.id) item.copy(name = name) else item }
+                    loadPlaylists()
+                }
+            } catch (error: Exception) {
+                if (musicConfigStateVersion == requestVersion) {
+                    playlistActionError = "重命名歌单失败: ${error.message ?: "未知错误"}"
+                    isPlaylistActionRunning = false
+                }
+            }
+        }
+    }
+
+    fun deleteSelectedPlaylist() {
+        val playlist = deletingPlaylist ?: return
+        if (isPlaylistActionRunning) return
+        val repo = navidromeRepository
+        if (repo == null) {
+            playlistActionError = "请先保存 Navidrome 配置"
+            return
+        }
+        val requestVersion = musicConfigStateVersion
+        isPlaylistActionRunning = true
+        playlistActionError = null
+        scope.launch {
+            try {
+                repo.deletePlaylist(playlist.id)
+                if (musicConfigStateVersion == requestVersion) {
+                    closePlaylistActionDialogs()
+                    playlists = playlists.filterNot { it.id == playlist.id }
+                    if (selectedPlaylist?.id == playlist.id) {
+                        selectedPlaylist = null
+                        playlistSongs = emptyList()
+                        selectedTab = 2
+                        libraryPage = MusicLibraryPage.Playlists
+                    }
+                    loadPlaylists()
+                }
+            } catch (error: Exception) {
+                if (musicConfigStateVersion == requestVersion) {
+                    playlistActionError = "删除歌单失败: ${error.message ?: "未知错误"}"
+                    isPlaylistActionRunning = false
+                }
+            }
         }
     }
 
@@ -519,8 +639,8 @@ fun MusicScreenV2(
     }
 
     val hasContent = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty() || playlists.isNotEmpty()
-    val visibleSongs = remember(songs, songSort) {
-        sortMusicSongs(songs, songSort)
+    val visibleSongs = remember(songs, songSort, songFilterQuery) {
+        sortMusicSongs(filterMusicSongs(songs, songFilterQuery), songSort)
     }
     val homeSongs = remember(recentlyAddedSongs) { musicHomePreviewSongs(recentlyAddedSongs) }
     val homePlaybackQueue = remember(recentlyAddedSongs) { musicHomePlaybackQueue(recentlyAddedSongs) }
@@ -844,28 +964,70 @@ fun MusicScreenV2(
                     }
                 } else {
                     item {
+                        OutlinedTextField(
+                            value = songFilterQuery,
+                            onValueChange = { songFilterQuery = it },
+                            placeholder = {
+                                Text(
+                                    "筛选标题、歌手或专辑",
+                                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.faint)
+                                )
+                            },
+                            trailingIcon = if (songFilterQuery.isNotBlank()) {
+                                {
+                                    IconButton(onClick = { songFilterQuery = "" }) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Close,
+                                            contentDescription = "清除歌曲筛选",
+                                            tint = colorScheme.onSurface.copy(alpha = NordicAlpha.medium)
+                                        )
+                                    }
+                                }
+                            } else {
+                                null
+                            },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = colorScheme.primary,
+                                unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.2f)
+                            ),
+                            shape = NordicShapes.md,
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                        )
+                    }
+                    item {
                         SongSortSegmentedControl(
                             selectedSort = songSort,
                             colorScheme = colorScheme,
                             onSortSelected = { songSort = it }
                         )
                     }
-                    itemsIndexed(
-                        items = visibleSongs,
-                        key = { index, song -> "song-${song.id}-$index" },
-                        contentType = { _, _ -> "song-row" }
-                    ) { index, song ->
-                        SongListRow(
-                            song = song,
-                            colorScheme = colorScheme,
-                            onClick = {
-                                onSongSelected(
-                                    visibleSongs,
-                                    index,
-                                    DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK
-                                )
-                            }
-                        )
+                    if (visibleSongs.isEmpty()) {
+                        item {
+                            MusicDetailEmptyState(
+                                title = "没有匹配歌曲",
+                                subtitle = "换一个关键词，或清空筛选后查看全部歌曲。",
+                            )
+                        }
+                    } else {
+                        itemsIndexed(
+                            items = visibleSongs,
+                            key = { index, song -> "song-${song.id}-$index" },
+                            contentType = { _, _ -> "song-row" }
+                        ) { index, song ->
+                            SongListRow(
+                                song = song,
+                                colorScheme = colorScheme,
+                                onClick = {
+                                    onSongSelected(
+                                        visibleSongs,
+                                        index,
+                                        DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -1203,6 +1365,32 @@ fun MusicScreenV2(
             }
 
             MusicLibraryPage.Playlists -> {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        Surface(
+                            color = colorScheme.primary,
+                            contentColor = colorScheme.onPrimary,
+                            shape = NordicShapes.full,
+                            modifier = Modifier
+                                .height(36.dp)
+                                .clickable {
+                                    playlistNameDraft = ""
+                                    playlistActionError = null
+                                    isCreatingPlaylist = true
+                                }
+                        ) {
+                            Box(
+                                modifier = Modifier.padding(horizontal = NordicSpacing.lg),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("新建歌单", style = MaterialTheme.typography.labelLarge)
+                            }
+                        }
+                    }
+                }
                 if (isLoadingPlaylists) {
                     item {
                         Box(
@@ -1263,6 +1451,50 @@ fun MusicScreenV2(
                             }
                         )
                     }
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
+                        ) {
+                            Surface(
+                                color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
+                                contentColor = colorScheme.onSurface,
+                                shape = NordicShapes.full,
+                                modifier = Modifier
+                                    .height(34.dp)
+                                    .clickable {
+                                        renamingPlaylist = playlist
+                                        playlistNameDraft = playlist.name
+                                        playlistActionError = null
+                                    }
+                            ) {
+                                Box(
+                                    modifier = Modifier.padding(horizontal = NordicSpacing.lg),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("重命名", style = MaterialTheme.typography.labelLarge)
+                                }
+                            }
+                            Surface(
+                                color = colorScheme.error.copy(alpha = 0.1f),
+                                contentColor = colorScheme.error,
+                                shape = NordicShapes.full,
+                                modifier = Modifier
+                                    .height(34.dp)
+                                    .clickable {
+                                        deletingPlaylist = playlist
+                                        playlistActionError = null
+                                    }
+                            ) {
+                                Box(
+                                    modifier = Modifier.padding(horizontal = NordicSpacing.lg),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("删除歌单", style = MaterialTheme.typography.labelLarge)
+                                }
+                            }
+                        }
+                    }
                     if (playlistSongs.isEmpty()) {
                         item {
                             MusicDetailEmptyState(
@@ -1295,5 +1527,98 @@ fun MusicScreenV2(
         }
         }
     }
-}
 
+    if (isCreatingPlaylist || renamingPlaylist != null) {
+        AlertDialog(
+            onDismissRequest = {
+                if (!isPlaylistActionRunning) closePlaylistActionDialogs()
+            },
+            title = {
+                Text(if (isCreatingPlaylist) "新建歌单" else "重命名歌单")
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
+                    OutlinedTextField(
+                        value = playlistNameDraft,
+                        onValueChange = { playlistNameDraft = it },
+                        label = { Text("歌单名称") },
+                        singleLine = true,
+                        enabled = !isPlaylistActionRunning,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = colorScheme.primary,
+                            unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.2f)
+                        ),
+                        shape = NordicShapes.md,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                    )
+                    playlistActionError?.let { message ->
+                        Text(
+                            message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colorScheme.error
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = playlistNameDraft.isNotBlank() && !isPlaylistActionRunning,
+                    onClick = {
+                        if (isCreatingPlaylist) {
+                            createPlaylistFromDraft()
+                        } else {
+                            renamePlaylistFromDraft()
+                        }
+                    }
+                ) {
+                    Text(if (isPlaylistActionRunning) "处理中" else "确认")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !isPlaylistActionRunning,
+                    onClick = { closePlaylistActionDialogs() }
+                ) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+
+    deletingPlaylist?.let { playlist ->
+        AlertDialog(
+            onDismissRequest = {
+                if (!isPlaylistActionRunning) closePlaylistActionDialogs()
+            },
+            title = { Text("删除歌单") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
+                    Text("确定删除“${playlist.name}”？这个操作会同步到 Navidrome。")
+                    playlistActionError?.let { message ->
+                        Text(
+                            message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colorScheme.error
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !isPlaylistActionRunning,
+                    onClick = { deleteSelectedPlaylist() }
+                ) {
+                    Text(if (isPlaylistActionRunning) "处理中" else "删除")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !isPlaylistActionRunning,
+                    onClick = { closePlaylistActionDialogs() }
+                ) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+}
