@@ -1,0 +1,4 @@
+{"file":".trellis/tasks/archive/2026-08/08-11-polish-ui-interaction/research/navigation-audit.md","reason":"Verify that deferred findings A4, V4, V6, and C1 are addressed and unrelated acceptable findings are not regressed."}
+{"file":".trellis/tasks/archive/2026-08/08-11-polish-ui-interaction/info.md","reason":"Check compliance with prior constraints: preserve state-driven navigation, back parity, API/cache boundaries, and changelog updates."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Validate Compose navigation/back-handler conventions and reset-feedback precedent from the Music state reset contract."}
+{"file":".trellis/tasks/08-11-continue-polish-ui-interaction/prd.md","reason":"Use the confirmed acceptance criteria as the verification checklist for this task."}

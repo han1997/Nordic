@@ -1,0 +1,4 @@
+{"file":".trellis/tasks/archive/2026-08/08-11-polish-ui-interaction/research/navigation-audit.md","reason":"Source audit for deferred findings A4, V4, V6, and C1 that define this task's implementation scope."}
+{"file":".trellis/tasks/archive/2026-08/08-11-polish-ui-interaction/info.md","reason":"Prior scope decisions and implementation constraints from the previous UI interaction polish task."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Project contracts for state-driven Compose navigation, BackHandler parity, and the Music config-change reset pattern to mirror for Audiobook and Video."}
+{"file":".trellis/tasks/08-11-continue-polish-ui-interaction/prd.md","reason":"Confirmed requirements, acceptance criteria, and technical approach for the cross-module consistency pass."}
