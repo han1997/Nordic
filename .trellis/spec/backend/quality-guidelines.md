@@ -1127,31 +1127,51 @@ val albums = detail.album.orEmpty().map { it.withCoverArtUrl() }
 **Signatures**:
 - `internal enum class MusicLibraryPage`
 - `internal fun resolveMusicLibraryPageAfterConfigChange(currentPage: MusicLibraryPage): MusicLibraryPage`
+- `internal data class MusicBackStackEntry(val page: MusicLibraryPage, val selectedTab: Int)`
+- `internal fun resolveMusicBackNavigation(currentPage: MusicLibraryPage, stack: List<MusicBackStackEntry>): MusicBackNavigationResult`
+- `internal fun <T> reconcileMusicSelection(current: T?, refreshed: List<T>, idOf: (T) -> String): T?`
 - `LaunchedEffect(savedConfig)` is the config-boundary reset point for Music screen view state.
 
 **Contract**:
+- Music detail navigation is source-aware. Before entering `AlbumDetail`, `ArtistDetail`, or `PlaylistDetail`, push the current non-detail page and selected tab into a lightweight back stack. System `BackHandler` and `MediaPageHeader(onBack)` must continue to call the same back function.
+- Detail back must prefer the most recent valid source entry. Invalid detail entries should be skipped; if no valid source remains, fall back to Home, except playlist detail may safely fall back to the Playlists tab/page.
+- Music refresh/list-load paths that replace `albums`, `artists`, `sortedAlbums`, or `playlists` must reconcile selected detail objects by id. If the selected object still exists, update it to the refreshed instance; if it disappeared, clear its detail payload and route away from the now-invalid detail page.
 - A saved config change is a navigation boundary. Reset `libraryPage` to `MusicLibraryPage.Home` and `selectedTab` to the home tab before applying cached or fresh data for the new config.
 - Clear account-scoped detail state on config changes: `selectedAlbum`, `albumDetailSongs`, `selectedArtist`, `artistAlbums`, `selectedPlaylist`, and `playlistSongs`.
 - Clear account-scoped list/search state on config changes: `sortedAlbums`, `playlists`, album sort back to `RecentlyAdded`, `searchQuery`, `searchResult`, `searchError`, `isSearching`, and the pending `searchJob`.
+- When a saved config change visibly collapses a non-Home page or existing content/search state, show a lightweight local explanation. Do not show this message on normal first launch or no-op config emissions.
 - Reset account-scoped loading flags so a previous config's in-flight work cannot leave the new config stuck in a loading state.
 - Version or otherwise guard asynchronous album-list, playlist-list, search, and detail-load writes so responses from a previous config cannot repopulate state after the boundary reset.
 - Preserve not-ready config behavior: library content, cache timestamp, and screen errors are cleared when `savedConfig.isReadyForMusicSync()` is false.
 
 **Validation & Error Matrix**:
+- User opens album detail from Albums/Search/ArtistDetail -> back returns to the recorded valid source context instead of always returning Home.
+- Back stack contains stale detail entries -> skip them and return to the nearest non-detail entry, or fallback safely.
+- Refresh replaces albums/artists/playlists and the selected detail id still exists -> selected detail object updates to the refreshed instance.
+- Refresh replaces albums/artists/playlists and the selected detail id no longer exists -> clear selected detail payload and leave the invalid detail page.
 - Ready config replaces another ready config -> return to Home, clear detail/search/list state, then apply cache/refresh for the new config.
 - Ready config becomes not-ready -> return to Home and clear music content, cache timestamp, detail/search/list state, and errors.
+- Config change collapses a visible non-Home/content/search state -> show one local explanatory message.
+- First launch or same config re-emission -> no config-reset message.
 - Old album/artist/playlist detail request finishes after config change -> ignore its data/error/loading writes.
 - Old album-list, playlist-list, or search request finishes after config change -> ignore its stale result/error/loading writes.
 
 **Good/Base/Bad Cases**:
+- Good: User opens Artist -> AlbumDetail, taps system back, and returns to ArtistDetail when that origin is still valid.
+- Good: User refreshes while viewing a playlist that was deleted on the server; the app clears the stale playlist detail and returns to Playlists.
 - Good: User switches Navidrome account from an album detail page and sees the Music home for the new account, not the old album.
+- Good: User edits Navidrome config while on Search and sees a compact note explaining the Music page returned to the new library home.
 - Good: A slow previous search response cannot show results under the new account.
 - Base: A first app launch with no ready config still shows no music content and no stale cache timestamp.
+- Bad: Detail back always sets `libraryPage = Home`, losing the user's drill-in source context.
+- Bad: Refresh updates `albums` but leaves `selectedAlbum` pointing at an album id no longer present in the refreshed list.
 - Bad: Only clearing `playlistSongs` while leaving `selectedAlbum` or `libraryPage = AlbumDetail` from the previous account.
 - Bad: Resetting state first, but allowing an old coroutine to repopulate `albumDetailSongs`, `artistAlbums`, `playlists`, or `searchResult` afterward.
 
 **Tests Required**:
 - Focused helper tests for `resolveMusicLibraryPageAfterConfigChange(...)` covering every `MusicLibraryPage`.
+- Focused helper tests for `resolveMusicBackNavigation(...)` covering source-context return, stale detail-entry skipping, playlist fallback, and empty-stack fallback.
+- Focused helper tests for `reconcileMusicSelection(...)` covering retained selection, refreshed-instance replacement, and missing-selection clearing.
 - Compile and unit test gates after changing the Compose reset path.
 
 **Wrong vs Correct**:
@@ -1166,6 +1186,24 @@ selectedPlaylist = null
 resetMusicStateAfterConfigChange()
 val requestVersion = musicConfigStateVersion
 refreshMusicData(savedConfig, requestVersion)
+```
+
+```kotlin
+// Wrong: detail back collapses every drill-in path to Home.
+fun navigateBackFromMusicPage() {
+    selectedTab = 0
+    libraryPage = MusicLibraryPage.Home
+}
+```
+
+```kotlin
+// Correct: visible back and system back share source-aware navigation.
+fun navigateBackFromMusicPage() {
+    val result = resolveMusicBackNavigation(libraryPage, musicBackStack)
+    selectedTab = result.selectedTab
+    libraryPage = result.page
+    musicBackStack = result.remainingStack
+}
 ```
 
 ### Navidrome lyrics parsing
