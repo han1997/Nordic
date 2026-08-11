@@ -590,3 +590,38 @@ Redesigned the video player chrome with an immersive overlay, added a lightweigh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 134: 打磨软件 UI 图标与毛玻璃效果
+
+**Date**: 2026-08-11
+**Task**: 打磨软件 UI 图标与毛玻璃效果
+**Branch**: `main`
+
+### Summary
+
+统一共享 UI 图标为 Material vector icons，强化 header/back/playback dock 等高价值 chrome 的克制毛玻璃质感，补充共享 UI 图标规范并归档任务上下文。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c55d001` | (see git log) |
+| `419278b` | (see git log) |
+| `d5d7edb` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
