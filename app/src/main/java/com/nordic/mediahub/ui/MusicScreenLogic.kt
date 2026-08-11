@@ -1,6 +1,9 @@
 package com.nordic.mediahub.ui
 
 import com.nordic.mediahub.data.NavidromeAlbumSort
+import com.nordic.mediahub.data.NavidromeAlbum
+import com.nordic.mediahub.data.NavidromeArtist
+import com.nordic.mediahub.data.NavidromePlaylist
 import com.nordic.mediahub.data.NavidromeSong
 
 internal enum class MusicSongSort {
@@ -34,6 +37,92 @@ internal fun resolveMusicLibraryPageAfterConfigChange(currentPage: MusicLibraryP
         MusicLibraryPage.Playlists,
         MusicLibraryPage.PlaylistDetail -> MusicLibraryPage.Home
     }
+}
+
+internal data class MusicBackNavigationResult(
+    val page: MusicLibraryPage,
+    val backStack: List<MusicLibraryPage>
+)
+
+internal fun resolveMusicBackNavigation(
+    currentPage: MusicLibraryPage,
+    backStack: List<MusicLibraryPage>,
+    hasSelectedAlbum: Boolean,
+    hasSelectedArtist: Boolean,
+    hasSelectedPlaylist: Boolean
+): MusicBackNavigationResult {
+    for (index in backStack.indices.reversed()) {
+        val candidate = backStack[index]
+        if (candidate != currentPage && isValidMusicBackTarget(
+                page = candidate,
+                hasSelectedAlbum = hasSelectedAlbum,
+                hasSelectedArtist = hasSelectedArtist,
+                hasSelectedPlaylist = hasSelectedPlaylist
+            )
+        ) {
+            return MusicBackNavigationResult(
+                page = candidate,
+                backStack = backStack.take(index)
+            )
+        }
+    }
+
+    return MusicBackNavigationResult(
+        page = when (currentPage) {
+            MusicLibraryPage.PlaylistDetail -> MusicLibraryPage.Playlists
+            else -> MusicLibraryPage.Home
+        },
+        backStack = emptyList()
+    )
+}
+
+private fun isValidMusicBackTarget(
+    page: MusicLibraryPage,
+    hasSelectedAlbum: Boolean,
+    hasSelectedArtist: Boolean,
+    hasSelectedPlaylist: Boolean
+): Boolean {
+    return when (page) {
+        MusicLibraryPage.Home,
+        MusicLibraryPage.Albums,
+        MusicLibraryPage.Songs,
+        MusicLibraryPage.Artists,
+        MusicLibraryPage.Search,
+        MusicLibraryPage.Playlists -> true
+        MusicLibraryPage.AlbumDetail -> hasSelectedAlbum
+        MusicLibraryPage.ArtistDetail -> hasSelectedArtist
+        MusicLibraryPage.PlaylistDetail -> hasSelectedPlaylist
+    }
+}
+
+internal fun resolveMusicSelectedTabForPage(page: MusicLibraryPage): Int {
+    return when (page) {
+        MusicLibraryPage.Songs -> 1
+        MusicLibraryPage.Playlists,
+        MusicLibraryPage.PlaylistDetail -> 2
+        else -> 0
+    }
+}
+
+internal fun resolveSelectedAlbumAfterMusicRefresh(
+    selectedAlbum: NavidromeAlbum?,
+    refreshedAlbums: List<NavidromeAlbum>
+): NavidromeAlbum? {
+    return selectedAlbum?.let { selected -> refreshedAlbums.firstOrNull { it.id == selected.id } }
+}
+
+internal fun resolveSelectedArtistAfterMusicRefresh(
+    selectedArtist: NavidromeArtist?,
+    refreshedArtists: List<NavidromeArtist>
+): NavidromeArtist? {
+    return selectedArtist?.let { selected -> refreshedArtists.firstOrNull { it.id == selected.id } }
+}
+
+internal fun resolveSelectedPlaylistAfterMusicRefresh(
+    selectedPlaylist: NavidromePlaylist?,
+    refreshedPlaylists: List<NavidromePlaylist>
+): NavidromePlaylist? {
+    return selectedPlaylist?.let { selected -> refreshedPlaylists.firstOrNull { it.id == selected.id } }
 }
 
 internal fun resolveMusicLibraryPageForward(from: MusicLibraryPage, to: MusicLibraryPage): Boolean {

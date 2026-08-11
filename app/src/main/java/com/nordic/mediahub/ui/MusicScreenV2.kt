@@ -139,6 +139,8 @@ fun MusicScreenV2(
     var cacheUpdatedAtMillis by remember { mutableStateOf<Long?>(null) }
     var musicConfigStateVersion by remember { mutableStateOf(0) }
     var previousMusicConfig by remember { mutableStateOf<NavidromeConfig?>(null) }
+    var musicBackStack by remember { mutableStateOf(emptyList<MusicLibraryPage>()) }
+    var musicResetNotice by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     fun isCurrentMusicConfigRequest(requestVersion: Int?): Boolean {
@@ -147,8 +149,10 @@ fun MusicScreenV2(
 
     fun resetMusicStateAfterConfigChange() {
         musicConfigStateVersion += 1
+        musicResetNotice = null
         selectedTab = 0
         libraryPage = resolveMusicLibraryPageAfterConfigChange(libraryPage)
+        musicBackStack = emptyList()
         sortedAlbums = emptyList()
         playlists = emptyList()
         selectedAlbum = null
@@ -180,6 +184,64 @@ fun MusicScreenV2(
         playlistActionError = null
         isPlaylistActionRunning = false
         cacheUpdatedAtMillis = null
+    }
+
+    fun navigateToMusicPage(page: MusicLibraryPage, pushCurrent: Boolean = true) {
+        if (page == libraryPage) return
+        musicResetNotice = null
+        if (pushCurrent) {
+            musicBackStack = (musicBackStack + libraryPage).takeLast(8)
+        }
+        selectedTab = resolveMusicSelectedTabForPage(page)
+        libraryPage = page
+    }
+
+    fun reconcileAlbumDetailSelection(refreshedAlbums: List<NavidromeAlbum>, returnPage: MusicLibraryPage) {
+        val resolvedAlbum = resolveSelectedAlbumAfterMusicRefresh(selectedAlbum, refreshedAlbums)
+        if (selectedAlbum != null && resolvedAlbum == null) {
+            selectedAlbum = null
+            albumDetailSongs = emptyList()
+            isLoadingAlbumDetail = false
+            musicBackStack = musicBackStack.filterNot { it == MusicLibraryPage.AlbumDetail }
+            if (libraryPage == MusicLibraryPage.AlbumDetail) {
+                selectedTab = resolveMusicSelectedTabForPage(returnPage)
+                libraryPage = returnPage
+            }
+        } else if (resolvedAlbum != null) {
+            selectedAlbum = resolvedAlbum
+        }
+    }
+
+    fun reconcileArtistDetailSelection(refreshedArtists: List<NavidromeArtist>) {
+        val resolvedArtist = resolveSelectedArtistAfterMusicRefresh(selectedArtist, refreshedArtists)
+        if (selectedArtist != null && resolvedArtist == null) {
+            selectedArtist = null
+            artistAlbums = emptyList()
+            isLoadingArtistDetail = false
+            musicBackStack = musicBackStack.filterNot { it == MusicLibraryPage.ArtistDetail }
+            if (libraryPage == MusicLibraryPage.ArtistDetail) {
+                selectedTab = 0
+                libraryPage = MusicLibraryPage.Artists
+            }
+        } else if (resolvedArtist != null) {
+            selectedArtist = resolvedArtist
+        }
+    }
+
+    fun reconcilePlaylistDetailSelection(refreshedPlaylists: List<NavidromePlaylist>) {
+        val resolvedPlaylist = resolveSelectedPlaylistAfterMusicRefresh(selectedPlaylist, refreshedPlaylists)
+        if (selectedPlaylist != null && resolvedPlaylist == null) {
+            selectedPlaylist = null
+            playlistSongs = emptyList()
+            isLoadingPlaylistDetail = false
+            musicBackStack = musicBackStack.filterNot { it == MusicLibraryPage.PlaylistDetail }
+            if (libraryPage == MusicLibraryPage.PlaylistDetail) {
+                selectedTab = 2
+                libraryPage = MusicLibraryPage.Playlists
+            }
+        } else if (resolvedPlaylist != null) {
+            selectedPlaylist = resolvedPlaylist
+        }
     }
 
     fun clearMusicSearch() {
@@ -241,6 +303,10 @@ fun MusicScreenV2(
             songs = freshData.songs
             recentlyAddedSongs = freshData.recentlyAddedSongs
             artists = freshData.artists
+            if (musicBackStack.lastOrNull() == MusicLibraryPage.Home) {
+                reconcileAlbumDetailSelection(freshData.albums, MusicLibraryPage.Home)
+            }
+            reconcileArtistDetailSelection(freshData.artists)
             cacheUpdatedAtMillis = freshCache.updatedAtMillis
             cacheRepository.save(targetConfig, freshCache)
             true
@@ -274,9 +340,10 @@ fun MusicScreenV2(
         isLoadingAlbumList = true
         errorMsg = null
         return try {
-            val albums = repo.getAlbums(sort)
+            val loadedAlbums = repo.getAlbums(sort)
             if (musicConfigStateVersion == requestVersion) {
-                sortedAlbums = albums
+                sortedAlbums = loadedAlbums
+                reconcileAlbumDetailSelection(loadedAlbums, MusicLibraryPage.Albums)
                 true
             } else {
                 false
@@ -294,7 +361,7 @@ fun MusicScreenV2(
     }
 
     fun openAlbumLibrary() {
-        libraryPage = MusicLibraryPage.Albums
+        navigateToMusicPage(MusicLibraryPage.Albums)
         if (sortedAlbums.isEmpty()) {
             scope.launch { loadAlbumList(albumSort) }
         }
@@ -315,6 +382,7 @@ fun MusicScreenV2(
             val loadedPlaylists = repo.getPlaylists()
             if (musicConfigStateVersion == requestVersion) {
                 playlists = loadedPlaylists
+                reconcilePlaylistDetailSelection(loadedPlaylists)
                 true
             } else {
                 false
@@ -332,8 +400,7 @@ fun MusicScreenV2(
     }
 
     fun openPlaylistLibrary() {
-        selectedTab = 2
-        libraryPage = MusicLibraryPage.Playlists
+        navigateToMusicPage(MusicLibraryPage.Playlists)
         if (playlists.isEmpty()) {
             scope.launch { loadPlaylists() }
         }
@@ -364,8 +431,7 @@ fun MusicScreenV2(
                 val created = repo.createPlaylist(name)
                 if (musicConfigStateVersion == requestVersion) {
                     closePlaylistActionDialogs()
-                    selectedTab = 2
-                    libraryPage = MusicLibraryPage.Playlists
+                    navigateToMusicPage(MusicLibraryPage.Playlists, pushCurrent = false)
                     loadPlaylists()
                     selectedPlaylist = created
                 }
@@ -428,8 +494,7 @@ fun MusicScreenV2(
                     if (selectedPlaylist?.id == playlist.id) {
                         selectedPlaylist = null
                         playlistSongs = emptyList()
-                        selectedTab = 2
-                        libraryPage = MusicLibraryPage.Playlists
+                        navigateToMusicPage(MusicLibraryPage.Playlists, pushCurrent = false)
                     }
                     loadPlaylists()
                 }
@@ -444,7 +509,7 @@ fun MusicScreenV2(
 
     fun openSearch() {
         clearMusicSearch()
-        libraryPage = MusicLibraryPage.Search
+        navigateToMusicPage(MusicLibraryPage.Search)
     }
 
     fun playSongList(songs: List<NavidromeSong>, noPlayableMessage: String) {
@@ -494,7 +559,7 @@ fun MusicScreenV2(
         albumDetailSongs = emptyList()
         isLoadingAlbumDetail = true
         errorMsg = null
-        libraryPage = MusicLibraryPage.AlbumDetail
+        navigateToMusicPage(MusicLibraryPage.AlbumDetail)
         scope.launch {
             // Cache-then-refresh: render the cached songs instantly, then refresh
             // in the background. Detail caches have no TTL — opening always refreshes.
@@ -505,10 +570,10 @@ fun MusicScreenV2(
             }
             try {
                 navidromeRepository?.let { repo ->
-                    val songs = repo.getAlbumSongs(album.id)
+                    val loadedSongs = repo.getAlbumSongs(album.id)
                     if (musicConfigStateVersion == requestVersion && selectedAlbum?.id == album.id) {
-                        albumDetailSongs = songs
-                        cacheRepository.saveAlbumDetailSongs(savedConfig, album.id, songs)
+                        albumDetailSongs = loadedSongs
+                        cacheRepository.saveAlbumDetailSongs(savedConfig, album.id, loadedSongs)
                     }
                 }
             } catch (e: Exception) {
@@ -532,7 +597,7 @@ fun MusicScreenV2(
         artistAlbums = emptyList()
         isLoadingArtistDetail = true
         errorMsg = null
-        libraryPage = MusicLibraryPage.ArtistDetail
+        navigateToMusicPage(MusicLibraryPage.ArtistDetail)
         scope.launch {
             val cachedAlbums = cacheRepository.loadArtistAlbums(savedConfig, artist.id)
             if (musicConfigStateVersion == requestVersion && selectedArtist?.id == artist.id && cachedAlbums != null) {
@@ -541,10 +606,10 @@ fun MusicScreenV2(
             }
             try {
                 navidromeRepository?.let { repo ->
-                    val albums = repo.getArtistAlbums(artist.id)
+                    val loadedAlbums = repo.getArtistAlbums(artist.id)
                     if (musicConfigStateVersion == requestVersion && selectedArtist?.id == artist.id) {
-                        artistAlbums = albums
-                        cacheRepository.saveArtistAlbums(savedConfig, artist.id, albums)
+                        artistAlbums = loadedAlbums
+                        cacheRepository.saveArtistAlbums(savedConfig, artist.id, loadedAlbums)
                     }
                 }
             } catch (e: Exception) {
@@ -568,7 +633,7 @@ fun MusicScreenV2(
         playlistSongs = emptyList()
         isLoadingPlaylistDetail = true
         errorMsg = null
-        libraryPage = MusicLibraryPage.PlaylistDetail
+        navigateToMusicPage(MusicLibraryPage.PlaylistDetail)
         scope.launch {
             val cachedSongs = cacheRepository.loadPlaylistSongs(savedConfig, playlist.id)
             if (musicConfigStateVersion == requestVersion && selectedPlaylist?.id == playlist.id && cachedSongs != null) {
@@ -577,10 +642,10 @@ fun MusicScreenV2(
             }
             try {
                 navidromeRepository?.let { repo ->
-                    val songs = repo.getPlaylistSongs(playlist.id)
+                    val loadedSongs = repo.getPlaylistSongs(playlist.id)
                     if (musicConfigStateVersion == requestVersion && selectedPlaylist?.id == playlist.id) {
-                        playlistSongs = songs
-                        cacheRepository.savePlaylistSongs(savedConfig, playlist.id, songs)
+                        playlistSongs = loadedSongs
+                        cacheRepository.savePlaylistSongs(savedConfig, playlist.id, loadedSongs)
                     }
                 }
             } catch (e: Exception) {
@@ -600,8 +665,22 @@ fun MusicScreenV2(
 
     LaunchedEffect(savedConfig) {
         val previousConfig = previousMusicConfig
+        val shouldShowConfigResetNotice = previousConfig != null &&
+            previousConfig.cacheKey() != savedConfig.cacheKey() &&
+            (
+                libraryPage != MusicLibraryPage.Home ||
+                    albums.isNotEmpty() ||
+                    songs.isNotEmpty() ||
+                    recentlyAddedSongs.isNotEmpty() ||
+                    artists.isNotEmpty() ||
+                    playlists.isNotEmpty() ||
+                    searchQuery.isNotBlank()
+                )
         previousMusicConfig = savedConfig
         resetMusicStateAfterConfigChange()
+        if (shouldShowConfigResetNotice) {
+            musicResetNotice = "音乐配置已更新，已回到音乐首页。"
+        }
         val requestVersion = musicConfigStateVersion
         // Clear the previous config's persisted cache so switching accounts/servers
         // does not leave dead cache JSON in DataStore. Only clear when the cache key
@@ -628,13 +707,17 @@ fun MusicScreenV2(
     }
 
     fun navigateBackFromMusicPage() {
-        if (libraryPage == MusicLibraryPage.PlaylistDetail) {
-            selectedTab = 2
-            libraryPage = MusicLibraryPage.Playlists
-        } else {
-            selectedTab = 0
-            libraryPage = MusicLibraryPage.Home
-        }
+        musicResetNotice = null
+        val result = resolveMusicBackNavigation(
+            currentPage = libraryPage,
+            backStack = musicBackStack,
+            hasSelectedAlbum = selectedAlbum != null,
+            hasSelectedArtist = selectedArtist != null,
+            hasSelectedPlaylist = selectedPlaylist != null
+        )
+        musicBackStack = result.backStack
+        selectedTab = resolveMusicSelectedTabForPage(result.page)
+        libraryPage = result.page
     }
 
     BackHandler(enabled = libraryPage != MusicLibraryPage.Home) {
@@ -659,11 +742,16 @@ fun MusicScreenV2(
                     enabled = !isLoading,
                     onClick = {
                         scope.launch {
-                            if (refreshMusicData(savedConfig) && libraryPage == MusicLibraryPage.Albums) {
-                                loadAlbumList(albumSort)
-                            }
-                            if (libraryPage == MusicLibraryPage.Playlists) {
-                                loadPlaylists()
+                            if (refreshMusicData(savedConfig)) {
+                                if (
+                                    libraryPage == MusicLibraryPage.Albums ||
+                                    (libraryPage == MusicLibraryPage.AlbumDetail && musicBackStack.contains(MusicLibraryPage.Albums))
+                                ) {
+                                    loadAlbumList(albumSort)
+                                }
+                                if (libraryPage == MusicLibraryPage.Playlists || libraryPage == MusicLibraryPage.PlaylistDetail) {
+                                    loadPlaylists()
+                                }
                             }
                         }
                     }
@@ -741,6 +829,8 @@ fun MusicScreenV2(
                     selectedTab = selectedTab,
                     colorScheme = colorScheme,
                     onTabSelected = {
+                        musicResetNotice = null
+                        musicBackStack = emptyList()
                         selectedTab = it
                         libraryPage = when (it) {
                             1 -> MusicLibraryPage.Songs
@@ -756,6 +846,18 @@ fun MusicScreenV2(
                     onSearchClick = { openSearch() }
                 )
             }
+        }
+
+        if (musicResetNotice != null) {
+            MediaStateCard(
+                title = "已应用新的音乐配置",
+                subtitle = musicResetNotice.orEmpty(),
+                density = MediaStateDensity.Compact,
+                modifier = Modifier.padding(
+                    horizontal = NordicSpacing.lg,
+                    vertical = NordicSpacing.md
+                )
+            )
         }
 
         if (errorMsg != null) {
@@ -843,8 +945,7 @@ fun MusicScreenV2(
                             colorScheme = colorScheme,
                             actionLabel = "全部",
                             onAction = {
-                                selectedTab = 1
-                                libraryPage = MusicLibraryPage.Songs
+                                navigateToMusicPage(MusicLibraryPage.Songs)
                             }
                         )
                     }
@@ -905,7 +1006,7 @@ fun MusicScreenV2(
                             subtitle = "从熟悉的声音继续展开",
                             colorScheme = colorScheme,
                             actionLabel = "全部",
-                            onAction = { libraryPage = MusicLibraryPage.Artists }
+                            onAction = { navigateToMusicPage(MusicLibraryPage.Artists) }
                         )
                     }
                     item {

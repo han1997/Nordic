@@ -1,5 +1,8 @@
 package com.nordic.mediahub.ui
 
+import com.nordic.mediahub.data.NavidromeAlbum
+import com.nordic.mediahub.data.NavidromeArtist
+import com.nordic.mediahub.data.NavidromePlaylist
 import com.nordic.mediahub.data.NavidromeSong
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -127,6 +130,121 @@ class MusicScreenV2Test {
     }
 
     @Test
+    fun resolveMusicBackNavigation_returnsRecordedSourcePage() {
+        val result = resolveMusicBackNavigation(
+            currentPage = MusicLibraryPage.AlbumDetail,
+            backStack = listOf(MusicLibraryPage.Home, MusicLibraryPage.Albums),
+            hasSelectedAlbum = true,
+            hasSelectedArtist = false,
+            hasSelectedPlaylist = false
+        )
+
+        assertEquals(MusicLibraryPage.Albums, result.page)
+        assertEquals(listOf(MusicLibraryPage.Home), result.backStack)
+    }
+
+    @Test
+    fun resolveMusicBackNavigation_returnsSearchSourcePage() {
+        val result = resolveMusicBackNavigation(
+            currentPage = MusicLibraryPage.ArtistDetail,
+            backStack = listOf(MusicLibraryPage.Home, MusicLibraryPage.Search),
+            hasSelectedAlbum = false,
+            hasSelectedArtist = true,
+            hasSelectedPlaylist = false
+        )
+
+        assertEquals(MusicLibraryPage.Search, result.page)
+        assertEquals(listOf(MusicLibraryPage.Home), result.backStack)
+    }
+
+    @Test
+    fun resolveMusicBackNavigation_canReturnToPreviousDetailWhenStillValid() {
+        val result = resolveMusicBackNavigation(
+            currentPage = MusicLibraryPage.AlbumDetail,
+            backStack = listOf(MusicLibraryPage.Home, MusicLibraryPage.ArtistDetail),
+            hasSelectedAlbum = true,
+            hasSelectedArtist = true,
+            hasSelectedPlaylist = false
+        )
+
+        assertEquals(MusicLibraryPage.ArtistDetail, result.page)
+        assertEquals(listOf(MusicLibraryPage.Home), result.backStack)
+    }
+
+    @Test
+    fun resolveMusicBackNavigation_skipsInvalidDetailOrigin() {
+        val result = resolveMusicBackNavigation(
+            currentPage = MusicLibraryPage.AlbumDetail,
+            backStack = listOf(MusicLibraryPage.Home, MusicLibraryPage.ArtistDetail),
+            hasSelectedAlbum = true,
+            hasSelectedArtist = false,
+            hasSelectedPlaylist = false
+        )
+
+        assertEquals(MusicLibraryPage.Home, result.page)
+        assertEquals(emptyList<MusicLibraryPage>(), result.backStack)
+    }
+
+    @Test
+    fun resolveMusicBackNavigation_skipsInvalidDetailThenReturnsListOrigin() {
+        val result = resolveMusicBackNavigation(
+            currentPage = MusicLibraryPage.PlaylistDetail,
+            backStack = listOf(
+                MusicLibraryPage.Home,
+                MusicLibraryPage.Playlists,
+                MusicLibraryPage.AlbumDetail
+            ),
+            hasSelectedAlbum = false,
+            hasSelectedArtist = false,
+            hasSelectedPlaylist = true
+        )
+
+        assertEquals(MusicLibraryPage.Playlists, result.page)
+        assertEquals(listOf(MusicLibraryPage.Home), result.backStack)
+    }
+
+    @Test
+    fun resolveMusicBackNavigation_fallsBackPlaylistDetailToPlaylists() {
+        val result = resolveMusicBackNavigation(
+            currentPage = MusicLibraryPage.PlaylistDetail,
+            backStack = emptyList(),
+            hasSelectedAlbum = false,
+            hasSelectedArtist = false,
+            hasSelectedPlaylist = true
+        )
+
+        assertEquals(MusicLibraryPage.Playlists, result.page)
+        assertEquals(emptyList<MusicLibraryPage>(), result.backStack)
+    }
+
+    @Test
+    fun resolveSelectedMusicDetailAfterRefresh_updatesMatchingObjects() {
+        val updatedAlbum = album("album-1", name = "Updated")
+        val updatedArtist = artist("artist-1", name = "Updated")
+        val updatedPlaylist = playlist("playlist-1", name = "Updated")
+
+        assertEquals(
+            updatedAlbum,
+            resolveSelectedAlbumAfterMusicRefresh(album("album-1"), listOf(updatedAlbum))
+        )
+        assertEquals(
+            updatedArtist,
+            resolveSelectedArtistAfterMusicRefresh(artist("artist-1"), listOf(updatedArtist))
+        )
+        assertEquals(
+            updatedPlaylist,
+            resolveSelectedPlaylistAfterMusicRefresh(playlist("playlist-1"), listOf(updatedPlaylist))
+        )
+    }
+
+    @Test
+    fun resolveSelectedMusicDetailAfterRefresh_clearsMissingObjects() {
+        assertNull(resolveSelectedAlbumAfterMusicRefresh(album("old"), listOf(album("new"))))
+        assertNull(resolveSelectedArtistAfterMusicRefresh(artist("old"), listOf(artist("new"))))
+        assertNull(resolveSelectedPlaylistAfterMusicRefresh(playlist("old"), listOf(playlist("new"))))
+    }
+
+    @Test
     fun shouldShowMusicSearchClearAction_onlyShowsForNonBlankQuery() {
         assertEquals(false, shouldShowMusicSearchClearAction(""))
         assertEquals(false, shouldShowMusicSearchClearAction("   "))
@@ -180,5 +298,17 @@ class MusicScreenV2Test {
             title = id,
             streamUrl = streamUrl
         )
+    }
+
+    private fun album(id: String, name: String = id): NavidromeAlbum {
+        return NavidromeAlbum(id = id, name = name)
+    }
+
+    private fun artist(id: String, name: String = id): NavidromeArtist {
+        return NavidromeArtist(id = id, name = name)
+    }
+
+    private fun playlist(id: String, name: String = id): NavidromePlaylist {
+        return NavidromePlaylist(id = id, name = name)
     }
 }
