@@ -660,3 +660,38 @@ Redesigned the video player chrome with an immersive overlay, added a lightweigh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 136: 继续打磨软件 UI 与操作逻辑
+
+**Date**: 2026-08-12
+**Task**: 继续打磨软件 UI 与操作逻辑
+**Branch**: `main`
+
+### Summary
+
+完成上一轮审计遗留 findings 的跨模块一致性修复：Audiobook 配置重置反馈、Video 库切换类型筛选 reconcile、Video 配置重置反馈，并保持各 media screen 反馈与 Music 既有模式一致。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `63e93f8` | (see git log) |
+| `3818d8b` | (see git log) |
+| `10770d9` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
