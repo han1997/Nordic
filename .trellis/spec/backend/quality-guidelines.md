@@ -227,6 +227,7 @@ Top-level Music, Audiobook, and Video browsing screens should use the shared pag
 **Contracts**:
 - Use `MediaPageHeader(...)` for the screen title, dynamic subtitle, optional visible back button, and header actions.
 - Header actions should stay in `HeaderActionGroup` / `HeaderAction` so refresh, theme, and search affordances keep the same surface, sizing, and disabled behavior across media domains.
+- Icon-only controls and visual placeholders in shared UI must use Material vector icons (`ImageVector` / `Icon`), not text glyph pseudo-icons such as `"↻"`, `"⚙"`, `"▶"`, `"♪"`, `"×"`, or `"▤"`. Every actionable icon needs a meaningful `contentDescription`; purely decorative placeholders should use `contentDescription = null`.
 - Do not add new per-media config gear actions, `showConfig` state, or `MediaConfigPanel` server forms to Music, Audiobook, or Video screens. Use the bottom-nav `配置` tab and `ServerConfigScreen` instead.
 - First-run/setup empty states should direct users to the `配置` tab instead of referencing an off-screen header gear.
 
@@ -235,7 +236,14 @@ MediaPageHeader(
     title = "视频",
     subtitle = browserSubtitle,
     actions = buildList {
-        add(HeaderAction(if (isLoading) "…" else "↻", enabled = !isLoading) { refresh() })
+        add(
+            HeaderAction(
+                icon = Icons.Default.Refresh,
+                contentDescription = "刷新视频库",
+                enabled = !isLoading,
+                onClick = { refresh() }
+            )
+        )
     },
     colorScheme = colorScheme,
     showBack = libraryPage != MusicLibraryPage.Home,
@@ -323,8 +331,14 @@ Button(onClick = { scope.launch { refreshVideo() } }) {
 
 ```kotlin
 // Media pages keep stale config UI after the dedicated config tab exists.
-add(HeaderAction("⚙") { showConfig = !showConfig })
+add(HeaderAction(icon = Icons.Default.Settings, contentDescription = "配置") { showConfig = !showConfig })
 MediaConfigPanel(visible = showConfig) { VideoConfigCard(...) }
+```
+
+```kotlin
+// Text glyph pseudo-icons are not stable across fonts, encodings, or accessibility tools.
+Text("▶")
+Text("♪")
 ```
 
 #### Correct
@@ -345,6 +359,20 @@ when (selectedTab) {
     2 -> VideoScreen(...)
     3 -> ServerConfigScreen(...)
 }
+```
+
+```kotlin
+// Icon affordances use vector assets with accessibility semantics.
+HeaderAction(
+    icon = Icons.Default.Refresh,
+    contentDescription = "刷新音乐库",
+    enabled = !isLoading,
+    onClick = refreshMusic
+)
+Icon(
+    imageVector = Icons.Default.MusicNote,
+    contentDescription = null
+)
 ```
 
 ### Compose media list stability
