@@ -105,6 +105,50 @@ class AudiobookScreenTest {
     }
 
     @Test
+    fun shouldShowAudiobookConfigResetNotice_whenDetailWouldCollapse() {
+        assertEquals(
+            true,
+            shouldShowAudiobookConfigResetNotice(
+                previousConfigChanged = true,
+                libraryPage = AudiobookLibraryPage.Detail,
+                selectedItem = null
+            )
+        )
+    }
+
+    @Test
+    fun shouldShowAudiobookConfigResetNotice_whenSelectionWouldClear() {
+        assertEquals(
+            true,
+            shouldShowAudiobookConfigResetNotice(
+                previousConfigChanged = true,
+                libraryPage = AudiobookLibraryPage.Home,
+                selectedItem = detail("book-1")
+            )
+        )
+    }
+
+    @Test
+    fun shouldShowAudiobookConfigResetNotice_ignoresFirstLaunchAndHomeState() {
+        assertEquals(
+            false,
+            shouldShowAudiobookConfigResetNotice(
+                previousConfigChanged = false,
+                libraryPage = AudiobookLibraryPage.Detail,
+                selectedItem = detail("book-1")
+            )
+        )
+        assertEquals(
+            false,
+            shouldShowAudiobookConfigResetNotice(
+                previousConfigChanged = true,
+                libraryPage = AudiobookLibraryPage.Home,
+                selectedItem = null
+            )
+        )
+    }
+
+    @Test
     fun resolveCurrentAudiobookChapter_usesTimestampOrderForUnsortedChapters() {
         val chapters = listOf(
             chapter(id = 2, startSeconds = 100),

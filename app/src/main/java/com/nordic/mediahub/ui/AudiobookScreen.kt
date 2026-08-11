@@ -90,6 +90,17 @@ internal fun resolveAudiobookLibraryPageAfterConfigChange(
     }
 }
 
+internal fun shouldShowAudiobookConfigResetNotice(
+    previousConfigChanged: Boolean,
+    libraryPage: AudiobookLibraryPage,
+    selectedItem: AudiobookItemDetail?
+): Boolean {
+    return previousConfigChanged && (
+        libraryPage != AudiobookLibraryPage.Home ||
+            selectedItem != null
+        )
+}
+
 internal fun sortAudiobookDetailChapters(chapters: List<AudiobookChapter>): List<AudiobookChapter> {
     return chapters
         .withIndex()
@@ -122,6 +133,7 @@ fun AudiobookScreen(
     var cacheUpdatedAtMillis by remember { mutableStateOf<Long?>(null) }
     var audiobookConfigStateVersion by remember { mutableStateOf(0) }
     var previousAudiobookConfig by remember { mutableStateOf<AudiobookShelfConfig?>(null) }
+    var audiobookResetNotice by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     val audiobookRepository = remember(savedConfig) {
@@ -138,6 +150,7 @@ fun AudiobookScreen(
 
     fun resetAudiobookStateAfterConfigChange() {
         audiobookConfigStateVersion += 1
+        audiobookResetNotice = null
         libraryPage = resolveAudiobookLibraryPageAfterConfigChange(libraryPage)
         libraries = emptyList()
         selectedLibraryId = null
@@ -239,6 +252,7 @@ fun AudiobookScreen(
 
     fun openItemDetail(item: AudiobookItemSummary) {
         val repo = audiobookRepository ?: return
+        audiobookResetNotice = null
         val requestVersion = audiobookConfigStateVersion
         libraryPage = AudiobookLibraryPage.Detail
         selectedItem = null
@@ -278,13 +292,22 @@ fun AudiobookScreen(
 
     LaunchedEffect(savedConfig) {
         val previousConfig = previousAudiobookConfig
+        val previousConfigChanged = previousConfig != null && previousConfig.cacheKey() != savedConfig.cacheKey()
+        val shouldShowConfigResetNotice = shouldShowAudiobookConfigResetNotice(
+            previousConfigChanged = previousConfigChanged,
+            libraryPage = libraryPage,
+            selectedItem = selectedItem
+        )
         previousAudiobookConfig = savedConfig
         resetAudiobookStateAfterConfigChange()
+        if (shouldShowConfigResetNotice) {
+            audiobookResetNotice = "有声书配置已更新，已回到有声书首页。"
+        }
         val requestVersion = audiobookConfigStateVersion
         // Clear the previous config's persisted cache so switching AudiobookShelf
         // accounts/servers does not leave dead cache JSON in DataStore.
-        if (previousConfig != null && previousConfig.cacheKey() != savedConfig.cacheKey()) {
-            cacheRepository.clear(previousConfig)
+        if (previousConfigChanged) {
+            previousConfig?.let { cacheRepository.clear(it) }
         }
         if (savedConfig.isReadyForAudiobookSync()) {
             applyCachedAudiobooks(savedConfig, requestVersion)
@@ -296,6 +319,7 @@ fun AudiobookScreen(
     }
 
     fun navigateBackFromAudiobookPage() {
+        audiobookResetNotice = null
         libraryPage = AudiobookLibraryPage.Home
         errorMessage = null
     }
@@ -357,6 +381,16 @@ fun AudiobookScreen(
             }
         }
 
+        if (audiobookResetNotice != null) {
+            item {
+                MediaStateCard(
+                    title = "已应用新的有声书配置",
+                    subtitle = audiobookResetNotice.orEmpty(),
+                    density = MediaStateDensity.Compact
+                )
+            }
+        }
+
         if (libraryPage == AudiobookLibraryPage.Home) {
             if (libraries.isNotEmpty()) {
                 item {
@@ -365,6 +399,7 @@ fun AudiobookScreen(
                         selectedLibraryId = selectedLibraryId,
                         colorScheme = colorScheme,
                         onSelect = { libraryId ->
+                            audiobookResetNotice = null
                             selectedLibraryId = libraryId
                             val repo = audiobookRepository ?: return@AudiobookLibrarySelector
                             val requestVersion = audiobookConfigStateVersion

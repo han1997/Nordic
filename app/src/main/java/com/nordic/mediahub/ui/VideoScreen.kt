@@ -64,6 +64,7 @@ fun VideoScreen(
     var cacheUpdatedAtMillis by remember { mutableStateOf<Long?>(null) }
     var videoConfigStateVersion by remember { mutableStateOf(0) }
     var previousVideoConfig by remember { mutableStateOf<VideoServerConfig?>(null) }
+    var videoResetNotice by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val visibleTypeFilters = remember(videos) {
         visibleVideoTypeFilters(videos)
@@ -95,6 +96,7 @@ fun VideoScreen(
 
     fun resetVideoStateAfterConfigChange() {
         videoConfigStateVersion += 1
+        videoResetNotice = null
         libraries = emptyList()
         selectedLibraryId = null
         videos = emptyList()
@@ -192,13 +194,24 @@ fun VideoScreen(
 
     LaunchedEffect(savedConfig) {
         val previousConfig = previousVideoConfig
+        val previousConfigChanged = previousConfig != null && previousConfig.cacheKey() != savedConfig.cacheKey()
+        val shouldShowConfigResetNotice = shouldShowVideoConfigResetNotice(
+            previousConfigChanged = previousConfigChanged,
+            selectedVideo = selectedVideo,
+            searchQuery = searchQuery,
+            searchExpanded = searchExpanded,
+            selectedTypeFilter = selectedTypeFilter
+        )
         previousVideoConfig = savedConfig
         resetVideoStateAfterConfigChange()
+        if (shouldShowConfigResetNotice) {
+            videoResetNotice = "视频配置已更新，已回到视频首页。"
+        }
         val requestVersion = videoConfigStateVersion
         // Clear the previous config's persisted cache so switching Emby accounts/servers
         // does not leave dead cache JSON in DataStore.
-        if (previousConfig != null && previousConfig.cacheKey() != savedConfig.cacheKey()) {
-            cacheRepository.clear(previousConfig)
+        if (previousConfigChanged) {
+            previousConfig?.let { cacheRepository.clear(it) }
         }
         if (savedConfig.isReadyForVideoSync()) {
             applyCachedVideo(savedConfig, requestVersion)
@@ -210,10 +223,12 @@ fun VideoScreen(
     }
 
     fun openVideoDetail(video: VideoItem) {
+        videoResetNotice = null
         selectedVideo = video
     }
 
     BackHandler(enabled = selectedVideo != null) {
+        videoResetNotice = null
         selectedVideo = null
     }
 
@@ -224,6 +239,7 @@ fun VideoScreen(
             selectedTypeFilter = selectedTypeFilter
         )
     ) {
+        videoResetNotice = null
         searchQuery = ""
         searchExpanded = false
         selectedTypeFilter = VideoTypeFilter.All
@@ -237,7 +253,10 @@ fun VideoScreen(
             relatedEpisodes = relatedEpisodes,
             playAction = playAction,
             colorScheme = colorScheme,
-            onBack = { selectedVideo = null },
+            onBack = {
+                videoResetNotice = null
+                selectedVideo = null
+            },
             onPlay = { onPlayVideo(video) },
             onPlayFromStart = { onPlayVideoFromStart(video) },
             onPlayEpisode = onPlayVideo
@@ -298,6 +317,16 @@ fun VideoScreen(
             }
         }
 
+        if (videoResetNotice != null) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                MediaStateCard(
+                    title = "已应用新的视频配置",
+                    subtitle = videoResetNotice.orEmpty(),
+                    density = MediaStateDensity.Compact
+                )
+            }
+        }
+
         if (libraries.isNotEmpty()) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 VideoLibrarySelector(
@@ -305,6 +334,7 @@ fun VideoScreen(
                     selectedLibraryId = selectedLibraryId,
                     colorScheme = colorScheme,
                     onSelect = { libraryId ->
+                        videoResetNotice = null
                         selectedLibraryId = libraryId
                         selectedVideo = null
                         searchQuery = ""
@@ -319,6 +349,10 @@ fun VideoScreen(
                                 val loadedVideos = repo.getLibraryItems(libraryId)
                                 if (videoConfigStateVersion == requestVersion && selectedLibraryId == libraryId) {
                                     videos = loadedVideos
+                                    selectedTypeFilter = resolveVideoTypeFilterAfterCatalogRefresh(
+                                        selectedTypeFilter = selectedTypeFilter,
+                                        videos = loadedVideos
+                                    )
                                 }
                             } catch (e: Exception) {
                                 if (videoConfigStateVersion == requestVersion && selectedLibraryId == libraryId) {
@@ -355,13 +389,23 @@ fun VideoScreen(
                     selectedTypeFilter = selectedTypeFilter,
                     filters = visibleTypeFilters,
                     colorScheme = colorScheme,
-                    onToggleSearch = { searchExpanded = true },
-                    onSearchChange = { searchQuery = it },
+                    onToggleSearch = {
+                        videoResetNotice = null
+                        searchExpanded = true
+                    },
+                    onSearchChange = {
+                        videoResetNotice = null
+                        searchQuery = it
+                    },
                     onSearchCollapse = {
+                        videoResetNotice = null
                         searchQuery = ""
                         searchExpanded = false
                     },
-                    onFilterSelected = { selectedTypeFilter = it }
+                    onFilterSelected = {
+                        videoResetNotice = null
+                        selectedTypeFilter = it
+                    }
                 )
             }
 

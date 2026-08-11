@@ -141,6 +141,21 @@ internal fun resolveVideoTypeFilterAfterConfigChange(
     }
 }
 
+internal fun shouldShowVideoConfigResetNotice(
+    previousConfigChanged: Boolean,
+    selectedVideo: VideoItem?,
+    searchQuery: String,
+    searchExpanded: Boolean,
+    selectedTypeFilter: VideoTypeFilter
+): Boolean {
+    return previousConfigChanged && (
+        selectedVideo != null ||
+            searchQuery.isNotBlank() ||
+            searchExpanded ||
+            selectedTypeFilter != VideoTypeFilter.All
+        )
+}
+
 internal fun shouldHandleVideoBrowserBack(
     searchExpanded: Boolean,
     searchQuery: String,

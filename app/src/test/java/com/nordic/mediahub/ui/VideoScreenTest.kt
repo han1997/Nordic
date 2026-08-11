@@ -316,6 +316,68 @@ class VideoScreenTest {
     }
 
     @Test
+    fun shouldShowVideoConfigResetNotice_whenDetailSearchOrFilterWouldClear() {
+        assertTrue(
+            shouldShowVideoConfigResetNotice(
+                previousConfigChanged = true,
+                selectedVideo = video(id = "movie-1", title = "Movie One"),
+                searchQuery = "",
+                searchExpanded = false,
+                selectedTypeFilter = VideoTypeFilter.All
+            )
+        )
+        assertTrue(
+            shouldShowVideoConfigResetNotice(
+                previousConfigChanged = true,
+                selectedVideo = null,
+                searchQuery = "movie",
+                searchExpanded = false,
+                selectedTypeFilter = VideoTypeFilter.All
+            )
+        )
+        assertTrue(
+            shouldShowVideoConfigResetNotice(
+                previousConfigChanged = true,
+                selectedVideo = null,
+                searchQuery = "",
+                searchExpanded = true,
+                selectedTypeFilter = VideoTypeFilter.All
+            )
+        )
+        assertTrue(
+            shouldShowVideoConfigResetNotice(
+                previousConfigChanged = true,
+                selectedVideo = null,
+                searchQuery = "",
+                searchExpanded = false,
+                selectedTypeFilter = VideoTypeFilter.Series
+            )
+        )
+    }
+
+    @Test
+    fun shouldShowVideoConfigResetNotice_ignoresFirstLaunchAndDefaultBrowseState() {
+        assertFalse(
+            shouldShowVideoConfigResetNotice(
+                previousConfigChanged = false,
+                selectedVideo = video(id = "movie-1", title = "Movie One"),
+                searchQuery = "movie",
+                searchExpanded = true,
+                selectedTypeFilter = VideoTypeFilter.Series
+            )
+        )
+        assertFalse(
+            shouldShowVideoConfigResetNotice(
+                previousConfigChanged = true,
+                selectedVideo = null,
+                searchQuery = "   ",
+                searchExpanded = false,
+                selectedTypeFilter = VideoTypeFilter.All
+            )
+        )
+    }
+
+    @Test
     fun shouldHandleVideoBrowserBack_whenSearchOrFilterIsActive() {
         assertTrue(
             shouldHandleVideoBrowserBack(
