@@ -1,0 +1,5 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `py -3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Android app verification commands and pre-development checklist for shared Compose UI polish"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Shared Compose UI components, design tokens, media chrome, and animation quality contracts"}
+{"file": ".trellis/spec/backend/documentation-guidelines.md", "reason": "CHANGELOG and Chinese documentation requirements for user-visible UI changes"}
+{"file": ".trellis/tasks/08-11-polish-app-ui-icons-glass/research/media-app-ui-reference.md", "reason": "Media app icon and selective glass/frosted chrome reference takeaways"}
