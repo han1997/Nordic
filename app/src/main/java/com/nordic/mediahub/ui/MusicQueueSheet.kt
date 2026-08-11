@@ -16,8 +16,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
@@ -33,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -349,11 +355,11 @@ private fun QueueRow(
                         modifier = Modifier.matchParentSize()
                     )
                 } else {
-                    Text(
-                        "♪",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Normal,
-                        color = if (isCurrent) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
+                    Icon(
+                        imageVector = Icons.Filled.MusicNote,
+                        contentDescription = null,
+                        tint = if (isCurrent) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             }
@@ -389,18 +395,19 @@ private fun QueueRow(
                 onClick = onPlayNext
             )
             QueueIconAction(
-                text = "×",
+                icon = Icons.Filled.Close,
+                contentDescription = "移除歌曲",
                 enabled = canRemove,
                 colorScheme = colorScheme,
                 onClick = onRemove
             )
 
             if (isCurrent) {
-                Text(
-                    "♪",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = colorScheme.primary,
-                    fontWeight = FontWeight.Bold
+                Icon(
+                    imageVector = Icons.Filled.MusicNote,
+                    contentDescription = "当前播放",
+                    tint = colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
@@ -420,10 +427,11 @@ private fun QueueDragHandle(
         modifier = modifier.size(28.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text(
-                "≡",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+            Icon(
+                imageVector = Icons.Filled.DragHandle,
+                contentDescription = "拖动调整顺序",
+                tint = colorScheme.onSurface.copy(alpha = if (enabled) NordicAlpha.subtle else NordicAlpha.faint),
+                modifier = Modifier.size(20.dp)
             )
         }
     }
@@ -468,7 +476,8 @@ private fun QueueTextAction(
 
 @Composable
 private fun QueueIconAction(
-    text: String,
+    icon: ImageVector,
+    contentDescription: String,
     enabled: Boolean,
     colorScheme: ColorScheme,
     onClick: () -> Unit
@@ -490,10 +499,10 @@ private fun QueueIconAction(
             .clickable(enabled = enabled, onClick = onClick)
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text(
-                text,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                modifier = Modifier.size(18.dp)
             )
         }
     }

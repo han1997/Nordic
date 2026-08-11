@@ -173,13 +173,25 @@ internal fun ScreenBackButton(
         color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
         contentColor = colorScheme.onSurface,
         shape = NordicShapes.md,
+        tonalElevation = 3.dp,
+        shadowElevation = 4.dp,
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
         modifier = modifier
             .height(42.dp)
             .clickable(onClick = onClick)
     ) {
         Box(
-            modifier = Modifier.padding(horizontal = NordicSpacing.md),
+            modifier = Modifier
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            colorScheme.onSurface.copy(alpha = 0.05f),
+                            colorScheme.surface.copy(alpha = 0.0f),
+                            colorScheme.primary.copy(alpha = 0.03f)
+                        )
+                    )
+                )
+                .padding(horizontal = NordicSpacing.md),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -201,7 +213,7 @@ internal fun CoverArt(
     shape: Shape = NordicShapes.sm,
     fallbackText: String? = null,
     initials: String? = null,
-    fallbackGlyph: String? = null
+    fallbackIcon: ImageVector? = null
 ) {
     var imageFailed by remember(imageUrl) { mutableStateOf(false) }
     val fallbackAccent = remember(contentDescription) {
@@ -215,8 +227,8 @@ internal fun CoverArt(
 
     val showImage = !imageUrl.isNullOrBlank() && !imageFailed
     val showInitials = !showImage && !initials.isNullOrBlank()
-    val showGlyph = !showImage && !showInitials && fallbackGlyph != null
-    val showText = !showImage && !showInitials && !showGlyph && !fallbackText.isNullOrBlank()
+    val showIcon = !showImage && !showInitials && fallbackIcon != null
+    val showText = !showImage && !showInitials && !showIcon && !fallbackText.isNullOrBlank()
 
     Box(
         modifier = modifier
@@ -249,12 +261,12 @@ internal fun CoverArt(
                     fontWeight = FontWeight.Bold
                 )
             }
-            showGlyph -> {
-                Text(
-                    fallbackGlyph!!,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Normal,
-                    color = colorScheme.primary.copy(alpha = 0.72f)
+            showIcon -> {
+                Icon(
+                    imageVector = fallbackIcon!!,
+                    contentDescription = null,
+                    tint = colorScheme.primary.copy(alpha = 0.72f),
+                    modifier = Modifier.size((size.value * 0.42f).dp)
                 )
             }
             showText -> {

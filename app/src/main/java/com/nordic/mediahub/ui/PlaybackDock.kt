@@ -71,7 +71,7 @@ private fun DockPlayPauseButton(
     }
 }
 @Composable
-fun PolishedPlaybackDock(
+internal fun PolishedPlaybackDock(
     selected: Int,
     colorScheme: ColorScheme,
     currentSong: NavidromeSong?,
@@ -85,8 +85,8 @@ fun PolishedPlaybackDock(
         color = colorScheme.surface.copy(alpha = DOCK_SURFACE_ALPHA),
         contentColor = colorScheme.onSurface,
         shape = NordicShapes.xl,
-        tonalElevation = 6.dp,
-        shadowElevation = 12.dp,
+        tonalElevation = 8.dp,
+        shadowElevation = 14.dp,
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = DOCK_BORDER_ALPHA)),
         modifier = Modifier
             .fillMaxWidth()
@@ -97,9 +97,9 @@ fun PolishedPlaybackDock(
             modifier = Modifier.background(
                 Brush.verticalGradient(
                     listOf(
-                        colorScheme.onSurface.copy(alpha = 0.055f),
+                        colorScheme.onSurface.copy(alpha = 0.075f),
                         colorScheme.surface.copy(alpha = 0.0f),
-                        colorScheme.primary.copy(alpha = 0.035f)
+                        colorScheme.primary.copy(alpha = 0.055f)
                     )
                 )
             )
@@ -144,8 +144,8 @@ internal fun BottomDockHandle(
             color = colorScheme.surface.copy(alpha = DOCK_HANDLE_SURFACE_ALPHA),
             contentColor = colorScheme.onSurface,
             shape = NordicShapes.full,
-            tonalElevation = 3.dp,
-            shadowElevation = 6.dp,
+            tonalElevation = 5.dp,
+            shadowElevation = 8.dp,
             border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = DOCK_BORDER_ALPHA)),
             modifier = Modifier
                 .clip(NordicShapes.full)
@@ -154,6 +154,14 @@ internal fun BottomDockHandle(
         ) {
             Box(
                 modifier = Modifier
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                colorScheme.onSurface.copy(alpha = 0.065f),
+                                colorScheme.primary.copy(alpha = 0.035f)
+                            )
+                        )
+                    )
                     .width(64.dp)
                     .height(18.dp)
                     .padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.xs),
@@ -172,7 +180,7 @@ internal fun BottomDockHandle(
 }
 
 @Composable
-fun PolishedBottomNav(selected: Int, colorScheme: ColorScheme, onSelect: (Int) -> Unit) {
+internal fun PolishedBottomNav(selected: Int, colorScheme: ColorScheme, onSelect: (Int) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -187,7 +195,7 @@ fun PolishedBottomNav(selected: Int, colorScheme: ColorScheme, onSelect: (Int) -
     }
 }
 @Composable
-fun PolishedNavItem(
+internal fun PolishedNavItem(
     icon: ImageVector,
     label: String,
     selected: Boolean,
@@ -243,7 +251,7 @@ fun PolishedNavItem(
     }
 }
 @Composable
-fun PolishedNowPlayingBar(
+internal fun PolishedNowPlayingBar(
     song: NavidromeSong?,
     colorScheme: ColorScheme,
     isPlaying: Boolean,

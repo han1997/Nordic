@@ -18,7 +18,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.Forward30
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Replay30
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -33,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -214,7 +225,8 @@ fun AudiobookPlayerScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         AudiobookControlButton(
-                            label = "≪",
+                            icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                            contentDescription = "上一章节",
                             colorScheme = colorScheme,
                             compact = compact,
                             enabled = chapterNavigationEnabled,
@@ -222,7 +234,8 @@ fun AudiobookPlayerScreen(
                         )
                         Spacer(Modifier.size(NordicSpacing.sm))
                         AudiobookControlButton(
-                            label = "-30",
+                            icon = Icons.Filled.Replay30,
+                            contentDescription = "后退 30 秒",
                             colorScheme = colorScheme,
                             compact = compact,
                             enabled = playbackControlsEnabled,
@@ -230,7 +243,8 @@ fun AudiobookPlayerScreen(
                         )
                         Spacer(Modifier.size(NordicSpacing.sm))
                         AudiobookPlayButton(
-                            label = if (state.isPlaying) "Ⅱ" else "▶",
+                            icon = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                            contentDescription = if (state.isPlaying) "暂停" else "播放",
                             colorScheme = colorScheme,
                             compact = compact,
                             enabled = playbackControlsEnabled,
@@ -238,7 +252,8 @@ fun AudiobookPlayerScreen(
                         )
                         Spacer(Modifier.size(NordicSpacing.sm))
                         AudiobookControlButton(
-                            label = "+30",
+                            icon = Icons.Filled.Forward30,
+                            contentDescription = "前进 30 秒",
                             colorScheme = colorScheme,
                             compact = compact,
                             enabled = playbackControlsEnabled,
@@ -246,7 +261,8 @@ fun AudiobookPlayerScreen(
                         )
                         Spacer(Modifier.size(NordicSpacing.sm))
                         AudiobookControlButton(
-                            label = "≫",
+                            icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = "下一章节",
                             colorScheme = colorScheme,
                             compact = compact,
                             enabled = chapterNavigationEnabled,
@@ -309,7 +325,12 @@ private fun AudiobookPrimaryDisplay(
                             .background(colorScheme.surface.copy(alpha = 0.62f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("▤", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Normal, color = colorScheme.primary.copy(alpha = NordicAlpha.medium))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                            contentDescription = null,
+                            tint = colorScheme.primary.copy(alpha = NordicAlpha.medium),
+                            modifier = Modifier.size(42.dp)
+                        )
                     }
                 }
             }
@@ -335,7 +356,12 @@ private fun AudiobookPlayerTopBar(
             modifier = Modifier.size(42.dp).clickable(onClick = onClose)
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Text("⌄", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Normal, color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium))
+                Icon(
+                    imageVector = Icons.Filled.KeyboardArrowDown,
+                    contentDescription = "关闭播放器",
+                    tint = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
         Text(
@@ -349,7 +375,8 @@ private fun AudiobookPlayerTopBar(
 
 @Composable
 private fun AudiobookControlButton(
-    label: String,
+    icon: ImageVector,
+    contentDescription: String,
     colorScheme: ColorScheme,
     compact: Boolean,
     enabled: Boolean,
@@ -370,11 +397,11 @@ private fun AudiobookControlButton(
             .clickable(enabled = enabled, onClick = onClick)
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text(
-                label,
-                fontSize = if (label.length > 2) 15.sp else 20.sp,
-                color = foreground,
-                fontWeight = FontWeight.Bold
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = foreground,
+                modifier = Modifier.size(if (compact) 22.dp else 24.dp)
             )
         }
     }
@@ -382,7 +409,8 @@ private fun AudiobookControlButton(
 
 @Composable
 private fun AudiobookPlayButton(
-    label: String,
+    icon: ImageVector,
+    contentDescription: String,
     colorScheme: ColorScheme,
     compact: Boolean,
     enabled: Boolean,
@@ -398,10 +426,11 @@ private fun AudiobookPlayButton(
             .clickable(enabled = enabled, onClick = onClick)
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text(
-                label,
-                style = MaterialTheme.typography.headlineMedium,
-                color = colorScheme.onPrimary
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = colorScheme.onPrimary,
+                modifier = Modifier.size(if (compact) 30.dp else 32.dp)
             )
         }
     }

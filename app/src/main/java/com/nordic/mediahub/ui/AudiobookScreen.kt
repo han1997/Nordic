@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.PlayArrow
@@ -548,7 +549,7 @@ private fun AudiobookSummaryCard(
                 colorScheme = colorScheme,
                 modifier = Modifier.size(72.dp),
                 shape = NordicShapes.md,
-                fallbackGlyph = "▤"
+                fallbackIcon = Icons.AutoMirrored.Filled.MenuBook
             )
             Column(
                 modifier = Modifier.weight(1f),
@@ -615,7 +616,7 @@ private fun AudiobookDetailHeader(
                 colorScheme = colorScheme,
                 modifier = Modifier.size(128.dp),
                 shape = NordicShapes.md,
-                fallbackGlyph = "▤"
+                fallbackIcon = Icons.AutoMirrored.Filled.MenuBook
             )
             Column(
                 modifier = Modifier.weight(1f),

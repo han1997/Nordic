@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -375,11 +376,11 @@ private fun PlayerArtwork(
                             .background(colorScheme.surface.copy(alpha = 0.62f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            "♪",
-                            style = MaterialTheme.typography.displaySmall,
-                            fontWeight = FontWeight.Normal,
-                            color = colorScheme.primary.copy(alpha = NordicAlpha.medium)
+                        Icon(
+                            imageVector = Icons.Filled.MusicNote,
+                            contentDescription = null,
+                            tint = colorScheme.primary.copy(alpha = NordicAlpha.medium),
+                            modifier = Modifier.size(42.dp)
                         )
                     }
                 }

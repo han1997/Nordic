@@ -32,7 +32,7 @@ import com.nordic.mediahub.ui.theme.NordicMotion
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
 
-data class HeaderAction(
+internal data class HeaderAction(
     val icon: ImageVector,
     val contentDescription: String,
     val enabled: Boolean = true,
@@ -40,7 +40,7 @@ data class HeaderAction(
 )
 
 @Composable
-fun rememberPressScale(
+internal fun rememberPressScale(
     interactionSource: InteractionSource,
     pressedScale: Float = 0.985f,
     defaultScale: Float = 1f,
@@ -56,7 +56,7 @@ fun rememberPressScale(
 }
 
 @Composable
-fun AnimatedIconButton(
+internal fun AnimatedIconButton(
     icon: ImageVector,
     contentDescription: String,
     onClick: () -> Unit
@@ -84,7 +84,7 @@ fun AnimatedIconButton(
 }
 
 @Composable
-fun HeaderActionGroup(
+internal fun HeaderActionGroup(
     actions: List<HeaderAction>,
     modifier: Modifier = Modifier
 ) {
@@ -93,9 +93,11 @@ fun HeaderActionGroup(
     val colorScheme = MaterialTheme.colorScheme
 
     Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
+        color = colorScheme.surfaceVariant.copy(alpha = 0.62f),
         contentColor = colorScheme.onSurface,
         shape = NordicShapes.md,
+        tonalElevation = 3.dp,
+        shadowElevation = 4.dp,
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
         modifier = modifier
     ) {
@@ -103,8 +105,9 @@ fun HeaderActionGroup(
             modifier = Modifier.background(
                 Brush.verticalGradient(
                     listOf(
-                        colorScheme.onSurface.copy(alpha = 0.045f),
-                        colorScheme.onSurface.copy(alpha = 0.0f)
+                        colorScheme.onSurface.copy(alpha = 0.06f),
+                        colorScheme.surface.copy(alpha = 0.0f),
+                        colorScheme.primary.copy(alpha = 0.035f)
                     )
                 )
             )

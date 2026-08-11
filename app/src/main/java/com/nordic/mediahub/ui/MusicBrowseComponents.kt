@@ -19,6 +19,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
@@ -213,7 +216,12 @@ internal fun PlaylistListRow(
                         modifier = Modifier.matchParentSize()
                     )
                 } else {
-                    Text("≡", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Normal, color = colorScheme.primary.copy(alpha = NordicAlpha.subtle))
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                        contentDescription = null,
+                        tint = colorScheme.primary.copy(alpha = NordicAlpha.subtle),
+                        modifier = Modifier.size(28.dp)
+                    )
                 }
             }
             Column(
@@ -280,7 +288,12 @@ internal fun PlaylistDetailHeader(
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
-                Text("≡", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Normal, color = colorScheme.primary.copy(alpha = NordicAlpha.subtle))
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.QueueMusic,
+                    contentDescription = null,
+                    tint = colorScheme.primary.copy(alpha = NordicAlpha.subtle),
+                    modifier = Modifier.size(42.dp)
+                )
             }
         }
         Column(
@@ -606,7 +619,12 @@ internal fun AlbumListRow(
                         modifier = Modifier.matchParentSize()
                     )
                 } else {
-                    Text("♪", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Normal, color = colorScheme.primary.copy(alpha = NordicAlpha.subtle))
+                    Icon(
+                        imageVector = Icons.Filled.MusicNote,
+                        contentDescription = null,
+                        tint = colorScheme.primary.copy(alpha = NordicAlpha.subtle),
+                        modifier = Modifier.size(28.dp)
+                    )
                 }
             }
             Column(
@@ -678,7 +696,12 @@ internal fun AlbumDetailHeader(
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
-                Text("♪", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Normal, color = colorScheme.primary.copy(alpha = NordicAlpha.subtle))
+                Icon(
+                    imageVector = Icons.Filled.LibraryMusic,
+                    contentDescription = null,
+                    tint = colorScheme.primary.copy(alpha = NordicAlpha.subtle),
+                    modifier = Modifier.size(42.dp)
+                )
             }
         }
         Column(
