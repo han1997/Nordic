@@ -625,3 +625,38 @@ Redesigned the video player chrome with an immersive overlay, added a lightweigh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 135: 打磨软件 UI 与操作逻辑
+
+**Date**: 2026-08-11
+**Task**: 打磨软件 UI 与操作逻辑
+**Branch**: `main`
+
+### Summary
+
+完成导航流一致性审计并按确认范围修复音乐导航：详情页来源感知回退、刷新后 selected detail reconciliation、配置变更复位提示；视频和有声书 findings 保留为后续任务候选。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b41d430` | (see git log) |
+| `e466795` | (see git log) |
+| `4c2c53c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
