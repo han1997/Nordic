@@ -639,6 +639,64 @@ BackHandler(enabled = selectedVideo == null && showConfig) {
 
 **Why**: The app uses state-driven navigation without Jetpack Navigation Compose. Every sub-page, detail view, player overlay, and inline config panel is controlled by boolean/enum state. Android's default back behavior calls `Activity.finish()`, which exits the app — the opposite of what users expect when navigating within the app.
 
+### Cross-media config reset feedback
+
+**Scope / Trigger**: Any change to saved media config handling in Music, Audiobook, or Video screens where config changes clear user-visible detail, search, filter, or sub-page state.
+
+**Signatures**:
+- Music uses local `musicResetNotice` in `MusicScreenV2` and gates it from `LaunchedEffect(savedConfig)`.
+- Audiobook uses `internal fun shouldShowAudiobookConfigResetNotice(previousConfigChanged: Boolean, libraryPage: AudiobookLibraryPage, selectedItem: AudiobookItemDetail?): Boolean`.
+- Video uses `internal fun shouldShowVideoConfigResetNotice(previousConfigChanged: Boolean, selectedVideo: VideoItem?, searchQuery: String, searchExpanded: Boolean, selectedTypeFilter: VideoTypeFilter): Boolean`.
+
+**Contract**:
+- Treat saved config changes as a local navigation boundary for the affected media screen.
+- Compute whether a notice is needed before calling the reset function, because reset clears the evidence (`selectedItem`, `selectedVideo`, page, search, or filter state).
+- Show a compact local `MediaStateCard` only when the config key changed after initial launch and the reset visibly collapses detail/search/filter/sub-page state.
+- Do not show a reset notice for first launch, same-config emissions, or default Home/browse states with no active selection/search/filter.
+- Clear the notice when the user takes a normal navigation action in that media screen, such as opening a new detail page, pressing detail back, selecting a library, or clearing browser filters with Back.
+- Keep feedback local to each screen; do not add a shared routing abstraction unless multiple screens already require the exact same state shape.
+
+**Validation & Error Matrix**:
+- Previous config is null -> reset state if needed, but no notice.
+- Previous config cache key equals current cache key -> no notice.
+- Audiobook config key changes while Detail is visible -> return Home and show one Audiobook reset notice.
+- Audiobook config key changes while Home has no selected item -> return Home with no notice.
+- Video config key changes while detail/search/search-expanded/non-All filter is active -> clear those states and show one Video reset notice.
+- Video config key changes while default browse state is active -> no notice.
+
+**Good/Base/Bad Cases**:
+- Good: User changes AudiobookShelf server while reading a book detail; the screen returns to Home and explains the reset.
+- Good: User changes Emby server while a video filter is active; the filter clears and a compact note explains the reset.
+- Base: First launch with no ready config shows the setup empty state without a reset notice.
+- Bad: The screen silently collapses from detail/search/filter to Home after a config edit.
+- Bad: The reset notice appears on every app launch or on same-config DataStore emissions.
+- Bad: The code computes notice eligibility after calling `reset...AfterConfigChange()`, so it can no longer know whether visible state was cleared.
+
+**Tests Required**:
+- Focused helper tests for first launch/no-op config emissions returning false.
+- Focused helper tests for visible state collapse returning true.
+- Existing compile, unit test, and lint gates after changing Compose reset paths.
+
+**Wrong vs Correct**:
+```kotlin
+// Wrong: reset first, then try to infer whether anything visible changed.
+resetVideoStateAfterConfigChange()
+val shouldShowNotice = selectedVideo != null || searchQuery.isNotBlank()
+```
+
+```kotlin
+// Correct: capture the visible state before the reset boundary clears it.
+val shouldShowNotice = shouldShowVideoConfigResetNotice(
+    previousConfigChanged = previousConfigChanged,
+    selectedVideo = selectedVideo,
+    searchQuery = searchQuery,
+    searchExpanded = searchExpanded,
+    selectedTypeFilter = selectedTypeFilter
+)
+resetVideoStateAfterConfigChange()
+if (shouldShowNotice) videoResetNotice = "视频配置已更新，已回到视频首页。"
+```
+
 ### Config readiness checks centralized
 
 `NavidromeConfig.isReadyForMusicSync()` is defined once in `ServerConfig.kt` and imported where needed. Do not inline `serverUrl.isNotBlank() && username.isNotBlank()` or create duplicate extension functions.
