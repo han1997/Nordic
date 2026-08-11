@@ -19,6 +19,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -651,7 +654,8 @@ fun MusicScreenV2(
         if (savedConfig.isReadyForMusicSync()) {
             add(
                 HeaderAction(
-                    icon = if (isLoading) "…" else "↻",
+                    icon = Icons.Filled.Refresh,
+                    contentDescription = "刷新音乐",
                     enabled = !isLoading,
                     onClick = {
                         scope.launch {
@@ -666,7 +670,13 @@ fun MusicScreenV2(
                 )
             )
         }
-        add(HeaderAction(if (isDark) "☀" else "☾") { onThemeToggle(!isDark) })
+        add(
+            HeaderAction(
+                icon = if (isDark) Icons.Filled.LightMode else Icons.Filled.DarkMode,
+                contentDescription = if (isDark) "切换到浅色模式" else "切换到深色模式",
+                onClick = { onThemeToggle(!isDark) }
+            )
+        )
     }
     val isHomePage = libraryPage == MusicLibraryPage.Home
     val headerTitle = when (libraryPage) {

@@ -8,6 +8,10 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -265,13 +269,20 @@ fun VideoScreen(
                     if (savedConfig.isReadyForVideoSync()) {
                         add(
                             HeaderAction(
-                                icon = if (isLoading) "…" else "↻",
+                                icon = Icons.Filled.Refresh,
+                                contentDescription = "刷新视频",
                                 enabled = !isLoading,
                                 onClick = { scope.launch { refreshVideo() } }
                             )
                         )
                     }
-                    add(HeaderAction(if (isDark) "☀" else "☾") { onThemeToggle(!isDark) })
+                    add(
+                        HeaderAction(
+                            icon = if (isDark) Icons.Filled.LightMode else Icons.Filled.DarkMode,
+                            contentDescription = if (isDark) "切换到浅色模式" else "切换到深色模式",
+                            onClick = { onThemeToggle(!isDark) }
+                        )
+                    )
                 },
                 colorScheme = colorScheme
             )

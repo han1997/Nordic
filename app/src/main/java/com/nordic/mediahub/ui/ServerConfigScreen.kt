@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -73,7 +76,13 @@ fun ServerConfigScreen(
             MediaPageHeader(
                 title = "配置",
                 subtitle = "集中管理音乐、有声书和视频服务器连接",
-                actions = listOf(HeaderAction(if (isDark) "☀" else "☾") { onThemeToggle(!isDark) }),
+                actions = listOf(
+                    HeaderAction(
+                        icon = if (isDark) Icons.Filled.LightMode else Icons.Filled.DarkMode,
+                        contentDescription = if (isDark) "切换到浅色模式" else "切换到深色模式",
+                        onClick = { onThemeToggle(!isDark) }
+                    )
+                ),
                 colorScheme = colorScheme
             )
         }

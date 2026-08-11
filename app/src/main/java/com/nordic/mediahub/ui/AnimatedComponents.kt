@@ -11,10 +11,10 @@ import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -24,16 +24,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.nordic.mediahub.ui.theme.NordicAlpha
 import com.nordic.mediahub.ui.theme.NordicMotion
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
 
 data class HeaderAction(
-    val icon: String,
+    val icon: ImageVector,
+    val contentDescription: String,
     val enabled: Boolean = true,
     val onClick: () -> Unit
 )
@@ -55,7 +56,11 @@ fun rememberPressScale(
 }
 
 @Composable
-fun AnimatedIconButton(icon: String, onClick: () -> Unit) {
+fun AnimatedIconButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit
+) {
     val colorScheme = MaterialTheme.colorScheme
     val interactionSource = remember { MutableInteractionSource() }
     val scale = rememberPressScale(interactionSource, pressedScale = 0.94f)
@@ -69,7 +74,12 @@ fun AnimatedIconButton(icon: String, onClick: () -> Unit) {
             .clip(NordicShapes.md)
             .background(colorScheme.surfaceVariant.copy(alpha = 0.58f))
     ) {
-        Text(icon, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Normal, color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium))
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
+            modifier = Modifier.size(22.dp)
+        )
     }
 }
 
@@ -89,13 +99,24 @@ fun HeaderActionGroup(
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
         modifier = modifier
     ) {
-        Row(
-            modifier = Modifier.padding(NordicSpacing.xs),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier.background(
+                Brush.verticalGradient(
+                    listOf(
+                        colorScheme.onSurface.copy(alpha = 0.045f),
+                        colorScheme.onSurface.copy(alpha = 0.0f)
+                    )
+                )
+            )
         ) {
-            actions.forEach { action ->
-                HeaderActionButton(action)
+            Row(
+                modifier = Modifier.padding(NordicSpacing.xs),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                actions.forEach { action ->
+                    HeaderActionButton(action)
+                }
             }
         }
     }
@@ -124,11 +145,11 @@ private fun HeaderActionButton(action: HeaderAction) {
             ),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            action.icon,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Normal,
-            color = colorScheme.onSurface.copy(alpha = if (action.enabled) NordicAlpha.medium else NordicAlpha.faint)
+        Icon(
+            imageVector = action.icon,
+            contentDescription = action.contentDescription,
+            tint = colorScheme.onSurface.copy(alpha = if (action.enabled) NordicAlpha.medium else NordicAlpha.faint),
+            modifier = Modifier.size(20.dp)
         )
     }
 }

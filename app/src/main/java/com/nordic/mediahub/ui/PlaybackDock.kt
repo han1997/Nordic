@@ -8,6 +8,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -52,11 +61,12 @@ private fun DockPlayPauseButton(
             modifier = Modifier.size(38.dp),
             contentAlignment = Alignment.Center
         ) {
-            if (isPlaying) {
-                Text("⏸", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Normal, color = colorScheme.onPrimary)
-            } else {
-                Text("▶", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Normal, color = colorScheme.onPrimary)
-            }
+            Icon(
+                imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                contentDescription = if (isPlaying) "暂停" else "播放",
+                tint = colorScheme.onPrimary,
+                modifier = Modifier.size(22.dp)
+            )
         }
     }
 }
@@ -83,30 +93,41 @@ fun PolishedPlaybackDock(
             .navigationBarsPadding()
             .padding(start = NordicSpacing.md, end = NordicSpacing.md, bottom = NordicSpacing.md)
     ) {
-        Column(
-            modifier = Modifier.padding(top = NordicSpacing.sm, bottom = NordicSpacing.sm),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+        Box(
+            modifier = Modifier.background(
+                Brush.verticalGradient(
+                    listOf(
+                        colorScheme.onSurface.copy(alpha = 0.055f),
+                        colorScheme.surface.copy(alpha = 0.0f),
+                        colorScheme.primary.copy(alpha = 0.035f)
+                    )
+                )
+            )
         ) {
-            PolishedNowPlayingBar(
-                song = currentSong,
-                colorScheme = colorScheme,
-                isPlaying = isPlaying,
-                playbackStatus = playbackStatus,
-                onOpenPlayer = onOpenPlayer,
-                onPlayPause = onPlayPause
-            )
-            Box(
-                Modifier
-                    .padding(horizontal = NordicSpacing.lg, vertical = 2.dp)
-                    .height(1.dp)
-                    .fillMaxWidth()
-                    .background(colorScheme.onSurface.copy(alpha = DOCK_DIVIDER_ALPHA))
-            )
-            PolishedBottomNav(selected, colorScheme, onSelect)
+            Column(
+                modifier = Modifier.padding(top = NordicSpacing.sm, bottom = NordicSpacing.sm),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                PolishedNowPlayingBar(
+                    song = currentSong,
+                    colorScheme = colorScheme,
+                    isPlaying = isPlaying,
+                    playbackStatus = playbackStatus,
+                    onOpenPlayer = onOpenPlayer,
+                    onPlayPause = onPlayPause
+                )
+                Box(
+                    Modifier
+                        .padding(horizontal = NordicSpacing.lg, vertical = 2.dp)
+                        .height(1.dp)
+                        .fillMaxWidth()
+                        .background(colorScheme.onSurface.copy(alpha = DOCK_DIVIDER_ALPHA))
+                )
+                PolishedBottomNav(selected, colorScheme, onSelect)
+            }
         }
     }
 }
-
 @Composable
 internal fun BottomDockHandle(
     colorScheme: ColorScheme,
@@ -159,16 +180,15 @@ fun PolishedBottomNav(selected: Int, colorScheme: ColorScheme, onSelect: (Int) -
             .padding(horizontal = NordicSpacing.sm),
         horizontalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
     ) {
-        PolishedNavItem("♪", "音乐", selected == 0, colorScheme, Modifier.weight(1f)) { onSelect(0) }
-        PolishedNavItem("▤", "有声书", selected == 1, colorScheme, Modifier.weight(1f)) { onSelect(1) }
-        PolishedNavItem("▶", "视频", selected == 2, colorScheme, Modifier.weight(1f)) { onSelect(2) }
-        PolishedNavItem("⚙", "配置", selected == 3, colorScheme, Modifier.weight(1f)) { onSelect(3) }
+        PolishedNavItem(Icons.Filled.LibraryMusic, "音乐", selected == 0, colorScheme, Modifier.weight(1f)) { onSelect(0) }
+        PolishedNavItem(Icons.AutoMirrored.Filled.MenuBook, "有声书", selected == 1, colorScheme, Modifier.weight(1f)) { onSelect(1) }
+        PolishedNavItem(Icons.Filled.Movie, "视频", selected == 2, colorScheme, Modifier.weight(1f)) { onSelect(2) }
+        PolishedNavItem(Icons.Filled.Settings, "配置", selected == 3, colorScheme, Modifier.weight(1f)) { onSelect(3) }
     }
 }
-
 @Composable
 fun PolishedNavItem(
-    icon: String,
+    icon: ImageVector,
     label: String,
     selected: Boolean,
     colorScheme: ColorScheme,
@@ -207,7 +227,12 @@ fun PolishedNavItem(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            Text(icon, style = MaterialTheme.typography.titleMedium, color = contentColor)
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = contentColor,
+                modifier = Modifier.size(21.dp)
+            )
             Text(
                 label,
                 style = MaterialTheme.typography.bodySmall,
@@ -217,7 +242,6 @@ fun PolishedNavItem(
         }
     }
 }
-
 @Composable
 fun PolishedNowPlayingBar(
     song: NavidromeSong?,
@@ -257,7 +281,12 @@ fun PolishedNowPlayingBar(
                     modifier = Modifier.matchParentSize()
                 )
             } else {
-                Text("♪", style = MaterialTheme.typography.headlineMedium, color = colorScheme.primary)
+                Icon(
+                    imageVector = Icons.Filled.MusicNote,
+                    contentDescription = null,
+                    tint = colorScheme.primary.copy(alpha = 0.72f),
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
         Spacer(Modifier.width(NordicSpacing.md))

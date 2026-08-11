@@ -18,7 +18,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -429,16 +432,15 @@ internal fun MusicSearchButton(
                 .padding(horizontal = NordicSpacing.lg),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                "⌕",
-                style = MaterialTheme.typography.headlineMedium,
-                color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-                fontWeight = FontWeight.SemiBold
+            Icon(
+                imageVector = Icons.Filled.Search,
+                contentDescription = "搜索音乐",
+                tint = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
+                modifier = Modifier.size(22.dp)
             )
         }
     }
 }
-
 @Composable
 internal fun SongSortSegmentedControl(
     selectedSort: MusicSongSort,

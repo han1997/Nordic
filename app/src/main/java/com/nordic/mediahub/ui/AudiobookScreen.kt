@@ -7,6 +7,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment.Companion.Center
@@ -321,13 +326,20 @@ fun AudiobookScreen(
                     if (savedConfig.isReadyForAudiobookSync()) {
                         add(
                             HeaderAction(
-                                icon = if (isLoading) "…" else "↻",
+                                icon = Icons.Filled.Refresh,
+                                contentDescription = "刷新有声书",
                                 enabled = !isLoading,
                                 onClick = { scope.launch { refreshAudiobooks() } }
                             )
                         )
                     }
-                    add(HeaderAction(if (isDark) "☀" else "☾") { onThemeToggle(!isDark) })
+                    add(
+                        HeaderAction(
+                            icon = if (isDark) Icons.Filled.LightMode else Icons.Filled.DarkMode,
+                            contentDescription = if (isDark) "切换到浅色模式" else "切换到深色模式",
+                            onClick = { onThemeToggle(!isDark) }
+                        )
+                    )
                 },
                 colorScheme = colorScheme,
                 showBack = libraryPage != AudiobookLibraryPage.Home,
@@ -570,7 +582,12 @@ private fun AudiobookSummaryCard(
                 modifier = Modifier.size(38.dp).clickable(onClick = onPlay)
             ) {
                 Box(contentAlignment = Center) {
-                    Text("▶", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Normal, color = colorScheme.onPrimary)
+                    Icon(
+                        imageVector = Icons.Filled.PlayArrow,
+                        contentDescription = "播放有声书",
+                        tint = colorScheme.onPrimary,
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
             }
         }

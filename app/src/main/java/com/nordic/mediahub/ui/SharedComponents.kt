@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Column
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -180,16 +182,15 @@ internal fun ScreenBackButton(
             modifier = Modifier.padding(horizontal = NordicSpacing.md),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                "‹",
-                style = MaterialTheme.typography.headlineMedium,
-                color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-                fontWeight = FontWeight.SemiBold
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "返回",
+                tint = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
+                modifier = Modifier.size(22.dp)
             )
         }
     }
 }
-
 @Composable
 internal fun CoverArt(
     imageUrl: String?,
