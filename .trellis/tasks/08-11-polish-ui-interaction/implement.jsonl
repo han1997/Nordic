@@ -1,0 +1,6 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `py -3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Android app verification commands and pre-development checklist"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "BackHandler, shared media shell, state isolation, and music navigation reset contracts"}
+{"file": ".trellis/spec/backend/documentation-guidelines.md", "reason": "CHANGELOG and Chinese documentation requirements for user-visible navigation changes"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Config-change and cache refresh boundary guidance for UI state reset"}
+{"file": ".trellis/tasks/08-11-polish-ui-interaction/research/navigation-audit.md", "reason": "Confirmed navigation audit findings M1/M3/M5 and deferred findings"}
