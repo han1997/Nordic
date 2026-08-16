@@ -609,6 +609,48 @@ val positionMillis: StateFlow<Long> = flow {
 
 **Why**: Playback ticks and debounce bookkeeping can update often. Isolating operational state prevents unrelated home/library content from being recomposed just because a handle changed.
 
+### pointerInput lambda freshness with rememberSaveable key changes
+
+**Scope / Trigger**: Any `pointerInput(Unit)` or `pointerInput(constantKey)` block that captures a lambda parameter which closes over a `MutableState` created by `rememberSaveable(changingKey)` or `remember(changingKey)`.
+
+**Problem**: When `pointerInput` uses a constant key (e.g. `Unit`), its coroutine never restarts on recomposition. The lambda captured inside `detectTapGestures` / `detectDragGestures` etc. holds a reference to the `MutableState` that existed at first composition. If a `rememberSaveable(song?.id)` or similar key-based state holder creates a **new** `MutableState` when the key changes (e.g. switching songs), the old gesture detector keeps writing to the discarded `MutableState` while the UI reads the new one — taps become silently ignored.
+
+**Contract**:
+- When a `pointerInput(constantKey)` gesture handler captures a lambda that references a key-scoped `MutableState`, use `rememberUpdatedState` to bridge the latest lambda into the non-restarting gesture coroutine.
+- Do NOT change the `pointerInput` key to the lambda itself (`pointerInput(onToggleDisplay)`) — that restarts the gesture detector on every recomposition, causing unnecessary coroutine cancellation/recreation and potential gesture interruption.
+- `rememberUpdatedState` is the canonical Compose pattern: `pointerInput(Unit)` stays non-restarting (performance), and the `State`-backed delegate always reads the current lambda at invocation time.
+
+**Validation & Error Matrix**:
+| Condition | Behavior |
+|---|---|
+| `pointerInput(Unit)` captures lambda closing over `rememberSaveable(song?.id)` state | Lambda goes stale when `song?.id` changes; taps silently ignored |
+| `pointerInput(onToggleDisplay)` (key = lambda) | Gesture detector restarts on every recomposition; unnecessary overhead, potential gesture interruption |
+| `rememberUpdatedState(onToggleDisplay)` + `pointerInput(Unit)` | Gesture detector stays alive; `currentToggle()` dispatches to the latest lambda; correct and performant |
+
+**Wrong vs Correct**:
+```kotlin
+// Wrong: pointerInput(Unit) captures a lambda that closes over a key-scoped MutableState.
+// When song?.id changes, rememberSaveable creates a new MutableState, but the old
+// gesture detector keeps writing to the discarded one — taps become dead.
+Box(
+    modifier = modifier.pointerInput(Unit) {
+        detectTapGestures(onTap = { onToggleDisplay() })
+    }
+)
+```
+
+```kotlin
+// Correct: rememberUpdatedState bridges the latest lambda into the non-restarting coroutine.
+val currentToggle by rememberUpdatedState(onToggleDisplay)
+Box(
+    modifier = modifier.pointerInput(Unit) {
+        detectTapGestures(onTap = { currentToggle() })
+    }
+)
+```
+
+**Why**: This is a subtle, silent failure — no crash, no error, just dead taps after a state-key change. The bug is hard to diagnose because the gesture detector appears to be registered and working; it simply writes to a `MutableState` that nothing reads anymore. `rememberUpdatedState` is already an established pattern in this codebase (`VideoPlayerScreen.kt`, `VideoPlayerGestures.kt`).
+
 ### Performance-first persistent media chrome
 
 Floating playback bars, bottom navigation, and other persistent media chrome must justify their always-visible cost. When playback is paused, idle, stopped, or otherwise not actively changing, prefer a collapsed, hidden, or on-demand surface if the chrome blocks page content or keeps expensive UI subscribed to fast-changing playback state.

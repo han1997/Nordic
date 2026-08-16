@@ -62,6 +62,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -434,9 +435,10 @@ private fun PlayerPrimaryDisplay(
     onToggleDisplay: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val currentToggle by rememberUpdatedState(onToggleDisplay)
     Box(
         modifier = modifier.pointerInput(Unit) {
-            detectTapGestures(onTap = { onToggleDisplay() })
+            detectTapGestures(onTap = { currentToggle() })
         }
     ) {
         if (showLyrics) {
