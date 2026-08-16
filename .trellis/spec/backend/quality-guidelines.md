@@ -220,6 +220,40 @@ Use `MediaStateDensity.Compact` for detail-level empty states and the default pr
 
 **Why**: These surfaces encode the design-system alpha levels (`0.72f` empty, `0.76f` loading, error container for errors). Repeating local `Surface` blocks causes visual drift and makes copy/encoding fixes harder to audit.
 
+### Segmented control visual consistency
+
+All segmented tab / sort controls in the Music module (`MusicSegmentedTabs`, `AlbumSortSegmentedControl`, `SongSortSegmentedControl`) must share the same visual language, aligned to `DESIGN.md` `tab-segmented`:
+
+- **Outer container**: `surfaceVariant.copy(alpha = 0.56f)`, `NordicShapes.md` (16dp — token convergence from DESIGN.md's 18dp), 48dp height, `BorderStroke(1dp, onSurface.copy(alpha = 0.06f))`.
+- **Inner tabs**: `surface.copy(alpha = 0.96f)` selected / `Color.Transparent` unselected, `NordicShapes.md` shape, `tonalElevation = 2.dp` when selected, `titleSmall` text style, `NordicAlpha.subtle` unselected text color.
+- **Layout**: `Row` + `weight(1f)` when tab count is small (≤4); `LazyRow` inside the container when tab count is large (>4, e.g. 6 song sort options). Both use `NordicSpacing.xs` padding and spacing.
+- **Animation**: `animateColorAsState` with `tween(NordicMotion.durationMicro, easing = NordicMotion.easingStandard)` for tab color and text color transitions.
+
+**Why**: When sort controls look different (e.g. one uses pill single items, another uses self-drawn segmented), users perceive them as unrelated controls even though they serve the same purpose. Visual unification reduces cognitive load and makes the design system legible.
+
+**Wrong vs Correct**:
+```kotlin
+// Wrong: sort control uses LazyRow + pill single items (NordicShapes.full), inconsistent with the segmented tab spec.
+LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+    items(sorts) { sort ->
+        Surface(shape = NordicShapes.full, ...) { Text(..., style = labelLarge) }
+    }
+}
+```
+
+```kotlin
+// Correct: sort control uses the same self-drawn segmented style as other tabs.
+Surface(color = surfaceVariant.copy(alpha = 0.56f), shape = NordicShapes.md, ...) {
+    LazyRow(modifier = Modifier.padding(NordicSpacing.xs), ...) {
+        items(sorts) { sort ->
+            Surface(shape = NordicShapes.md, tonalElevation = if (selected) 2.dp else 0.dp, ...) {
+                Text(..., style = titleSmall)
+            }
+        }
+    }
+}
+```
+
 ### Shared media page shell
 
 Top-level Music, Audiobook, and Video browsing screens should use the shared page-shell components for headers instead of reimplementing local title/action rows. Server connection editing belongs in the unified `ServerConfigScreen`, not in per-media inline config panels.
@@ -1506,6 +1540,7 @@ if (
 - `setCurrentSongStarred(starred)` must write `currentSong.starred = if (starred) "" else null` so the non-null/empty-string value keeps `starred != null` true for the favorited state, while `null` correctly signals not-favorited. Do NOT use a boolean field — the DTO semantics are timestamp-or-null.
 - The UI must key any local optimistic override on `song?.id` so switching tracks resets displayed state to the new song's `starred`.
 - Star/unstar failures must not crash; the revert path restores the ♥ to its previous value. The repository already wraps `"收藏失败: ..."` / `"取消收藏失败: ..."` contextual messages.
+- When the revert path fires, the VM must also emit a one-shot error event (`SharedFlow<Unit>`, `replay = 0`) so the UI can show a transient pill notification (e.g. "收藏操作失败，已恢复") explaining why the ♥ "jumped back". Without this, the silent revert looks like a bug to the user. The pill auto-hides after 2s and sits in screen space (outside any swipe-to-dismiss transformed content) so it does not tilt with the gesture.
 - `starred` is a persisted cache field (cached songs carry it). Bump `MUSIC_CACHE_SCHEMA_VERSION` when the cache model's `starred` semantics change; adding the field as nullable-with-default is additive and still requires a bump so old caches rehydrate the field from the server rather than serving stale unstarred entries.
 
 **Validation & Error Matrix**:
@@ -1513,8 +1548,9 @@ if (
 - `song.starred` is null → ♥ shows not favorited.
 - User taps ♥ while favorited → VM calls `setCurrentSongStarred(false)` then `unstar`; on failure, reverts to `setCurrentSongStarred(true)`.
 - User taps ♥ while not favorited → VM calls `setCurrentSongStarred(true)` then `star`; on failure, reverts to `setCurrentSongStarred(false)`.
-- Repository null (config not ready) → VM reverts optimistic state and returns; no crash.
+- Repository null (config not ready) → VM reverts optimistic state, emits a one-shot error event, and returns; no crash.
 - Song switches mid-flight → the new `currentSong` carries its own `starred`; the UI reads it directly so no stale per-song override lingers.
+- Star/unstar failure → VM reverts the optimistic state AND emits a one-shot error event so the UI can show a transient pill notification explaining the revert. The event is a `SharedFlow<Unit>(replay = 0, extraBufferCapacity = 1)` — `replay = 0` ensures missed emits (no collector) are dropped, which is the intended UX (no stale error from an old screen). The UI collects via `LaunchedEffect(flow) { flow.collect { ... } }` and auto-hides the pill after a short delay (2s).
 
 **Good/Base/Bad Cases**:
 - Good: User taps ♥, UI flips immediately, server call succeeds; state stays.
@@ -1527,7 +1563,8 @@ if (
 **Tests Required**:
 - Unit test for `setCurrentSongStarred(true)` asserting `currentSong.starred != null` (favorited); `setCurrentSongStarred(false)` asserting `currentSong.starred == null` (not favorited).
 - VM test asserting `toggleFavorite(starred=true)` calls `engine.setCurrentSongStarred(true)` then `repo.star`, and reverts on `repo.star` failure.
-- VM test asserting `toggleFavorite` with a null repository reverts the optimistic state and does not crash.
+- VM test asserting `toggleFavorite` with a null repository reverts the optimistic state, emits the one-shot error event, and does not crash.
+- VM test asserting `toggleFavorite` on `repo.star`/`unstar` failure reverts the optimistic state AND emits the one-shot error event.
 
 **Wrong vs Correct**:
 ```kotlin
