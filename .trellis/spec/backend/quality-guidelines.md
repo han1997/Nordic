@@ -419,6 +419,70 @@ When a shelf is only a visual preview of a longer playback source, keep the prev
 
 Playback scrubbers should keep local scrub state while dragging and call the playback engine's `seekTo(...)` only from `onValueChangeFinished`. Do not call seek on every slider `onValueChange`; it can flood Media3 with repeated seeks and make video/audio playback stutter.
 
+### Manual drag displacement for LazyColumn reordering (pre-1.7)
+
+**Scope / Trigger**: Any change to `MusicQueueSheet` drag-to-reorder, or any LazyColumn that needs real-time item displacement without `animateItem()` / `animateItemPlacement()` (Compose Foundation 1.7+ API, not available in BOM 2024.01.00 / 1.6.x).
+
+**Signatures**:
+- `internal data class QueueDragState(val draggedIndex: Int? = null, val accumulatedPx: Float = 0f)`
+- `internal fun resolveQueueRowDisplacement(rowIndex: Int, dragState: QueueDragState, rowHeightPx: Float): Float`
+
+**Contract**:
+- Maintain drag state at the `LazyColumn` parent level (not inside individual rows): `draggedIndex: Int?` and `accumulatedPx: Float`.
+- The dragged row: `translationY = accumulatedPx` (follows finger) + lift state (scaleY/alpha micro-change via `animateFloatAsState`).
+- Non-dragged rows: if the dragged row has moved past them (based on `accumulatedPx` direction and magnitude relative to `rowHeightPx`), they shift by one row height in the opposite direction. Use `animateFloatAsState` with `tween(NordicMotion.durationMicro, easingStandard)` for smooth transitions.
+- On drag end: calculate `rowDelta = (accumulatedPx / rowHeightPx).roundToInt()`, call `onMoveQueueItem(index, targetIndex)`, then clear drag state. Non-dragged rows animate back to 0 via `animateFloatAsState`.
+- On drag cancel: clear drag state; all rows animate back to 0.
+- No shadows on dragged rows (Flat-at-Rest; lift state is interaction feedback, not decorative shadow).
+- Do NOT use `animateItem()` or `animateItemPlacement()` — these are 1.7+ APIs.
+
+**Validation & Error Matrix**:
+| Condition | Behavior |
+|---|---|
+| No drag in progress | `dragState.draggedIndex == null`; all rows at `translationY = 0` |
+| Dragged row | `translationY = accumulatedPx` (follows finger) |
+| Row above dragged, dragged down past it | Shifts down by one row height |
+| Row below dragged, dragged up past it | Shifts up by one row height |
+| Row not affected | `translationY = 0` |
+| `rowHeightPx <= 0` | Returns `0f` (no crash) |
+| Drag end | Clear state, submit `onMoveQueueItem`, rows animate back |
+| Drag cancel | Clear state, rows animate back |
+
+**Good/Base/Bad Cases**:
+- Good: User drags row 2 down by 1.5 row heights; rows 3-4 shift up by one row height in real time; on release row 2 moves to position 3.
+- Base: Small drag below threshold; no rows shift; on release no reorder.
+- Bad: Using `animateItemPlacement()` (1.7+ API, not available in current BOM).
+- Bad: Maintaining drag state inside individual `QueueRow` composables (can't coordinate displacement across rows).
+- Bad: Adding `shadowElevation` to the dragged row (violates Flat-at-Rest).
+
+**Wrong vs Correct**:
+```kotlin
+// Wrong: per-row drag state, no cross-row coordination.
+@Composable
+private fun QueueRow(...) {
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    // Only this row moves; other rows don't displace.
+}
+```
+
+```kotlin
+// Correct: shared drag state at parent level, each row reads it.
+@Composable
+fun MusicQueueSheet(...) {
+    var dragState by remember { mutableStateOf(QueueDragState()) }
+    LazyColumn {
+        itemsIndexed(queue) { index, song ->
+            QueueRow(
+                dragState = dragState,
+                onDragStart = { dragState = QueueDragState(index, 0f) },
+                onDrag = { delta -> dragState = dragState.copy(accumulatedPx = dragState.accumulatedPx + delta) },
+                onDragEnd = { ... onMoveQueueItem(...); dragState = QueueDragState() }
+            )
+        }
+    }
+}
+```
+
 ### Music player progress controls
 
 **Scope / Trigger**: Any change to `MusicPlayerScreen` progress slider gestures, music relative seek controls, `MusicPlaybackViewModel.seekBackBy` / `seekForwardBy`, or `MusicPlaybackEngine.seekBy` helpers.
