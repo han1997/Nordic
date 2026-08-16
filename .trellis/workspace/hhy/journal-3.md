@@ -829,3 +829,36 @@ Redesigned the video player chrome with an immersive overlay, added a lightweigh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 141: Dock hide minimal handle
+
+**Date**: 2026-08-16
+**Task**: Dock hide minimal handle
+**Branch**: `main`
+
+### Summary
+
+Moved the bottom dock out of Scaffold.bottomBar so hidden dock state leaves only the floating handle, measured visible dock height for content padding, and documented the measured-padding rule.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f45c728` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

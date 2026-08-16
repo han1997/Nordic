@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-3.md`
-- **Total Sessions**: 140
+- **Total Sessions**: 141
 - **Last Active**: 2026-08-16
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-3.md` | ~831 | Active |
+| `journal-3.md` | ~864 | Active |
 | `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
@@ -31,6 +31,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 141 | 2026-08-16 | Dock hide minimal handle | `f45c728` | `main` |
 | 140 | 2026-08-16 | 修复点击下一首后封面无法切换歌词 | `1b5132f` | `main` |
 | 139 | 2026-08-16 | 移除音乐播放页快进快退按钮 | `bf0c4ab` | `main` |
 | 138 | 2026-08-16 | 继续打磨音乐模块遗留项 | `c31c023`, `30889a1` | `main` |
