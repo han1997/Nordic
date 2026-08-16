@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "backend 层 spec 索引，验证阶段对照 Pre-Development Checklist 逐条核对"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "质量验证主依据：设计 token 系统、Compose 性能隔离、Flat-at-Rest、screen-transition 动画契约、共享 UI 状态组件"}
+{"file": ".trellis/spec/backend/documentation-guidelines.md", "reason": "校验 CHANGELOG 条目与用户可见文案是否遵循中文优先与 CHANGELOG 触发条件"}
+{"file": "DESIGN.md", "reason": "校验所有 UI 改动是否遵循 Named Rules（Flat-at-Rest、Accent Scarcity、Translucency、Native Font、FastOutSlowInEasing-only）与 Panel Shadow / Sheet 规范"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "校验歌词 LazyColumn 滚动与队列 Sheet 首屏定位逻辑是否复用既有模式而非新造"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "本次跨越 ViewModel ↔ UI 播放进度 sidecar 与播放层边界，校验数据流契约与边界归属"}

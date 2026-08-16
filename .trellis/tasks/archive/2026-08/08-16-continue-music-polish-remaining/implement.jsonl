@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "backend 层 spec 索引，提供目录结构与 Pre-Development Checklist 入口"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "UI 状态组件约定、设计 token 系统、Compose 性能隔离、Flat-at-Rest、screen-transition 动画契约；歌词 LazyColumn 滚动与拖动实时让位必读"}
+{"file": ".trellis/spec/backend/documentation-guidelines.md", "reason": "需在 CHANGELOG.md [未发布] 段补充本次打磨条目，遵循中文优先与 CHANGELOG 触发条件规范"}
+{"file": "DESIGN.md", "reason": "Nordic 设计系统唯一权威：Panel Shadow 用于歌词面板、Flat-at-Rest、FastOutSlowInEasing-only、tab-segmented、卡片圆角/留白规则。所有 UI 改动必须对照"}
+{"file": "CHANGELOG.md", "reason": "近期已落地的音乐相关改进清单，避免重复实现或与既有改动冲突"}
