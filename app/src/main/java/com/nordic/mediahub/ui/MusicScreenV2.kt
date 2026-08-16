@@ -1038,14 +1038,10 @@ fun MusicScreenV2(
 
                 if (isLoadingAlbumList) {
                     item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = NordicSpacing.xxl),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("正在加载专辑...", style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle))
-                        }
+                        MediaLoadingCard(
+                            title = "正在加载专辑",
+                            subtitle = "按${albumSort.displayLabel()}从 Navidrome 拉取专辑列表。"
+                        )
                     }
                 } else if (sortedAlbums.isEmpty()) {
                     item {
@@ -1215,14 +1211,10 @@ fun MusicScreenV2(
                     }
                     if (isLoadingArtistDetail) {
                         item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = NordicSpacing.xxl),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("加载专辑...", style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle))
-                            }
+                            MediaLoadingCard(
+                                title = "正在加载歌手专辑",
+                                subtitle = "从 Navidrome 拉取该歌手的专辑列表。"
+                            )
                         }
                     } else if (artistAlbums.isEmpty()) {
                         item {
@@ -1254,14 +1246,10 @@ fun MusicScreenV2(
                     }
                 } else if (isLoadingAlbumDetail) {
                     item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = NordicSpacing.xxxl),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("加载中...", style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle))
-                        }
+                        MediaLoadingCard(
+                            title = "正在加载专辑曲目",
+                            subtitle = "从 Navidrome 拉取这张专辑的歌曲列表。"
+                        )
                     }
                 } else {
                     item {
@@ -1504,14 +1492,10 @@ fun MusicScreenV2(
                 }
                 if (isLoadingPlaylists) {
                     item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = NordicSpacing.xxl),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("正在加载歌单...", style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle))
-                        }
+                        MediaLoadingCard(
+                            title = "正在加载歌单",
+                            subtitle = "从 Navidrome 拉取你的歌单列表。"
+                        )
                     }
                 } else if (playlists.isEmpty()) {
                     item {
@@ -1542,14 +1526,10 @@ fun MusicScreenV2(
                     }
                 } else if (isLoadingPlaylistDetail) {
                     item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = NordicSpacing.xxxl),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("加载歌单曲目...", style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle))
-                        }
+                        MediaLoadingCard(
+                            title = "正在加载歌单曲目",
+                            subtitle = "从 Navidrome 拉取这个歌单的歌曲列表。"
+                        )
                     }
                 } else {
                     item {

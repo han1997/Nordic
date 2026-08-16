@@ -8,9 +8,12 @@ import com.nordic.mediahub.data.MusicLyrics
 import com.nordic.mediahub.data.NavidromeRepository
 import com.nordic.mediahub.data.NavidromeSong
 import com.nordic.mediahub.data.isReadyForMusicSync
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -52,6 +55,22 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
 
     private val _repository = MutableStateFlow<NavidromeRepository?>(null)
     val repository: StateFlow<NavidromeRepository?> = _repository.asStateFlow()
+
+    /**
+     * One-shot event fired when an optimistic favorite (star/unstar) toggle
+     * fails and the playback state is silently reverted. UI collects this and
+     * shows a brief pill notification so the user understands why the ♥
+     * "jumped back" instead of staying in the requested state.
+     *
+     * `replay = 0` so emits are only delivered to current collectors; missed
+     * emits (no collector attached) are dropped, which is the intended UX —
+     * we should not show a stale error from an old screen.
+     */
+    private val _favoriteError = MutableSharedFlow<Unit>(
+        replay = 0,
+        extraBufferCapacity = 1
+    )
+    val favoriteError: SharedFlow<Unit> = _favoriteError.asSharedFlow()
 
     init {
         configRepository.navidromeConfig
@@ -134,12 +153,14 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
             val repo = repository.value
             if (repo == null) {
                 engine.setCurrentSongStarred(!starred)
+                _favoriteError.tryEmit(Unit)
                 return@launch
             }
             runCatching {
                 if (starred) repo.star(id = songId) else repo.unstar(id = songId)
             }.onFailure {
                 engine.setCurrentSongStarred(!starred)
+                _favoriteError.tryEmit(Unit)
             }
         }
     }

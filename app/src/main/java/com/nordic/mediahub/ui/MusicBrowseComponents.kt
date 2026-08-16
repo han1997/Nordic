@@ -196,8 +196,8 @@ internal fun PlaylistListRow(
         ) {
             Box(
                 modifier = Modifier
-                    .size(56.dp)
-                    .clip(NordicShapes.md)
+                    .size(52.dp)
+                    .clip(NordicShapes.sm)
                     .background(
                         Brush.linearGradient(
                             listOf(
@@ -469,40 +469,54 @@ internal fun SongSortSegmentedControl(
         MusicSongSort.Duration
     )
 
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
-        items(sorts, key = { it.name }) { sort ->
-            val selected = selectedSort == sort
-            val background by animateColorAsState(
-                targetValue = if (selected) colorScheme.surface.copy(alpha = 0.96f) else colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
-            )
-            val textColor by animateColorAsState(
-                targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-                animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
-            )
+    Surface(
+        color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
+        contentColor = colorScheme.onSurface,
+        shape = NordicShapes.md,
+        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+    ) {
+        LazyRow(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(NordicSpacing.xs),
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
+        ) {
+            items(sorts, key = { it.name }) { sort ->
+                val selected = selectedSort == sort
+                val tabColor by animateColorAsState(
+                    targetValue = if (selected) colorScheme.surface.copy(alpha = 0.96f) else Color.Transparent,
+                    animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
+                )
+                val textColor by animateColorAsState(
+                    targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
+                    animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
+                )
 
-            Surface(
-                color = background,
-                contentColor = textColor,
-                shape = NordicShapes.full,
-                border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
-                tonalElevation = if (selected) 2.dp else 0.dp,
-                modifier = Modifier
-                    .height(38.dp)
-                    .clickable { onSortSelected(sort) }
-            ) {
-                Box(
-                    modifier = Modifier.padding(horizontal = NordicSpacing.md),
-                    contentAlignment = Alignment.Center
+                Surface(
+                    color = tabColor,
+                    contentColor = textColor,
+                    shape = NordicShapes.md,
+                    tonalElevation = if (selected) 2.dp else 0.dp,
+                    modifier = Modifier
+                        .height(40.dp)
+                        .clickable { onSortSelected(sort) }
                 ) {
-                    Text(
-                        sort.displayLabel(),
-                        color = textColor,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Box(
+                        modifier = Modifier.padding(horizontal = NordicSpacing.lg),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            sort.displayLabel(),
+                            color = textColor,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         }
@@ -599,8 +613,8 @@ internal fun AlbumListRow(
         ) {
             Box(
                 modifier = Modifier
-                    .size(56.dp)
-                    .clip(NordicShapes.md)
+                    .size(52.dp)
+                    .clip(NordicShapes.sm)
                     .background(
                         Brush.linearGradient(
                             listOf(

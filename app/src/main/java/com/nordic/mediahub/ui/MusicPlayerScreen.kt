@@ -1,5 +1,14 @@
 package com.nordic.mediahub.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -44,9 +53,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -55,6 +67,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -70,9 +83,37 @@ import androidx.media3.common.Player
 import com.nordic.mediahub.data.MusicLyrics
 import com.nordic.mediahub.data.NavidromeSong
 import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicMotion
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+
+/**
+ * Fraction of screen height the swipe-to-dismiss gesture must travel before
+ * the release commits to closing the player. Below this the gesture rebounds.
+ */
+private const val SWIPE_TO_DISMISS_THRESHOLD_RATIO = 0.25f
+
+/**
+ * How long the favorite-failure pill stays visible before auto-hiding.
+ */
+private const val FAVORITE_ERROR_NOTICE_DURATION_MS = 2000L
+
+/**
+ * Maximum alpha decay applied to the player content while swiping down (at
+ * the dismiss threshold the content is `1 - 0.6 = 0.4` opaque).
+ */
+private const val SWIPE_DISMISS_MAX_ALPHA_DECAY = 0.6f
+
+/**
+ * Maximum scale-down applied while swiping (at the threshold content is
+ * `1 - 0.04 = 0.96` of its natural size).
+ */
+private const val SWIPE_DISMISS_MAX_SCALE_DOWN = 0.04f
 
 @Composable
 fun MusicPlayerScreen(
@@ -100,6 +141,7 @@ fun MusicPlayerScreen(
     onToggleShuffle: () -> Unit = {},
     onOpenQueue: () -> Unit = {},
     onToggleFavorite: (songId: String, starred: Boolean) -> Unit = { _, _ -> },
+    favoriteError: SharedFlow<Unit>? = null,
     modifier: Modifier = Modifier
 ) {
     val resolvedDurationSeconds = maxOf(durationSeconds, song?.duration ?: 0, 1)
@@ -138,7 +180,8 @@ fun MusicPlayerScreen(
         val topPadding = statusTopPadding + if (compact) NordicSpacing.sm else NordicSpacing.md
         val bottomPadding = if (compact) NordicSpacing.md else NordicSpacing.lg
         val sectionGap = if (compact) NordicSpacing.sm else NordicSpacing.md
-        val swipeThreshold = maxHeight * 0.5f
+        val screenHeightPx = with(LocalDensity.current) { maxHeight.toPx() }
+        val swipeThresholdPx = screenHeightPx * SWIPE_TO_DISMISS_THRESHOLD_RATIO
 
         if (song?.coverArt != null) {
             AuthedAsyncImage(
@@ -164,26 +207,103 @@ fun MusicPlayerScreen(
             )
         }
 
+        // Swipe-to-dismiss gesture state. `dragY` is the live accumulated
+        // downward displacement driven by `detectVerticalDragGestures`; it
+        // feeds the inner content's `graphicsLayer` for the progressive
+        // translate + slight scale + alpha decay. `animatedDismiss` is the
+        // Animatable that drives the final collapse animation when the user
+        // releases past the threshold (or the spring rebound when below it).
+        val dismissScope = rememberCoroutineScope()
+        val dragYState = remember { mutableFloatStateOf(0f) }
+        val animatedDismiss = remember { Animatable(0f) }
+        var isDismissing by remember { mutableStateOf(false) }
+        var favoriteNoticeVisible by remember { mutableStateOf(false) }
+
+        // Collect the one-shot favorite-error event from the playback VM; show
+        // the pill for 2s then auto-hide. Subsequent emits while visible reset
+        // the timer via the `LaunchedEffect` re-launch keyed on collects.
+        val favoriteErrorFlow = favoriteError
+        LaunchedEffect(favoriteErrorFlow) {
+            favoriteErrorFlow?.collect {
+                favoriteNoticeVisible = true
+                delay(FAVORITE_ERROR_NOTICE_DURATION_MS)
+                favoriteNoticeVisible = false
+            }
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(Unit) {
-                    var dragStartedInTopHalf = false
                     detectVerticalDragGestures(
-                        onDragStart = { offset ->
-                            dragStartedInTopHalf = offset.y < swipeThreshold.toPx()
+                        onDragStart = {
+                            // Whole-screen start region (no top-half restriction);
+                            // the lyrics display below consumes its own taps so
+                            // vertical drags that start there will not reach here.
+                            dragYState.floatValue = 0f
+                            isDismissing = false
+                            dismissScope.launch { animatedDismiss.snapTo(0f) }
                         },
-                        onDragEnd = { },
-                        onDragCancel = { }
+                        onDragEnd = {
+                            // Snap to current visual displacement, then animate
+                            // to the resolved target (dismiss or rebound home).
+                            val accumulated = dragYState.floatValue
+                            dragYState.floatValue = 0f
+                            if (accumulated >= swipeThresholdPx) {
+                                isDismissing = true
+                                dismissScope.launch {
+                                    animatedDismiss.snapTo(accumulated)
+                                    animatedDismiss.animateTo(
+                                        targetValue = screenHeightPx,
+                                        animationSpec = tween(
+                                            NordicMotion.durationShort,
+                                            easing = NordicMotion.easingStandard
+                                        )
+                                    )
+                                    onClose()
+                                }
+                            } else if (accumulated > 0f) {
+                                // Rebound to 0 with a non-bouncy spring — pure
+                                // gesture-return physics, no decorative overshoot.
+                                dismissScope.launch {
+                                    animatedDismiss.snapTo(accumulated)
+                                    animatedDismiss.animateTo(
+                                        targetValue = 0f,
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioNoBouncy,
+                                            stiffness = Spring.StiffnessMedium
+                                        )
+                                    )
+                                }
+                            }
+                        },
+                        onDragCancel = {
+                            // Cancel: snap visuals home, drop the gesture state.
+                            dragYState.floatValue = 0f
+                            isDismissing = false
+                            dismissScope.launch { animatedDismiss.snapTo(0f) }
+                        }
                     ) { change, dragAmountY ->
                         change.consume()
-                        val netDown = dragAmountY
-                        if (netDown > 1f) {
-                            if (dragStartedInTopHalf && netDown > 6f) {
-                                onClose()
-                            }
-                        }
+                        // Only accumulate downward drags for the dismiss gesture;
+                        // upward drags are ignored so they don't fight any
+                        // future vertical content scrolling on the surface.
+                        val next = (dragYState.floatValue + dragAmountY).coerceAtLeast(0f)
+                        dragYState.floatValue = next
                     }
+                }
+                .graphicsLayer {
+                    // The final collapse uses `animatedDismiss.value`; while
+                    // dragging it is 0 so the live `dragYState` drives the
+                    // gesture. After release, `animatedDismiss` interpolates
+                    // to either `screenHeightPx` (dismiss) or `0f` (rebound).
+                    val live = if (isDismissing) animatedDismiss.value else dragYState.floatValue
+                    val progress = (live / screenHeightPx).coerceIn(0f, 1f)
+                    translationY = live
+                    val scale = 1f - SWIPE_DISMISS_MAX_SCALE_DOWN * progress
+                    scaleX = scale
+                    scaleY = scale
+                    alpha = 1f - SWIPE_DISMISS_MAX_ALPHA_DECAY * progress
                 }
         ) {
             Column(
@@ -252,6 +372,18 @@ fun MusicPlayerScreen(
                     onToggleShuffle = onToggleShuffle
                 )
             }
+
+            // Favorite-failure notice — auto-dismissing pill overlay. Stays
+            // out of the gesture-affected `Column` so it does not transform
+            // with the swipe-to-dismiss content; it should sit in screen
+            // space until its 2s timer elapses.
+            FavoriteErrorNotice(
+                visible = favoriteNoticeVisible,
+                colorScheme = colorScheme,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = statusTopPadding + NordicSpacing.md)
+            )
         }
     }
 }
@@ -814,12 +946,19 @@ private fun PlayerIconButton(
                 modifier = Modifier.size((size.value * 0.52f).dp)
             )
             if (showOneBadge) {
+                // Single-track-repeat "1" badge. Per Accent Scarcity the badge
+                // stays low-key: a small translucent surface chip (not a solid
+                // onPrimary block) with a thin primary-tinted border, nudged
+                // 2dp outward so it reads as an overlay rather than clipped
+                // to the icon edge.
                 Surface(
-                    color = colorScheme.onPrimary,
+                    color = colorScheme.surface.copy(alpha = 0.94f),
                     contentColor = colorScheme.primary,
                     shape = NordicShapes.full,
+                    border = BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.24f)),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
+                        .offset(x = 2.dp, y = 2.dp)
                         .size(10.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -903,3 +1042,51 @@ internal fun resolvePlayerThinSliderThumbOffsetPx(trackWidthPx: Float, thumbSize
  * so reading from the published song is sufficient for both initial state and revert-after-failure.
  */
 private fun resolveFavoriteDisplay(song: NavidromeSong?): Boolean = song?.starred != null
+
+/**
+ * Auto-dismissing pill shown when an optimistic favorite toggle fails and the
+ * VM silently reverts the ♥. The pill sits in screen space (outside the
+ * swipe-to-dismiss transformed content) so it never tilts with the gesture.
+ *
+ * Visual language stays within DESIGN.md: pill shape, surface alpha (0.94f)
+ * container, onSurface primary-tinted text, no shadow (it is not a dock /
+ * player / lyrics surface). The error context is a transient notice, not a
+ * persistent card, so it transparently overlays the player content.
+ */
+@Composable
+private fun FavoriteErrorNotice(
+    visible: Boolean,
+    colorScheme: ColorScheme,
+    modifier: Modifier = Modifier
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(
+            animationSpec = tween(NordicMotion.durationShort, easing = NordicMotion.easingStandard)
+        ) + slideInVertically(
+            initialOffsetY = { -it / 4 },
+            animationSpec = tween(NordicMotion.durationShort, easing = NordicMotion.easingStandard)
+        ),
+        exit = fadeOut(
+            animationSpec = tween(NordicMotion.durationShort, easing = NordicMotion.easingStandard)
+        ) + slideOutVertically(
+            targetOffsetY = { -it / 4 },
+            animationSpec = tween(NordicMotion.durationShort, easing = NordicMotion.easingStandard)
+        ),
+        modifier = modifier
+    ) {
+        Surface(
+            color = colorScheme.surface.copy(alpha = 0.94f),
+            contentColor = colorScheme.onSurface,
+            shape = NordicShapes.full,
+            border = BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.24f))
+        ) {
+            Text(
+                "收藏操作失败，已恢复",
+                style = MaterialTheme.typography.labelLarge,
+                color = colorScheme.primary,
+                modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.sm)
+            )
+        }
+    }
+}
