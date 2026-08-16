@@ -796,3 +796,36 @@ Redesigned the video player chrome with an immersive overlay, added a lightweigh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 140: 修复点击下一首后封面无法切换歌词
+
+**Date**: 2026-08-16
+**Task**: 修复点击下一首后封面无法切换歌词
+**Branch**: `main`
+
+### Summary
+
+修复 PlayerPrimaryDisplay 中 pointerInput(Unit) 捕获陈旧 lambda 导致切歌后点击封面无反应的 bug，使用 rememberUpdatedState 标准模式修复，并更新 quality-guidelines.md 记录该 Compose 陷阱
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1b5132f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
