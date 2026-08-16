@@ -1,0 +1,8 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "backend 层 spec 索引，提供目录结构与 Pre-Development Checklist 入口"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "UI 改动可能新增小微组件（如播放页收藏失败 pill 提示），需遵守目录放置规范"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "本项目质量规范与 UI 状态组件约定；影响共享 UI 状态、缓存契约、播放库浏览导航时必读"}
+{"file": ".trellis/spec/backend/navidrome-integration.md", "reason": "收藏 star/unstar 的乐观更新与失败回滚需对齐 Navidrome/Subsonic 集成契约"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "收藏失败事件需从 ViewModel 向 UI 传播一次性错误信号，遵循现有错误处理约定"}
+{"file": ".trellis/spec/backend/documentation-guidelines.md", "reason": "需在 CHANGELOG.md [未发布] 段补充本次打磨条目，遵循中文优先与 CHANGELOG 触发条件规范"}
+{"file": "DESIGN.md", "reason": "Nordic 设计系统唯一权威：Alpha-as-depth、Pill geometry、FastOutSlowInEasing-only、tab-segmented 规范、卡片圆角/留白规则。所有 UI 改动必须对照"}
+{"file": "CHANGELOG.md", "reason": "近期已落地的音乐相关改进清单，避免重复实现或与既有改动冲突"}
