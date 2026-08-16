@@ -662,6 +662,7 @@ Floating playback bars, bottom navigation, and other persistent media chrome mus
 - Keep collapsed/hidden chrome detached from high-frequency playback position updates so idle screens do not recompose on every tick.
 - Preserve clear recovery paths: users must still be able to reopen playback controls or navigate back to the active player through an explicit affordance.
 - Bottom navigation dock must NOT auto-reveal on a timer after scroll/fling stops. Scroll and fling hide the full dock; it stays hidden until an explicit user action (a small `BottomDockHandle` tap) or a tab/player state reset restores it. Timer-based `delay(...)` reveal for the bottom dock is forbidden — it re-interrupts content reading the user explicitly chose to do.
+- When a floating dock is moved out of `Scaffold.bottomBar`, keep visible-dock spacing driven by the dock's measured height (for example via `onSizeChanged`) and subtract any scaffold bottom inset before applying content padding. Do not hardcode a dock height constant, because that breaks as soon as dock content, typography, or insets change.
 
 ```kotlin
 // Wrong: idle chrome permanently covers content and stays subscribed to ticks.
@@ -688,6 +689,16 @@ fun scheduleBottomDockReveal() {
 // Correct: full dock stays hidden after scroll; a small handle restores it on tap.
 if (!showPlayer && !bottomDockVisible) {
     BottomDockHandle(colorScheme = colorScheme, onClick = { bottomDockVisible = true })
+}
+```
+
+```kotlin
+// Correct: measure the dock and derive content padding from the live height.
+var measuredDockHeight by remember { mutableStateOf(0.dp) }
+val dockBottomPadding = if (bottomDockPresentation == BottomDockPresentation.Dock) {
+    (measuredDockHeight - scaffoldBottomInset).coerceAtLeast(0.dp)
+} else {
+    0.dp
 }
 ```
 

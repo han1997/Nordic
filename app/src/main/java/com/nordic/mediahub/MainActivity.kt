@@ -20,9 +20,12 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -250,6 +253,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
     var showQueueSheet by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
+    val density = LocalDensity.current
     val musicVM: MusicPlaybackViewModel = viewModel()
     val audiobookVM: AudiobookPlaybackViewModel = viewModel()
     val videoVM: VideoPlaybackViewModel = viewModel()
@@ -434,30 +438,24 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         }
     }
 
+    var measuredDockHeight by remember { mutableStateOf(0.dp) }
+
     Scaffold(
-        containerColor = colorScheme.background,
-        bottomBar = {
-            AnimatedBottomDock(
-                visible = bottomDockPresentation == BottomDockPresentation.Dock
-            ) {
-                PlaybackDockSlot(
-                    musicVM = musicVM,
-                    selectedTab = selectedTab,
-                    colorScheme = colorScheme,
-                    onOpenPlayer = openPlayer,
-                    onSelect = { selectedTab = it }
-                )
-            }
-            AnimatedBottomDock(
-                visible = bottomDockPresentation == BottomDockPresentation.Handle
-            ) {
-                BottomDockHandle(
-                    colorScheme = colorScheme,
-                    onClick = { bottomDockVisible = true }
-                )
-            }
-        }
+        containerColor = colorScheme.background
     ) { padding ->
+        val dockBottomPadding by animateDpAsState(
+            targetValue = if (bottomDockPresentation == BottomDockPresentation.Dock) {
+                (measuredDockHeight - padding.calculateBottomPadding()).coerceAtLeast(0.dp)
+            } else {
+                0.dp
+            },
+            animationSpec = tween(
+                NordicMotion.durationShort,
+                easing = NordicMotion.easingStandard
+            ),
+            label = "dock-bottom-padding"
+        )
+
         Box(
             Modifier
                 .fillMaxSize()
@@ -479,7 +477,12 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
-                    Box(Modifier.fillMaxSize().padding(padding)) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .padding(padding)
+                            .padding(bottom = dockBottomPadding)
+                    ) {
                         Crossfade(
                             targetState = selectedTab,
                             animationSpec = tween(
@@ -515,6 +518,38 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                             }
                         }
                     }
+                }
+            }
+
+            // Bottom dock — overlaid on content via BottomCenter so Scaffold's
+            // containerColor does not fill a full-width bottom bar area.
+            Box(
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                AnimatedBottomDock(
+                    visible = bottomDockPresentation == BottomDockPresentation.Dock
+                ) {
+                    Box(
+                        modifier = Modifier.onSizeChanged { size ->
+                            measuredDockHeight = with(density) { size.height.toDp() }
+                        }
+                    ) {
+                        PlaybackDockSlot(
+                            musicVM = musicVM,
+                            selectedTab = selectedTab,
+                            colorScheme = colorScheme,
+                            onOpenPlayer = openPlayer,
+                            onSelect = { selectedTab = it }
+                        )
+                    }
+                }
+                AnimatedBottomDock(
+                    visible = bottomDockPresentation == BottomDockPresentation.Handle
+                ) {
+                    BottomDockHandle(
+                        colorScheme = colorScheme,
+                        onClick = { bottomDockVisible = true }
+                    )
                 }
             }
         }
