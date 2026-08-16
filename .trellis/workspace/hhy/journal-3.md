@@ -763,3 +763,36 @@ Redesigned the video player chrome with an immersive overlay, added a lightweigh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 139: 移除音乐播放页快进快退按钮
+
+**Date**: 2026-08-16
+**Task**: 移除音乐播放页快进快退按钮
+**Branch**: `main`
+
+### Summary
+
+移除音乐播放页控制行的快进快退按钮（后退 10 秒 / 前进 30 秒），简化为随机/上一首/播放暂停/下一首/循环五个按钮。移除 onSeekBack/onSeekForward 参数和 MainActivity 接线，保留 ViewModel 方法。视频和有声书不受影响。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `bf0c4ab` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
