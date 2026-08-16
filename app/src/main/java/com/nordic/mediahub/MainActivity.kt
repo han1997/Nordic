@@ -620,8 +620,6 @@ private fun MusicPlayerLayer(
         onSeek = musicVM::seekTo,
         onPlayPause = musicVM::togglePlayPause,
         onClose = onClose,
-        onSeekBack = { musicVM.seekBackBy() },
-        onSeekForward = { musicVM.seekForwardBy() },
         onSeekToNext = musicVM::seekToNext,
         onSeekToPrevious = musicVM::seekToPrevious,
         onToggleRepeat = musicVM::toggleRepeatMode,

@@ -41,8 +41,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.FastForward
-import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
@@ -139,8 +137,6 @@ fun MusicPlayerScreen(
     onSeek: (Int) -> Unit,
     onPlayPause: () -> Unit,
     onClose: () -> Unit,
-    onSeekBack: () -> Unit = {},
-    onSeekForward: () -> Unit = {},
     onSeekToNext: () -> Unit = {},
     onSeekToPrevious: () -> Unit = {},
     onToggleRepeat: () -> Unit = {},
@@ -370,8 +366,6 @@ fun MusicPlayerScreen(
                     onPlayPause = onPlayPause,
                     repeatMode = repeatMode,
                     shuffleModeEnabled = shuffleModeEnabled,
-                    onSeekBack = onSeekBack,
-                    onSeekForward = onSeekForward,
                     onSeekToNext = onSeekToNext,
                     onSeekToPrevious = onSeekToPrevious,
                     onToggleRepeat = onToggleRepeat,
@@ -797,8 +791,6 @@ private fun PlayerConsole(
     onPlayPause: () -> Unit,
     repeatMode: Int = Player.REPEAT_MODE_OFF,
     shuffleModeEnabled: Boolean = false,
-    onSeekBack: () -> Unit = {},
-    onSeekForward: () -> Unit = {},
     onSeekToNext: () -> Unit = {},
     onSeekToPrevious: () -> Unit = {},
     onToggleRepeat: () -> Unit = {},
@@ -867,14 +859,6 @@ private fun PlayerConsole(
                 contentDescription = "上一首"
             )
             PlayerIconButton(
-                icon = Icons.Filled.FastRewind,
-                colorScheme = colorScheme,
-                size = sideButtonSize,
-                enabled = hasSong,
-                onClick = onSeekBack,
-                contentDescription = "后退 10 秒"
-            )
-            PlayerIconButton(
                 icon = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                 colorScheme = colorScheme,
                 size = if (compact) 62.dp else 68.dp,
@@ -882,14 +866,6 @@ private fun PlayerConsole(
                 enabled = hasSong,
                 onClick = onPlayPause,
                 contentDescription = if (isPlaying) "暂停" else "播放"
-            )
-            PlayerIconButton(
-                icon = Icons.Filled.FastForward,
-                colorScheme = colorScheme,
-                size = sideButtonSize,
-                enabled = hasSong,
-                onClick = onSeekForward,
-                contentDescription = "前进 30 秒"
             )
             PlayerIconButton(
                 icon = Icons.Filled.SkipNext,
