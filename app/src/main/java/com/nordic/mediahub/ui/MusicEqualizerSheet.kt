@@ -21,6 +21,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -86,7 +87,8 @@ fun MusicEqualizerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = colorScheme.surface,
-        shape = NordicShapes.xl
+        shape = NordicShapes.xl,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     ) {
         Column(
             modifier = Modifier

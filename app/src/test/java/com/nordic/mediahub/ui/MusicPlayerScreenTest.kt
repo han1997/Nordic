@@ -219,4 +219,70 @@ class MusicPlayerScreenTest {
 
         assertEquals("First line", result.single { it.active }.text)
     }
+
+    @Test
+    fun resolveActiveLyricIndex_returnsNullForEmptyLines() {
+        assertEquals(null, resolveActiveLyricIndex(emptyList(), positionMillis = 1_000L))
+    }
+
+    @Test
+    fun resolveActiveLyricIndex_returnsNullBeforeFirstTimestamp() {
+        val lines = listOf(
+            MusicLyricsLine(startMillis = 10_000, text = "First timed line"),
+            MusicLyricsLine(startMillis = 20_000, text = "Second timed line")
+        )
+        assertEquals(null, resolveActiveLyricIndex(lines, positionMillis = 5_000L))
+    }
+
+    @Test
+    fun resolveActiveLyricIndex_activatesFirstTimedLineAtStartTime() {
+        val lines = listOf(
+            MusicLyricsLine(startMillis = 10_000, text = "First timed line"),
+            MusicLyricsLine(startMillis = 20_000, text = "Second timed line")
+        )
+        assertEquals(0, resolveActiveLyricIndex(lines, positionMillis = 10_000L))
+        assertEquals(1, resolveActiveLyricIndex(lines, positionMillis = 20_000L))
+    }
+
+    @Test
+    fun resolveActiveLyricIndex_subSecondStartMillis_activatesExactlyAtTimestamp() {
+        val lines = listOf(
+            MusicLyricsLine(startMillis = 0, text = "Intro"),
+            MusicLyricsLine(startMillis = 10_500, text = "Line A"),
+            MusicLyricsLine(startMillis = 11_500, text = "Line B")
+        )
+        assertEquals(0, resolveActiveLyricIndex(lines, positionMillis = 10_499L))
+        assertEquals(1, resolveActiveLyricIndex(lines, positionMillis = 10_500L))
+        assertEquals(2, resolveActiveLyricIndex(lines, positionMillis = 11_500L))
+    }
+
+    @Test
+    fun resolveActiveLyricIndex_zeroPosition_activatesFirstTimestamp() {
+        val lines = listOf(
+            MusicLyricsLine(startMillis = 0, text = "First line"),
+            MusicLyricsLine(startMillis = 5_000, text = "Second line")
+        )
+        assertEquals(0, resolveActiveLyricIndex(lines, positionMillis = 0L))
+    }
+
+    @Test
+    fun resolveActiveLyricIndex_negativePosition_clampsToZero() {
+        val lines = listOf(
+            MusicLyricsLine(startMillis = 0, text = "First line"),
+            MusicLyricsLine(startMillis = 5_000, text = "Second line")
+        )
+        assertEquals(0, resolveActiveLyricIndex(lines, positionMillis = -300L))
+    }
+
+    @Test
+    fun resolveActiveLyricIndex_skipsUntimedLinesUntilFirstTimestampReached() {
+        val lines = listOf(
+            MusicLyricsLine(text = "Untimed intro"),
+            MusicLyricsLine(startMillis = 12_000, text = "First timed line"),
+            MusicLyricsLine(startMillis = 24_000, text = "Second timed line")
+        )
+        assertEquals(null, resolveActiveLyricIndex(lines, positionMillis = 5_000L))
+        assertEquals(1, resolveActiveLyricIndex(lines, positionMillis = 12_000L))
+        assertEquals(2, resolveActiveLyricIndex(lines, positionMillis = 24_000L))
+    }
 }

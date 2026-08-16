@@ -1,8 +1,10 @@
 package com.nordic.mediahub.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -32,6 +34,9 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Favorite
@@ -81,6 +86,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.Player
 import com.nordic.mediahub.data.MusicLyrics
+import com.nordic.mediahub.data.MusicLyricsLine
 import com.nordic.mediahub.data.NavidromeSong
 import com.nordic.mediahub.ui.theme.NordicAlpha
 import com.nordic.mediahub.ui.theme.NordicMotion
@@ -532,8 +538,16 @@ private fun PlayerLyricsDisplay(
     modifier: Modifier = Modifier
 ) {
     val lineCount = if (compact) 5 else 7
-    val visibleLines = remember(lyrics, positionMillis, lineCount) {
-        selectVisibleLyricLines(lyrics, positionMillis, lineCount)
+    val filteredLines = remember(lyrics) {
+        lyrics?.lines?.filter { it.text.isNotBlank() }.orEmpty()
+    }
+    val isSynced = lyrics?.synced == true && filteredLines.any { it.startMillis != null }
+    val activeIndex = remember(filteredLines, isSynced, positionMillis) {
+        if (isSynced) resolveActiveLyricIndex(filteredLines, positionMillis) else null
+    }
+    val staticVisibleLines = remember(filteredLines, isSynced, lineCount) {
+        if (!isSynced) filteredLines.take(lineCount).map { VisibleLyricLine(it.text, active = false) }
+        else emptyList()
     }
 
     Box(
@@ -557,7 +571,66 @@ private fun PlayerLyricsDisplay(
     ) {
         when {
             isLoading -> PlayerLyricsStatus("正在加载歌词", colorScheme)
-            visibleLines.isEmpty() -> PlayerLyricsStatus(error ?: "暂无歌词", colorScheme)
+            filteredLines.isEmpty() -> PlayerLyricsStatus(error ?: "暂无歌词", colorScheme)
+            isSynced -> {
+                val listState = rememberLazyListState()
+                var hasInitialScrolled by remember(filteredLines) { mutableStateOf(false) }
+                LaunchedEffect(activeIndex, filteredLines.size) {
+                    val target = activeIndex ?: return@LaunchedEffect
+                    if (target < 0 || target >= filteredLines.size) return@LaunchedEffect
+                    if (!hasInitialScrolled) {
+                        listState.scrollToItem(target)
+                        hasInitialScrolled = true
+                    } else {
+                        val viewportStart = listState.layoutInfo.viewportStartOffset
+                        val viewportEnd = listState.layoutInfo.viewportEndOffset
+                        val itemInfo = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == target }
+                        val needsAnimatedAlign = itemInfo == null ||
+                            itemInfo.offset < viewportStart ||
+                            itemInfo.offset + itemInfo.size > viewportEnd
+                        if (needsAnimatedAlign) {
+                            listState.animateScrollToItem(target)
+                        }
+                    }
+                }
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    resolveLyricsModeLabel(lyrics)?.let { label ->
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colorScheme.primary.copy(alpha = NordicAlpha.medium),
+                            fontWeight = FontWeight.SemiBold,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(
+                            if (compact) NordicSpacing.sm else NordicSpacing.md
+                        )
+                    ) {
+                        itemsIndexed(
+                            items = filteredLines,
+                            key = { index, _ -> "lyric-$index" },
+                            contentType = { _, _ -> "lyric-line" }
+                        ) { index, line ->
+                            LyricLineText(
+                                text = line.text,
+                                active = index == activeIndex,
+                                compact = compact,
+                                colorScheme = colorScheme
+                            )
+                        }
+                    }
+                }
+            }
             else -> {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -577,34 +650,49 @@ private fun PlayerLyricsDisplay(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                    visibleLines.forEach { line ->
-                        Text(
-                            line.text,
-                            fontSize = if (line.active) {
-                                if (compact) 19.sp else 22.sp
-                            } else {
-                                if (compact) 14.sp else 16.sp
-                            },
-                            lineHeight = if (line.active) {
-                                if (compact) 23.sp else 27.sp
-                            } else {
-                                if (compact) 18.sp else 20.sp
-                            },
-                            color = if (line.active) {
-                                colorScheme.onSurface
-                            } else {
-                                colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
-                            },
-                            fontWeight = if (line.active) FontWeight.Bold else FontWeight.Medium,
-                            textAlign = TextAlign.Center,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                    staticVisibleLines.forEach { line ->
+                        LyricLineText(
+                            text = line.text,
+                            active = false,
+                            compact = compact,
+                            colorScheme = colorScheme
                         )
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun LyricLineText(
+    text: String,
+    active: Boolean,
+    compact: Boolean,
+    colorScheme: ColorScheme
+) {
+    val activeColor = colorScheme.onSurface
+    val inactiveColor = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
+    val animatedColor by animateColorAsState(
+        targetValue = if (active) activeColor else inactiveColor,
+        animationSpec = tween(NordicMotion.durationShort, easing = NordicMotion.easingStandard),
+        label = "lyric-color"
+    )
+    val animatedWeight by animateFloatAsState(
+        targetValue = if (active) FontWeight.Bold.weight.toFloat() else FontWeight.Medium.weight.toFloat(),
+        animationSpec = tween(NordicMotion.durationShort, easing = NordicMotion.easingStandard),
+        label = "lyric-weight"
+    )
+    Text(
+        text = text,
+        fontSize = if (compact) 16.sp else 18.sp,
+        lineHeight = if (compact) 20.sp else 24.sp,
+        color = animatedColor,
+        fontWeight = FontWeight(weight = animatedWeight.toInt()),
+        textAlign = TextAlign.Center,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis
+    )
 }
 
 @Composable
@@ -1022,6 +1110,17 @@ internal fun selectVisibleLyricLines(
                 active = activeIndex != null && startIndex + index == activeIndex
             )
         }
+}
+
+internal fun resolveActiveLyricIndex(
+    lines: List<MusicLyricsLine>,
+    positionMillis: Long
+): Int? {
+    if (lines.isEmpty()) return null
+    val normalizedPositionMillis = positionMillis.coerceAtLeast(0L)
+    return lines.indexOfLast { line ->
+        line.startMillis != null && line.startMillis <= normalizedPositionMillis
+    }.takeIf { it >= 0 }
 }
 
 internal fun resolvePlayerThinSliderPosition(pointerX: Float, trackWidth: Int, durationSeconds: Int): Float {

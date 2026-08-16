@@ -1,7 +1,7 @@
 package com.nordic.mediahub.ui
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -33,6 +33,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -66,7 +67,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Scale-down applied to a queue row while it is in the drag "lift" state
- * (reaches maximum at [QUEUE_DRAG_LIFT_THRESHOLD_RATIO] of row height).
+ * (reaches maximum at half of row height).
  * Interaction-state feedback, not a generic text alpha tier.
  */
 private const val QUEUE_DRAG_LIFT_SCALE_DOWN = 0.02f
@@ -76,6 +77,55 @@ private const val QUEUE_DRAG_LIFT_SCALE_DOWN = 0.02f
  * Interaction-state feedback, not a generic text alpha tier.
  */
 private const val QUEUE_DRAG_LIFT_ALPHA_DECAY = 0.08f
+
+/**
+ * Tracks the active drag-reorder state at the [MusicQueueSheet] level so every
+ * [QueueRow] can compute its own real-time displacement.
+ *
+ * @property draggedIndex index of the row currently being dragged, or `null` when idle.
+ * @property accumulatedPx accumulated drag displacement in pixels (signed).
+ */
+internal data class QueueDragState(
+    val draggedIndex: Int? = null,
+    val accumulatedPx: Float = 0f
+)
+
+/**
+ * Computes the `translationY` (px) a queue row should apply during an active drag.
+ *
+ * The dragged row follows the finger (`accumulatedPx`). Other rows shift by one
+ * row height in the opposite direction when the dragged row has crossed past
+ * them, creating the real-time "make space" effect. Rows that are not affected
+ * resolve to `0f`.
+ *
+ * @param rowIndex this row's index in the queue
+ * @param dragState the active drag state (or idle)
+ * @param rowHeightPx the pixel height of a single row
+ */
+internal fun resolveQueueRowDisplacement(
+    rowIndex: Int,
+    dragState: QueueDragState,
+    rowHeightPx: Float
+): Float {
+    val draggedIndex = dragState.draggedIndex ?: return 0f
+    if (rowIndex == draggedIndex) return dragState.accumulatedPx
+    if (rowHeightPx <= 0f) return 0f
+
+    val draggedDelta = dragState.accumulatedPx
+    if (draggedDelta == 0f) return 0f
+
+    val rowsCrossed = (draggedDelta / rowHeightPx).roundToInt()
+    if (rowsCrossed == 0) return 0f
+
+    val draggedTargetIndex = draggedIndex + rowsCrossed
+    val isBetween =
+        if (rowsCrossed > 0) rowIndex in (draggedIndex + 1)..draggedTargetIndex
+        else rowIndex in draggedTargetIndex until draggedIndex
+
+    if (!isBetween) return 0f
+
+    return if (rowsCrossed > 0) -rowHeightPx else rowHeightPx
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,6 +149,7 @@ fun MusicQueueSheet(
     val listState = rememberLazyListState()
     var hasInitialScrolled by remember { mutableStateOf(false) }
     var removingIndex by remember { mutableStateOf<Int?>(null) }
+    var dragState by remember { mutableStateOf(QueueDragState()) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(resolvedCurrentIndex, queue.size) {
@@ -122,7 +173,8 @@ fun MusicQueueSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = colorScheme.surface,
-        shape = NordicShapes.xl
+        shape = NordicShapes.xl,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     ) {
         Column(
             modifier = Modifier.padding(bottom = NordicSpacing.xxl),
@@ -188,6 +240,8 @@ fun MusicQueueSheet(
                                 canRemove = queue.size > 1,
                                 canMoveUp = index > 0,
                                 canMoveDown = index < queue.lastIndex,
+                                rowIndex = index,
+                                dragState = dragState,
                                 colorScheme = colorScheme,
                                 onClick = { onSeekToIndex(index) },
                                 onPlayNext = { onPlayNext(index) },
@@ -202,11 +256,26 @@ fun MusicQueueSheet(
                                 },
                                 onMoveUp = { onMoveQueueItem(index, index - 1) },
                                 onMoveDown = { onMoveQueueItem(index, index + 1) },
-                                onDragByRows = { rowDelta ->
+                                onDragStart = {
+                                    dragState = QueueDragState(
+                                        draggedIndex = index,
+                                        accumulatedPx = 0f
+                                    )
+                                },
+                                onDrag = { deltaPx ->
+                                    dragState = dragState.copy(
+                                        accumulatedPx = dragState.accumulatedPx + deltaPx
+                                    )
+                                },
+                                onDragEnd = { rowDelta ->
                                     val targetIndex = (index + rowDelta).coerceIn(queue.indices)
+                                    dragState = QueueDragState()
                                     if (targetIndex != index) {
                                         onMoveQueueItem(index, targetIndex)
                                     }
+                                },
+                                onDragCancel = {
+                                    dragState = QueueDragState()
                                 }
                             )
                         }
@@ -341,25 +410,64 @@ private fun QueueRow(
     canRemove: Boolean,
     canMoveUp: Boolean,
     canMoveDown: Boolean,
+    rowIndex: Int,
+    dragState: QueueDragState,
     colorScheme: ColorScheme,
     onClick: () -> Unit,
     onPlayNext: () -> Unit,
     onRemove: () -> Unit,
     onMoveUp: () -> Unit = {},
     onMoveDown: () -> Unit = {},
-    onDragByRows: (Int) -> Unit = {}
+    onDragStart: () -> Unit = {},
+    onDrag: (Float) -> Unit = {},
+    onDragEnd: (Int) -> Unit = {},
+    onDragCancel: () -> Unit = {}
 ) {
-    val dragOffsetY = remember { Animatable(0f) }
-    val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val rowHeightPx = with(density) { 64.dp.toPx() }
     val liftThresholdPx = rowHeightPx * 0.5f
+    val isDragged = dragState.draggedIndex == rowIndex
+    val dragOffsetY = if (isDragged) dragState.accumulatedPx else 0f
+    val displacementPx = resolveQueueRowDisplacement(
+        rowIndex = rowIndex,
+        dragState = dragState,
+        rowHeightPx = rowHeightPx
+    )
+    val animatedDisplacement by animateFloatAsState(
+        targetValue = if (isDragged) 0f else displacementPx,
+        animationSpec = tween(
+            NordicMotion.durationMicro,
+            easing = NordicMotion.easingStandard
+        ),
+        label = "queue-row-displacement"
+    )
+    val liftProgress = if (isDragged) {
+        (abs(dragOffsetY) / liftThresholdPx).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    val animatedLiftScale by animateFloatAsState(
+        targetValue = 1f - QUEUE_DRAG_LIFT_SCALE_DOWN * liftProgress,
+        animationSpec = tween(
+            NordicMotion.durationMicro,
+            easing = NordicMotion.easingStandard
+        ),
+        label = "queue-row-lift-scale"
+    )
+    val animatedLiftAlpha by animateFloatAsState(
+        targetValue = 1f - QUEUE_DRAG_LIFT_ALPHA_DECAY * liftProgress,
+        animationSpec = tween(
+            NordicMotion.durationMicro,
+            easing = NordicMotion.easingStandard
+        ),
+        label = "queue-row-lift-alpha"
+    )
+    val resolvedTranslationY = if (isDragged) dragOffsetY else animatedDisplacement
     val backgroundColor = if (isCurrent) {
         colorScheme.primary.copy(alpha = 0.1f)
     } else {
         colorScheme.surface
     }
-    val liftProgress = (abs(dragOffsetY.value) / liftThresholdPx).coerceIn(0f, 1f)
 
     Surface(
         color = backgroundColor,
@@ -367,11 +475,11 @@ private fun QueueRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = NordicSpacing.md)
-            .zIndex(if (dragOffsetY.value != 0f) 1f else 0f)
+            .zIndex(if (isDragged) 1f else 0f)
             .graphicsLayer {
-                translationY = dragOffsetY.value
-                scaleY = 1f - QUEUE_DRAG_LIFT_SCALE_DOWN * liftProgress
-                alpha = 1f - QUEUE_DRAG_LIFT_ALPHA_DECAY * liftProgress
+                translationY = resolvedTranslationY
+                scaleY = animatedLiftScale
+                alpha = animatedLiftAlpha
             }
             .clickable(onClick = onClick)
     ) {
@@ -386,41 +494,22 @@ private fun QueueRow(
                 modifier = Modifier.pointerInput(canMoveUp, canMoveDown) {
                     detectDragGesturesAfterLongPress(
                         onDragStart = {
-                            scope.launch { dragOffsetY.snapTo(0f) }
+                            onDragStart()
                         },
                         onDragCancel = {
-                            scope.launch {
-                                dragOffsetY.animateTo(
-                                    targetValue = 0f,
-                                    animationSpec = tween(
-                                        NordicMotion.durationMicro,
-                                        easing = NordicMotion.easingStandard
-                                    )
-                                )
-                            }
+                            onDragCancel()
                         },
                         onDragEnd = {
-                            val rowDelta = (dragOffsetY.value / rowHeightPx).roundToInt()
+                            val rowDelta = (dragOffsetY / rowHeightPx).roundToInt()
                             val allowedDelta = when {
                                 rowDelta < 0 && canMoveUp -> rowDelta
                                 rowDelta > 0 && canMoveDown -> rowDelta
                                 else -> 0
                             }
-                            if (allowedDelta != 0) {
-                                onDragByRows(allowedDelta)
-                            }
-                            scope.launch {
-                                dragOffsetY.animateTo(
-                                    targetValue = 0f,
-                                    animationSpec = tween(
-                                        NordicMotion.durationMicro,
-                                        easing = NordicMotion.easingStandard
-                                    )
-                                )
-                            }
+                            onDragEnd(allowedDelta)
                         },
                         onDrag = { _, dragAmount ->
-                            scope.launch { dragOffsetY.snapTo(dragOffsetY.value + dragAmount.y) }
+                            onDrag(dragAmount.y)
                         }
                     )
                 }
