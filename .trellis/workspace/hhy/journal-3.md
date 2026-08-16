@@ -729,3 +729,37 @@ Redesigned the video player chrome with an immersive overlay, added a lightweigh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 138: 继续打磨音乐模块遗留项
+
+**Date**: 2026-08-16
+**Task**: 继续打磨音乐模块遗留项
+**Branch**: `main`
+
+### Summary
+
+完成上一轮遗留的三个 Out of Scope 项：歌词面板改为 LazyColumn 自动滚动 + 高亮颜色/字重 animateColorAsState/animateFloatAsState 平滑过渡；队列拖动重排改为实时让位（共享 QueueDragState + resolveQueueRowDisplacement 纯函数 + animateFloatAsState 平滑让位，不依赖 1.7+ animateItem()）；队列 Sheet 和均衡器 Sheet 统一启用 skipPartiallyExpanded = false 两段式展开。补充手动拖动让位契约 spec。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `c31c023` | (see git log) |
+| `30889a1` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
