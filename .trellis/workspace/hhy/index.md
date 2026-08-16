@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-3.md`
-- **Total Sessions**: 136
-- **Last Active**: 2026-08-12
+- **Total Sessions**: 137
+- **Last Active**: 2026-08-16
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-3.md` | ~697 | Active |
+| `journal-3.md` | ~731 | Active |
 | `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
@@ -31,6 +31,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 137 | 2026-08-16 | 优化音乐部分逻辑与 UI | `bb30228`, `449ffca` | `main` |
 | 136 | 2026-08-12 | 继续打磨软件 UI 与操作逻辑 | `63e93f8`, `3818d8b`, `10770d9` | `main` |
 | 135 | 2026-08-11 | 打磨软件 UI 与操作逻辑 | `b41d430`, `e466795`, `4c2c53c` | `main` |
 | 134 | 2026-08-11 | 打磨软件 UI 图标与毛玻璃效果 | `c55d001`, `419278b`, `d5d7edb` | `main` |

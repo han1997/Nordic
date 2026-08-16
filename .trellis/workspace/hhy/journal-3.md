@@ -695,3 +695,37 @@ Redesigned the video player chrome with an immersive overlay, added a lightweigh
 ### Next Steps
 
 - None - task complete
+
+
+## Session 137: 优化音乐部分逻辑与 UI
+
+**Date**: 2026-08-16
+**Task**: 优化音乐部分逻辑与 UI
+**Branch**: `main`
+
+### Summary
+
+完成音乐模块三批次 UI 体感打磨：播放页下滑手势渐进跟随回弹、收藏失败 pill 提示 + ViewModel 一次性事件、单曲循环角标校正；队列 Sheet 首次静默定位 + 切歌动画对齐、拖动抬起态反馈（去阴影）、删除退场动画；浏览视觉层级 sort 控件 unify、卡片圆角/封面尺寸校正、加载态统一改用 MediaLoadingCard。补充分段控件视觉一致性契约与收藏失败一次性事件 spec。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `bb30228` | (see git log) |
+| `449ffca` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
