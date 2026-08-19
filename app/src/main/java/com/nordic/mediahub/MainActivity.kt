@@ -47,6 +47,7 @@ import coil.Coil
 import coil.ImageLoader
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import android.graphics.Color as AndroidColor
 
 private const val BOTTOM_DOCK_ENTER_ANIMATION_MS = 260
@@ -121,26 +122,75 @@ internal fun resolveAudiobookPlayRequestAction(
     }
 }
 
-internal data class AudiobookCloseFailurePresentation(
-    val showPlayer: Boolean,
-    val errorMessage: String?
-)
+internal enum class MediaPlaybackKind {
+    Music,
+    Audiobook,
+    Video
+}
 
-internal fun resolveAudiobookCloseFailurePresentation(
-    closeFailureMessage: String,
-    reopenPlayerOnFailure: Boolean
-): AudiobookCloseFailurePresentation {
-    return if (reopenPlayerOnFailure) {
-        AudiobookCloseFailurePresentation(
-            showPlayer = true,
-            errorMessage = closeFailureMessage
-        )
-    } else {
-        AudiobookCloseFailurePresentation(
-            showPlayer = false,
-            errorMessage = null
+internal fun resolveMediaHandoffCloseSteps(
+    target: MediaPlaybackKind,
+    hasMusic: Boolean,
+    hasAudiobook: Boolean,
+    hasVideo: Boolean,
+    replaceTargetPlayback: Boolean = false
+): List<MediaPlaybackKind> {
+    return buildList {
+        if (hasAudiobook && (target != MediaPlaybackKind.Audiobook || replaceTargetPlayback)) {
+            add(MediaPlaybackKind.Audiobook)
+        }
+        if (hasVideo && (target != MediaPlaybackKind.Video || replaceTargetPlayback)) {
+            add(MediaPlaybackKind.Video)
+        }
+        if (hasMusic && target != MediaPlaybackKind.Music) {
+            add(MediaPlaybackKind.Music)
+        }
+    }
+}
+
+internal fun runMediaHandoffCloseSteps(
+    steps: List<MediaPlaybackKind>,
+    closeStep: (
+        kind: MediaPlaybackKind,
+        onClosed: () -> Unit,
+        onFailed: () -> Unit
+    ) -> Unit,
+    onReady: () -> Unit,
+    onFailed: () -> Unit
+) {
+    var handoffFinished = false
+
+    fun failHandoff() {
+        if (handoffFinished) return
+        handoffFinished = true
+        onFailed()
+    }
+
+    fun closeAt(index: Int) {
+        if (handoffFinished) return
+        if (index >= steps.size) {
+            handoffFinished = true
+            onReady()
+            return
+        }
+        var stepFinished = false
+        closeStep(
+            steps[index],
+            {
+                if (!stepFinished) {
+                    stepFinished = true
+                    closeAt(index + 1)
+                }
+            },
+            {
+                if (!stepFinished) {
+                    stepFinished = true
+                    failHandoff()
+                }
+            }
         )
     }
+    closeAt(0)
 }
 
 @Composable
@@ -260,39 +310,131 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     val configRepository = remember { ConfigRepository(context) }
     val audiobookConfig by configRepository.audiobookConfig.collectAsStateWithLifecycle(AudiobookShelfConfig())
     val colorScheme = MaterialTheme.colorScheme
+    var bottomDockVisible by remember { mutableStateOf(true) }
 
     val closeAudiobookPlayback = remember(audiobookVM) {
-        { reopenPlayerOnFailure: Boolean ->
-            showAudiobookPlayer = false
+        { onClosed: () -> Unit, onFailed: () -> Unit ->
             audiobookVM.closeAudiobookPlayback(
-                reopenPlayerOnFailure = reopenPlayerOnFailure,
-                onClosed = { },
-                onFailed = { reopen -> if (reopen) showAudiobookPlayer = true }
+                onClosed = {
+                    showAudiobookPlayer = false
+                    onClosed()
+                },
+                onFailed = {
+                    showAudiobookPlayer = true
+                    onFailed()
+                }
             )
         }
     }
     val closeVideoPlayback = remember(videoVM) {
-        {
+        { onClosed: () -> Unit, onFailed: () -> Unit ->
             videoVM.closeVideoPlayback(
-                onClosed = { showVideoPlayer = false; isFullscreen = false },
-                onFailed = { }
+                onClosed = {
+                    showVideoPlayer = false
+                    isFullscreen = false
+                    onClosed()
+                },
+                onFailed = {
+                    showVideoPlayer = true
+                    onFailed()
+                }
             )
+        }
+    }
+    val mediaSwitchInProgress = remember { AtomicBoolean(false) }
+
+    val runMediaHandoff = remember(
+        musicVM,
+        audiobookVM,
+        videoVM,
+        closeAudiobookPlayback,
+        closeVideoPlayback
+    ) {
+        {
+            target: MediaPlaybackKind,
+            replaceTargetPlayback: Boolean,
+            onReady: (releaseSwitch: () -> Unit) -> Unit,
+            onFailed: () -> Unit ->
+            if (mediaSwitchInProgress.compareAndSet(false, true)) {
+                val steps = resolveMediaHandoffCloseSteps(
+                    target = target,
+                    hasMusic = musicVM.state.value.currentSong != null,
+                    hasAudiobook = audiobookVM.state.value.session != null,
+                    hasVideo = videoVM.state.value.video != null,
+                    replaceTargetPlayback = replaceTargetPlayback
+                )
+                runMediaHandoffCloseSteps(
+                    steps = steps,
+                    closeStep = { kind, onClosed, onStepFailed ->
+                        when (kind) {
+                            MediaPlaybackKind.Music -> {
+                                musicVM.stop()
+                                onClosed()
+                            }
+                            MediaPlaybackKind.Audiobook -> closeAudiobookPlayback(onClosed, onStepFailed)
+                            MediaPlaybackKind.Video -> closeVideoPlayback(onClosed, onStepFailed)
+                        }
+                    },
+                    onReady = {
+                        onReady { mediaSwitchInProgress.set(false) }
+                    },
+                    onFailed = {
+                        onFailed()
+                        mediaSwitchInProgress.set(false)
+                    }
+                )
+            }
         }
     }
 
-    val onSongSelected = remember(musicVM, closeAudiobookPlayback, closeVideoPlayback) {
-        { songs: List<NavidromeSong>, index: Int, allowUnplayableStartFallback: Boolean ->
-            closeAudiobookPlayback(false)
-            closeVideoPlayback()
-            musicVM.playQueue(
-                songs = songs,
-                startIndex = index,
-                allowUnplayableStartFallback = allowUnplayableStartFallback
-            )
-            showPlayer = true
+    val closeCurrentAudiobookPlayback = remember(closeAudiobookPlayback) {
+        {
+            if (mediaSwitchInProgress.compareAndSet(false, true)) {
+                closeAudiobookPlayback(
+                    {
+                        bottomDockVisible = true
+                        mediaSwitchInProgress.set(false)
+                    },
+                    { mediaSwitchInProgress.set(false) }
+                )
+            }
         }
     }
-    val onPlayAudiobook = remember(audiobookVM, musicVM, closeAudiobookPlayback, closeVideoPlayback, audiobookConfig) {
+    val closeCurrentVideoPlayback = remember(closeVideoPlayback) {
+        {
+            if (mediaSwitchInProgress.compareAndSet(false, true)) {
+                closeVideoPlayback(
+                    {
+                        bottomDockVisible = true
+                        mediaSwitchInProgress.set(false)
+                    },
+                    { mediaSwitchInProgress.set(false) }
+                )
+            }
+        }
+    }
+
+    val onSongSelected = remember(musicVM, runMediaHandoff) {
+        { songs: List<NavidromeSong>, index: Int, allowUnplayableStartFallback: Boolean ->
+            runMediaHandoff(
+                MediaPlaybackKind.Music,
+                false,
+                { releaseSwitch ->
+                    musicVM.playQueue(
+                        songs = songs,
+                        startIndex = index,
+                        allowUnplayableStartFallback = allowUnplayableStartFallback
+                    )
+                    showAudiobookPlayer = false
+                    showVideoPlayer = false
+                    showPlayer = true
+                    releaseSwitch()
+                },
+                { }
+            )
+        }
+    }
+    val onPlayAudiobook = remember(audiobookVM, runMediaHandoff, audiobookConfig) {
         { item: AudiobookItemSummary ->
             if (!audiobookConfig.isReadyForAudiobookSync()) {
                 audiobookVM.setError("未配置 AudiobookShelf")
@@ -301,56 +443,66 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                     currentSession = audiobookVM.state.value.session,
                     requestedLibraryItemId = item.id
                 )
-                if (action == AudiobookPlayRequestAction.ReuseCurrentSession) {
-                    audiobookVM.clearError()
-                    musicVM.stop()
-                    closeVideoPlayback()
-                    showAudiobookPlayer = true
-                    showVideoPlayer = false
-                    showPlayer = false
-                } else {
-                    if (action == AudiobookPlayRequestAction.CloseCurrentSessionBeforeStart) {
-                        closeAudiobookPlayback(false)
-                    }
-                    audiobookVM.startPlayback(item.id) { result ->
-                        result.onSuccess {
-                            musicVM.stop()
-                            closeVideoPlayback()
+                runMediaHandoff(
+                    MediaPlaybackKind.Audiobook,
+                    action == AudiobookPlayRequestAction.CloseCurrentSessionBeforeStart,
+                    { releaseSwitch ->
+                        if (action == AudiobookPlayRequestAction.ReuseCurrentSession) {
+                            audiobookVM.clearError()
                             showAudiobookPlayer = true
                             showVideoPlayer = false
                             showPlayer = false
+                            releaseSwitch()
+                        } else {
+                            audiobookVM.startPlayback(item.id) { result ->
+                                result.onSuccess {
+                                    showAudiobookPlayer = true
+                                    showVideoPlayer = false
+                                    showPlayer = false
+                                }
+                                releaseSwitch()
+                            }
                         }
-                    }
-                }
+                    },
+                    { }
+                )
             }
         }
     }
-    val onPlayVideo = remember(videoVM, musicVM, closeAudiobookPlayback, closeVideoPlayback) {
+    val onPlayVideo = remember(videoVM, runMediaHandoff) {
         { video: VideoItem ->
-            closeAudiobookPlayback(false)
-            musicVM.stop()
             val currentVideo = videoVM.state.value.video
-            if (currentVideo != null && currentVideo.id != video.id) {
-                closeVideoPlayback()
-            }
-            videoVM.clearError()
-            videoVM.play(video)
-            showPlayer = false
-            showVideoPlayer = true
+            runMediaHandoff(
+                MediaPlaybackKind.Video,
+                currentVideo != null && currentVideo.id != video.id,
+                { releaseSwitch ->
+                    videoVM.clearError()
+                    videoVM.play(video)
+                    showPlayer = false
+                    showAudiobookPlayer = false
+                    showVideoPlayer = true
+                    releaseSwitch()
+                },
+                { }
+            )
         }
     }
-    val onPlayVideoFromStart = remember(videoVM, musicVM, closeAudiobookPlayback, closeVideoPlayback) {
+    val onPlayVideoFromStart = remember(videoVM, runMediaHandoff) {
         { video: VideoItem ->
-            closeAudiobookPlayback(false)
-            musicVM.stop()
             val currentVideo = videoVM.state.value.video
-            if (currentVideo != null && currentVideo.id != video.id) {
-                closeVideoPlayback()
-            }
-            videoVM.clearError()
-            videoVM.playFromStart(video)
-            showPlayer = false
-            showVideoPlayer = true
+            runMediaHandoff(
+                MediaPlaybackKind.Video,
+                currentVideo != null,
+                { releaseSwitch ->
+                    videoVM.clearError()
+                    videoVM.playFromStart(video)
+                    showPlayer = false
+                    showAudiobookPlayer = false
+                    showVideoPlayer = true
+                    releaseSwitch()
+                },
+                { }
+            )
         }
     }
     val openPlayer = remember { { showPlayer = true } }
@@ -359,7 +511,6 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         audiobookVM.setPlayerVisible(showAudiobookPlayer)
     }
 
-    var bottomDockVisible by remember { mutableStateOf(true) }
     val hasPlayerLayer = showPlayer || showAudiobookPlayer || showVideoPlayer
     val bottomDockPresentation = resolveBottomDockPresentation(
         hasPlayerLayer = hasPlayerLayer,
@@ -560,7 +711,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         showVideoPlayer = showVideoPlayer,
         isFullscreen = isFullscreen,
         colorScheme = colorScheme,
-        closeVideoPlayback = closeVideoPlayback,
+        closeVideoPlayback = closeCurrentVideoPlayback,
         onToggleFullscreen = { isFullscreen = !isFullscreen }
     )
 
@@ -568,7 +719,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         audiobookVM = audiobookVM,
         showAudiobookPlayer = showAudiobookPlayer,
         colorScheme = colorScheme,
-        closeAudiobookPlayback = closeAudiobookPlayback
+        closeAudiobookPlayback = closeCurrentAudiobookPlayback
     )
 
     BackHandler(enabled = showPlayer) {
@@ -718,13 +869,13 @@ private fun AudiobookPlayerLayer(
     audiobookVM: AudiobookPlaybackViewModel,
     showAudiobookPlayer: Boolean,
     colorScheme: ColorScheme,
-    closeAudiobookPlayback: (Boolean) -> Unit
+    closeAudiobookPlayback: () -> Unit
 ) {
     val audiobookPlaybackState by audiobookVM.state.collectAsStateWithLifecycle()
     val audiobookPlaybackError by audiobookVM.error.collectAsStateWithLifecycle()
 
     BackHandler(enabled = showAudiobookPlayer || audiobookPlaybackError != null) {
-        closeAudiobookPlayback(true)
+        closeAudiobookPlayback()
     }
 
     AnimatedVisibility(
@@ -743,7 +894,7 @@ private fun AudiobookPlayerLayer(
             onSeekToNextChapter = audiobookVM::seekToNextChapter,
             onCyclePlaybackSpeed = audiobookVM::cyclePlaybackSpeed,
             onPlayPause = audiobookVM::togglePlayPause,
-            onClose = { closeAudiobookPlayback(true) }
+            onClose = closeAudiobookPlayback
         )
     }
 }

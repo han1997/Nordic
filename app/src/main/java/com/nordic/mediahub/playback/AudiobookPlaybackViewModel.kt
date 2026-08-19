@@ -7,7 +7,6 @@ import com.nordic.mediahub.data.AudiobookPlaybackSession
 import com.nordic.mediahub.data.AudiobookShelfRepository
 import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.isReadyForAudiobookSync
-import com.nordic.mediahub.resolveAudiobookCloseFailurePresentation
 import com.nordic.mediahub.resolveAudiobookProgressSyncBaselineSeconds
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -117,9 +116,8 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
     }
 
     fun closeAudiobookPlayback(
-        reopenPlayerOnFailure: Boolean = false,
         onClosed: () -> Unit = {},
-        onFailed: (reopenPlayer: Boolean) -> Unit = {}
+        onFailed: (message: String) -> Unit = {}
     ) {
         _error.value = null
         val currentState = engine.state.value
@@ -140,36 +138,17 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
             return
         }
 
-        if (!reopenPlayerOnFailure) {
-            engine.stop()
-            viewModelScope.launch {
-                runCatching { repo.syncAndCloseSession(session, positionSeconds) }
-                    .onSuccess { onClosed() }
-                    .onFailure { error ->
-                        val presentation = resolveAudiobookCloseFailurePresentation(
-                            closeFailureMessage = error.message ?: "关闭有声书播放会话失败",
-                            reopenPlayerOnFailure = false
-                        )
-                        if (presentation.errorMessage != null) _error.value = presentation.errorMessage
-                        onFailed(presentation.showPlayer)
-                    }
-            }
-        } else {
-            viewModelScope.launch {
-                runCatching { repo.syncAndCloseSession(session, positionSeconds) }
-                    .onSuccess {
-                        engine.stop()
-                        onClosed()
-                    }
-                    .onFailure { error ->
-                        val presentation = resolveAudiobookCloseFailurePresentation(
-                            closeFailureMessage = error.message ?: "关闭有声书播放会话失败",
-                            reopenPlayerOnFailure = true
-                        )
-                        if (presentation.errorMessage != null) _error.value = presentation.errorMessage
-                        onFailed(presentation.showPlayer)
-                    }
-            }
+        viewModelScope.launch {
+            runCatching { repo.syncAndCloseSession(session, positionSeconds) }
+                .onSuccess {
+                    engine.stop()
+                    onClosed()
+                }
+                .onFailure { error ->
+                    val message = error.message ?: "关闭有声书播放会话失败"
+                    _error.value = message
+                    onFailed(message)
+                }
         }
     }
 

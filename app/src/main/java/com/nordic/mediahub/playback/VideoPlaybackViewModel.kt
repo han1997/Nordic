@@ -105,8 +105,6 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         val video = currentState.video
         val repo = _repository.value
 
-        onClosed()
-
         if (video != null && repo != null && !video.streamUrl.isNullOrBlank()) {
             val positionSeconds = resolveVideoProgressSyncBaselineSeconds(
                 statePositionSeconds = currentState.positionSeconds,
@@ -114,14 +112,20 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
             )
             viewModelScope.launch {
                 runCatching { repo.stopPlaybackProgress(video, positionSeconds) }
+                    .onSuccess {
+                        engine.stop()
+                        onClosed()
+                    }
                     .onFailure { error ->
                         _error.value = error.message ?: "保存视频进度失败"
                         Log.e("VideoPlayback", "保存视频进度失败", error)
                         onFailed(error.message ?: "保存视频进度失败")
                     }
             }
+        } else {
+            engine.stop()
+            onClosed()
         }
-        engine.stop()
     }
 
     fun play(video: VideoItem) {

@@ -3,8 +3,6 @@ package com.nordic.mediahub
 import com.nordic.mediahub.data.AudiobookPlaybackSession
 import com.nordic.mediahub.data.VideoItem
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -191,25 +189,95 @@ class MainActivityTest {
     }
 
     @Test
-    fun resolveAudiobookCloseFailurePresentation_ignoresBackgroundHandoffFailure() {
-        val presentation = resolveAudiobookCloseFailurePresentation(
-            closeFailureMessage = "close failed",
-            reopenPlayerOnFailure = false
+    fun resolveMediaHandoffCloseSteps_closesOtherActiveMediaBeforeMusicStarts() {
+        assertEquals(
+            listOf(MediaPlaybackKind.Audiobook, MediaPlaybackKind.Video),
+            resolveMediaHandoffCloseSteps(
+                target = MediaPlaybackKind.Music,
+                hasMusic = true,
+                hasAudiobook = true,
+                hasVideo = true
+            )
         )
-
-        assertFalse(presentation.showPlayer)
-        assertNull(presentation.errorMessage)
     }
 
     @Test
-    fun resolveAudiobookCloseFailurePresentation_showsManualCloseFailure() {
-        val presentation = resolveAudiobookCloseFailurePresentation(
-            closeFailureMessage = "close failed",
-            reopenPlayerOnFailure = true
+    fun resolveMediaHandoffCloseSteps_keepsReusedTargetAndStopsMusicLast() {
+        assertEquals(
+            listOf(MediaPlaybackKind.Video, MediaPlaybackKind.Music),
+            resolveMediaHandoffCloseSteps(
+                target = MediaPlaybackKind.Audiobook,
+                hasMusic = true,
+                hasAudiobook = true,
+                hasVideo = true,
+                replaceTargetPlayback = false
+            )
+        )
+    }
+
+    @Test
+    fun resolveMediaHandoffCloseSteps_closesExistingTargetWhenReplacingIt() {
+        assertEquals(
+            listOf(MediaPlaybackKind.Audiobook, MediaPlaybackKind.Music),
+            resolveMediaHandoffCloseSteps(
+                target = MediaPlaybackKind.Audiobook,
+                hasMusic = true,
+                hasAudiobook = true,
+                hasVideo = false,
+                replaceTargetPlayback = true
+            )
+        )
+    }
+
+    @Test
+    fun resolveMediaHandoffCloseSteps_closesCurrentVideoBeforeRestartingFromBeginning() {
+        assertEquals(
+            listOf(MediaPlaybackKind.Video),
+            resolveMediaHandoffCloseSteps(
+                target = MediaPlaybackKind.Video,
+                hasMusic = false,
+                hasAudiobook = false,
+                hasVideo = true,
+                replaceTargetPlayback = true
+            )
+        )
+    }
+
+    @Test
+    fun runMediaHandoffCloseSteps_runsSequentiallyThenStartsTarget() {
+        val events = mutableListOf<String>()
+
+        runMediaHandoffCloseSteps(
+            steps = listOf(MediaPlaybackKind.Audiobook, MediaPlaybackKind.Video, MediaPlaybackKind.Music),
+            closeStep = { kind, onClosed, _ ->
+                events += "close-$kind"
+                onClosed()
+            },
+            onReady = { events += "start-target" },
+            onFailed = { events += "failed" }
         )
 
-        assertTrue(presentation.showPlayer)
-        assertEquals("close failed", presentation.errorMessage)
+        assertEquals(
+            listOf("close-Audiobook", "close-Video", "close-Music", "start-target"),
+            events
+        )
+    }
+
+    @Test
+    fun runMediaHandoffCloseSteps_stopsAtFailureWithoutStartingTarget() {
+        val events = mutableListOf<String>()
+
+        runMediaHandoffCloseSteps(
+            steps = listOf(MediaPlaybackKind.Audiobook, MediaPlaybackKind.Video, MediaPlaybackKind.Music),
+            closeStep = { kind, onClosed, onFailed ->
+                events += "close-$kind"
+                if (kind == MediaPlaybackKind.Video) onFailed() else onClosed()
+            },
+            onReady = { events += "start-target" },
+            onFailed = { events += "failed" }
+        )
+
+        assertEquals(listOf("close-Audiobook", "close-Video", "failed"), events)
     }
 
     private fun session(
