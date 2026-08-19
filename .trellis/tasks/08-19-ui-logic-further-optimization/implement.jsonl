@@ -1,0 +1,8 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `py -3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Android Compose boundaries and required sequential verification commands"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Cache key, TTL, configuration switching, persistence cleanup, and stale cache refresh contracts"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Shared media state components, Compose state isolation, list stability, navigation, and regression test requirements"}
+{"file": ".trellis/spec/backend/documentation-guidelines.md", "reason": "Chinese user-visible state/error copy and CHANGELOG update rules"}
+{"file": ".trellis/spec/backend/audiobookshelf-integration.md", "reason": "Audiobook library refresh, item mapping, and progress/cache boundary behavior"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Video catalog refresh, library switching, cache, selection, and error behavior"}
+{"file": ".trellis/spec/backend/navidrome-integration.md", "reason": "Music refresh, cache, selection, and repository/UI error boundaries"}
