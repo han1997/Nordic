@@ -896,3 +896,38 @@ Moved the bottom dock out of Scaffold.bottomBar so hidden dock state leaves only
 ### Next Steps
 
 - None - task complete
+
+
+## Session 143: UI 与逻辑继续优化：媒体浏览状态一致性
+
+**Date**: 2026-08-20
+**Task**: UI 与逻辑继续优化：媒体浏览状态一致性
+**Branch**: `main`
+
+### Summary
+
+统一音乐/有声书/视频浏览状态逻辑：配置切换立即清理、媒体库切换请求版本守卫、详情失效返回列表+一次说明、缓存失败副标题 vs 无缓存错误卡片、媒体库结果持久化、音乐详情 reconciliation 修正；补充 database-guidelines 隔离规范；回归测试通过
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `4032048` | (see git log) |
+| `f6edfdb` | (see git log) |
+| `3c3878a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
