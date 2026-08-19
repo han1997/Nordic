@@ -1,0 +1,4 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `py -3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Android Compose app boundaries, required verification commands, and relevant guideline index for UI/playback work"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Shared UI state, navigation logic, test coverage, and known anti-patterns"}
+{"file": ".trellis/spec/backend/documentation-guidelines.md", "reason": "Chinese user-visible feedback and changelog requirements if behavior changes"}

@@ -1776,6 +1776,71 @@ async { runCatching { requestSubsonic { api.getAlbum(...) } }.getOrNull() }
 async { requestSubsonic { api.getAlbum(...) } }
 ```
 
+### Cross-media playback handoff
+
+#### 1. Scope / Trigger
+
+Apply this contract when `MainActivity` or playback ViewModels switch between Music, Audiobook, and Video, or when manual player close can overlap an in-progress media switch.
+
+#### 2. Signatures
+
+- `internal enum class MediaPlaybackKind`
+- `internal fun resolveMediaHandoffCloseSteps(...)`
+- `internal fun runMediaHandoffCloseSteps(...)`
+- Playback close callbacks use `onClosed: () -> Unit` and `onFailed: (String) -> Unit` semantics.
+
+#### 3. Contracts
+
+- Cross-media playback is strict and single-owner: close every active non-target medium sequentially, then start or reveal the target medium.
+- A close failure terminates the handoff. Do not start the target medium, and preserve or restore the player that failed to close so its error remains actionable.
+- Successful earlier close steps stay closed if a later step fails; do not reopen already-closed background players.
+- Manual player close and cross-media handoff share one mutual-exclusion gate. A second close/switch request while a handoff is active is ignored rather than launching competing asynchronous work.
+- Every asynchronous close step and the overall handoff consume a terminal callback only once. Duplicate success/failure callbacks must not start the target twice or run both terminal branches.
+- Replaying the current video from the beginning still closes the active video session first so stopped progress reporting and local engine cleanup finish before `playFromStart(...)`.
+
+#### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+|---|---|
+| No non-target medium is active | Start/reveal target immediately |
+| All required closes succeed | Start/reveal target exactly once |
+| Any close fails | Stop remaining steps; do not start target; keep failed player visible with error |
+| Close callback fires twice | Consume the first terminal callback only |
+| User closes a player during handoff | Ignore the competing request until the gate is released |
+| Current video requests play-from-start | Close current session, then start from zero |
+
+#### 5. Good/Base/Bad Cases
+
+- Good: Audiobook closes successfully, video closes successfully, then Music starts.
+- Base: Music is already the only active medium; selecting another Music item updates its queue without unnecessary close work.
+- Bad: Stop Music immediately, start Video, and asynchronously close Audiobook afterward; a close failure leaves two media states competing.
+- Bad: Reopen every previously closed player when the last close step fails.
+
+#### 6. Tests Required
+
+- Pure helper tests for required close-step order for every source/target combination.
+- A failure-path test asserting later close steps and target start are not invoked.
+- Duplicate-callback tests asserting terminal success/failure is consumed once.
+- A current-video play-from-start test asserting Video is included in the close steps.
+- Compile, unit test, and lint gates after changing handoff or close callback wiring.
+
+#### 7. Wrong vs Correct
+
+```kotlin
+// Wrong: starts the target before asynchronous cleanup succeeds.
+musicVM.stop()
+videoVM.play(video)
+audiobookVM.closeAudiobookPlayback(onClosed = {}, onFailed = {})
+```
+
+```kotlin
+// Correct: target start is the success continuation of the serialized close chain.
+runMediaHandoff(
+    target = MediaPlaybackKind.Video,
+    onReady = { videoVM.play(video) }
+)
+```
+
 ---
 
 ## Testing Requirements
