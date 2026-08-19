@@ -862,3 +862,37 @@ Moved the bottom dock out of Scaffold.bottomBar so hidden dock state leaves only
 ### Next Steps
 
 - None - task complete
+
+
+## Session 142: 优化播放器与 Dock 交互
+
+**Date**: 2026-08-19
+**Task**: 优化播放器与 Dock 交互
+**Branch**: `main`
+
+### Summary
+
+完成音乐、有声书、视频之间的严格单媒体交接，修复关闭失败、重复回调和视频从头播放的状态竞争；保持 Dock 滚动隐藏、手动把手恢复；补充 MainActivity 回归测试、CHANGELOG 和跨媒体交接质量规范。编译、单元测试、lint 和 diff check 均通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a3ace10` | (see git log) |
+| `ce0f273` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
