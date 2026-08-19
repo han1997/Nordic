@@ -271,6 +271,15 @@ class VideoScreenTest {
     }
 
     @Test
+    fun shouldShowVideoDetailInvalidationNotice_onlyWhenSelectionDisappears() {
+        val selected = video(id = "movie-1", title = "Movie One")
+
+        assertTrue(shouldShowVideoDetailInvalidationNotice(selected, null))
+        assertFalse(shouldShowVideoDetailInvalidationNotice(selected, selected))
+        assertFalse(shouldShowVideoDetailInvalidationNotice(null, null))
+    }
+
+    @Test
     fun resolveVideoTypeFilterAfterCatalogRefresh_resetsEpisodeFilterEvenWhenEpisodesExist() {
         val resolved = resolveVideoTypeFilterAfterCatalogRefresh(
             selectedTypeFilter = VideoTypeFilter.Episodes,

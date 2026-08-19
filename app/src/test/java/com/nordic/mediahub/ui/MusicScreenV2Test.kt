@@ -245,6 +245,36 @@ class MusicScreenV2Test {
     }
 
     @Test
+    fun shouldShowMusicDetailInvalidationNotice_onlyForVisibleMissingDetail() {
+        assertEquals(
+            true,
+            shouldShowMusicDetailInvalidationNotice(
+                detailPage = MusicLibraryPage.AlbumDetail,
+                currentPage = MusicLibraryPage.AlbumDetail,
+                hadSelection = true,
+                hasRefreshedSelection = false
+            )
+        )
+        assertEquals(
+            false,
+            shouldShowMusicDetailInvalidationNotice(
+                detailPage = MusicLibraryPage.AlbumDetail,
+                currentPage = MusicLibraryPage.Albums,
+                hadSelection = true,
+                hasRefreshedSelection = false
+            )
+        )
+    }
+
+    @Test
+    fun mediaRefreshErrorPresentation_keepsCachedErrorInSubtitle() {
+        assertEquals("正在显示上次缓存：offline", mediaRefreshErrorSubtitle("正在显示上次缓存：offline", true))
+        assertNull(standaloneMediaError("正在显示上次缓存：offline", true))
+        assertNull(mediaRefreshErrorSubtitle("连接失败: offline", false))
+        assertEquals("连接失败: offline", standaloneMediaError("连接失败: offline", false))
+    }
+
+    @Test
     fun shouldShowMusicSearchClearAction_onlyShowsForNonBlankQuery() {
         assertEquals(false, shouldShowMusicSearchClearAction(""))
         assertEquals(false, shouldShowMusicSearchClearAction("   "))

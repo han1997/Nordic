@@ -125,6 +125,15 @@ internal fun resolveSelectedPlaylistAfterMusicRefresh(
     return selectedPlaylist?.let { selected -> refreshedPlaylists.firstOrNull { it.id == selected.id } }
 }
 
+internal fun shouldShowMusicDetailInvalidationNotice(
+    detailPage: MusicLibraryPage,
+    currentPage: MusicLibraryPage,
+    hadSelection: Boolean,
+    hasRefreshedSelection: Boolean
+): Boolean {
+    return currentPage == detailPage && hadSelection && !hasRefreshedSelection
+}
+
 internal fun resolveMusicLibraryPageForward(from: MusicLibraryPage, to: MusicLibraryPage): Boolean {
     return musicLibraryPageDepth(to) > musicLibraryPageDepth(from)
 }

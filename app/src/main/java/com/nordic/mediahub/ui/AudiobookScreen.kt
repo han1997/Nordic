@@ -101,6 +101,16 @@ internal fun shouldShowAudiobookConfigResetNotice(
         )
 }
 
+internal fun shouldShowAudiobookDetailInvalidationNotice(
+    currentPage: AudiobookLibraryPage,
+    previousSelectedItem: AudiobookItemDetail?,
+    refreshedSelectedItem: AudiobookItemDetail?
+): Boolean {
+    return currentPage == AudiobookLibraryPage.Detail &&
+        previousSelectedItem != null &&
+        refreshedSelectedItem == null
+}
+
 internal fun sortAudiobookDetailChapters(chapters: List<AudiobookChapter>): List<AudiobookChapter> {
     return chapters
         .withIndex()
@@ -134,6 +144,9 @@ fun AudiobookScreen(
     var audiobookConfigStateVersion by remember { mutableStateOf(0) }
     var previousAudiobookConfig by remember { mutableStateOf<AudiobookShelfConfig?>(null) }
     var audiobookResetNotice by remember { mutableStateOf<String?>(null) }
+    var audiobookDetailInvalidationNotice by remember { mutableStateOf<String?>(null) }
+    var audiobookLibraryRequestVersion by remember { mutableStateOf(0) }
+    var audiobookDetailRequestVersion by remember { mutableStateOf(0) }
     val scope = rememberCoroutineScope()
 
     val audiobookRepository = remember(savedConfig) {
@@ -151,6 +164,9 @@ fun AudiobookScreen(
     fun resetAudiobookStateAfterConfigChange() {
         audiobookConfigStateVersion += 1
         audiobookResetNotice = null
+        audiobookDetailInvalidationNotice = null
+        audiobookLibraryRequestVersion += 1
+        audiobookDetailRequestVersion += 1
         libraryPage = resolveAudiobookLibraryPageAfterConfigChange(libraryPage)
         libraries = emptyList()
         selectedLibraryId = null
@@ -216,6 +232,11 @@ fun AudiobookScreen(
                 selectedItem = previousSelectedItem,
                 items = refreshedItems
             )
+            val shouldShowDetailInvalidationNotice = shouldShowAudiobookDetailInvalidationNotice(
+                currentPage = libraryPage,
+                previousSelectedItem = previousSelectedItem,
+                refreshedSelectedItem = refreshedSelectedItem
+            )
             libraries = loadedLibraries
             selectedLibraryId = resolvedLibraryId
             items = refreshedItems
@@ -226,6 +247,9 @@ fun AudiobookScreen(
                 previousSelectedItem = previousSelectedItem,
                 refreshedSelectedItem = refreshedSelectedItem
             )
+            if (shouldShowDetailInvalidationNotice) {
+                audiobookDetailInvalidationNotice = "这本有声书已不在刷新后的书库中，已返回书库列表。"
+            }
             val freshCache = cacheRepository.buildCache(
                 config = targetConfig,
                 libraries = loadedLibraries,
@@ -252,6 +276,8 @@ fun AudiobookScreen(
 
     fun openItemDetail(item: AudiobookItemSummary) {
         val repo = audiobookRepository ?: return
+        audiobookDetailRequestVersion += 1
+        val detailRequestVersion = audiobookDetailRequestVersion
         audiobookResetNotice = null
         val requestVersion = audiobookConfigStateVersion
         libraryPage = AudiobookLibraryPage.Detail
@@ -264,17 +290,26 @@ fun AudiobookScreen(
             // background and write the fresh detail back to the cache. Detail
             // caches have no TTL — opening always refreshes.
             val cachedDetail = cacheRepository.loadItemDetail(savedConfig, item.id)
-            if (audiobookConfigStateVersion == requestVersion && loadingItemDetailId == item.id) {
+            if (audiobookConfigStateVersion == requestVersion &&
+                audiobookDetailRequestVersion == detailRequestVersion &&
+                loadingItemDetailId == item.id
+            ) {
                 selectedItem = cachedDetail
             }
             try {
                 val detail = repo.getLibraryItem(item.id)
-                if (audiobookConfigStateVersion == requestVersion && loadingItemDetailId == item.id) {
+                if (audiobookConfigStateVersion == requestVersion &&
+                    audiobookDetailRequestVersion == detailRequestVersion &&
+                    loadingItemDetailId == item.id
+                ) {
                     selectedItem = detail
                     cacheRepository.saveItemDetail(savedConfig, item.id, detail)
                 }
             } catch (e: Exception) {
-                if (audiobookConfigStateVersion == requestVersion && loadingItemDetailId == item.id) {
+                if (audiobookConfigStateVersion == requestVersion &&
+                    audiobookDetailRequestVersion == detailRequestVersion &&
+                    loadingItemDetailId == item.id
+                ) {
                     errorMessage = if (cachedDetail != null) {
                         "正在显示上次缓存：${e.message ?: "未知错误"}"
                     } else {
@@ -320,6 +355,7 @@ fun AudiobookScreen(
 
     fun navigateBackFromAudiobookPage() {
         audiobookResetNotice = null
+        audiobookDetailInvalidationNotice = null
         libraryPage = AudiobookLibraryPage.Home
         errorMessage = null
     }
@@ -329,6 +365,13 @@ fun AudiobookScreen(
     }
 
     val cacheAgeLabel = formatCacheAge(cacheUpdatedAtMillis)
+    val hasErrorContent = if (libraryPage == AudiobookLibraryPage.Detail) {
+        selectedItem != null
+    } else {
+        items.isNotEmpty()
+    }
+    val refreshErrorSubtitle = mediaRefreshErrorSubtitle(errorMessage, hasErrorContent)
+    val standaloneError = standaloneMediaError(errorMessage, hasErrorContent)
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -340,12 +383,14 @@ fun AudiobookScreen(
                 title = if (libraryPage == AudiobookLibraryPage.Home) "有声书" else selectedItem?.title ?: "详情",
                 subtitle = when (libraryPage) {
                     AudiobookLibraryPage.Home -> when {
+                        refreshErrorSubtitle != null -> refreshErrorSubtitle
                         isLoading && items.isNotEmpty() -> "正在刷新，先显示本地缓存"
                         cacheAgeLabel != null -> "本地缓存，$cacheAgeLabel"
                         selectedLibraryId != null -> "共 ${items.size} 本，点开查看章节和续播进度"
                         else -> "连接 AudiobookShelf 后自动加载书库"
                     }
-                    AudiobookLibraryPage.Detail -> selectedItem?.authors?.joinToString(" / ").orEmpty()
+                    AudiobookLibraryPage.Detail -> refreshErrorSubtitle
+                        ?: selectedItem?.authors?.joinToString(" / ").orEmpty()
                 },
                 actions = buildList {
                     if (savedConfig.isReadyForAudiobookSync()) {
@@ -371,11 +416,12 @@ fun AudiobookScreen(
                 onBack = ::navigateBackFromAudiobookPage
             )
         }
-        if (errorMessage != null) {
+        if (standaloneError != null) {
             item {
                 MediaStateCard(
                     title = "AudiobookShelf 错误",
-                    subtitle = errorMessage.orEmpty(),
+                    subtitle = standaloneError,
+                    hint = "检查配置或点击刷新重试",
                     tone = MediaStateTone.Error
                 )
             }
@@ -391,6 +437,16 @@ fun AudiobookScreen(
             }
         }
 
+        if (audiobookDetailInvalidationNotice != null) {
+            item {
+                MediaStateCard(
+                    title = "详情已更新",
+                    subtitle = audiobookDetailInvalidationNotice.orEmpty(),
+                    density = MediaStateDensity.Compact
+                )
+            }
+        }
+
         if (libraryPage == AudiobookLibraryPage.Home) {
             if (libraries.isNotEmpty()) {
                 item {
@@ -400,7 +456,14 @@ fun AudiobookScreen(
                         colorScheme = colorScheme,
                         onSelect = { libraryId ->
                             audiobookResetNotice = null
+                            audiobookDetailInvalidationNotice = null
+                            audiobookLibraryRequestVersion += 1
+                            val libraryRequestVersion = audiobookLibraryRequestVersion
                             selectedLibraryId = libraryId
+                            items = emptyList()
+                            selectedItem = null
+                            loadingItemDetailId = null
+                            errorMessage = null
                             val repo = audiobookRepository ?: return@AudiobookLibrarySelector
                             val requestVersion = audiobookConfigStateVersion
                             scope.launch {
@@ -408,18 +471,35 @@ fun AudiobookScreen(
                                 errorMessage = null
                                 try {
                                     val loadedItems = repo.getLibraryItems(libraryId)
-                                    if (audiobookConfigStateVersion == requestVersion && selectedLibraryId == libraryId) {
+                                    if (audiobookConfigStateVersion == requestVersion &&
+                                        audiobookLibraryRequestVersion == libraryRequestVersion &&
+                                        selectedLibraryId == libraryId
+                                    ) {
                                         items = loadedItems
                                         selectedItem = null
                                         libraryPage = AudiobookLibraryPage.Home
                                         loadingItemDetailId = null
+                                        val updatedCache = cacheRepository.buildCache(
+                                            config = savedConfig,
+                                            libraries = libraries,
+                                            items = loadedItems,
+                                            selectedLibraryId = libraryId
+                                        )
+                                        cacheUpdatedAtMillis = updatedCache.updatedAtMillis
+                                        cacheRepository.save(savedConfig, updatedCache)
                                     }
                                 } catch (e: Exception) {
-                                    if (audiobookConfigStateVersion == requestVersion && selectedLibraryId == libraryId) {
-                                        errorMessage = e.message ?: "加载书库失败"
+                                    if (audiobookConfigStateVersion == requestVersion &&
+                                        audiobookLibraryRequestVersion == libraryRequestVersion &&
+                                        selectedLibraryId == libraryId
+                                    ) {
+                                        errorMessage = "加载书库失败: ${e.message ?: "未知错误"}"
                                     }
                                 } finally {
-                                    if (audiobookConfigStateVersion == requestVersion && selectedLibraryId == libraryId) {
+                                    if (audiobookConfigStateVersion == requestVersion &&
+                                        audiobookLibraryRequestVersion == libraryRequestVersion &&
+                                        selectedLibraryId == libraryId
+                                    ) {
                                         isLoading = false
                                     }
                                 }
@@ -444,7 +524,7 @@ fun AudiobookScreen(
                         hint = "前往配置 tab 开始连接",
                     )
                 }
-            } else if (libraries.isEmpty() && !isLoading) {
+            } else if (libraries.isEmpty() && !isLoading && standaloneError == null) {
                 item {
                     MediaStateCard(
                         title = "没有可用书库",
@@ -452,7 +532,7 @@ fun AudiobookScreen(
                         hint = "检查服务器权限或书库类型",
                     )
                 }
-            } else if (items.isEmpty() && !isLoading) {
+            } else if (items.isEmpty() && !isLoading && standaloneError == null) {
                 item {
                     MediaStateCard(
                         title = "这个书库还没有内容",

@@ -113,6 +113,13 @@ internal fun resolveVideoSelectionAfterCatalogRefresh(
     }
 }
 
+internal fun shouldShowVideoDetailInvalidationNotice(
+    previousSelectedVideo: VideoItem?,
+    refreshedSelectedVideo: VideoItem?
+): Boolean {
+    return previousSelectedVideo != null && refreshedSelectedVideo == null
+}
+
 internal fun resolveVideoTypeFilterAfterCatalogRefresh(
     selectedTypeFilter: VideoTypeFilter,
     videos: List<VideoItem>

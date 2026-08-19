@@ -141,6 +141,7 @@ fun MusicScreenV2(
     var previousMusicConfig by remember { mutableStateOf<NavidromeConfig?>(null) }
     var musicBackStack by remember { mutableStateOf(emptyList<MusicLibraryPage>()) }
     var musicResetNotice by remember { mutableStateOf<String?>(null) }
+    var musicDetailInvalidationNotice by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     fun isCurrentMusicConfigRequest(requestVersion: Int?): Boolean {
@@ -150,10 +151,15 @@ fun MusicScreenV2(
     fun resetMusicStateAfterConfigChange() {
         musicConfigStateVersion += 1
         musicResetNotice = null
+        musicDetailInvalidationNotice = null
         selectedTab = 0
         libraryPage = resolveMusicLibraryPageAfterConfigChange(libraryPage)
         musicBackStack = emptyList()
         sortedAlbums = emptyList()
+        albums = emptyList()
+        songs = emptyList()
+        recentlyAddedSongs = emptyList()
+        artists = emptyList()
         playlists = emptyList()
         selectedAlbum = null
         albumDetailSongs = emptyList()
@@ -183,6 +189,7 @@ fun MusicScreenV2(
         playlistNameDraft = ""
         playlistActionError = null
         isPlaylistActionRunning = false
+        errorMsg = null
         cacheUpdatedAtMillis = null
     }
 
@@ -198,6 +205,9 @@ fun MusicScreenV2(
 
     fun reconcileAlbumDetailSelection(refreshedAlbums: List<NavidromeAlbum>, returnPage: MusicLibraryPage) {
         val resolvedAlbum = resolveSelectedAlbumAfterMusicRefresh(selectedAlbum, refreshedAlbums)
+        val shouldShowNotice = shouldShowMusicDetailInvalidationNotice(
+            MusicLibraryPage.AlbumDetail, libraryPage, selectedAlbum != null, resolvedAlbum != null
+        )
         if (selectedAlbum != null && resolvedAlbum == null) {
             selectedAlbum = null
             albumDetailSongs = emptyList()
@@ -207,6 +217,7 @@ fun MusicScreenV2(
                 selectedTab = resolveMusicSelectedTabForPage(returnPage)
                 libraryPage = returnPage
             }
+            if (shouldShowNotice) musicDetailInvalidationNotice = "这张专辑已不在刷新后的列表中，已返回专辑列表。"
         } else if (resolvedAlbum != null) {
             selectedAlbum = resolvedAlbum
         }
@@ -214,6 +225,9 @@ fun MusicScreenV2(
 
     fun reconcileArtistDetailSelection(refreshedArtists: List<NavidromeArtist>) {
         val resolvedArtist = resolveSelectedArtistAfterMusicRefresh(selectedArtist, refreshedArtists)
+        val shouldShowNotice = shouldShowMusicDetailInvalidationNotice(
+            MusicLibraryPage.ArtistDetail, libraryPage, selectedArtist != null, resolvedArtist != null
+        )
         if (selectedArtist != null && resolvedArtist == null) {
             selectedArtist = null
             artistAlbums = emptyList()
@@ -223,6 +237,7 @@ fun MusicScreenV2(
                 selectedTab = 0
                 libraryPage = MusicLibraryPage.Artists
             }
+            if (shouldShowNotice) musicDetailInvalidationNotice = "这位歌手已不在刷新后的列表中，已返回歌手列表。"
         } else if (resolvedArtist != null) {
             selectedArtist = resolvedArtist
         }
@@ -230,6 +245,9 @@ fun MusicScreenV2(
 
     fun reconcilePlaylistDetailSelection(refreshedPlaylists: List<NavidromePlaylist>) {
         val resolvedPlaylist = resolveSelectedPlaylistAfterMusicRefresh(selectedPlaylist, refreshedPlaylists)
+        val shouldShowNotice = shouldShowMusicDetailInvalidationNotice(
+            MusicLibraryPage.PlaylistDetail, libraryPage, selectedPlaylist != null, resolvedPlaylist != null
+        )
         if (selectedPlaylist != null && resolvedPlaylist == null) {
             selectedPlaylist = null
             playlistSongs = emptyList()
@@ -239,6 +257,7 @@ fun MusicScreenV2(
                 selectedTab = 2
                 libraryPage = MusicLibraryPage.Playlists
             }
+            if (shouldShowNotice) musicDetailInvalidationNotice = "这个歌单已不在刷新后的列表中，已返回歌单列表。"
         } else if (resolvedPlaylist != null) {
             selectedPlaylist = resolvedPlaylist
         }
@@ -276,7 +295,10 @@ fun MusicScreenV2(
         return true
     }
 
-    suspend fun refreshMusicData(targetConfig: NavidromeConfig, requestVersion: Int? = null): Boolean {
+    suspend fun refreshMusicData(
+        targetConfig: NavidromeConfig,
+        requestVersion: Int? = musicConfigStateVersion
+    ): Boolean {
         if (!targetConfig.isReadyForMusicSync() || isLoading) return false
 
         isLoading = true
@@ -299,24 +321,39 @@ fun MusicScreenV2(
                 artists = freshData.artists
             )
 
+            val previousBrowseAlbums = albums
             albums = freshData.albums
             songs = freshData.songs
             recentlyAddedSongs = freshData.recentlyAddedSongs
             artists = freshData.artists
-            if (musicBackStack.lastOrNull() == MusicLibraryPage.Home) {
-                reconcileAlbumDetailSelection(freshData.albums, MusicLibraryPage.Home)
+            // The browse refresh only replaces the home/recent album list. Do not
+            // invalidate a detail opened from sorted albums, search, or an artist
+            // detail merely because that separate source was not refreshed here.
+            if (selectedAlbum == null || previousBrowseAlbums.any { it.id == selectedAlbum?.id }) {
+                reconcileAlbumDetailSelection(
+                    refreshedAlbums = freshData.albums,
+                    returnPage = if (musicBackStack.contains(MusicLibraryPage.Albums)) {
+                        MusicLibraryPage.Albums
+                    } else {
+                        MusicLibraryPage.Home
+                    }
+                )
             }
             reconcileArtistDetailSelection(freshData.artists)
+            // The browse refresh does not load playlists. Keep playlist detail
+            // state intact; playlist reconciliation belongs to loadPlaylists().
             cacheUpdatedAtMillis = freshCache.updatedAtMillis
             cacheRepository.save(targetConfig, freshCache)
             true
         } catch (e: Exception) {
             if (isCurrentMusicConfigRequest(requestVersion)) {
-                val hasCachedContent = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty()
+                val hasCachedContent = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty() ||
+                    playlists.isNotEmpty() || albumDetailSongs.isNotEmpty() || artistAlbums.isNotEmpty() ||
+                    playlistSongs.isNotEmpty()
                 errorMsg = if (hasCachedContent) {
-                    "正在显示上次缓存：${e.message}"
+                    "正在显示上次缓存：${e.message ?: "未知错误"}"
                 } else {
-                    "连接失败: ${e.message}"
+                    "连接失败: ${e.message ?: "未知错误"}"
                 }
             }
             false
@@ -708,6 +745,7 @@ fun MusicScreenV2(
 
     fun navigateBackFromMusicPage() {
         musicResetNotice = null
+        musicDetailInvalidationNotice = null
         val result = resolveMusicBackNavigation(
             currentPage = libraryPage,
             backStack = musicBackStack,
@@ -725,6 +763,14 @@ fun MusicScreenV2(
     }
 
     val hasContent = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty() || playlists.isNotEmpty()
+    val hasErrorContent = when (libraryPage) {
+        MusicLibraryPage.Albums -> sortedAlbums.isNotEmpty()
+        MusicLibraryPage.ArtistDetail -> artistAlbums.isNotEmpty()
+        MusicLibraryPage.AlbumDetail -> albumDetailSongs.isNotEmpty()
+        MusicLibraryPage.Playlists -> playlists.isNotEmpty()
+        MusicLibraryPage.PlaylistDetail -> playlistSongs.isNotEmpty()
+        else -> hasContent
+    }
     val visibleSongs = remember(songs, songSort, songFilterQuery) {
         sortMusicSongs(filterMusicSongs(songs, songFilterQuery), songSort)
     }
@@ -733,6 +779,8 @@ fun MusicScreenV2(
     val homeAlbums = remember(albums) { albums.take(10) }
     val homeArtists = remember(artists) { artists.take(10) }
     val cacheAgeLabel = formatCacheAge(cacheUpdatedAtMillis)
+    val refreshErrorSubtitle = mediaRefreshErrorSubtitle(errorMsg, hasErrorContent)
+    val standaloneError = standaloneMediaError(errorMsg, hasErrorContent)
     val headerActions = buildList {
         if (savedConfig.isReadyForMusicSync()) {
             add(
@@ -780,27 +828,31 @@ fun MusicScreenV2(
     }
     val headerSubtitle = when (libraryPage) {
         MusicLibraryPage.Home -> when {
+            refreshErrorSubtitle != null -> refreshErrorSubtitle
             isLoading && hasContent -> "正在刷新，先显示本地缓存"
             cacheAgeLabel != null -> "本地缓存，$cacheAgeLabel"
             hasContent -> "最近添加按曲目展示，点一下直接播放"
             else -> "连接 Navidrome 后，这里会自动同步你的内容"
         }
         MusicLibraryPage.Albums -> when {
+            refreshErrorSubtitle != null -> refreshErrorSubtitle
             isLoadingAlbumList -> "正在按${albumSort.displayLabel()}加载专辑"
             sortedAlbums.isNotEmpty() -> "${sortedAlbums.size} 张专辑 · ${albumSort.displayLabel()}"
             else -> "按${albumSort.displayLabel()}浏览 Navidrome 专辑"
         }
-        MusicLibraryPage.Songs -> "共 ${songs.size} 首，点一下直接播放"
-        MusicLibraryPage.Artists -> "共 ${artists.size} 位歌手"
-        MusicLibraryPage.ArtistDetail -> "${selectedArtist?.albumCount ?: 0} 张专辑"
-        MusicLibraryPage.AlbumDetail -> selectedAlbum?.artist ?: ""
+        MusicLibraryPage.Songs -> refreshErrorSubtitle ?: "共 ${songs.size} 首，点一下直接播放"
+        MusicLibraryPage.Artists -> refreshErrorSubtitle ?: "共 ${artists.size} 位歌手"
+        MusicLibraryPage.ArtistDetail -> refreshErrorSubtitle ?: "${selectedArtist?.albumCount ?: 0} 张专辑"
+        MusicLibraryPage.AlbumDetail -> refreshErrorSubtitle ?: selectedAlbum?.artist.orEmpty()
         MusicLibraryPage.Search -> "搜索歌曲、专辑、歌手"
         MusicLibraryPage.Playlists -> when {
+            refreshErrorSubtitle != null -> refreshErrorSubtitle
             isLoadingPlaylists -> "正在加载 Navidrome 歌单"
             playlists.isNotEmpty() -> "共 ${playlists.size} 个歌单"
             else -> "浏览和播放 Navidrome 歌单"
         }
         MusicLibraryPage.PlaylistDetail -> when {
+            refreshErrorSubtitle != null -> refreshErrorSubtitle
             isLoadingPlaylistDetail -> "正在加载歌单曲目"
             playlistSongs.isNotEmpty() -> "${playlistSongs.size} 首 · 点一下直接播放"
             else -> selectedPlaylist?.comment ?: "歌单曲目"
@@ -860,10 +912,20 @@ fun MusicScreenV2(
             )
         }
 
-        if (errorMsg != null) {
+        if (musicDetailInvalidationNotice != null) {
             MediaStateCard(
-                title = if (hasContent) "刷新失败" else "连接失败",
-                subtitle = errorMsg.orEmpty(),
+                title = "详情已更新",
+                subtitle = musicDetailInvalidationNotice.orEmpty(),
+                density = MediaStateDensity.Compact,
+                modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.md)
+            )
+        }
+
+        if (standaloneError != null) {
+            MediaStateCard(
+                title = "连接失败",
+                subtitle = standaloneError,
+                hint = "检查配置或点击刷新重试",
                 tone = MediaStateTone.Error,
                 modifier = Modifier.padding(
                     horizontal = NordicSpacing.lg,
@@ -883,7 +945,7 @@ fun MusicScreenV2(
             )
         }
 
-        if (!isLoading && !isLoadingPlaylists && !isLoadingPlaylistDetail && errorMsg == null && !hasContent) {
+        if (!isLoading && !isLoadingPlaylists && !isLoadingPlaylistDetail && standaloneError == null && !hasContent) {
             MediaStateCard(
                 title = "先接入你的音乐库",
                 subtitle = "填入 Navidrome 地址、用户名和密码后,最近添加的专辑和歌曲会直接出现在这里。",
@@ -953,7 +1015,7 @@ fun MusicScreenV2(
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
                             itemsIndexed(
                                 items = homeSongs,
-                                key = { _, song -> "home-song-${song.id}" },
+                                key = { index, song -> "home-song-${song.id}-$index" },
                                 contentType = { _, _ -> "home-song-card" }
                             ) { index, song ->
                                 SongShelfCard(

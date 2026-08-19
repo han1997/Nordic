@@ -105,6 +105,28 @@ class AudiobookScreenTest {
     }
 
     @Test
+    fun shouldShowAudiobookDetailInvalidationNotice_onlyWhenOpenSelectionDisappears() {
+        val selected = detail("book-2")
+
+        assertEquals(
+            true,
+            shouldShowAudiobookDetailInvalidationNotice(
+                currentPage = AudiobookLibraryPage.Detail,
+                previousSelectedItem = selected,
+                refreshedSelectedItem = null
+            )
+        )
+        assertEquals(
+            false,
+            shouldShowAudiobookDetailInvalidationNotice(
+                currentPage = AudiobookLibraryPage.Home,
+                previousSelectedItem = selected,
+                refreshedSelectedItem = null
+            )
+        )
+    }
+
+    @Test
     fun shouldShowAudiobookConfigResetNotice_whenDetailWouldCollapse() {
         assertEquals(
             true,

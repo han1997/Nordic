@@ -65,6 +65,8 @@ fun VideoScreen(
     var videoConfigStateVersion by remember { mutableStateOf(0) }
     var previousVideoConfig by remember { mutableStateOf<VideoServerConfig?>(null) }
     var videoResetNotice by remember { mutableStateOf<String?>(null) }
+    var videoDetailInvalidationNotice by remember { mutableStateOf<String?>(null) }
+    var videoLibraryRequestVersion by remember { mutableStateOf(0) }
     val scope = rememberCoroutineScope()
     val visibleTypeFilters = remember(videos) {
         visibleVideoTypeFilters(videos)
@@ -97,6 +99,8 @@ fun VideoScreen(
     fun resetVideoStateAfterConfigChange() {
         videoConfigStateVersion += 1
         videoResetNotice = null
+        videoDetailInvalidationNotice = null
+        videoLibraryRequestVersion += 1
         libraries = emptyList()
         selectedLibraryId = null
         videos = emptyList()
@@ -156,6 +160,12 @@ fun VideoScreen(
                 return
             }
 
+            val previousSelectedVideo = selectedVideo
+            val refreshedSelectedVideo = resolveVideoSelectionAfterCatalogRefresh(
+                selectedVideo = previousSelectedVideo,
+                selectedLibraryId = catalog.selectedLibraryId,
+                videos = catalog.items
+            )
             libraries = catalog.libraries
             selectedLibraryId = catalog.selectedLibraryId
             videos = catalog.items
@@ -163,11 +173,10 @@ fun VideoScreen(
                 selectedTypeFilter = selectedTypeFilter,
                 videos = catalog.items
             )
-            selectedVideo = resolveVideoSelectionAfterCatalogRefresh(
-                selectedVideo = selectedVideo,
-                selectedLibraryId = catalog.selectedLibraryId,
-                videos = catalog.items
-            )
+            selectedVideo = refreshedSelectedVideo
+            if (shouldShowVideoDetailInvalidationNotice(previousSelectedVideo, refreshedSelectedVideo)) {
+                videoDetailInvalidationNotice = "这个视频已不在刷新后的媒体库中，已返回视频列表。"
+            }
             val freshCache = cacheRepository.buildCache(
                 config = targetConfig,
                 libraries = catalog.libraries,
@@ -224,11 +233,13 @@ fun VideoScreen(
 
     fun openVideoDetail(video: VideoItem) {
         videoResetNotice = null
+        videoDetailInvalidationNotice = null
         selectedVideo = video
     }
 
     BackHandler(enabled = selectedVideo != null) {
         videoResetNotice = null
+        videoDetailInvalidationNotice = null
         selectedVideo = null
     }
 
@@ -240,6 +251,7 @@ fun VideoScreen(
         )
     ) {
         videoResetNotice = null
+        videoDetailInvalidationNotice = null
         searchQuery = ""
         searchExpanded = false
         selectedTypeFilter = VideoTypeFilter.All
@@ -265,6 +277,9 @@ fun VideoScreen(
     }
 
     val cacheAgeLabel = formatCacheAge(cacheUpdatedAtMillis)
+    val hasVideoContent = libraries.isNotEmpty() || videos.isNotEmpty()
+    val refreshErrorSubtitle = mediaRefreshErrorSubtitle(errorMessage, hasVideoContent)
+    val standaloneError = standaloneMediaError(errorMessage, hasVideoContent)
 
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 156.dp),
@@ -277,6 +292,7 @@ fun VideoScreen(
             MediaPageHeader(
                 title = "视频",
                 subtitle = when {
+                    refreshErrorSubtitle != null -> refreshErrorSubtitle
                     isLoading && videos.isNotEmpty() -> "正在刷新，先显示本地缓存"
                     hasActiveBrowserFilter -> "${visibleVideos.size} / ${browseVideos.size} 个匹配条目"
                     cacheAgeLabel != null -> "本地缓存，$cacheAgeLabel"
@@ -307,11 +323,12 @@ fun VideoScreen(
             )
         }
 
-        if (errorMessage != null) {
+        if (standaloneError != null) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 MediaStateCard(
                     title = "Emby 连接错误",
-                    subtitle = errorMessage.orEmpty(),
+                    subtitle = standaloneError,
+                    hint = "检查配置或点击刷新重试",
                     tone = MediaStateTone.Error
                 )
             }
@@ -327,6 +344,16 @@ fun VideoScreen(
             }
         }
 
+        if (videoDetailInvalidationNotice != null) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                MediaStateCard(
+                    title = "详情已更新",
+                    subtitle = videoDetailInvalidationNotice.orEmpty(),
+                    density = MediaStateDensity.Compact
+                )
+            }
+        }
+
         if (libraries.isNotEmpty()) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 VideoLibrarySelector(
@@ -335,8 +362,12 @@ fun VideoScreen(
                     colorScheme = colorScheme,
                     onSelect = { libraryId ->
                         videoResetNotice = null
+                        videoDetailInvalidationNotice = null
+                        videoLibraryRequestVersion += 1
+                        val libraryRequestVersion = videoLibraryRequestVersion
                         selectedLibraryId = libraryId
                         selectedVideo = null
+                        videos = emptyList()
                         searchQuery = ""
                         searchExpanded = false
                         selectedTypeFilter = VideoTypeFilter.All
@@ -347,19 +378,36 @@ fun VideoScreen(
                             errorMessage = null
                             try {
                                 val loadedVideos = repo.getLibraryItems(libraryId)
-                                if (videoConfigStateVersion == requestVersion && selectedLibraryId == libraryId) {
+                                if (videoConfigStateVersion == requestVersion &&
+                                    videoLibraryRequestVersion == libraryRequestVersion &&
+                                    selectedLibraryId == libraryId
+                                ) {
                                     videos = loadedVideos
                                     selectedTypeFilter = resolveVideoTypeFilterAfterCatalogRefresh(
                                         selectedTypeFilter = selectedTypeFilter,
                                         videos = loadedVideos
                                     )
+                                    val updatedCache = cacheRepository.buildCache(
+                                        config = savedConfig,
+                                        libraries = libraries,
+                                        videos = loadedVideos,
+                                        selectedLibraryId = libraryId
+                                    )
+                                    cacheUpdatedAtMillis = updatedCache.updatedAtMillis
+                                    cacheRepository.save(savedConfig, updatedCache)
                                 }
                             } catch (e: Exception) {
-                                if (videoConfigStateVersion == requestVersion && selectedLibraryId == libraryId) {
-                                    errorMessage = e.message ?: "加载视频列表失败"
+                                if (videoConfigStateVersion == requestVersion &&
+                                    videoLibraryRequestVersion == libraryRequestVersion &&
+                                    selectedLibraryId == libraryId
+                                ) {
+                                    errorMessage = "加载视频列表失败: ${e.message ?: "未知错误"}"
                                 }
                             } finally {
-                                if (videoConfigStateVersion == requestVersion && selectedLibraryId == libraryId) {
+                                if (videoConfigStateVersion == requestVersion &&
+                                    videoLibraryRequestVersion == libraryRequestVersion &&
+                                    selectedLibraryId == libraryId
+                                ) {
                                     isLoading = false
                                 }
                             }
@@ -441,7 +489,7 @@ fun VideoScreen(
                 }
             }
 
-            libraries.isEmpty() && !isLoading -> {
+            libraries.isEmpty() && !isLoading && standaloneError == null -> {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     MediaStateCard(
                         title = "没有可用视频媒体库",
@@ -450,7 +498,7 @@ fun VideoScreen(
                 }
             }
 
-            videos.isEmpty() && !isLoading -> {
+            videos.isEmpty() && !isLoading && standaloneError == null -> {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     MediaStateCard(
                         title = "这个媒体库暂时没有内容",

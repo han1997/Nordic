@@ -37,6 +37,14 @@ internal enum class MediaStateDensity {
     Compact
 }
 
+internal fun mediaRefreshErrorSubtitle(errorMessage: String?, hasContent: Boolean): String? {
+    return errorMessage?.takeIf { hasContent }
+}
+
+internal fun standaloneMediaError(errorMessage: String?, hasContent: Boolean): String? {
+    return errorMessage?.takeUnless { hasContent }
+}
+
 @Composable
 internal fun MediaStateCard(
     title: String,
