@@ -422,6 +422,75 @@ suspend fun clear(config: VideoServerConfig) {
 
 ## Readiness Helpers
 
+## Scenario: Browse Selection and Detail Request Isolation
+
+### 1. Scope / Trigger
+
+- Trigger: Any change to Music, Audiobook, or Video browse refreshes, media-library selection, selected detail reconciliation, or cache-backed error presentation.
+- Scope: state ownership between the current config/library and asynchronous list/detail requests.
+
+### 2. Signatures
+
+- Per-config request guards: `musicConfigStateVersion`, `audiobookConfigStateVersion`, `videoConfigStateVersion`.
+- Audiobook detail guard: `audiobookDetailRequestVersion`.
+- Selection helpers such as `resolveAudiobookSelectedItemAfterLibraryRefresh(...)`, `resolveVideoSelectionAfterCatalogRefresh(...)`, and `shouldShow...DetailInvalidationNotice(...)`.
+
+### 3. Contracts
+
+- A saved config change is a hard state boundary: clear old content, selected detail, filters, errors, and loading state before applying the new config cache.
+- A media-library selection change is also a data boundary: clear the previous library's items and detail before requesting the new library.
+- Every asynchronous result, error, and loading-finally write must validate both the current config/library request identity and, where applicable, the current detail request identity.
+- Same-config refresh keeps cached browse content while loading. A failure with real media entries keeps that content and is exposed in the page subtitle; a failure with no media entries uses the shared actionable error card.
+- If refresh reconciliation cannot find the selected detail id, clear the selected object, return to its owning list page, and show one lightweight explanation. Never render or play the stale detail object.
+- Successful library selection refreshes must persist the selected library's browse cache under the current config key so a later config emission or process restart cannot restore a different library selection.
+
+### 4. Validation & Error Matrix
+
+| Condition | Behavior |
+|---|---|
+| Old config request finishes after config change | Ignore result, error, and loading writes |
+| Old library request finishes after library change | Ignore result, error, and loading writes |
+| Old detail request finishes after another detail opens | Ignore result, error, and loading writes |
+| Same-config refresh fails with media entries | Keep entries and show cache-failure subtitle |
+| Refresh fails with only library metadata and no media entries | Show independent actionable error card |
+| Selected detail id disappears after refresh | Clear detail, return to list, show one explanation |
+| Library selection succeeds | Save refreshed browse cache with current selected library id |
+
+### 5. Good/Base/Bad Cases
+
+- Good: User switches AudiobookShelf libraries quickly; only the latest library response can update the list.
+- Good: User opens two audiobook details quickly; the older detail response cannot replace the newer detail.
+- Good: An offline refresh leaves cached media visible and communicates the failure in the header.
+- Base: A first load with no cached media shows the shared error card when the request fails.
+- Bad: Guard only config version but not detail request identity; a slow first detail response overwrites the second detail.
+- Bad: Treating a non-empty library list as cached media and hiding the actionable error card when no books/videos are available.
+- Bad: Updating the selected library only in Compose state and never persisting it to the current config cache.
+
+### 6. Tests Required
+
+- Test stale config/library/detail responses cannot mutate current state.
+- Test selected detail retained when its id remains and cleared with list fallback when it disappears.
+- Test cached-content error presentation distinguishes real media entries from library metadata only.
+- Test successful library selection persists the selected library id in the current cache.
+
+### 7. Wrong vs Correct
+
+```kotlin
+// Wrong: an old detail response can overwrite the currently opened item.
+selectedItem = repository.getLibraryItem(item.id)
+```
+
+```kotlin
+// Correct: capture request identity and check it before every state write.
+val requestId = ++detailRequestVersion
+val detail = repository.getLibraryItem(item.id)
+if (requestId == detailRequestVersion && configVersion == currentConfigVersion) {
+    selectedItem = detail
+}
+```
+
+---
+
 Config readiness should be centralized in helper functions, not reimplemented in screens:
 
 - `NavidromeConfig.isReadyForMusicSync()`
