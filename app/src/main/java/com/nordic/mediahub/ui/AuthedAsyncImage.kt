@@ -1,5 +1,7 @@
 package com.nordic.mediahub.ui
 
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -19,12 +21,18 @@ internal fun AuthedAsyncImage(
 ) {
     if (url.isNullOrBlank()) return
     val context = LocalContext.current
+    // A neutral, low-alpha placeholder so the surface never "flips" from empty to
+    // image when the bitmap resolves — combined with the crossfade below this
+    // removes the cover-art pop-in. `ColorDrawable` is allocation-free to reuse.
+    val placeholder = remember { ColorDrawable(Color.argb(0x28, 0x80, 0x80, 0x80)) }
     val imageRequest = remember(url) {
         val cleanCacheKey = stripAuthQuery(url)
         ImageRequest.Builder(context)
             .data(url)
             .diskCacheKey(cleanCacheKey)
             .memoryCacheKey(cleanCacheKey)
+            .crossfade(200)
+            .placeholder(placeholder)
             .build()
     }
     AsyncImage(

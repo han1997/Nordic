@@ -785,7 +785,6 @@ private fun MusicPlayerLayer(
     modifier: Modifier = Modifier
 ) {
     val playbackState by musicVM.state.collectAsStateWithLifecycle()
-    val currentPositionMillis by musicVM.positionMillis.collectAsStateWithLifecycle()
     val lyrics by musicVM.lyrics.collectAsStateWithLifecycle()
     val isLyricsLoading by musicVM.isLyricsLoading.collectAsStateWithLifecycle()
     val lyricsError by musicVM.lyricsError.collectAsStateWithLifecycle()
@@ -796,7 +795,7 @@ private fun MusicPlayerLayer(
         isBuffering = playbackState.isBuffering,
         playbackError = playbackState.errorMessage,
         positionSeconds = playbackState.positionSeconds,
-        positionMillis = currentPositionMillis,
+        positionMillisFlow = musicVM.positionMillis,
         durationSeconds = playbackState.durationSeconds,
         lyrics = lyrics,
         isLyricsLoading = isLyricsLoading,

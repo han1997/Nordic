@@ -1,7 +1,9 @@
 package com.nordic.mediahub.data
 
+import androidx.compose.runtime.Stable
 import com.google.gson.annotations.SerializedName
 
+@Stable
 data class NavidromeArtistDetail(
     val id: String,
     val name: String,
@@ -13,6 +15,7 @@ data class NavidromePlaylistList(
     val playlist: List<NavidromePlaylist>? = null
 )
 
+@Stable
 data class NavidromeAlbum(
     val id: String,
     val name: String,
@@ -30,6 +33,7 @@ data class NavidromeAlbumDetail(
     val song: List<NavidromeSong>? = null
 )
 
+@Stable
 data class NavidromePlaylist(
     val id: String,
     val name: String,
@@ -57,6 +61,7 @@ data class NavidromePlaylistDetail(
     val entry: List<NavidromeSong>? = null
 )
 
+@Stable
 data class NavidromeSong(
     val id: String,
     val title: String,
@@ -69,6 +74,7 @@ data class NavidromeSong(
     val starred: String? = null
 )
 
+@Stable
 data class NavidromeArtist(
     val id: String,
     val name: String,

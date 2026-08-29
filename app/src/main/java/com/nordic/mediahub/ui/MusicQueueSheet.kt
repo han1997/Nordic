@@ -1,6 +1,5 @@
 package com.nordic.mediahub.ui
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -196,90 +195,102 @@ fun MusicQueueSheet(
                     upcomingCount = upcomingCount,
                     colorScheme = colorScheme
                 )
-                LazyColumn(
-                    state = listState,
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 520.dp),
-                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
+                        .heightIn(max = 520.dp)
                 ) {
-                    itemsIndexed(
-                        items = queue,
-                        key = { index, song -> "${song.id}:$index" },
-                        contentType = { _, _ -> "music-queue-row" }
-                    ) { index, song ->
-                        val isCurrent = index == resolvedCurrentIndex
-                        val visible = removingIndex != index
-                        AnimatedVisibility(
-                            visible = visible,
-                            enter = fadeIn(
-                                animationSpec = tween(
-                                    NordicMotion.durationShort,
-                                    easing = NordicMotion.easingStandard
-                                )
-                            ),
-                            exit = fadeOut(
-                                animationSpec = tween(
-                                    NordicMotion.durationShort,
-                                    easing = NordicMotion.easingStandard
-                                )
-                            ) +
-                                shrinkVertically(
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 520.dp),
+                        verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
+                    ) {
+                        itemsIndexed(
+                            items = queue,
+                            key = { index, song -> "${song.id}:$index" },
+                            contentType = { _, _ -> "music-queue-row" }
+                        ) { index, song ->
+                            val isCurrent = index == resolvedCurrentIndex
+                            val visible = removingIndex != index
+                            androidx.compose.animation.AnimatedVisibility(
+                                visible = visible,
+                                enter = fadeIn(
                                     animationSpec = tween(
                                         NordicMotion.durationShort,
                                         easing = NordicMotion.easingStandard
                                     )
+                                ),
+                                exit = fadeOut(
+                                    animationSpec = tween(
+                                        NordicMotion.durationShort,
+                                        easing = NordicMotion.easingStandard
+                                    )
+                                ) +
+                                    shrinkVertically(
+                                        animationSpec = tween(
+                                            NordicMotion.durationShort,
+                                            easing = NordicMotion.easingStandard
+                                        )
+                                    )
+                            ) {
+                                QueueRow(
+                                    song = song,
+                                    isCurrent = isCurrent,
+                                    canPlayNext = resolvedCurrentIndex >= 0 &&
+                                        !isCurrent &&
+                                        index != resolvedCurrentIndex + 1,
+                                    canRemove = queue.size > 1,
+                                    canMoveUp = index > 0,
+                                    canMoveDown = index < queue.lastIndex,
+                                    rowIndex = index,
+                                    dragState = dragState,
+                                    colorScheme = colorScheme,
+                                    onClick = { onSeekToIndex(index) },
+                                    onPlayNext = { onPlayNext(index) },
+                                    onRemove = {
+                                        if (removingIndex != null) return@QueueRow
+                                        removingIndex = index
+                                        scope.launch {
+                                            delay(NordicMotion.durationShort.toLong())
+                                            onRemoveFromQueue(index)
+                                            removingIndex = null
+                                        }
+                                    },
+                                    onMoveUp = { onMoveQueueItem(index, index - 1) },
+                                    onMoveDown = { onMoveQueueItem(index, index + 1) },
+                                    onDragStart = {
+                                        dragState = QueueDragState(
+                                            draggedIndex = index,
+                                            accumulatedPx = 0f
+                                        )
+                                    },
+                                    onDrag = { deltaPx ->
+                                        dragState = dragState.copy(
+                                            accumulatedPx = dragState.accumulatedPx + deltaPx
+                                        )
+                                    },
+                                    onDragEnd = { rowDelta ->
+                                        val targetIndex = (index + rowDelta).coerceIn(queue.indices)
+                                        dragState = QueueDragState()
+                                        if (targetIndex != index) {
+                                            onMoveQueueItem(index, targetIndex)
+                                        }
+                                    },
+                                    onDragCancel = {
+                                        dragState = QueueDragState()
+                                    }
                                 )
-                        ) {
-                            QueueRow(
-                                song = song,
-                                isCurrent = isCurrent,
-                                canPlayNext = resolvedCurrentIndex >= 0 &&
-                                    !isCurrent &&
-                                    index != resolvedCurrentIndex + 1,
-                                canRemove = queue.size > 1,
-                                canMoveUp = index > 0,
-                                canMoveDown = index < queue.lastIndex,
-                                rowIndex = index,
-                                dragState = dragState,
-                                colorScheme = colorScheme,
-                                onClick = { onSeekToIndex(index) },
-                                onPlayNext = { onPlayNext(index) },
-                                onRemove = {
-                                    if (removingIndex != null) return@QueueRow
-                                    removingIndex = index
-                                    scope.launch {
-                                        delay(NordicMotion.durationShort.toLong())
-                                        onRemoveFromQueue(index)
-                                        removingIndex = null
-                                    }
-                                },
-                                onMoveUp = { onMoveQueueItem(index, index - 1) },
-                                onMoveDown = { onMoveQueueItem(index, index + 1) },
-                                onDragStart = {
-                                    dragState = QueueDragState(
-                                        draggedIndex = index,
-                                        accumulatedPx = 0f
-                                    )
-                                },
-                                onDrag = { deltaPx ->
-                                    dragState = dragState.copy(
-                                        accumulatedPx = dragState.accumulatedPx + deltaPx
-                                    )
-                                },
-                                onDragEnd = { rowDelta ->
-                                    val targetIndex = (index + rowDelta).coerceIn(queue.indices)
-                                    dragState = QueueDragState()
-                                    if (targetIndex != index) {
-                                        onMoveQueueItem(index, targetIndex)
-                                    }
-                                },
-                                onDragCancel = {
-                                    dragState = QueueDragState()
-                                }
-                            )
+                            }
                         }
                     }
+                    MusicScrollbar(
+                        state = listState,
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .padding(end = NordicSpacing.xs)
+                    )
                 }
             }
         }

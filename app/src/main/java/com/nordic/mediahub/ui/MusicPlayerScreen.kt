@@ -57,6 +57,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -66,6 +67,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.StateFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -128,7 +131,7 @@ fun MusicPlayerScreen(
     isBuffering: Boolean,
     playbackError: String?,
     positionSeconds: Int,
-    positionMillis: Long,
+    positionMillisFlow: StateFlow<Long>,
     durationSeconds: Int,
     lyrics: MusicLyrics?,
     isLyricsLoading: Boolean,
@@ -331,7 +334,7 @@ fun MusicPlayerScreen(
                     lyrics = lyrics,
                     isLyricsLoading = isLyricsLoading,
                     lyricsError = lyricsError,
-                    positionMillis = positionMillis,
+                    positionMillisFlow = positionMillisFlow,
                     showLyrics = showLyrics,
                     colorScheme = colorScheme,
                     compact = compact,
@@ -428,7 +431,7 @@ private fun PlayerPrimaryDisplay(
     lyrics: MusicLyrics?,
     isLyricsLoading: Boolean,
     lyricsError: String?,
-    positionMillis: Long,
+    positionMillisFlow: StateFlow<Long>,
     showLyrics: Boolean,
     colorScheme: ColorScheme,
     compact: Boolean,
@@ -446,7 +449,7 @@ private fun PlayerPrimaryDisplay(
                 lyrics = lyrics,
                 isLoading = isLyricsLoading,
                 error = lyricsError,
-                positionMillis = positionMillis,
+                positionMillisFlow = positionMillisFlow,
                 colorScheme = colorScheme,
                 compact = compact,
                 modifier = Modifier.fillMaxSize()
@@ -528,7 +531,7 @@ private fun PlayerLyricsDisplay(
     lyrics: MusicLyrics?,
     isLoading: Boolean,
     error: String?,
-    positionMillis: Long,
+    positionMillisFlow: StateFlow<Long>,
     colorScheme: ColorScheme,
     compact: Boolean,
     modifier: Modifier = Modifier
@@ -538,8 +541,16 @@ private fun PlayerLyricsDisplay(
         lyrics?.lines?.filter { it.text.isNotBlank() }.orEmpty()
     }
     val isSynced = lyrics?.synced == true && filteredLines.any { it.startMillis != null }
-    val activeIndex = remember(filteredLines, isSynced, positionMillis) {
-        if (isSynced) resolveActiveLyricIndex(filteredLines, positionMillis) else null
+    // Collect the 100ms position tick here, at the leaf that actually needs it,
+    // so ancestors (MusicPlayerScreen / MainActivity) never recompose on every tick.
+    val positionMillis by positionMillisFlow.collectAsStateWithLifecycle()
+    // `activeIndex` changes far less often than `positionMillis`. `derivedStateOf`
+    // only emits when the resolved line index crosses a boundary, so the lyric
+    // list re-composes only when the highlighted line actually changes.
+    val activeIndex by remember(filteredLines, isSynced) {
+        derivedStateOf {
+            if (isSynced) resolveActiveLyricIndex(filteredLines, positionMillis) else null
+        }
     }
     val staticVisibleLines = remember(filteredLines, isSynced, lineCount) {
         if (!isSynced) filteredLines.take(lineCount).map { VisibleLyricLine(it.text, active = false) }
@@ -589,42 +600,50 @@ private fun PlayerLyricsDisplay(
                         }
                     }
                 }
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    resolveLyricsModeLabel(lyrics)?.let { label ->
-                        Text(
-                            label,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colorScheme.primary.copy(alpha = NordicAlpha.medium),
-                            fontWeight = FontWeight.SemiBold,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(
-                            if (compact) NordicSpacing.sm else NordicSpacing.md
-                        )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        itemsIndexed(
-                            items = filteredLines,
-                            key = { index, _ -> "lyric-$index" },
-                            contentType = { _, _ -> "lyric-line" }
-                        ) { index, line ->
-                            LyricLineText(
-                                text = line.text,
-                                active = index == activeIndex,
-                                compact = compact,
-                                colorScheme = colorScheme
+                        resolveLyricsModeLabel(lyrics)?.let { label ->
+                            Text(
+                                label,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colorScheme.primary.copy(alpha = NordicAlpha.medium),
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(
+                                if (compact) NordicSpacing.sm else NordicSpacing.md
+                            )
+                        ) {
+                            itemsIndexed(
+                                items = filteredLines,
+                                key = { index, _ -> "lyric-$index" },
+                                contentType = { _, _ -> "lyric-line" }
+                            ) { index, line ->
+                                LyricLineText(
+                                    text = line.text,
+                                    active = index == activeIndex,
+                                    compact = compact,
+                                    colorScheme = colorScheme
+                                )
+                            }
+                        }
                     }
+                    MusicScrollbar(
+                        state = listState,
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .padding(end = NordicSpacing.xs)
+                    )
                 }
             }
             else -> {

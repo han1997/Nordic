@@ -607,7 +607,48 @@ val positionMillis: StateFlow<Long> = flow {
 }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), 0L)
 ```
 
+**High-frequency flow delivery (leaf collection)**:
+- Do NOT collect a fast-ticking `StateFlow` at a high ancestor and pass the resolved `Long`/`Float` down as a parameter — every emit re-composes that ancestor and its whole subtree.
+- DO pass the `StateFlow` itself (stable reference, never changes identity) from the owner down to the narrowest leaf that renders the ticking value, and call `collectAsStateWithLifecycle()` inside that leaf. Only the leaf recomposes on each tick.
+- DO wrap values derived from the tick that change slower than the tick (e.g. active lyric index) in `derivedStateOf`, keyed via `remember` on the stable inputs only (NOT the fast-changing value). Readers then skip recomposition until a derived boundary actually crosses.
+- Keep the broad shared playback state (`positionSeconds`, player chrome) on the coarse cadence so whole screens do not recompose at the tick rate.
+
+```kotlin
+// Wrong: MainActivity collects at the top and pushes a Long downwards.
+val currentPositionMillis by musicVM.positionMillis.collectAsStateWithLifecycle()
+MusicPlayerScreen(positionMillis = currentPositionMillis, ...)
+
+// Correct: Flow object is stable; collection happens only at the leaf that needs it.
+MusicPlayerScreen(positionMillisFlow = musicVM.positionMillis, ...)
+
+@Composable
+private fun PlayerLyricsDisplay(positionMillisFlow: StateFlow<Long>, ...) {
+    val positionMillis by positionMillisFlow.collectAsStateWithLifecycle()
+    val activeIndex by remember(filteredLines, isSynced) {
+        derivedStateOf { resolveActiveLyricIndex(filteredLines, positionMillis) }
+    }
+    ...
+}
+```
+
 **Why**: Playback ticks and debounce bookkeeping can update often. Isolating operational state prevents unrelated home/library content from being recomposed just because a handle changed.
+
+### Custom LazyColumn scrollbar (`MusicScrollbar`)
+
+**Scope / Trigger**: Any change to `MusicScrollbar` (`ui/MusicScrollbar.kt`) or adding/removing it on a `LazyColumn` (music pages via `MusicPageList`, synced lyrics in `MusicPlayerScreen`, queue sheet in `MusicQueueSheet`).
+
+**Signatures**:
+- `internal fun MusicScrollbar(state: LazyListState, modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = MusicScrollbarAlpha), enabled: Boolean = true)`
+
+**Contract**:
+- Android's `androidx.compose.foundation.Scrollbar` / `VerticalScrollbar` / `rememberScrollbarAdapter` are Compose Multiplatform desktop/skiko ONLY — never import them on Android (unresolved).
+- `MusicScrollbar` is display-only (no thumb dragging). It must be a thin rounded `Box` (`MusicScrollbarThickness = 4.dp`, clipped to `NordicShapes.full`) whose size/offset derive from `LazyListState` via `derivedStateOf`, so only the thumb recomposes on scroll.
+- It must hide automatically when the content fits the viewport: `visibleItemsInfo.isNotEmpty() && totalItemsCount > visibleItemsInfo.size`.
+- Thumb fraction clamps to a minimum visible ratio (`MusicScrollbarMinThumbFraction`) so long lists never collapse to a dot; scroll fraction is computed index + pixel-offset based so partial item scrolls track smoothly.
+- Place it inside the same `Box` as the target `LazyColumn`, aligned `CenterEnd` with `NordicSpacing.xs` end padding; do not layer it over other scroll-affordance content.
+- `enabled` must gate composition (early return) so a disabled scrollbar costs nothing.
+
+**Why**: Long lazy lists (songs, lyrics, queue) need a scroll affordance, but Android has no native Compose scrollbar at BOM 2024.01.00. The derived-state thumb is cheap and only recomposes the thumb itself.
 
 ### pointerInput lambda freshness with rememberSaveable key changes
 
