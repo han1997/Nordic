@@ -33,12 +33,28 @@ This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. 
 
 ## Verification
 
-Run Gradle tasks sequentially on Windows:
+Gradle daemon is enabled (no `--no-daemon`) so consecutive invocations reuse a warm JVM, plugin loads, and dependency resolution. Tasks are combined into a single Gradle invocation to share startup cost.
+
+### Fast Verification (daily dev loop)
+
+Run after routine code changes — compile + unit tests only:
 
 ```powershell
-.\gradlew.bat :app:compileDebugKotlin --no-daemon
-.\gradlew.bat :app:testDebugUnitTest --no-daemon
-.\gradlew.bat :app:lintDebug --no-daemon
+.\gradlew.bat :app:compileDebugKotlin :app:testDebugUnitTest
 ```
 
-Use `:app:assembleDebug --no-daemon` for final packaging verification when playback, manifest, resources, or dependency wiring changes.
+### Full Verification (pre-commit)
+
+Run before committing — adds `lintDebug` for the full quality gate:
+
+```powershell
+.\gradlew.bat :app:compileDebugKotlin :app:testDebugUnitTest :app:lintDebug
+```
+
+### Final Packaging Verification
+
+Use `:app:assembleDebug` when playback, manifest, resources, or dependency wiring changes:
+
+```powershell
+.\gradlew.bat :app:assembleDebug
+```

@@ -34,6 +34,19 @@ Read the specific guideline files referenced — the index is a pointer, not the
 
 Run the project's lint, type-check, and test commands. Fix any failures before proceeding.
 
+For this project (Nordic Android app), the spec defines two tiers — see `.trellis/spec/backend/index.md` → Verification:
+
+- **Fast (daily dev loop)** — compile + unit tests:
+  ```powershell
+  .\gradlew.bat :app:compileDebugKotlin :app:testDebugUnitTest
+  ```
+- **Full (pre-commit)** — adds lint:
+  ```powershell
+  .\gradlew.bat :app:compileDebugKotlin :app:testDebugUnitTest :app:lintDebug
+  ```
+
+Tasks are combined into a single Gradle invocation (no `--no-daemon`) so the daemon reuses a warm JVM across calls. Prefer the fast tier for routine checks; run the full tier before committing.
+
 ## Step 4: Review Against Checklist
 
 ### Code Quality

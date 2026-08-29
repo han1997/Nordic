@@ -1845,16 +1845,16 @@ runMediaHandoff(
 
 ## Testing Requirements
 
-Run the smallest reliable Gradle gate for the change, and run tasks sequentially on Windows.
+Run the smallest reliable Gradle gate for the change. Gradle daemon is enabled (no `--no-daemon`), and tasks are combined into a single invocation so consecutive runs reuse a warm JVM and plugins. For the full two-tier verification model (fast = compile + test, full = + lint), see `index.md` → Verification.
 
 - Kotlin compile check for app code changes:
-  `.\gradlew.bat :app:compileDebugKotlin --no-daemon`
+  `.\gradlew.bat :app:compileDebugKotlin`
 - Unit tests for repository, auth, playback, or copy-encoding behavior:
-  `.\gradlew.bat :app:testDebugUnitTest --no-daemon`
+  `.\gradlew.bat :app:testDebugUnitTest`
 - Android lint before broader UI/resource/dependency changes:
-  `.\gradlew.bat :app:lintDebug --no-daemon`
+  `.\gradlew.bat :app:lintDebug`
 - Debug assemble for final packaging verification when Media3 service, manifest, resources, or dependency wiring changes:
-  `.\gradlew.bat :app:assembleDebug --no-daemon`
+  `.\gradlew.bat :app:assembleDebug`
 
 Repository tests use `MockWebServer` to assert request paths, query parameters, auth headers, response mapping, and typed error behavior. Existing examples:
 - `app/src/test/java/com/nordic/mediahub/data/AudiobookShelfRepositoryTest.kt`
@@ -1892,13 +1892,10 @@ Playback logic tests should isolate pure calculations where possible, as in `app
 
 **Why**: These tasks share `app/build/` outputs. Parallel runs can lock class files and produce misleading incremental compilation errors such as `AccessDeniedException` or broad unresolved-reference cascades.
 
-**Do**: Run Gradle verification sequentially:
+**Do**: Run Gradle verification as a single daemon-backed invocation so tasks run sequentially within one warm JVM (no `--no-daemon`, no parallel processes):
 
 ```powershell
-.\gradlew.bat :app:compileDebugKotlin --no-daemon
-.\gradlew.bat :app:testDebugUnitTest --no-daemon
-.\gradlew.bat :app:lintDebug --no-daemon
-.\gradlew.bat :app:assembleDebug --no-daemon
+.\gradlew.bat :app:compileDebugKotlin :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
 ```
 
 ### Rewriting UTF-8 Kotlin files with PowerShell `Set-Content`
