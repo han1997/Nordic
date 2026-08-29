@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "验证命令变更后需确认 spec 描述与实际命令一致"}
+{"file": ".opencode/skills/trellis-check/SKILL.md", "reason": "确认 skill Step 3 与 spec 分级验证语义对齐"}

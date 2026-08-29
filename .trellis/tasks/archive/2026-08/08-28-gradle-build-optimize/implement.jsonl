@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "验证命令定义在此文件的 Verification 章节，需重写为分级验证 + 合并命令"}
+{"file": ".opencode/skills/trellis-check/SKILL.md", "reason": "Step 3 Run Project Checks 需与 spec 分级验证命令对齐"}
