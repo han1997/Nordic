@@ -1,0 +1,3 @@
+{"file": ".trellis/tasks/08-29-compose-fluidity-optimize/research/compose-fluidity.md", "reason": "版本审计 + positionMillis 隔离、自建滚动条、Coil crossfade、NordicMotion 动效、下拉刷新 的版本内可行模式与 do/don't，实现时必须遵守的约束"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Verification 章节定义编译/测试/lint 命令（两阶段均须通过），以及代码组织约定"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "质量门槛与 Compose/状态管理相关约定，拆分与隔离改动需符合其要求"}
