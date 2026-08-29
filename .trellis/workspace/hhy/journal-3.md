@@ -964,3 +964,36 @@ Moved the bottom dock out of Scaffold.bottomBar so hidden dock state leaves only
 ### Next Steps
 
 - None - task complete
+
+
+## Session 145: Compose 流畅度与滑动优化
+
+**Date**: 2026-08-29
+**Task**: Compose 流畅度与滑动优化
+**Branch**: `main`
+
+### Summary
+
+拆分 MusicScreenV2 为 9 个页面子组件、positionMillis flow 下沉到歌词叶子(derivedStateOf 包 activeIndex)、模型类 @Stable、AuthedAsyncImage 加 crossfade(200)+placeholder、自建 MusicScrollbar(滚动条)应用到音乐页/歌词/队列。BOM 锁定未升级;编译+测试+lint 全部绿色,无回归。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `cd84708` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
