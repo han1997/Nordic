@@ -931,3 +931,36 @@ Moved the bottom dock out of Scaffold.bottomBar so hidden dock state leaves only
 ### Next Steps
 
 - None - task complete
+
+
+## Session 144: 优化 Gradle 构建与验证流程
+
+**Date**: 2026-08-29
+**Task**: 优化 Gradle 构建与验证流程
+**Branch**: `main`
+
+### Summary
+
+去掉 --no-daemon、合并为单条 daemon 调用、gradle.properties 启用构建/配置/并行缓存，spec 与 trellis-check SKILL 改为分级验证（快速 compile+test / 完整 +lint）。验证通过：daemon 复用后冷启动 11s -> 热启动 1.4s。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `33c7432` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

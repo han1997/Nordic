@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-3.md`
-- **Total Sessions**: 143
-- **Last Active**: 2026-08-20
+- **Total Sessions**: 144
+- **Last Active**: 2026-08-29
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-3.md` | ~933 | Active |
+| `journal-3.md` | ~966 | Active |
 | `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
@@ -31,6 +31,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 144 | 2026-08-29 | 优化 Gradle 构建与验证流程 | `33c7432` | `main` |
 | 143 | 2026-08-20 | UI 与逻辑继续优化：媒体浏览状态一致性 | `4032048`, `f6edfdb`, `3c3878a` | `main` |
 | 142 | 2026-08-19 | 优化播放器与 Dock 交互 | `a3ace10`, `ce0f273` | `main` |
 | 141 | 2026-08-16 | Dock hide minimal handle | `f45c728` | `main` |
