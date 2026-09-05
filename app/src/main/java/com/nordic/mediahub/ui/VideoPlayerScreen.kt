@@ -14,6 +14,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,6 +47,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.ColorScheme
@@ -170,6 +172,7 @@ fun VideoPlayerScreen(
     nextEpisode: VideoItem? = null,
     onPlayNextEpisode: () -> Unit = {},
     onToggleFullscreen: () -> Unit = {},
+    onToggleOrientation: () -> Unit = {},
     isFullscreen: Boolean = false,
     onClose: () -> Unit,
     onCloseAnyway: () -> Unit = {},
@@ -457,7 +460,8 @@ fun VideoPlayerScreen(
                     onCycleAspectRatio = onCycleAspectRatio,
                     onShowSpeedSheet = { showSpeedSheet = true },
                     onPlayNextEpisode = onPlayNextEpisode,
-                    onToggleFullscreen = onToggleFullscreen
+                    onToggleFullscreen = onToggleFullscreen,
+                    onToggleOrientation = onToggleOrientation
                 )
             }
         }
@@ -925,7 +929,8 @@ private fun VideoPlayerControls(
     onCycleAspectRatio: () -> Unit,
     onShowSpeedSheet: () -> Unit,
     onPlayNextEpisode: () -> Unit,
-    onToggleFullscreen: () -> Unit
+    onToggleFullscreen: () -> Unit,
+    onToggleOrientation: () -> Unit = {}
 ) {
     Surface(
         color = Color.Black.copy(alpha = 0.56f),
@@ -975,7 +980,12 @@ private fun VideoPlayerControls(
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    // Fixed-width chrome buttons overflow narrow portrait
+                    // screens (orientation + fullscreen buttons were clipped
+                    // off-screen); let the row scroll instead of hiding them.
+                    .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -1030,6 +1040,14 @@ private fun VideoPlayerControls(
                     )
                     Spacer(modifier = Modifier.width(NordicSpacing.md))
                 }
+                VideoPlayerChromeButton(
+                    icon = Icons.Filled.ScreenRotation,
+                    colorScheme = colorScheme,
+                    enabled = hasVideo,
+                    size = 44.dp,
+                    onClick = onToggleOrientation
+                )
+                Spacer(modifier = Modifier.width(NordicSpacing.md))
                 VideoPlayerChromeButton(
                     icon = if (isFullscreen) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
                     colorScheme = colorScheme,

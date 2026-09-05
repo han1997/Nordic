@@ -170,35 +170,38 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         _error.value = null
     }
 
+    /**
+     * Close video playback. Local playback stops and the player dismisses
+     * immediately; the Emby stopped-progress report runs in the background
+     * (best-effort with one retry) so a slow server can never trap the user
+     * in the player.
+     */
     fun closeVideoPlayback(
         onClosed: () -> Unit = {},
         onFailed: (message: String) -> Unit = {}
     ) {
         closeVideoPlaybackInternal(
-            closeAnyway = false,
             onClosed = onClosed,
             onFailed = onFailed
         )
     }
 
     /**
-     * Close video playback without blocking on the Emby stopped-progress sync.
-     * If the network is down, stop local playback so the user can leave, then
-     * attempt a best-effort background stopped report and drop failures.
+     * Close video playback ignoring sync failures entirely. Kept for call
+     * sites that need an explicit "close no matter what" semantic; behaves
+     * the same as [closeVideoPlayback] since closing never blocks on sync.
      */
     fun closeVideoPlaybackAnyway(
         onClosed: () -> Unit = {},
         onFailed: (message: String) -> Unit = {}
     ) {
         closeVideoPlaybackInternal(
-            closeAnyway = true,
             onClosed = onClosed,
             onFailed = onFailed
         )
     }
 
     private fun closeVideoPlaybackInternal(
-        closeAnyway: Boolean,
         onClosed: () -> Unit = {},
         onFailed: (message: String) -> Unit = {}
     ) {
@@ -208,42 +211,27 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         val video = currentState.video
         val repo = _repository.value
 
+        // Closing must never block on the network: stop local playback and
+        // dismiss the player immediately, then report the stopped position in
+        // the background (best-effort, one retry). A slow/unreachable Emby
+        // server previously kept the player on screen for the whole HTTP
+        // round-trip, which felt like the app was frozen on close.
         if (video != null && repo != null && !video.streamUrl.isNullOrBlank()) {
             val positionSeconds = resolveVideoProgressSyncBaselineSeconds(
                 statePositionSeconds = currentState.positionSeconds,
                 video = video
             )
+            engine.stop()
+            onClosed()
             viewModelScope.launch {
                 runCatching { repo.stopPlaybackProgress(video, positionSeconds) }
-                    .onSuccess {
-                        engine.stop()
-                        onClosed()
-                    }
-                    .onFailure { error ->
-                        Log.e("VideoPlayback", "保存视频进度失败", error)
-                        if (closeAnyway) {
-                            // Stop local playback and close immediately so the
-                            // user is not trapped by a slow network, then attempt
-                            // a best-effort background stopped report. Clear the
-                            // error so the player layer does not stay open.
-                            _error.value = null
-                            _syncError.value = null
-                            engine.stop()
-                            onClosed()
-                            viewModelScope.launch {
-                                runCatching { repo.stopPlaybackProgress(video, positionSeconds) }
+                    .onFailure { firstError ->
+                        Log.e("VideoPlayback", "保存视频进度失败，后台重试一次", firstError)
+                        runCatching { repo.stopPlaybackProgress(video, positionSeconds) }
+                            .onFailure { retryError ->
+                                Log.e("VideoPlayback", "重试保存视频进度失败", retryError)
+                                _syncError.value = retryError.message ?: "保存视频进度失败"
                             }
-                        } else {
-                            // Sync failure is not a player error: report it on the
-                            // sync channel and still close (the close path must
-                            // never trap the user in the player).
-                            _syncError.value = error.message ?: "保存视频进度失败"
-                            engine.stop()
-                            onClosed()
-                            viewModelScope.launch {
-                                runCatching { repo.stopPlaybackProgress(video, positionSeconds) }
-                            }
-                        }
                     }
             }
         } else {

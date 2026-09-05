@@ -1,5 +1,6 @@
 package com.nordic.mediahub
 
+import android.content.pm.ActivityInfo
 import com.nordic.mediahub.data.AudiobookPlaybackSession
 import com.nordic.mediahub.data.VideoItem
 import org.junit.Assert.assertEquals
@@ -287,6 +288,46 @@ class MainActivityTest {
         )
 
         assertEquals(listOf("close-Audiobook", "close-Video", "failed"), events)
+    }
+
+    @Test
+    fun resolveVideoOrientationRequest_locksPortraitByDefaultOutsideFullscreen() {
+        assertEquals(
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,
+            resolveVideoOrientationRequest(
+                showVideoPlayer = true,
+                lockedLandscape = false
+            )
+        )
+    }
+
+    @Test
+    fun resolveVideoOrientationRequest_locksLandscapeWhenToggled() {
+        assertEquals(
+            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
+            resolveVideoOrientationRequest(
+                showVideoPlayer = true,
+                lockedLandscape = true
+            )
+        )
+    }
+
+    @Test
+    fun resolveVideoOrientationRequest_restoresSystemControlWhenPlayerClosed() {
+        assertEquals(
+            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED,
+            resolveVideoOrientationRequest(
+                showVideoPlayer = false,
+                lockedLandscape = true
+            )
+        )
+        assertEquals(
+            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED,
+            resolveVideoOrientationRequest(
+                showVideoPlayer = false,
+                lockedLandscape = false
+            )
+        )
     }
 
     private fun session(
