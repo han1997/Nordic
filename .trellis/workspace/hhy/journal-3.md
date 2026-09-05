@@ -1265,3 +1265,36 @@ HeaderActionGroup(四屏共用顶栏按钮组)Surface 移除 shadowElevation=4dp
 ### Next Steps
 
 - None - task complete
+
+
+## Session 154: 视频播放控制栏布局收尾与窄屏回归
+
+**Date**: 2026-09-05
+**Task**: 视频播放控制栏布局收尾与窄屏回归
+**Branch**: `main`
+
+### Summary
+
+完成 Phase 3.4：提交单行三组视频控制栏、移除快退/快进按钮并保留双击手势，补齐左右等宽居中与窄屏自适应尺寸及 3 项回归测试，同步 Emby 规范和 CHANGELOG。完整验证通过：500 项单元测试、编译、lint（0 错误、23 警告）、debug 打包。一次既有配置存储测试挂起后完整重跑通过，详见归档 review.md。当前任务已归档；真机交互未复测；gradle.properties 无关改动保留且未提交。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f5d12bc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
