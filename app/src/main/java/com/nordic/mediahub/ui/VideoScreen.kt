@@ -26,6 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.EmbyRepository
@@ -225,9 +227,26 @@ fun VideoScreen(
         }
         if (savedConfig.isReadyForVideoSync()) {
             applyCachedVideo(savedConfig, requestVersion)
-            // Launch-path refresh is TTL-gated; manual refresh (↻) bypasses TTL.
+            // Launch-path refresh is TTL-gated; manual refresh ( bypasses TTL.
             if (!isCacheFresh(cacheUpdatedAtMillis)) {
                 refreshVideo(savedConfig, targetLibraryId = null, requestVersion = requestVersion)
+            }
+        }
+    }
+
+    // Re-entering the video screen always re-pulls the latest playback records
+    // (positions / played flags may have changed on another device or in a
+    // previous session). Cache-then-network: cached data renders immediately,
+    // the silent refresh updates in place. `refreshVideo` self-guards with
+    // `isLoading`, so this cannot stack with a manual refresh in flight.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (savedConfig.isReadyForVideoSync()) {
+            scope.launch {
+                refreshVideo(
+                    targetConfig = savedConfig,
+                    targetLibraryId = selectedLibraryId,
+                    requestVersion = videoConfigStateVersion
+                )
             }
         }
     }

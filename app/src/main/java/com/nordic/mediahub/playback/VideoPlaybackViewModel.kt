@@ -52,6 +52,30 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         _catalogVideos.value = videos
     }
 
+    /**
+     * Immediate one-shot progress sync from the current engine state. Used as
+     * a lifecycle safety net (e.g. app backgrounded mid-playback) so the last
+     * position is not lost to process death before the 30s periodic loop
+     * fires. Fire-and-forget; failures land on [syncError].
+     */
+    fun syncNow() {
+        val currentState = engine.state.value
+        val video = currentState.video
+        val repo = _repository.value
+        if (video == null || repo == null || video.streamUrl.isNullOrBlank() || currentState.errorMessage != null) {
+            return
+        }
+        val position = resolveVideoProgressSyncBaselineSeconds(currentState.positionSeconds, video)
+        viewModelScope.launch {
+            runCatching {
+                repo.syncPlaybackProgress(video, position, isPaused = !currentState.isPlaying)
+            }.onFailure { error ->
+                _syncError.value = error.message ?: "同步视频进度失败"
+                Log.e("VideoPlayback", "即时同步视频进度失败", error)
+            }
+        }
+    }
+
     private var syncJob: Job? = null
 
     init {

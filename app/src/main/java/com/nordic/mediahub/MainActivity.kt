@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nordic.mediahub.data.ConfigRepository
@@ -928,6 +930,15 @@ private fun VideoPlayerLayer(
 
     val nextEpisode = remember(videoPlaybackState.video, catalogVideos) {
         videoPlaybackState.video?.let { current -> resolveNextVideoEpisode(current, catalogVideos) }
+    }
+
+    // Lifecycle safety net: when the player layer goes to the background with
+    // a video active, push an immediate progress sync so the last position
+    // survives process death before the 30s periodic loop fires.
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        if (showVideoPlayer) {
+            videoVM.syncNow()
+        }
     }
 
     BackHandler(enabled = showVideoPlayer || videoPlaybackError != null) {
