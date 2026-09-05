@@ -995,8 +995,6 @@ private fun VideoPlayerLayer(
             onSurfaceReady = videoVM::attachSurface,
             onSurfaceDisposed = videoVM::detachSurface,
             onSeek = videoVM::seekTo,
-            onSeekBack = { videoVM.seekBackBy() },
-            onSeekForward = { videoVM.seekForwardBy() },
             onSeekRelative = { delta ->
                 if (delta < 0) videoVM.seekBackBy(-delta) else videoVM.seekForwardBy(delta)
             },

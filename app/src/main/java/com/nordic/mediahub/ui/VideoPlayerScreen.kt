@@ -14,11 +14,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -34,13 +34,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.BrightnessLow
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FastForward
-import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Info
@@ -163,8 +161,6 @@ fun VideoPlayerScreen(
     onSurfaceReady: (SurfaceView) -> Unit,
     onSurfaceDisposed: (SurfaceView) -> Unit,
     onSeek: (Int) -> Unit,
-    onSeekBack: () -> Unit = {},
-    onSeekForward: () -> Unit = {},
     onSeekRelative: (Int) -> Unit = {},
     onPlayPause: () -> Unit,
     onCycleAspectRatio: () -> Unit = {},
@@ -454,9 +450,7 @@ fun VideoPlayerScreen(
                         scrubPosition = null
                     },
                     onScrubCanceled = { scrubPosition = null },
-                    onSeekBack = onSeekBack,
                     onPlayPause = onPlayPause,
-                    onSeekForward = onSeekForward,
                     onCycleAspectRatio = onCycleAspectRatio,
                     onShowSpeedSheet = { showSpeedSheet = true },
                     onPlayNextEpisode = onPlayNextEpisode,
@@ -907,6 +901,32 @@ private fun VideoPlayerInfoRow(row: VideoPlayerInfoLine) {
     }
 }
 
+internal data class VideoPlayerControlSizing(
+    val secondaryButtonSize: Dp,
+    val primaryButtonSize: Dp,
+    val buttonSpacing: Dp,
+    val sideGroupWidth: Dp
+)
+
+internal fun resolveVideoPlayerControlSizing(
+    availableWidth: Dp,
+    hasNextEpisode: Boolean
+): VideoPlayerControlSizing {
+    val secondaryButtonSize = 44.dp
+    val primaryButtonSize = 58.dp
+    val buttonSpacing = NordicSpacing.xs
+    val sideButtonCount = if (hasNextEpisode) 3 else 2
+    val sideGroupWidth = secondaryButtonSize * sideButtonCount + buttonSpacing * (sideButtonCount - 1)
+    val requiredWidth = sideGroupWidth * 2 + primaryButtonSize + buttonSpacing * 2
+    val scale = (availableWidth / requiredWidth).coerceIn(0f, 1f)
+    return VideoPlayerControlSizing(
+        secondaryButtonSize = secondaryButtonSize * scale,
+        primaryButtonSize = primaryButtonSize * scale,
+        buttonSpacing = buttonSpacing * scale,
+        sideGroupWidth = sideGroupWidth * scale
+    )
+}
+
 @Composable
 private fun VideoPlayerControls(
     visiblePosition: Float,
@@ -923,9 +943,7 @@ private fun VideoPlayerControls(
     onScrubChange: (Float) -> Unit,
     onScrubFinished: () -> Unit,
     onScrubCanceled: () -> Unit,
-    onSeekBack: () -> Unit,
     onPlayPause: () -> Unit,
-    onSeekForward: () -> Unit,
     onCycleAspectRatio: () -> Unit,
     onShowSpeedSheet: () -> Unit,
     onPlayNextEpisode: () -> Unit,
@@ -979,82 +997,74 @@ private fun VideoPlayerControls(
                 )
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    // Fixed-width chrome buttons overflow narrow portrait
-                    // screens (orientation + fullscreen buttons were clipped
-                    // off-screen); let the row scroll instead of hiding them.
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                VideoPlayerChromeButton(
-                    icon = Icons.Filled.AspectRatio,
-                    colorScheme = colorScheme,
-                    enabled = hasVideo,
-                    size = 44.dp,
-                    onClick = onCycleAspectRatio
-                )
-                Spacer(modifier = Modifier.width(NordicSpacing.md))
-                VideoPlayerChromeButton(
-                    text = resolvePlaybackSpeedLabel(playbackSpeed),
-                    colorScheme = colorScheme,
-                    enabled = hasVideo,
-                    size = 44.dp,
-                    onClick = onShowSpeedSheet
-                )
-                Spacer(modifier = Modifier.width(NordicSpacing.md))
-                VideoPlayerChromeButton(
-                    icon = Icons.Filled.FastRewind,
-                    colorScheme = colorScheme,
-                    enabled = hasVideo,
-                    size = 48.dp,
-                    onClick = onSeekBack
-                )
-                Spacer(modifier = Modifier.width(NordicSpacing.lg))
-                VideoPlayerChromeButton(
-                    icon = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    colorScheme = colorScheme,
-                    primary = true,
-                    enabled = hasVideo,
-                    size = 58.dp,
-                    onClick = onPlayPause
-                )
-                Spacer(modifier = Modifier.width(NordicSpacing.lg))
-                VideoPlayerChromeButton(
-                    icon = Icons.Filled.FastForward,
-                    colorScheme = colorScheme,
-                    enabled = hasVideo,
-                    size = 48.dp,
-                    onClick = onSeekForward
-                )
-                Spacer(modifier = Modifier.width(NordicSpacing.md))
-                if (hasNextEpisode) {
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val sizing = resolveVideoPlayerControlSizing(maxWidth, hasNextEpisode)
+                // 两侧等宽才会真正居中；按扣除内外边距后的宽度适配窄屏。
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier.width(sizing.sideGroupWidth),
+                        horizontalArrangement = Arrangement.spacedBy(sizing.buttonSpacing),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        VideoPlayerChromeButton(
+                            icon = Icons.Filled.AspectRatio,
+                            colorScheme = colorScheme,
+                            enabled = hasVideo,
+                            size = sizing.secondaryButtonSize,
+                            onClick = onCycleAspectRatio
+                        )
+                        VideoPlayerChromeButton(
+                            text = resolvePlaybackSpeedLabel(playbackSpeed),
+                            colorScheme = colorScheme,
+                            enabled = hasVideo,
+                            size = sizing.secondaryButtonSize,
+                            onClick = onShowSpeedSheet
+                        )
+                    }
+
                     VideoPlayerChromeButton(
-                        icon = Icons.Filled.SkipNext,
+                        icon = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                         colorScheme = colorScheme,
-                        enabled = true,
-                        size = 44.dp,
-                        onClick = onPlayNextEpisode
+                        primary = true,
+                        enabled = hasVideo,
+                        size = sizing.primaryButtonSize,
+                        onClick = onPlayPause
                     )
-                    Spacer(modifier = Modifier.width(NordicSpacing.md))
+
+                    Row(
+                        modifier = Modifier.width(sizing.sideGroupWidth),
+                        horizontalArrangement = Arrangement.spacedBy(sizing.buttonSpacing),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (hasNextEpisode) {
+                            VideoPlayerChromeButton(
+                                icon = Icons.Filled.SkipNext,
+                                colorScheme = colorScheme,
+                                enabled = true,
+                                size = sizing.secondaryButtonSize,
+                                onClick = onPlayNextEpisode
+                            )
+                        }
+                        VideoPlayerChromeButton(
+                            icon = Icons.Filled.ScreenRotation,
+                            colorScheme = colorScheme,
+                            enabled = hasVideo,
+                            size = sizing.secondaryButtonSize,
+                            onClick = onToggleOrientation
+                        )
+                        VideoPlayerChromeButton(
+                            icon = if (isFullscreen) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
+                            colorScheme = colorScheme,
+                            enabled = hasVideo,
+                            size = sizing.secondaryButtonSize,
+                            onClick = onToggleFullscreen
+                        )
+                    }
                 }
-                VideoPlayerChromeButton(
-                    icon = Icons.Filled.ScreenRotation,
-                    colorScheme = colorScheme,
-                    enabled = hasVideo,
-                    size = 44.dp,
-                    onClick = onToggleOrientation
-                )
-                Spacer(modifier = Modifier.width(NordicSpacing.md))
-                VideoPlayerChromeButton(
-                    icon = if (isFullscreen) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
-                    colorScheme = colorScheme,
-                    enabled = hasVideo,
-                    size = 44.dp,
-                    onClick = onToggleFullscreen
-                )
             }
 
             if (scrubPosition != null) {

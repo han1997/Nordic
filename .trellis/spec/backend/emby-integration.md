@@ -415,7 +415,13 @@ internal fun resolveVideoOrientationRequest(
     lockedLandscape: Boolean
 ): Int
 
+internal fun resolveVideoPlayerControlSizing(
+    availableWidth: Dp,
+    hasNextEpisode: Boolean
+): VideoPlayerControlSizing
+
 fun VideoPlayerScreen(
+    onSeekRelative: (Int) -> Unit,
     onCycleAspectRatio: () -> Unit,
     onToggleFullscreen: () -> Unit,
     onToggleOrientation: () -> Unit,
@@ -437,7 +443,9 @@ fun VideoPlayerScreen(
 - Orientation follows the manual-lock model: gravity never rotates playback. While the video player is visible the orientation is always locked (`resolveVideoOrientationRequest(showVideoPlayer, lockedLandscape)` in `MainActivity.kt`): portrait lock by default outside fullscreen, landscape lock when entering fullscreen. The player controls row exposes a `ScreenRotation` button (`onToggleOrientation`) that swaps landscape/portrait at any time. Closing the player restores `SCREEN_ORIENTATION_UNSPECIFIED`.
 - Fullscreen hides system bars with transient swipe behavior. Leaving fullscreen restores system bars.
 - The Activity manifest must handle orientation/screen-size config changes when fullscreen orientation locking is used.
-- The player controls row uses fixed-width chrome buttons and must be wrapped in `horizontalScroll(rememberScrollState())`; on narrow portrait screens the row overflows and trailing buttons (orientation, fullscreen) would be clipped off-screen without it.
+- 播放控制栏保持单行三组 `Arrangement.SpaceBetween`：左侧比例/倍速，中间播放/暂停，右侧下一集（若有）/旋转/全屏。左右组必须使用相同的 `sideGroupWidth`，不能假设 `SpaceBetween` 会自动让不等宽分组之间的播放按钮居中。
+- `resolveVideoPlayerControlSizing` 接收控制栏内 `BoxWithConstraints.maxWidth`，即已经扣除外层与卡片内层左右边距的实际宽度。工具按钮/播放按钮的常规尺寸上限为 44dp/58dp，基础按钮间距使用 `NordicSpacing.xs`；按较多的一侧预留等宽分组，窄屏时按钮、间距和组宽一起等比缩小。不得以 `horizontalScroll`、裁剪末端按钮或让播放键偏离中心来解决宽度不足。
+- 不保留快退/快进按钮及其专用回调；双击左/右半屏仍通过 `onSeekRelative` 分别后退 10 秒/前进 30 秒。
 
 ### 4. Validation & Error Matrix
 - `width <= 0` or `height <= 0` -> publish `16f / 9f`.
@@ -452,6 +460,8 @@ fun VideoPlayerScreen(
 - Player visible with `lockedLandscape = false` -> `SCREEN_ORIENTATION_PORTRAIT` (no sensor flip).
 - Player closed -> `SCREEN_ORIENTATION_UNSPECIFIED` (system/gravity control restored).
 - Entering fullscreen -> default to `lockedLandscape = true`; exiting fullscreen -> default to `lockedLandscape = false`; the orientation button can swap either state afterwards.
+- 布局回归需覆盖 320/360/392/720dp 屏幕宽度，先扣除外层与卡片内层合计 64dp 左右边距，再分别验证有/无下一集；按钮完整容纳，播放键中心等于可用宽度的一半。
+- 布局 helper 收到零或负可用宽度时返回零尺寸，不产生负宽度；正常宽屏不得把按钮放大到常规上限以上。
 
 ### 5. Good/Base/Bad Cases
 - Good: A 4:3 video reports pixel-adjusted aspect ratio and renders without horizontal stretching in `FIT`.
@@ -462,13 +472,14 @@ fun VideoPlayerScreen(
 - Bad: Compose keeps a local aspect-ratio mode that diverges from `VideoPlaybackState`.
 - Bad: `SurfaceView` is added without match-parent layout params and renders smaller than the frame.
 - Bad: Fullscreen directly manipulates Activity state from `VideoPlayerScreen`, making the composable hard to test and reuse.
-- Bad: Player controls row is not horizontally scrollable, so trailing buttons are clipped off-screen in portrait.
+- Bad: 忽略双层水平边距，或把不等宽三组直接交给 `SpaceBetween`，导致窄屏按钮被挤压、播放键偏离中心。
 - Bad: Orientation uses `SENSOR_LANDSCAPE`/`UNSPECIFIED` while the player is visible, letting gravity rotate playback against the manual-lock contract.
 
 ### 6. Tests Required
 - Unit test `resolveNextAspectRatioMode(...)` for Fit -> Crop -> Fill -> Fit.
 - Unit test `resolveVideoAspectRatio(...)` for pixel-ratio application, invalid dimensions, and invalid pixel ratio.
 - Unit test `resolveVideoOrientationRequest(...)` for portrait default outside fullscreen, landscape when toggled, and system control when the player is closed.
+- 单元测试 `resolveVideoPlayerControlSizing(...)`：常规尺寸上限、零/负宽度、有/无下一集、窄屏/横屏的组内按钮不溢出、组间距非负且播放键几何居中。
 - Compile check for Media3 `AspectRatioFrameLayout` API usage and callback wiring.
 - Lint and debug assemble when manifest config changes or fullscreen system UI handling changes.
 

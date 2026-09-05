@@ -1,5 +1,6 @@
 package com.nordic.mediahub.ui
 
+import androidx.compose.ui.unit.dp
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import com.nordic.mediahub.data.VideoItem
@@ -12,6 +13,48 @@ import org.junit.Test
 
 @androidx.annotation.OptIn(UnstableApi::class)
 class VideoPlayerScreenTest {
+    @Test
+    fun resolveVideoPlayerControlSizing_keepsNormalSizesWhenSpaceAllows() {
+        for (hasNextEpisode in listOf(false, true)) {
+            val sizing = resolveVideoPlayerControlSizing(400.dp, hasNextEpisode)
+            assertEquals(44.dp, sizing.secondaryButtonSize)
+            assertEquals(58.dp, sizing.primaryButtonSize)
+            assertEquals(4.dp, sizing.buttonSpacing)
+            assertEquals(if (hasNextEpisode) 140.dp else 92.dp, sizing.sideGroupWidth)
+        }
+    }
+
+    @Test
+    fun resolveVideoPlayerControlSizing_fitsNarrowPortraitAndLandscapeWithCenteredPlay() {
+        // 屏幕宽度扣除外层和卡片各 16dp 的左右边距。
+        for (screenWidth in listOf(320, 360, 392, 720)) {
+            val availableWidth = (screenWidth - 64).dp
+            for (hasNextEpisode in listOf(false, true)) {
+                val sizing = resolveVideoPlayerControlSizing(availableWidth, hasNextEpisode)
+                val sideButtonCount = if (hasNextEpisode) 3 else 2
+                val sideContentWidth = sizing.secondaryButtonSize * sideButtonCount +
+                    sizing.buttonSpacing * (sideButtonCount - 1)
+                assertEquals(sizing.sideGroupWidth.value, sideContentWidth.value, 0.001f)
+
+                val occupiedWidth = sizing.sideGroupWidth * 2 + sizing.primaryButtonSize
+                val groupGap = (availableWidth - occupiedWidth) / 2
+                assertTrue(groupGap.value >= sizing.buttonSpacing.value - 0.001f)
+                val playCenter = sizing.sideGroupWidth + groupGap + sizing.primaryButtonSize / 2
+                assertEquals(availableWidth.value / 2, playCenter.value, 0.001f)
+                assertTrue(sizing.primaryButtonSize > sizing.secondaryButtonSize)
+                assertTrue(sizing.secondaryButtonSize > 0.dp)
+            }
+        }
+    }
+
+    @Test
+    fun resolveVideoPlayerControlSizing_clampsUnavailableWidthToZero() {
+        for (width in listOf(0.dp, (-1).dp)) {
+            val sizing = resolveVideoPlayerControlSizing(width, hasNextEpisode = true)
+            assertEquals(VideoPlayerControlSizing(0.dp, 0.dp, 0.dp, 0.dp), sizing)
+        }
+    }
+
     @Test
     fun resolveVideoGestureSide_splitsScreenAtHalfWidth() {
         assertEquals(VideoGestureSide.Left, resolveVideoGestureSide(x = 10f, widthPx = 100f))
