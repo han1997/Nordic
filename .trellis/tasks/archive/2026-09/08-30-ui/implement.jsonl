@@ -1,0 +1,8 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `py -3 .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/backend/audiobookshelf-integration.md", "reason": "有声书数据层/播放规范"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "视频(Emby)数据层规范"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "错误处理规范"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "实现质量规范"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "跨层数据流(UI-ViewModel-Engine-Data)"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "复用共享组件/滑杆/按钮"}
+{"file": ".trellis/tasks/08-30-ui/research/audit-audiobook-video.md", "reason": "模块审计与批次计划(实现依据)"}
