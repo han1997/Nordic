@@ -46,7 +46,8 @@ fun VideoScreen(
     isDark: Boolean,
     onThemeToggle: (Boolean) -> Unit,
     onPlayVideo: (VideoItem) -> Unit = {},
-    onPlayVideoFromStart: (VideoItem) -> Unit = {}
+    onPlayVideoFromStart: (VideoItem) -> Unit = {},
+    onCatalogChanged: (List<VideoItem>) -> Unit = {}
 ) {
     val context = LocalContext.current
     val configRepository = remember { ConfigRepository(context) }
@@ -235,6 +236,12 @@ fun VideoScreen(
         videoResetNotice = null
         videoDetailInvalidationNotice = null
         selectedVideo = video
+    }
+
+    // Publish the browse catalog so the video player can resolve the
+    // "next episode" target when playback starts from this screen.
+    LaunchedEffect(videos) {
+        onCatalogChanged(videos)
     }
 
     BackHandler(enabled = selectedVideo != null) {

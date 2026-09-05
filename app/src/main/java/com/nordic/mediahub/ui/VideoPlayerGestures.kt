@@ -88,7 +88,9 @@ internal fun Modifier.videoPlayerGestures(
     onCycleAspectRatio: () -> Unit,
     onBrightnessDrag: ((Float) -> Unit)? = null,
     onVolumeDrag: ((Float) -> Unit)? = null,
-    onGestureEnd: (() -> Unit)? = null
+    onGestureEnd: (() -> Unit)? = null,
+    onLongPressStart: (() -> Unit)? = null,
+    onLongPressEnd: (() -> Unit)? = null
 ): Modifier = composed {
     if (!enabled) return@composed this
 
@@ -138,8 +140,33 @@ internal fun Modifier.videoPlayerGestures(
                         }
                         onSeekRelative(delta)
                     }
+                },
+                onLongPress = {
+                    // Long-press temporary speed: press starts it; release is
+                    // detected by the dedicated press-tracking pointerInput
+                    // below (detectTapGestures has no release callback here).
+                    onLongPressStart?.invoke()
                 }
             )
+        }
+        .pointerInput(enabled, onLongPressEnd) {
+            if (onLongPressEnd == null) return@pointerInput
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                // Track a pressed pointer; when it lifts and a long-press speed
+                // session is active, the caller restores the original speed.
+                try {
+                    awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                    while (true) {
+                        val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                        val released = event.changes.all { !it.pressed }
+                        if (released) break
+                        if (event.changes.none { it.id == down.id }) break
+                    }
+                } finally {
+                    onLongPressEnd.invoke()
+                }
+            }
         }
         .pointerInput(enabled, durationSeconds) {
             if (durationSeconds > 0) {

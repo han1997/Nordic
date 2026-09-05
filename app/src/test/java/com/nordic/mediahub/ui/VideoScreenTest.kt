@@ -616,6 +616,69 @@ class VideoScreenTest {
         )
     }
 
+    @Test
+    fun resolveNextVideoEpisode_returnsNextInOrderWithinSameSeries() {
+        val s1e1 = video(
+            id = "s1e1", title = "Pilot", type = "Episode",
+            seriesId = "series-1", seriesName = "Show", seasonNumber = 1, episodeNumber = 1
+        )
+        val s1e2 = video(
+            id = "s1e2", title = "Second", type = "Episode",
+            seriesId = "series-1", seriesName = "Show", seasonNumber = 1, episodeNumber = 2
+        )
+        val s2e1 = video(
+            id = "s2e1", title = "New Season", type = "Episode",
+            seriesId = "series-1", seriesName = "Show", seasonNumber = 2, episodeNumber = 1
+        )
+
+        assertEquals("s1e2", resolveNextVideoEpisode(s1e1, listOf(s2e1, s1e1, s1e2))?.id)
+        assertEquals("s2e1", resolveNextVideoEpisode(s1e2, listOf(s1e1, s2e1, s1e2))?.id)
+    }
+
+    @Test
+    fun resolveNextVideoEpisode_returnsNullForLastEpisodeAndMovies() {
+        val s1e1 = video(
+            id = "s1e1", title = "Pilot", type = "Episode",
+            seriesId = "series-1", seriesName = "Show", seasonNumber = 1, episodeNumber = 1
+        )
+        val movie = video(id = "movie-1", title = "Movie One", type = "Movie")
+
+        assertNull(resolveNextVideoEpisode(s1e1, listOf(s1e1)))
+        assertNull(resolveNextVideoEpisode(movie, listOf(s1e1, movie)))
+    }
+
+    @Test
+    fun resolveNextVideoEpisode_matchesBySeriesNameWhenSeriesIdMissing() {
+        val current = video(
+            id = "e1", title = "One", type = "Episode",
+            seriesName = "Show", seasonNumber = 1, episodeNumber = 1
+        )
+        val otherSeries = video(
+            id = "other", title = "Other", type = "Episode",
+            seriesName = "Other Show", seasonNumber = 1, episodeNumber = 1
+        )
+        val next = video(
+            id = "e2", title = "Two", type = "Episode",
+            seriesName = "Show", seasonNumber = 1, episodeNumber = 2
+        )
+
+        assertEquals("e2", resolveNextVideoEpisode(current, listOf(otherSeries, next))?.id)
+    }
+
+    @Test
+    fun resolveNextVideoEpisode_ignoresOtherSeriesEpisodes() {
+        val current = video(
+            id = "e1", title = "One", type = "Episode",
+            seriesId = "series-1", seriesName = "Show", seasonNumber = 1, episodeNumber = 1
+        )
+        val otherSeriesEpisode = video(
+            id = "other", title = "Other", type = "Episode",
+            seriesId = "series-2", seriesName = "Other Show", seasonNumber = 1, episodeNumber = 2
+        )
+
+        assertNull(resolveNextVideoEpisode(current, listOf(otherSeriesEpisode)))
+    }
+
     private fun video(
         id: String,
         title: String,

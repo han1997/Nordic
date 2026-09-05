@@ -685,7 +685,8 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                     isDark = isDark,
                                     onThemeToggle = onThemeToggle,
                                     onPlayVideo = onPlayVideo,
-                                    onPlayVideoFromStart = onPlayVideoFromStart
+                                    onPlayVideoFromStart = onPlayVideoFromStart,
+                                    onCatalogChanged = videoVM::setEpisodeContext
                                 )
                                 3 -> ServerConfigScreen(
                                     colorScheme = colorScheme,
@@ -893,6 +894,25 @@ private fun VideoPlayerLayer(
 ) {
     val videoPlaybackState by videoVM.state.collectAsStateWithLifecycle()
     val videoPlaybackError by videoVM.error.collectAsStateWithLifecycle()
+    val catalogVideos by videoVM.catalogVideos.collectAsStateWithLifecycle()
+
+    // Fullscreen auto-rotate: sensor landscape while fullscreen, system default
+    // otherwise (mainstream player convention).
+    val activity = LocalContext.current as? ComponentActivity
+    DisposableEffect(isFullscreen) {
+        if (activity != null) {
+            activity.requestedOrientation = if (isFullscreen) {
+                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            } else {
+                ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            }
+        }
+        onDispose { }
+    }
+
+    val nextEpisode = remember(videoPlaybackState.video, catalogVideos) {
+        videoPlaybackState.video?.let { current -> resolveNextVideoEpisode(current, catalogVideos) }
+    }
 
     BackHandler(enabled = showVideoPlayer || videoPlaybackError != null) {
         closeVideoPlayback()
@@ -922,6 +942,11 @@ private fun VideoPlayerLayer(
             onPlayPause = videoVM::togglePlayPause,
             onCycleAspectRatio = videoVM::cycleAspectRatio,
             onSetPlaybackSpeed = videoVM::setPlaybackSpeed,
+            nextEpisode = nextEpisode,
+            onPlayNextEpisode = {
+                val target = nextEpisode ?: return@VideoPlayerScreen
+                videoVM.play(target)
+            },
             onToggleFullscreen = onToggleFullscreen,
             isFullscreen = isFullscreen,
             onClose = { closeVideoPlayback() },

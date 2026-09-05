@@ -32,6 +32,18 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    /**
+     * In-memory episode context: the catalog list captured when playback was
+     * started from the browse screen, used to resolve the "next episode"
+     * target. Not persisted; cleared on stop.
+     */
+    private val _catalogVideos = MutableStateFlow<List<VideoItem>>(emptyList())
+    val catalogVideos: StateFlow<List<VideoItem>> = _catalogVideos.asStateFlow()
+
+    fun setEpisodeContext(videos: List<VideoItem>) {
+        _catalogVideos.value = videos
+    }
+
     private var syncJob: Job? = null
 
     init {
@@ -208,7 +220,10 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         engine.playFromStart(video)
     }
 
-    fun stop() = engine.stop()
+    fun stop() {
+        _catalogVideos.value = emptyList()
+        engine.stop()
+    }
 
     fun seekTo(positionSeconds: Int) = engine.seekTo(positionSeconds)
 

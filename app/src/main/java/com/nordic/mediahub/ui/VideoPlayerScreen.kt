@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -98,6 +99,14 @@ private const val VIDEO_PLAYER_CHROME_FADE_MS = NordicMotion.durationShort
 
 /** Speed rates offered by the video playback-speed sheet (Hills/Yamby-style). */
 internal val VIDEO_PLAYBACK_SPEED_OPTIONS = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f)
+
+/** Temporary long-press playback speed. */
+internal const val VIDEO_TEMP_SPEED = 2f
+
+/**
+ * How close to the end (seconds) the "next episode" overlay appears.
+ */
+internal const val VIDEO_NEXT_EPISODE_OVERLAY_LEAD_SECONDS = 30
 
 /**
  * Holds the mutable brightness/volume gesture state shared between the
@@ -158,6 +167,8 @@ fun VideoPlayerScreen(
     onPlayPause: () -> Unit,
     onCycleAspectRatio: () -> Unit = {},
     onSetPlaybackSpeed: (Float) -> Unit = {},
+    nextEpisode: VideoItem? = null,
+    onPlayNextEpisode: () -> Unit = {},
     onToggleFullscreen: () -> Unit = {},
     isFullscreen: Boolean = false,
     onClose: () -> Unit,
@@ -194,6 +205,9 @@ fun VideoPlayerScreen(
     var seekFeedback by remember { mutableStateOf<SeekFeedback?>(null) }
     var gesturesLocked by remember(video?.id) { mutableStateOf(false) }
     var showSpeedSheet by remember(video?.id) { mutableStateOf(false) }
+    var isTempSpeeding by remember(video?.id) { mutableStateOf(false) }
+    val showNextEpisodeOverlay = nextEpisode != null && !state.isBuffering && errorMessage == null &&
+        durationSeconds > 0 && state.positionSeconds >= durationSeconds - VIDEO_NEXT_EPISODE_OVERLAY_LEAD_SECONDS
     val adjustGestureState = remember { VideoAdjustGestureState() }
     val context = LocalContext.current
     val activityWindow = remember(context) {
@@ -221,6 +235,22 @@ fun VideoPlayerScreen(
                 seekFeedback = null
             }
         )
+    }
+
+    // Long-press temporary speed: remember the pre-press rate, jump to 2x on
+    // press, restore on release. Guarded so overlapping events cannot stack.
+    val prePressSpeed = remember { AtomicReference(1f) }
+    fun startTempSpeed() {
+        if (isTempSpeeding || video == null) return
+        isTempSpeeding = true
+        prePressSpeed.set(state.playbackSpeed)
+        onSetPlaybackSpeed(VIDEO_TEMP_SPEED)
+    }
+
+    fun endTempSpeed() {
+        if (!isTempSpeeding) return
+        isTempSpeeding = false
+        onSetPlaybackSpeed(prePressSpeed.get())
     }
 
     LaunchedEffect(controlsVisible, state.isPlaying, scrubPosition, statusTone, infoVisible) {
@@ -281,7 +311,9 @@ fun VideoPlayerScreen(
                         controller.adjustByFraction(next)
                     }
                 },
-                onGestureEnd = { adjustGestureState.reset() }
+                onGestureEnd = { adjustGestureState.reset() },
+                onLongPressStart = { startTempSpeed() },
+                onLongPressEnd = { endTempSpeed() }
             )
     ) {
         VideoPlayerSurface(
@@ -323,6 +355,25 @@ fun VideoPlayerScreen(
                 feedback = seekFeedback!!,
                 colorScheme = colorScheme,
                 modifier = Modifier.align(Alignment.Center)
+            )
+        }
+
+        // Long-press temporary-speed indicator.
+        if (isTempSpeeding) {
+            VideoPlayerTempSpeedChip(
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+
+        // "Next episode" floating action near the end of an episode.
+        if (showNextEpisodeOverlay && !gesturesLocked) {
+            VideoPlayerNextEpisodeOverlay(
+                episodeTitle = nextEpisode?.title.orEmpty(),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .then(if (isFullscreen) Modifier else Modifier.navigationBarsPadding())
+                    .padding(NordicSpacing.lg),
+                onClick = onPlayNextEpisode
             )
         }
 
@@ -391,6 +442,7 @@ fun VideoPlayerScreen(
                     hasVideo = video != null,
                     isFullscreen = isFullscreen,
                     playbackSpeed = state.playbackSpeed,
+                    hasNextEpisode = nextEpisode != null,
                     colorScheme = colorScheme,
                     onScrubChange = { scrubPosition = it },
                     onScrubFinished = {
@@ -404,6 +456,7 @@ fun VideoPlayerScreen(
                     onSeekForward = onSeekForward,
                     onCycleAspectRatio = onCycleAspectRatio,
                     onShowSpeedSheet = { showSpeedSheet = true },
+                    onPlayNextEpisode = onPlayNextEpisode,
                     onToggleFullscreen = onToggleFullscreen
                 )
             }
@@ -861,6 +914,7 @@ private fun VideoPlayerControls(
     hasVideo: Boolean,
     isFullscreen: Boolean,
     playbackSpeed: Float,
+    hasNextEpisode: Boolean,
     colorScheme: ColorScheme,
     onScrubChange: (Float) -> Unit,
     onScrubFinished: () -> Unit,
@@ -870,6 +924,7 @@ private fun VideoPlayerControls(
     onSeekForward: () -> Unit,
     onCycleAspectRatio: () -> Unit,
     onShowSpeedSheet: () -> Unit,
+    onPlayNextEpisode: () -> Unit,
     onToggleFullscreen: () -> Unit
 ) {
     Surface(
@@ -965,6 +1020,16 @@ private fun VideoPlayerControls(
                     onClick = onSeekForward
                 )
                 Spacer(modifier = Modifier.width(NordicSpacing.md))
+                if (hasNextEpisode) {
+                    VideoPlayerChromeButton(
+                        icon = Icons.Filled.SkipNext,
+                        colorScheme = colorScheme,
+                        enabled = true,
+                        size = 44.dp,
+                        onClick = onPlayNextEpisode
+                    )
+                    Spacer(modifier = Modifier.width(NordicSpacing.md))
+                }
                 VideoPlayerChromeButton(
                     icon = if (isFullscreen) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
                     colorScheme = colorScheme,
@@ -1407,6 +1472,95 @@ internal class VideoVolumeController(private val audioManager: AudioManager) {
         val target = (clamped * maxVolume).roundToInt().coerceIn(0, maxVolume)
         if (target != currentVolume) {
             audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, target, 0)
+        }
+    }
+}
+
+/**
+ * Transient chip shown while the long-press temporary-speed gesture is active.
+ */
+@Composable
+private fun VideoPlayerTempSpeedChip(
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = Color.Black.copy(alpha = 0.62f),
+        contentColor = Color.White,
+        shape = NordicShapes.full,
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Filled.FastForward,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                text = "${VIDEO_TEMP_SPEED.toInt()}x 倍速中",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+/**
+ * Floating "next episode" action shown near the end of an episode
+ * (Hills/Yamby-style). Hidden for movies / final episodes via the caller.
+ */
+@Composable
+private fun VideoPlayerNextEpisodeOverlay(
+    episodeTitle: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = Color.Black.copy(alpha = 0.68f),
+        contentColor = Color.White,
+        shape = NordicShapes.md,
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)),
+        shadowElevation = 6.dp,
+        modifier = modifier.clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.md),
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm, Alignment.End),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.widthIn(max = 220.dp),
+                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
+            ) {
+                Text(
+                    text = "即将播放下一集",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White.copy(alpha = 0.66f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = episodeTitle.ifBlank { "下一集" },
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Icon(
+                imageVector = Icons.Filled.SkipNext,
+                contentDescription = "播放下一集",
+                tint = Color.White,
+                modifier = Modifier.size(22.dp)
+            )
         }
     }
 }
