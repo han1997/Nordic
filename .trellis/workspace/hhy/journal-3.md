@@ -1031,3 +1031,36 @@ Batch A-E: 有声书书签激活、常驻now-playing dock(AB/视频)、共享薄
 ### Next Steps
 
 - None - task complete
+
+
+## Session 147: 日间模式顶栏按钮阴影修复
+
+**Date**: 2026-09-05
+**Task**: 日间模式顶栏按钮阴影修复
+**Branch**: `main`
+
+### Summary
+
+HeaderActionGroup(四屏共用顶栏按钮组)Surface 移除 shadowElevation=4dp 与 tonalElevation=3dp，日间模式阴影消失，border 与内部渐变保留，与 chip/卡片扁平设计语言对齐。compile+test+lint 全绿。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `21a5b99` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

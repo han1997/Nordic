@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-3.md`
-- **Total Sessions**: 146
+- **Total Sessions**: 147
 - **Last Active**: 2026-09-05
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-3.md` | ~1033 | Active |
+| `journal-3.md` | ~1066 | Active |
 | `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
@@ -31,6 +31,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 147 | 2026-09-05 | 日间模式顶栏按钮阴影修复 | `21a5b99` | `main` |
 | 146 | 2026-09-05 | 有声书/视频播放完善 + 三大播放页对标主流软件 | `29d4082`, `99db4cb` | `main` |
 | 145 | 2026-08-29 | Compose 流畅度与滑动优化 | `cd84708` | `main` |
 | 144 | 2026-08-29 | 优化 Gradle 构建与验证流程 | `33c7432` | `main` |
