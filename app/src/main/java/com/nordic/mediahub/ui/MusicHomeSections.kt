@@ -3,7 +3,6 @@ package com.nordic.mediahub.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,7 +21,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
@@ -387,14 +385,10 @@ private fun CompactMusicShelfItem(
     initials: String? = null,
     onClick: () -> Unit = {}
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(interactionSource)
-
     Column(
         modifier = modifier
             .width(124.dp)
-            .scale(scale)
-            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
+            .clickable(onClick = onClick),
         verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
     ) {
         CoverArt(

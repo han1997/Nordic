@@ -1,23 +1,21 @@
 package com.nordic.mediahub.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.nordic.mediahub.ui.theme.NordicShapes
+import kotlin.math.roundToInt
 
 private val MusicScrollbarThickness = 4.dp
 
@@ -34,54 +32,56 @@ private const val MusicScrollbarAlpha = 0.28f
 private const val MusicScrollbarMinThumbFraction = 0.05f
 
 /**
- * Snapshot of the scrollbar geometry derived from [LazyListLayoutInfo]. Computed
- * in a single [androidx.compose.runtime.derivedStateOf] so a scroll frame only
- * invalidates the thumb once instead of once per derived value.
+ * Thumb geometry resolved from the list layout info: [thumbFraction] is the
+ * visible/total ratio (the thumb's height share of the track), [scrollFraction]
+ * is the scroll progress (the thumb's top offset share of the free track space).
  */
-private data class MusicScrollbarGeometry(
-    val visible: Boolean,
+internal data class MusicScrollbarThumb(
     val thumbFraction: Float,
     val scrollFraction: Float
 )
 
-private fun resolveMusicScrollbarGeometry(
-    layoutInfo: androidx.compose.foundation.lazy.LazyListLayoutInfo
-): MusicScrollbarGeometry {
-    val total = layoutInfo.totalItemsCount
-    val shown = layoutInfo.visibleItemsInfo.size
-    val visible = shown > 0 && total > shown
-    val thumbFraction = if (total == 0 || shown == 0) {
-        1f
+/**
+ * Computes the scrollbar thumb geometry from [LazyListState] snapshot values.
+ * Returns null when the scrollbar should be hidden (no content, everything
+ * visible, or single item).
+ *
+ * Scroll progress is index + pixel-offset based so it tracks partial item
+ * scrolls smoothly.
+ */
+internal fun resolveMusicScrollbarThumb(
+    totalItemsCount: Int,
+    firstVisibleItemIndex: Int,
+    firstVisibleItemScrollOffset: Int,
+    visibleItemsCount: Int,
+    averageItemSizePx: Float
+): MusicScrollbarThumb? {
+    if (totalItemsCount <= 0 || visibleItemsCount <= 0) return null
+    if (visibleItemsCount >= totalItemsCount) return null
+
+    val thumbFraction = (visibleItemsCount.toFloat() / totalItemsCount.toFloat())
+        .coerceIn(MusicScrollbarMinThumbFraction, 1f)
+    if (thumbFraction >= 1f) return null
+
+    val scrollRangeItems = (totalItemsCount - visibleItemsCount).coerceAtLeast(1)
+    val inItemProgress = if (averageItemSizePx > 0f) {
+        (firstVisibleItemScrollOffset / averageItemSizePx).coerceIn(0f, 1f)
     } else {
-        (shown.toFloat() / total.toFloat()).coerceIn(MusicScrollbarMinThumbFraction, 1f)
-    }
-    val scrollRange = total - shown
-    val scrollFraction = if (total <= 1 || scrollRange <= 0) {
         0f
-    } else {
-        val first = layoutInfo.visibleItemsInfo.firstOrNull()
-        if (first == null) {
-            0f
-        } else {
-            // Continuous position = item index + in-item scroll progress. The
-            // first visible item's offset is <= 0 while scrolling into it, so
-            // the consumed fraction within that item is -offset / itemSize.
-            val itemSize = first.size.coerceAtLeast(1)
-            val inItemProgress = (-first.offset.toFloat() / itemSize).coerceIn(0f, 1f)
-            val position = first.index + inItemProgress
-            (position / scrollRange).coerceIn(0f, 1f)
-        }
     }
-    return MusicScrollbarGeometry(visible, thumbFraction, scrollFraction)
+    val position = firstVisibleItemIndex + inItemProgress
+    val scrollFraction = (position / scrollRangeItems).coerceIn(0f, 1f)
+
+    return MusicScrollbarThumb(thumbFraction = thumbFraction, scrollFraction = scrollFraction)
 }
 
 /**
  * Display-only (non-draggable) scrollbar for a [LazyColumn], driven by
- * [LazyListState]. The thumb size reflects the visible/total ratio and its
- * position reflects scroll progress (index + pixel offset based, so it tracks
- * partial item scrolls smoothly). Hidden automatically when the content fits
- * the viewport. Geometry is computed in one derivedStateOf, so only the thumb
- * recomposes on scroll — once per frame at most.
+ * [LazyListState]. Rendered with [androidx.compose.ui.draw.drawBehind] so a
+ * scroll frame only redraws the thumb — no recomposition, no layout, no
+ * subcomposition (the previous implementation re-entered `BoxWithConstraints`
+ * on every scroll frame). Hidden automatically when the content fits the
+ * viewport.
  */
 @Composable
 internal fun MusicScrollbar(
@@ -91,22 +91,39 @@ internal fun MusicScrollbar(
     enabled: Boolean = true
 ) {
     if (!enabled) return
-    val geometry by remember(state) {
-        derivedStateOf { resolveMusicScrollbarGeometry(state.layoutInfo) }
-    }
-    if (geometry.visible && geometry.thumbFraction < 1f) {
-        BoxWithConstraints(modifier = modifier.fillMaxHeight()) {
-            val trackHeight = maxHeight
-            val thumbHeight = trackHeight * geometry.thumbFraction
-            val offsetY = (trackHeight - thumbHeight) * geometry.scrollFraction
-            Box(
-                modifier = Modifier
-                    .offset(y = offsetY)
-                    .height(thumbHeight)
-                    .width(MusicScrollbarThickness)
-                    .clip(NordicShapes.full)
-                    .background(color)
-            )
-        }
-    }
+    val thumbWidth = MusicScrollbarThickness
+    val clipShape = NordicShapes.full
+
+    Box(
+        modifier
+            .fillMaxHeight()
+            .width(thumbWidth)
+            .drawBehind {
+                val layoutInfo = state.layoutInfo
+                val visibleItems = layoutInfo.visibleItemsInfo
+                if (visibleItems.isEmpty()) return@drawBehind
+                val averageItemSizePx = visibleItems
+                    .fold(0f) { acc, item -> acc + item.size } / visibleItems.size.toFloat()
+                if (averageItemSizePx <= 0f) return@drawBehind
+                val thumb = resolveMusicScrollbarThumb(
+                    totalItemsCount = layoutInfo.totalItemsCount,
+                    firstVisibleItemIndex = state.firstVisibleItemIndex,
+                    firstVisibleItemScrollOffset = state.firstVisibleItemScrollOffset,
+                    visibleItemsCount = visibleItems.size,
+                    averageItemSizePx = averageItemSizePx
+                ) ?: return@drawBehind
+
+                val trackHeight = size.height
+                val thumbHeight = trackHeight * thumb.thumbFraction
+                val offsetY = ((trackHeight - thumbHeight) * thumb.scrollFraction).roundToInt().toFloat()
+                val radius = thumbWidth.toPx() / 2f
+                drawRoundRect(
+                    color = color,
+                    topLeft = Offset(0f, offsetY),
+                    size = Size(thumbWidth.toPx(), thumbHeight),
+                    cornerRadius = CornerRadius(radius, radius)
+                )
+            }
+            .clip(clipShape)
+    )
 }
