@@ -410,9 +410,15 @@ fun VideoPlaybackEngine.cycleAspectRatio()
 internal fun resolveNextAspectRatioMode(current: AspectRatioMode): AspectRatioMode
 internal fun resolveVideoAspectRatio(width: Int, height: Int, pixelWidthHeightRatio: Float): Float
 
+internal fun resolveVideoOrientationRequest(
+    showVideoPlayer: Boolean,
+    lockedLandscape: Boolean
+): Int
+
 fun VideoPlayerScreen(
     onCycleAspectRatio: () -> Unit,
     onToggleFullscreen: () -> Unit,
+    onToggleOrientation: () -> Unit,
     isFullscreen: Boolean
 )
 ```
@@ -428,8 +434,10 @@ fun VideoPlayerScreen(
   - `FILL` -> `RESIZE_MODE_FILL`
 - The `SurfaceView` child must explicitly fill the `AspectRatioFrameLayout`.
 - Fullscreen state belongs to the app shell because it controls system bars and requested orientation. `VideoPlayerScreen` receives `isFullscreen` and callbacks, but does not mutate Activity window state directly.
-- Fullscreen hides system bars with transient swipe behavior and requests sensor landscape. Leaving fullscreen restores system bars and `SCREEN_ORIENTATION_UNSPECIFIED`.
+- Orientation follows the manual-lock model: gravity never rotates playback. While the video player is visible the orientation is always locked (`resolveVideoOrientationRequest(showVideoPlayer, lockedLandscape)` in `MainActivity.kt`): portrait lock by default outside fullscreen, landscape lock when entering fullscreen. The player controls row exposes a `ScreenRotation` button (`onToggleOrientation`) that swaps landscape/portrait at any time. Closing the player restores `SCREEN_ORIENTATION_UNSPECIFIED`.
+- Fullscreen hides system bars with transient swipe behavior. Leaving fullscreen restores system bars.
 - The Activity manifest must handle orientation/screen-size config changes when fullscreen orientation locking is used.
+- The player controls row uses fixed-width chrome buttons and must be wrapped in `horizontalScroll(rememberScrollState())`; on narrow portrait screens the row overflows and trailing buttons (orientation, fullscreen) would be clipped off-screen without it.
 
 ### 4. Validation & Error Matrix
 - `width <= 0` or `height <= 0` -> publish `16f / 9f`.
@@ -440,19 +448,27 @@ fun VideoPlayerScreen(
 - Back pressed while fullscreen -> exit fullscreen before closing video playback.
 - Video player closed while fullscreen -> reset fullscreen state and restore system bars/orientation.
 - `MainScreen` disposed while fullscreen -> restore system bars/orientation in `onDispose`.
+- Player visible with `lockedLandscape = true` -> `SCREEN_ORIENTATION_LANDSCAPE` (no sensor flip).
+- Player visible with `lockedLandscape = false` -> `SCREEN_ORIENTATION_PORTRAIT` (no sensor flip).
+- Player closed -> `SCREEN_ORIENTATION_UNSPECIFIED` (system/gravity control restored).
+- Entering fullscreen -> default to `lockedLandscape = true`; exiting fullscreen -> default to `lockedLandscape = false`; the orientation button can swap either state afterwards.
 
 ### 5. Good/Base/Bad Cases
 - Good: A 4:3 video reports pixel-adjusted aspect ratio and renders without horizontal stretching in `FIT`.
 - Good: User can cycle Fit -> Crop -> Fill -> Fit without replacing the Media3 item or seeking.
 - Good: Fullscreen removes app/system chrome and landscape-locks playback, then cleanly restores portrait-capable app UI on exit.
+- Good: User watching in bed taps the rotation button to flip landscape 180° via portrait lock instead of the sensor flipping the picture.
 - Base: Unknown video dimensions render as 16:9 until Media3 reports a real size.
 - Bad: Compose keeps a local aspect-ratio mode that diverges from `VideoPlaybackState`.
 - Bad: `SurfaceView` is added without match-parent layout params and renders smaller than the frame.
 - Bad: Fullscreen directly manipulates Activity state from `VideoPlayerScreen`, making the composable hard to test and reuse.
+- Bad: Player controls row is not horizontally scrollable, so trailing buttons are clipped off-screen in portrait.
+- Bad: Orientation uses `SENSOR_LANDSCAPE`/`UNSPECIFIED` while the player is visible, letting gravity rotate playback against the manual-lock contract.
 
 ### 6. Tests Required
 - Unit test `resolveNextAspectRatioMode(...)` for Fit -> Crop -> Fill -> Fit.
 - Unit test `resolveVideoAspectRatio(...)` for pixel-ratio application, invalid dimensions, and invalid pixel ratio.
+- Unit test `resolveVideoOrientationRequest(...)` for portrait default outside fullscreen, landscape when toggled, and system control when the player is closed.
 - Compile check for Media3 `AspectRatioFrameLayout` API usage and callback wiring.
 - Lint and debug assemble when manifest config changes or fullscreen system UI handling changes.
 

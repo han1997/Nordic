@@ -1967,3 +1967,15 @@ Playback logic tests should isolate pure calculations where possible, as in `app
 - Or use a single non-concurrent path for the order-sensitive assertion and a separate concurrent-path test with identical fixtures for the parallelism assertion.
 
 **Detection signal**: if a test that was green before parallelization becomes flaky (passes 10× then fails once) after the production code changed from a `for (item in list)` sequential loop to `list.map { async { } }.awaitAll()`, this is almost certainly the FIFO-vs-completion-order mismatch. Fix the test assertions, do not revert the parallelization.
+
+### Mixing Compose library versions that the BOM did not certify together
+
+**Don't**: Assume any `material3` version pairs safely with the resolved `animation-core`/`foundation` versions. Compose libraries call each other across module boundaries with exact JVM descriptors, and covariant return-type changes (e.g. `KeyframesSpecConfig.at(...)` returning `KeyframesSpec$KeyframeEntity` in animation-core 1.7+ vs erased `KeyframeBaseEntity` in 1.6.x) are binary-incompatible in both directions even when source code compiles cleanly.
+
+**Why**: A source-level dependency graph that compiles fine can still crash at runtime with `NoSuchMethodError` inside Material internals (e.g. `LinearProgressIndicator` → keyframes builder) the first time a code path renders. The Video tab media-library chip tap triggered `MediaLoadingCard`, so a "dependency problem" surfaced as "tapping a library chip crashes the app". Rebuilding/reinstalling does NOT fix it — the broken pair ships in every APK until the version pair changes.
+
+**Do**:
+- When overriding a BOM-provided version (e.g. pinning `material3:1.2.1` over BOM 2024.01.00's resolved 1.1.2), verify the pinned version was *compiled against* the compose version actually resolved in the graph (material3 1.2.x ↔ compose 1.6.x ✔; material3 1.1.2 expects animation-core 1.7+ covariant signatures ✘).
+- Confirm with `javap -c` on the library's classes: the caller's `invokevirtual` descriptor must exist verbatim in the resolved dependency. Example evidence: m3 1.1.2 calls `at:(Ljava/lang/Object;I)Landroidx/compose/animation/core/KeyframesSpec$KeyframeEntity;` while animation-core 1.6.0 only declares `at:(Ljava/lang/Object;I)Landroidx/compose/animation/core/KeyframeBaseEntity;`.
+- When a runtime `NoSuchMethodError`/`NoClassDefFoundError` points at androidx.compose internals, check version pairing FIRST before suspecting app code.
+- Beware a corrupted local Gradle metadata cache constraining a BOM to a version the real BOM pom does not map (symptom: `dependencies` reports a pair known to be incompatible). Pin the needed version explicitly and move on; report the anomaly.
