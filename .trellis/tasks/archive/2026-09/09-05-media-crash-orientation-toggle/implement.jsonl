@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Spec index + verification commands (compile/test/lint gradle invocations)"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Where to place modified code: data repository vs ui components vs MainActivity shell"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Emby item listing/pagination contract + Video Playback Display Modes and Fullscreen scenario (fullscreen state owned by app shell; orientation contract to be updated for manual lock)"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Repository typed-exception conventions when touching getLibraryItems pagination/dedup"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Shared UI components + cache semantics + known anti-patterns review checklist"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Cross-Domain Media Cache Refresh scenario governs library-switch refresh flow being changed"}
+{"file": ".trellis/tasks/09-05-media-crash-orientation-toggle/prd.md", "reason": "Confirmed root cause chain (javap evidence), R0 dependency pin, R1 robustness, R2 orientation lock decisions"}

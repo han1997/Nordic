@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Spec index + full verification gate (compileDebugKotlin + testDebugUnitTest + lintDebug)"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Verify pagination/dedup against Emby listing contract; fullscreen/orientation contract compliance after manual-lock change"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Quality review checklist for shared components and cache semantics"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Typed exception boundaries in repository changes"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Cache refresh flow isolation rules (library-switch guard must not break cache persistence)"}
+{"file": ".trellis/tasks/09-05-media-crash-orientation-toggle/prd.md", "reason": "Acceptance criteria incl. dependency pin verification and unit-test expectations"}
