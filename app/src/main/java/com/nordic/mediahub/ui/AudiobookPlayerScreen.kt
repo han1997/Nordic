@@ -1,7 +1,12 @@
 package com.nordic.mediahub.ui
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -13,54 +18,80 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Bedtime
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay30
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nordic.mediahub.data.AudiobookBookmark
 import com.nordic.mediahub.data.AudiobookChapter
 import com.nordic.mediahub.playback.AudiobookPlaybackState
 import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicMotion
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
+import kotlinx.coroutines.launch
 
+private const val AUDIOBOOK_SWIPE_DISMISS_THRESHOLD_RATIO = 0.25f
+private const val AUDIOBOOK_SWIPE_DISMISS_MAX_SCALE_DOWN = 0.04f
+private const val AUDIOBOOK_SWIPE_DISMISS_MAX_ALPHA_DECAY = 0.6f
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AudiobookPlayerScreen(
     state: AudiobookPlaybackState,
     colorScheme: ColorScheme,
     externalError: String? = null,
+    bookmarks: List<AudiobookBookmark> = emptyList(),
+    onAddBookmark: () -> Unit = {},
+    onDeleteBookmark: (String) -> Unit = {},
+    onSetSleepTimer: (Int, Boolean) -> Unit = { _, _ -> },
+    onCancelSleepTimer: () -> Unit = {},
     onSeek: (Int) -> Unit,
     onSeekBack: () -> Unit = {},
     onSeekForward: () -> Unit = {},
@@ -68,11 +99,14 @@ fun AudiobookPlayerScreen(
     onSeekToNextChapter: () -> Unit = {},
     onCyclePlaybackSpeed: () -> Unit = {},
     onPlayPause: () -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onCloseAnyway: () -> Unit = {}
 ) {
     val session = state.session
     val duration = state.durationSeconds.coerceAtLeast(1)
     var scrubPosition by remember(session?.sessionId) { mutableStateOf<Float?>(null) }
+    var showBookmarks by remember(session?.sessionId) { mutableStateOf(false) }
+    var showSleepTimer by remember(session?.sessionId) { mutableStateOf(false) }
     val visiblePosition = scrubPosition ?: state.positionSeconds.toFloat()
     val errorMessage = externalError ?: state.errorMessage
     val chapterNavigationEnabled = session != null && state.chapters.isNotEmpty()
@@ -111,19 +145,86 @@ fun AudiobookPlayerScreen(
         val topPadding = statusTopPadding + if (compact) NordicSpacing.sm else NordicSpacing.md
         val bottomPadding = if (compact) NordicSpacing.md else NordicSpacing.lg
         val sectionGap = NordicSpacing.md
+        val screenHeightPx = with(LocalDensity.current) { maxHeight.toPx() }
+        val swipeThresholdPx = screenHeightPx * AUDIOBOOK_SWIPE_DISMISS_THRESHOLD_RATIO
 
-        Column(
+        val dismissScope = rememberCoroutineScope()
+        val dragYState = remember { mutableFloatStateOf(0f) }
+        val animatedDismiss = remember { Animatable(0f) }
+        var isDismissing by remember { mutableStateOf(false) }
+
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .navigationBarsPadding()
-                .padding(
-                    start = sidePadding,
-                    top = topPadding,
-                    end = sidePadding,
-                    bottom = bottomPadding
-                ),
-            verticalArrangement = Arrangement.spacedBy(sectionGap)
+                .pointerInput(Unit) {
+                    detectVerticalDragGestures(
+                        onDragStart = {
+                            dragYState.floatValue = 0f
+                            isDismissing = false
+                            dismissScope.launch { animatedDismiss.snapTo(0f) }
+                        },
+                        onDragEnd = {
+                            val accumulated = dragYState.floatValue
+                            dragYState.floatValue = 0f
+                            if (accumulated >= swipeThresholdPx) {
+                                isDismissing = true
+                                dismissScope.launch {
+                                    animatedDismiss.snapTo(accumulated)
+                                    animatedDismiss.animateTo(
+                                        targetValue = screenHeightPx,
+                                        animationSpec = tween(
+                                            NordicMotion.durationShort,
+                                            easing = NordicMotion.easingStandard
+                                        )
+                                    )
+                                    onClose()
+                                }
+                            } else if (accumulated > 0f) {
+                                dismissScope.launch {
+                                    animatedDismiss.snapTo(accumulated)
+                                    animatedDismiss.animateTo(
+                                        targetValue = 0f,
+                                        animationSpec = spring(
+                                            dampingRatio = Spring.DampingRatioNoBouncy,
+                                            stiffness = Spring.StiffnessMedium
+                                        )
+                                    )
+                                }
+                            }
+                        },
+                        onDragCancel = {
+                            dragYState.floatValue = 0f
+                            isDismissing = false
+                            dismissScope.launch { animatedDismiss.snapTo(0f) }
+                        }
+                    ) { change, dragAmountY ->
+                        change.consume()
+                        val next = (dragYState.floatValue + dragAmountY).coerceAtLeast(0f)
+                        dragYState.floatValue = next
+                    }
+                }
+                .graphicsLayer {
+                    val live = if (isDismissing) animatedDismiss.value else dragYState.floatValue
+                    val progress = (live / screenHeightPx).coerceIn(0f, 1f)
+                    translationY = live
+                    val scale = 1f - AUDIOBOOK_SWIPE_DISMISS_MAX_SCALE_DOWN * progress
+                    scaleX = scale
+                    scaleY = scale
+                    alpha = 1f - AUDIOBOOK_SWIPE_DISMISS_MAX_ALPHA_DECAY * progress
+                }
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .navigationBarsPadding()
+                    .padding(
+                        start = sidePadding,
+                        top = topPadding,
+                        end = sidePadding,
+                        bottom = bottomPadding
+                    ),
+                verticalArrangement = Arrangement.spacedBy(sectionGap)
+            ) {
             AudiobookPlayerTopBar(colorScheme = colorScheme, onClose = onClose)
             AudiobookPrimaryDisplay(
                 title = session?.displayTitle ?: "有声书播放",
@@ -160,6 +261,24 @@ fun AudiobookPlayerScreen(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                if (errorMessage != null) {
+                    Surface(
+                        color = colorScheme.error.copy(alpha = 0.14f),
+                        contentColor = colorScheme.error,
+                        shape = NordicShapes.full,
+                        border = BorderStroke(1.dp, colorScheme.error.copy(alpha = 0.24f)),
+                        modifier = Modifier.clickable(onClick = onCloseAnyway)
+                    ) {
+                        Text(
+                            "仍要关闭",
+                            modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.sm),
+                            color = colorScheme.error,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1
+                        )
+                    }
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
                     MetaChip(formatDuration(duration), colorScheme)
                     MetaChip(
@@ -189,20 +308,18 @@ fun AudiobookPlayerScreen(
                     ),
                     verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
                 ) {
-                    Slider(
-                        value = visiblePosition.coerceIn(0f, duration.toFloat()),
-                        onValueChange = { scrubPosition = it },
-                        onValueChangeFinished = {
+                    PlayerThinSlider(
+                        position = visiblePosition.coerceIn(0f, duration.toFloat()),
+                        duration = duration,
+                        colorScheme = colorScheme,
+                        enabled = playbackControlsEnabled,
+                        onPositionChange = { scrubPosition = it },
+                        onPositionChangeFinished = {
                             val target = scrubPosition ?: visiblePosition
                             onSeek(target.toInt())
                             scrubPosition = null
                         },
-                        valueRange = 0f..duration.toFloat(),
-                        colors = SliderDefaults.colors(
-                            thumbColor = colorScheme.primary,
-                            activeTrackColor = colorScheme.primary,
-                            inactiveTrackColor = colorScheme.onSurface.copy(alpha = 0.13f)
-                        )
+                        onPositionChangeCanceled = { scrubPosition = null }
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -259,7 +376,7 @@ fun AudiobookPlayerScreen(
                             enabled = playbackControlsEnabled,
                             onClick = onSeekForward
                         )
-                        Spacer(Modifier.size(NordicSpacing.sm))
+Spacer(Modifier.size(NordicSpacing.sm))
                         AudiobookControlButton(
                             icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             contentDescription = "下一章节",
@@ -268,7 +385,412 @@ fun AudiobookPlayerScreen(
                             enabled = chapterNavigationEnabled,
                             onClick = onSeekToNextChapter
                         )
+                        Spacer(Modifier.size(NordicSpacing.sm))
+                        AudiobookControlButton(
+                            icon = Icons.Filled.BookmarkBorder,
+                            contentDescription = "书签",
+                            colorScheme = colorScheme,
+                            compact = compact,
+                            enabled = playbackControlsEnabled,
+                            onClick = { showBookmarks = true }
+                        )
+                        Spacer(Modifier.size(NordicSpacing.sm))
+                        AudiobookControlButton(
+                            icon = Icons.Filled.Bedtime,
+                            contentDescription = "睡眠定时器",
+                            colorScheme = colorScheme,
+                            compact = compact,
+                            enabled = playbackControlsEnabled,
+                            onClick = { showSleepTimer = true }
+                        )
                     }
+                }
+            }
+            }
+        }
+    }
+
+    if (showBookmarks) {
+        AudiobookBookmarkSheet(
+            bookmarks = bookmarks,
+            colorScheme = colorScheme,
+            currentPositionSeconds = state.positionSeconds,
+            onAddBookmark = onAddBookmark,
+            onJumpTo = { position ->
+                showBookmarks = false
+                onSeek(position)
+            },
+            onDelete = { bookmarkId ->
+                onDeleteBookmark(bookmarkId)
+            },
+            onDismiss = { showBookmarks = false }
+        )
+    }
+
+    if (showSleepTimer) {
+        AudiobookSleepTimerSheet(
+            sleepTimerRemainingSeconds = state.sleepTimerRemainingSeconds,
+            sleepTimerAtChapterEnd = state.sleepTimerAtChapterEnd,
+            colorScheme = colorScheme,
+            onSet = { minutes, atChapterEnd ->
+                onSetSleepTimer(minutes, atChapterEnd)
+                showSleepTimer = false
+            },
+            onCancel = {
+                onCancelSleepTimer()
+                showSleepTimer = false
+            },
+            onDismiss = { showSleepTimer = false }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AudiobookSleepTimerSheet(
+    sleepTimerRemainingSeconds: Int?,
+    sleepTimerAtChapterEnd: Boolean,
+    colorScheme: ColorScheme,
+    onSet: (Int, Boolean) -> Unit,
+    onCancel: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val options = listOf(
+        "关闭" to (null to null),
+        "10 分钟" to (10 to false),
+        "20 分钟" to (20 to false),
+        "30 分钟" to (30 to false),
+        "45 分钟" to (45 to false),
+        "60 分钟" to (60 to false),
+        "本章结束" to (null to true)
+    )
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = colorScheme.surface,
+        shape = NordicShapes.xl,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = NordicSpacing.lg)
+                .padding(bottom = NordicSpacing.xxl),
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
+                    Text(
+                        "睡眠定时器",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = colorScheme.onSurface
+                    )
+                    Text(
+                        sleepTimerRemainingLabel(
+                            sleepTimerRemainingSeconds = sleepTimerRemainingSeconds,
+                            atChapterEnd = sleepTimerAtChapterEnd
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
+                    )
+                }
+                AudiobookControlButton(
+                    icon = Icons.Filled.Close,
+                    contentDescription = "关闭",
+                    colorScheme = colorScheme,
+                    compact = false,
+                    enabled = true,
+                    onClick = onDismiss
+                )
+            }
+
+            options.forEach { (label, value) ->
+                val (minutes, atChapterEnd) = value
+                val selected = if (minutes == null && atChapterEnd == null) {
+                    sleepTimerRemainingSeconds == null && !sleepTimerAtChapterEnd
+                } else if (atChapterEnd == true) {
+                    sleepTimerAtChapterEnd
+                } else {
+                    // Highlight the minute option whose countdown is still running
+                    // (remaining rounded up to whole minutes matches the option).
+                    val minutesOfRemaining = minutes?.let { m ->
+                        val remaining = sleepTimerRemainingSeconds
+                        if (!sleepTimerAtChapterEnd && remaining != null && remaining > 0) {
+                            kotlin.math.ceil(remaining / 60.0).toInt() == m
+                        } else {
+                            false
+                        }
+                    } ?: false
+                    minutesOfRemaining
+                }
+                Surface(
+                    color = if (selected) {
+                        colorScheme.primary.copy(alpha = 0.16f)
+                    } else {
+                        colorScheme.surfaceVariant.copy(alpha = 0.42f)
+                    },
+                    contentColor = colorScheme.onSurface,
+                    shape = NordicShapes.md,
+                    border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            if (minutes == null && atChapterEnd == null) {
+                                onCancel()
+                            } else {
+                                onSet(minutes ?: 0, atChapterEnd == true)
+                            }
+                        }
+                ) {
+                    Box(
+                        modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.md)
+                    ) {
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = if (selected) colorScheme.primary else colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+internal fun sleepTimerRemainingLabel(
+    sleepTimerRemainingSeconds: Int?,
+    atChapterEnd: Boolean
+): String {
+    val remaining = sleepTimerRemainingSeconds
+    if (remaining != null && remaining <= 0) return "已停止"
+    if (atChapterEnd) return "将在当前章节结束时停止"
+    val countdown = remaining ?: return "未开启"
+    val minutes = countdown / 60
+    val seconds = countdown % 60
+    return if (minutes > 0) {
+        "${minutes}分${seconds}秒后停止"
+    } else {
+        "${seconds}秒后停止"
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AudiobookBookmarkSheet(
+    bookmarks: List<AudiobookBookmark>,
+    colorScheme: ColorScheme,
+    currentPositionSeconds: Int,
+    onAddBookmark: () -> Unit,
+    onJumpTo: (Int) -> Unit,
+    onDelete: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = colorScheme.surface,
+        shape = NordicShapes.xl,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = NordicSpacing.lg)
+                .padding(bottom = NordicSpacing.xxl),
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
+                    Text(
+                        "书签",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = colorScheme.onSurface
+                    )
+                    Text(
+                        "${bookmarks.size} 个书签",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
+                    )
+                }
+                AudiobookControlButton(
+                    icon = Icons.Filled.Close,
+                    contentDescription = "关闭书签",
+                    colorScheme = colorScheme,
+                    compact = false,
+                    enabled = true,
+                    onClick = onDismiss
+                )
+            }
+
+            Surface(
+                color = colorScheme.primary.copy(alpha = 0.16f),
+                contentColor = colorScheme.primary,
+                shape = NordicShapes.full,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onAddBookmark)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.md),
+                    horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Bookmark,
+                        contentDescription = null,
+                        tint = colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        "在当前进度添加书签",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 420.dp)
+            ) {
+                if (bookmarks.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = NordicSpacing.xxl),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.BookmarkBorder,
+                                contentDescription = null,
+                                tint = colorScheme.primary.copy(alpha = NordicAlpha.medium),
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Text(
+                                "暂无书签，点击播放器中的书签按钮在当前进度添加",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
+                                textAlign = TextAlign.Center,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
+                    ) {
+                        itemsIndexed(
+                            items = bookmarks,
+                            key = { index, bookmark -> "${bookmark.id}:$index" },
+                            contentType = { _, _ -> "audiobook-bookmark-row" }
+                        ) { _, bookmark ->
+                            val isAtBookmark =
+                                kotlin.math.abs(currentPositionSeconds - bookmark.positionSeconds) <= 2
+                            AudiobookBookmarkRow(
+                                bookmark = bookmark,
+                                colorScheme = colorScheme,
+                                isCurrent = isAtBookmark,
+                                onClick = { onJumpTo(bookmark.positionSeconds) },
+                                onDelete = { onDelete(bookmark.id) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AudiobookBookmarkRow(
+    bookmark: AudiobookBookmark,
+    colorScheme: ColorScheme,
+    isCurrent: Boolean,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Surface(
+        color = if (isCurrent) {
+            colorScheme.primary.copy(alpha = 0.14f)
+        } else {
+            colorScheme.surfaceVariant.copy(alpha = 0.42f)
+        },
+        shape = NordicShapes.md,
+        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.md),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Bookmark,
+                contentDescription = null,
+                tint = if (isCurrent) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.size(NordicSpacing.md))
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
+            ) {
+                Text(
+                    bookmark.label.takeIf { it.isNotBlank() } ?: "书签",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    formatDuration(bookmark.positionSeconds),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Normal,
+                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
+                    maxLines = 1
+                )
+            }
+            Spacer(Modifier.size(NordicSpacing.sm))
+            Surface(
+                color = colorScheme.error.copy(alpha = 0.14f),
+                contentColor = colorScheme.error,
+                shape = NordicShapes.full,
+                modifier = Modifier
+                    .size(34.dp)
+                    .clickable(onClick = onDelete)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "删除书签",
+                        tint = colorScheme.error,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
         }

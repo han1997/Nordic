@@ -263,6 +263,90 @@ class AudiobookPlaybackEngineTest {
         assertEquals(0.75f, resolveNextAudiobookPlaybackSpeed(2.2f), 0.001f)
     }
 
+    @Test
+    fun resolveAudiobookDurationSeconds_sumsTrackDurations() {
+        val tracks = listOf(
+            track(index = 0, startOffsetSeconds = 0),
+            track(index = 1, startOffsetSeconds = 120)
+        )
+
+        assertEquals(240, resolveAudiobookDurationSeconds(tracks = tracks, sessionDurationSeconds = 0))
+    }
+
+    @Test
+    fun resolveAudiobookDurationSeconds_usesSumEvenWhenServerDurationDiffers() {
+        val tracks = listOf(
+            track(index = 0, startOffsetSeconds = 0),
+            track(index = 1, startOffsetSeconds = 120)
+        )
+
+        // Server reports a shorter duration than the actual summed audio tracks.
+        assertEquals(240, resolveAudiobookDurationSeconds(tracks = tracks, sessionDurationSeconds = 200))
+    }
+
+    @Test
+    fun resolveAudiobookDurationSeconds_fallsBackToSessionDurationWhenTracksEmpty() {
+        assertEquals(300, resolveAudiobookDurationSeconds(tracks = emptyList(), sessionDurationSeconds = 300))
+    }
+
+    @Test
+    fun resolveAudiobookDurationSeconds_usesSessionDurationWhenTracksSumIsZero() {
+        val zeroTracks = listOf(
+            AudiobookAudioTrack(
+                index = 0,
+                title = "Track 0",
+                contentUrl = "https://example.test/0.mp3",
+                startOffsetSeconds = 0,
+                durationSeconds = 0
+            )
+        )
+
+        assertEquals(120, resolveAudiobookDurationSeconds(tracks = zeroTracks, sessionDurationSeconds = 120))
+    }
+
+    @Test
+    fun resolveAudiobookDurationSeconds_returnsZeroWhenNothingKnown() {
+        assertEquals(0, resolveAudiobookDurationSeconds(tracks = emptyList(), sessionDurationSeconds = -10))
+    }
+
+    @Test
+    fun resolveSleepTimerChapterEndSeconds_usesChapterContainingPosition() {
+        val chapters = chapters()
+        assertEquals(119, resolveSleepTimerChapterEndSeconds(chapters, positionSeconds = 0))
+        assertEquals(119, resolveSleepTimerChapterEndSeconds(chapters, positionSeconds = 100))
+        assertEquals(239, resolveSleepTimerChapterEndSeconds(chapters, positionSeconds = 120))
+        assertEquals(360, resolveSleepTimerChapterEndSeconds(chapters, positionSeconds = 300))
+    }
+
+    @Test
+    fun resolveSleepTimerChapterEndSeconds_sortsUnorderedChaptersByStart() {
+        val unordered = listOf(
+            chapter(3, startSeconds = 240, endSeconds = 360),
+            chapter(1, startSeconds = 0, endSeconds = 119),
+            chapter(2, startSeconds = 120, endSeconds = 239)
+        )
+        assertEquals(239, resolveSleepTimerChapterEndSeconds(unordered, positionSeconds = 150))
+    }
+
+    @Test
+    fun resolveSleepTimerChapterEndSeconds_returnsNullWhenNoUsableChapter() {
+        assertEquals(null, resolveSleepTimerChapterEndSeconds(chapters = emptyList(), positionSeconds = 100))
+        assertEquals(
+            null,
+            resolveSleepTimerChapterEndSeconds(
+                chapters = listOf(chapter(1, startSeconds = 0, endSeconds = 0)),
+                positionSeconds = 100
+            )
+        )
+        assertEquals(
+            null,
+            resolveSleepTimerChapterEndSeconds(
+                chapters = listOf(chapter(1, startSeconds = 0, endSeconds = -1)),
+                positionSeconds = -5
+            )
+        )
+    }
+
     private fun track(index: Int, startOffsetSeconds: Int): AudiobookAudioTrack {
         return AudiobookAudioTrack(
             index = index,

@@ -151,6 +151,23 @@ internal fun VideoSpotlightSections(
     colorScheme: ColorScheme,
     onVideoSelected: (VideoItem) -> Unit
 ) {
+    if (continueWatching.isEmpty() && topRated.isEmpty() && unplayed.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = NordicSpacing.sm),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                "暂无推荐",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Normal,
+                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
+            )
+        }
+        return
+    }
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(NordicSpacing.lg)

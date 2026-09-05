@@ -30,6 +30,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 private const val AUDIOBOOK_SKIP_INTERVAL_SECONDS = 30
+private const val SLEEP_TIMER_CHAPTER_END_FALLBACK_SECONDS = 15 * 60
 private val AUDIOBOOK_PLAYBACK_SPEEDS = listOf(0.75f, 1f, 1.25f, 1.5f, 2f)
 
 internal data class AudiobookTrackSeekPosition(
@@ -45,6 +46,8 @@ data class AudiobookPlaybackState(
     val durationSeconds: Int = 0,
     val playbackSpeed: Float = 1f,
     val chapters: List<AudiobookChapter> = emptyList(),
+    val sleepTimerRemainingSeconds: Int? = null,
+    val sleepTimerAtChapterEnd: Boolean = false,
     val errorMessage: String? = null
 )
 
@@ -59,6 +62,7 @@ class AudiobookPlaybackEngine(context: Context) {
     private var controller: MediaController? = null
     private var pendingSession: AudiobookPlaybackSession? = null
     private var positionUpdateJob: Job? = null
+    private var sleepTimerJob: Job? = null
 
     private val controllerListener = object : MediaController.Listener {
         override fun onDisconnected(controller: MediaController) {
@@ -148,7 +152,7 @@ class AudiobookPlaybackEngine(context: Context) {
             _state.value = AudiobookPlaybackState(
                 session = session,
                 chapters = session.chapters,
-                durationSeconds = session.durationSeconds,
+                durationSeconds = resolveAudiobookDurationSeconds(session.audioTracks, session.durationSeconds),
                 errorMessage = "没有可播放音轨"
             )
             return
@@ -162,7 +166,7 @@ class AudiobookPlaybackEngine(context: Context) {
             _state.value = AudiobookPlaybackState(
                 session = session,
                 isBuffering = true,
-                durationSeconds = session.durationSeconds,
+                durationSeconds = resolveAudiobookDurationSeconds(session.audioTracks, session.durationSeconds),
                 chapters = session.chapters
             )
             return
@@ -179,7 +183,7 @@ class AudiobookPlaybackEngine(context: Context) {
         _state.value = AudiobookPlaybackState(
             session = session,
             isBuffering = true,
-            durationSeconds = session.durationSeconds,
+            durationSeconds = resolveAudiobookDurationSeconds(session.audioTracks, session.durationSeconds),
             chapters = session.chapters
         )
         publishPlayerState()
@@ -238,8 +242,56 @@ class AudiobookPlaybackEngine(context: Context) {
         publishPlayerState()
     }
 
+    /**
+     * Starts a sleep timer. When [atChapterEnd] is true the timer stops playback
+     * at the end of the chapter the listener is currently in, falling back to a
+     * default [SLEEP_TIMER_CHAPTER_END_FALLBACK_SECONDS] countdown when the book
+     * has no usable chapter metadata. Otherwise it counts down [minutes] and stops.
+     * A [minutes] <= 0 without [atChapterEnd] stops playback immediately.
+     */
+    fun setSleepTimer(minutes: Int, atChapterEnd: Boolean = false) {
+        cancelSleepTimer()
+        if (minutes <= 0 && !atChapterEnd) {
+            pauseForSleepTimer()
+            _state.update { it.copy(sleepTimerRemainingSeconds = null, sleepTimerAtChapterEnd = false) }
+            return
+        }
+
+        if (atChapterEnd) {
+            _state.update { it.copy(sleepTimerRemainingSeconds = null, sleepTimerAtChapterEnd = true) }
+            sleepTimerJob = scope.launch {
+                val chapters = _state.value.chapters
+                val position = _state.value.positionSeconds
+                // Stop at the end of the chapter the listener is currently in.
+                val currentChapterEnd = resolveSleepTimerChapterEndSeconds(chapters, position)
+                if (currentChapterEnd == null) {
+                    runSleepTimerCountdown(totalSeconds = SLEEP_TIMER_CHAPTER_END_FALLBACK_SECONDS)
+                } else {
+                    while (isActive) {
+                        if (_state.value.session == null) break
+                        if (_state.value.positionSeconds >= currentChapterEnd) {
+                            pauseForSleepTimer()
+                            break
+                        }
+                        delay(1000)
+                    }
+                }
+            }
+        } else {
+            runSleepTimerCountdown(minutes)
+        }
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        _state.update { it.copy(sleepTimerRemainingSeconds = null, sleepTimerAtChapterEnd = false) }
+    }
+
     fun stop() {
         stopPositionUpdates()
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
         controller?.run {
             pause()
             stop()
@@ -249,8 +301,35 @@ class AudiobookPlaybackEngine(context: Context) {
         _state.value = AudiobookPlaybackState()
     }
 
+    private fun runSleepTimerCountdown(totalSeconds: Int) {
+        _state.update {
+            it.copy(sleepTimerRemainingSeconds = totalSeconds.coerceAtLeast(0), sleepTimerAtChapterEnd = false)
+        }
+        sleepTimerJob = scope.launch {
+            var remaining = totalSeconds.coerceAtLeast(0)
+            while (isActive) {
+                delay(1000)
+                if (_state.value.session == null) break
+                remaining -= 1
+                _state.update { it.copy(sleepTimerRemainingSeconds = remaining.coerceAtLeast(0)) }
+                if (remaining <= 0) {
+                    pauseForSleepTimer()
+                    break
+                }
+            }
+        }
+    }
+
+    private fun pauseForSleepTimer() {
+        controller?.pause()
+        _state.update { it.copy(sleepTimerRemainingSeconds = 0, isPlaying = false) }
+        publishPlayerState()
+    }
+
     fun release() {
         stopPositionUpdates()
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
         scope.cancel()
         controller?.removeListener(playerListener)
         MediaController.releaseFuture(controllerFuture)
@@ -291,7 +370,8 @@ class AudiobookPlaybackEngine(context: Context) {
                 isPlaying = activeController.isPlaying,
                 isBuffering = activeController.playbackState == Player.STATE_BUFFERING,
                 positionSeconds = currentAbsolutePosition,
-                durationSeconds = session.durationSeconds.coerceAtLeast(
+                durationSeconds = maxOf(
+                    resolveAudiobookDurationSeconds(session.audioTracks, session.durationSeconds),
                     (activeController.duration.takeIf { value -> value != C.TIME_UNSET }?.div(1000L)?.toInt()) ?: 0
                 ),
                 playbackSpeed = activeController.playbackParameters.speed,
@@ -425,6 +505,34 @@ internal fun resolveNextAudiobookPlaybackSpeed(
     } else {
         speeds.firstOrNull { speed -> speed > currentSpeed } ?: speeds.first()
     }
+}
+
+internal fun resolveAudiobookDurationSeconds(
+    tracks: List<AudiobookAudioTrack>,
+    sessionDurationSeconds: Int
+): Int {
+    val summed = tracks.sumOf { it.durationSeconds.coerceAtLeast(0) }
+    return if (summed > 0) summed else sessionDurationSeconds.coerceAtLeast(0)
+}
+
+/**
+ * Resolves the end-of-current-chapter target for the sleep-timer "本章结束"
+ * mode. Returns the end seconds of the chapter containing [positionSeconds]
+ * (by start timestamp order), or null when there is no usable chapter
+ * metadata. Chapters are resolved by sorted start seconds so server payloads
+ * that arrive unordered do not change which chapter boundary is chosen.
+ */
+internal fun resolveSleepTimerChapterEndSeconds(
+    chapters: List<AudiobookChapter>,
+    positionSeconds: Int
+): Int? {
+    if (chapters.isEmpty()) return null
+    val safePosition = positionSeconds.coerceAtLeast(0)
+    return chapters
+        .sortedBy { it.startSeconds }
+        .lastOrNull { chapter -> chapter.startSeconds <= safePosition }
+        ?.endSeconds
+        ?.takeIf { it > 0 }
 }
 
 private fun AudiobookAudioTrack.toMediaItem(session: AudiobookPlaybackSession): MediaItem {

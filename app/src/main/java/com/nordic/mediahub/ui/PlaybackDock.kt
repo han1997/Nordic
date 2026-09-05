@@ -70,11 +70,27 @@ private fun DockPlayPauseButton(
         }
     }
 }
+
+/**
+ * Generalized now-playing content shown in the bottom dock. A single active
+ * medium renders in the now-playing bar; music, audiobook, and video share the
+ * slot so the dock survives closing the full-screen player.
+ */
+internal sealed interface DockNowPlayingContent {
+    data class Music(val song: NavidromeSong) : DockNowPlayingContent
+    data class Audiobook(
+        val title: String,
+        val author: String?,
+        val coverUrl: String?
+    ) : DockNowPlayingContent
+    data class Video(val title: String) : DockNowPlayingContent
+}
+
 @Composable
 internal fun PolishedPlaybackDock(
     selected: Int,
     colorScheme: ColorScheme,
-    currentSong: NavidromeSong?,
+    nowPlaying: DockNowPlayingContent?,
     isPlaying: Boolean,
     playbackStatus: String? = null,
     onOpenPlayer: () -> Unit,
@@ -109,7 +125,7 @@ internal fun PolishedPlaybackDock(
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 PolishedNowPlayingBar(
-                    song = currentSong,
+                    nowPlaying = nowPlaying,
                     colorScheme = colorScheme,
                     isPlaying = isPlaying,
                     playbackStatus = playbackStatus,
@@ -252,7 +268,7 @@ internal fun PolishedNavItem(
 }
 @Composable
 internal fun PolishedNowPlayingBar(
-    song: NavidromeSong?,
+    nowPlaying: DockNowPlayingContent?,
     colorScheme: ColorScheme,
     isPlaying: Boolean,
     playbackStatus: String? = null,
@@ -267,6 +283,16 @@ internal fun PolishedNowPlayingBar(
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        val placeholderIcon: ImageVector = when (nowPlaying) {
+            is DockNowPlayingContent.Audiobook -> Icons.AutoMirrored.Filled.MenuBook
+            is DockNowPlayingContent.Video -> Icons.Filled.Movie
+            else -> Icons.Filled.MusicNote
+        }
+        val coverUrl = when (nowPlaying) {
+            is DockNowPlayingContent.Music -> nowPlaying.song.coverArt
+            is DockNowPlayingContent.Audiobook -> nowPlaying.coverUrl
+            else -> null
+        }
         Box(
             modifier = Modifier
                 .size(46.dp)
@@ -281,16 +307,20 @@ internal fun PolishedNowPlayingBar(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            if (song?.coverArt != null) {
+            if (coverUrl != null) {
                 AuthedAsyncImage(
-                    url = song.coverArt,
-                    contentDescription = song.title,
+                    url = coverUrl,
+                    contentDescription = when (nowPlaying) {
+                        is DockNowPlayingContent.Music -> nowPlaying.song.title
+                        is DockNowPlayingContent.Audiobook -> nowPlaying.title
+                        else -> null
+                    },
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.matchParentSize()
                 )
             } else {
                 Icon(
-                    imageVector = Icons.Filled.MusicNote,
+                    imageVector = placeholderIcon,
                     contentDescription = null,
                     tint = colorScheme.primary.copy(alpha = 0.72f),
                     modifier = Modifier.size(24.dp)
@@ -302,46 +332,40 @@ internal fun PolishedNowPlayingBar(
             Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
         ) {
-            if (song == null) {
-                Text(
-                    "播放队列",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            } else {
-                Text(
-                    song.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+            val title = when (nowPlaying) {
+                is DockNowPlayingContent.Music -> nowPlaying.song.title
+                is DockNowPlayingContent.Audiobook -> nowPlaying.title
+                is DockNowPlayingContent.Video -> nowPlaying.title
+                null -> "播放队列"
             }
-            if (song == null) {
-                Text(
-                    "等待播放",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Normal,
-                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            } else {
-                Text(
-                    playbackStatus ?: song.artist ?: song.album ?: "Unknown artist",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Normal,
-                    color = if (playbackStatus == null) {
-                        colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
-                    } else {
-                        colorScheme.primary.copy(alpha = 0.78f)
-                    },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                color = colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            val subtitle = when (nowPlaying) {
+                is DockNowPlayingContent.Music ->
+                    playbackStatus ?: nowPlaying.song.artist ?: nowPlaying.song.album ?: "Unknown artist"
+                is DockNowPlayingContent.Audiobook ->
+                    playbackStatus ?: nowPlaying.author?.takeIf { it.isNotBlank() } ?: "有声书"
+                is DockNowPlayingContent.Video ->
+                    playbackStatus ?: "视频"
+                null -> "等待播放"
             }
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Normal,
+                color = if (playbackStatus == null) {
+                    colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
+                } else {
+                    colorScheme.primary.copy(alpha = 0.78f)
+                },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
         DockPlayPauseButton(
             isPlaying = isPlaying,

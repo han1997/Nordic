@@ -3,6 +3,8 @@ package com.nordic.mediahub.playback
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.nordic.mediahub.data.AudiobookBookmark
+import com.nordic.mediahub.data.AudiobookBookmarkRepository
 import com.nordic.mediahub.data.AudiobookPlaybackSession
 import com.nordic.mediahub.data.AudiobookShelfRepository
 import com.nordic.mediahub.data.ConfigRepository
@@ -22,6 +24,7 @@ import kotlinx.coroutines.launch
 class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(application) {
     private val engine = AudiobookPlaybackEngine(application)
     private val configRepository = ConfigRepository(application)
+    private val bookmarkRepository = AudiobookBookmarkRepository(application)
 
     val state: StateFlow<AudiobookPlaybackState> = engine.state
 
@@ -30,6 +33,9 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
+
+    private val _bookmarks = MutableStateFlow<List<AudiobookBookmark>>(emptyList())
+    val bookmarks: StateFlow<List<AudiobookBookmark>> = _bookmarks.asStateFlow()
 
     private val _isPlayerVisible = MutableStateFlow(false)
 
@@ -59,7 +65,10 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
                     nextStep = {
                         val currentState = engine.state.value
                         val currentSession = currentState.session
-                        if (currentSession == null || currentSession.sessionId != initialSession.sessionId) {
+                        if (currentSession == null ||
+                            currentSession.sessionId != initialSession.sessionId ||
+                            currentState.errorMessage != null
+                        ) {
                             null
                         } else {
                             PeriodicSyncStep(
@@ -80,6 +89,28 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
                 )
             }
         }.launchIn(viewModelScope)
+
+        // Safety net: when an active session transitions from playing to paused,
+        // push an immediate progress sync so a quick pause/close reports the
+        // current absolute position without waiting for the 30s periodic loop.
+        var lastIsPlaying = false
+        engine.state
+            .onEach { state ->
+                val currentSession = state.session
+                val nowPlaying = state.isPlaying
+                val wasPlaying = lastIsPlaying
+                lastIsPlaying = nowPlaying
+                if (wasPlaying && !nowPlaying && currentSession != null && state.errorMessage == null) {
+                    val repoInstance = _repository.value
+                    if (repoInstance != null) {
+                        val position = resolveAudiobookProgressSyncBaselineSeconds(state.positionSeconds, currentSession)
+                        viewModelScope.launch {
+                            runCatching { repoInstance.syncProgress(currentSession, position, 0) }
+                        }
+                    }
+                }
+            }
+            .launchIn(viewModelScope)
     }
 
     fun setPlayerVisible(visible: Boolean) {
@@ -106,6 +137,7 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
             runCatching { repo.startPlayback(libraryItemId) }
                 .onSuccess { session ->
                     engine.play(session)
+                    refreshBookmarks()
                     onResult(Result.success(session))
                 }
                 .onFailure { error ->
@@ -116,6 +148,35 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
     }
 
     fun closeAudiobookPlayback(
+        onClosed: () -> Unit = {},
+        onFailed: (message: String) -> Unit = {}
+    ) {
+        closeAudiobookPlaybackInternal(
+            closeAnyway = false,
+            onClosed = onClosed,
+            onFailed = onFailed
+        )
+    }
+
+    /**
+     * Close audiobook playback without blocking on the AudiobookShelf close
+     * sync. If the network is down (the usual reason the close sync fails),
+     * the player must not trap the user: stop local playback, then try to
+     * report the final position in the background and drop failures silently.
+     */
+    fun closeAudiobookPlaybackAnyway(
+        onClosed: () -> Unit = {},
+        onFailed: (message: String) -> Unit = {}
+    ) {
+        closeAudiobookPlaybackInternal(
+            closeAnyway = true,
+            onClosed = onClosed,
+            onFailed = onFailed
+        )
+    }
+
+    private fun closeAudiobookPlaybackInternal(
+        closeAnyway: Boolean,
         onClosed: () -> Unit = {},
         onFailed: (message: String) -> Unit = {}
     ) {
@@ -133,6 +194,7 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
         val repo = _repository.value
 
         if (session == null || repo == null) {
+            _bookmarks.value = emptyList()
             engine.stop()
             onClosed()
             return
@@ -141,18 +203,36 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
         viewModelScope.launch {
             runCatching { repo.syncAndCloseSession(session, positionSeconds) }
                 .onSuccess {
+                    _bookmarks.value = emptyList()
                     engine.stop()
                     onClosed()
                 }
                 .onFailure { error ->
                     val message = error.message ?: "关闭有声书播放会话失败"
-                    _error.value = message
-                    onFailed(message)
+                    if (closeAnyway) {
+                        // Stop local playback and close immediately so the user
+                        // is not trapped by a slow network, then attempt a
+                        // best-effort final sync in the background. Clear the
+                        // error so the player layer does not stay open.
+                        _error.value = null
+                        _bookmarks.value = emptyList()
+                        engine.stop()
+                        onClosed()
+                        viewModelScope.launch {
+                            runCatching { repo.syncAndCloseSession(session, positionSeconds) }
+                        }
+                    } else {
+                        _error.value = message
+                        onFailed(message)
+                    }
                 }
         }
     }
 
-    fun play(session: AudiobookPlaybackSession) = engine.play(session)
+    fun play(session: AudiobookPlaybackSession) {
+        engine.play(session)
+        refreshBookmarks()
+    }
 
     fun stop() = engine.stop()
 
@@ -168,7 +248,75 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
 
     fun cyclePlaybackSpeed() = engine.cyclePlaybackSpeed()
 
+    fun setSleepTimer(minutes: Int, atChapterEnd: Boolean = false) =
+        engine.setSleepTimer(minutes, atChapterEnd)
+
+    fun cancelSleepTimer() = engine.cancelSleepTimer()
+
     fun togglePlayPause() = engine.togglePlayPause()
+
+    /**
+     * Reload saved bookmarks for the currently active session's library item.
+     * No-ops when no session is active.
+     */
+    fun refreshBookmarks() {
+        val libraryItemId = engine.state.value.session?.libraryItemId ?: return
+        viewModelScope.launch {
+            _bookmarks.value = bookmarkRepository.loadForItem(libraryItemId)
+        }
+    }
+
+    /**
+     * Add a bookmark at [positionSeconds] for the active session's library item.
+     * Returns the updated bookmark list, or [Result.failure] when no session is active.
+     */
+    fun addBookmarkAtCurrentPosition(
+        label: String = "",
+        onResult: (Result<List<AudiobookBookmark>>) -> Unit = {}
+    ) {
+        val session = engine.state.value.session
+        if (session == null) {
+            onResult(Result.failure(IllegalStateException("没有正在播放的有声书")))
+            return
+        }
+        val position = engine.state.value.positionSeconds.coerceAtLeast(0)
+        viewModelScope.launch {
+            runCatching { bookmarkRepository.addBookmark(session.libraryItemId, position, label) }
+                .onSuccess { bookmarks ->
+                    _bookmarks.value = bookmarks
+                    onResult(Result.success(bookmarks))
+                }
+                .onFailure { error ->
+                    _error.value = error.message ?: "添加书签失败"
+                    onResult(Result.failure(error))
+                }
+        }
+    }
+
+    /**
+     * Delete a saved bookmark by id.
+     */
+    fun deleteBookmark(
+        bookmarkId: String,
+        onResult: (Result<List<AudiobookBookmark>>) -> Unit = {}
+    ) {
+        val libraryItemId = engine.state.value.session?.libraryItemId
+        viewModelScope.launch {
+            runCatching { bookmarkRepository.deleteBookmark(bookmarkId) }
+                .onSuccess { bookmarks ->
+                    _bookmarks.value = if (libraryItemId != null) {
+                        bookmarks.filter { it.libraryItemId == libraryItemId }
+                    } else {
+                        bookmarks
+                    }
+                    onResult(Result.success(bookmarks))
+                }
+                .onFailure { error ->
+                    _error.value = error.message ?: "删除书签失败"
+                    onResult(Result.failure(error))
+                }
+        }
+    }
 
     override fun onCleared() {
         engine.release()

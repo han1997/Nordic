@@ -42,8 +42,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -52,6 +50,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -75,7 +74,9 @@ import com.nordic.mediahub.ui.theme.NordicMotion
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.roundToInt
 
 internal const val VIDEO_PLAYER_CONTROLS_AUTO_HIDE_MS = 4000L
@@ -98,6 +99,7 @@ fun VideoPlayerScreen(
     onToggleFullscreen: () -> Unit = {},
     isFullscreen: Boolean = false,
     onClose: () -> Unit,
+    onCloseAnyway: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val video = state.video
@@ -127,6 +129,21 @@ fun VideoPlayerScreen(
 
     var controlsVisible by remember { mutableStateOf(true) }
     var infoVisible by remember(video?.id) { mutableStateOf(false) }
+    var seekFeedback by remember { mutableStateOf<SeekFeedback?>(null) }
+    val feedbackScope = rememberCoroutineScope()
+    val feedbackJob = remember { AtomicReference<kotlinx.coroutines.Job?>(null) }
+
+    fun showSeekFeedback(delta: Int) {
+        feedbackJob.get()?.cancel()
+        val targetPosition = (state.positionSeconds + delta).coerceAtLeast(0)
+        seekFeedback = SeekFeedback(deltaSeconds = delta, targetPositionSeconds = targetPosition)
+        feedbackJob.set(
+            feedbackScope.launch {
+                delay(1200L)
+                seekFeedback = null
+            }
+        )
+    }
 
     LaunchedEffect(controlsVisible, state.isPlaying, scrubPosition, statusTone, infoVisible) {
         if (controlsVisible && state.isPlaying && scrubPosition == null && statusTone == null && !infoVisible) {
@@ -153,7 +170,10 @@ fun VideoPlayerScreen(
                 durationSeconds = durationSeconds,
                 currentPositionSeconds = state.positionSeconds,
                 onToggleControls = { controlsVisible = !controlsVisible },
-                onSeekRelative = onSeekRelative,
+                onSeekRelative = { delta ->
+                    showSeekFeedback(delta)
+                    onSeekRelative(delta)
+                },
                 onScrubChange = { scrubPosition = it },
                 onSeek = onSeek,
                 onCycleAspectRatio = onCycleAspectRatio
@@ -183,12 +203,21 @@ fun VideoPlayerScreen(
         } else if (errorMessage != null) {
             VideoPlayerCenterMessage(
                 title = "播放异常",
-                subtitle = errorMessage
+                subtitle = errorMessage,
+                onCloseAnyway = onCloseAnyway
             )
         } else if (state.isBuffering) {
             VideoPlayerCenterMessage(
                 title = "缓冲中",
                 subtitle = "正在准备视频流"
+            )
+        }
+
+        if (seekFeedback != null) {
+            VideoPlayerSeekFeedbackOverlay(
+                feedback = seekFeedback!!,
+                colorScheme = colorScheme,
+                modifier = Modifier.align(Alignment.Center)
             )
         }
 
@@ -227,6 +256,7 @@ fun VideoPlayerScreen(
                 VideoPlayerControls(
                     visiblePosition = visiblePosition,
                     durationSeconds = durationSeconds,
+                    bufferedPositionSeconds = state.bufferedPositionSeconds,
                     timeline = timeline,
                     scrubPosition = scrubPosition,
                     isPlaying = state.isPlaying,
@@ -239,6 +269,7 @@ fun VideoPlayerScreen(
                         onSeek(target.roundToInt())
                         scrubPosition = null
                     },
+                    onScrubCanceled = { scrubPosition = null },
                     onSeekBack = onSeekBack,
                     onPlayPause = onPlayPause,
                     onSeekForward = onSeekForward,
@@ -431,7 +462,11 @@ private fun VideoPlayerStatusPill(
 }
 
 @Composable
-private fun BoxScope.VideoPlayerCenterMessage(title: String, subtitle: String?) {
+private fun BoxScope.VideoPlayerCenterMessage(
+    title: String,
+    subtitle: String?,
+    onCloseAnyway: (() -> Unit)? = null
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -456,6 +491,65 @@ private fun BoxScope.VideoPlayerCenterMessage(title: String, subtitle: String?) 
                 lineHeight = 18.sp,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (onCloseAnyway != null) {
+            Surface(
+                color = Color.White.copy(alpha = 0.16f),
+                contentColor = Color.White,
+                shape = NordicShapes.full,
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f)),
+                modifier = Modifier.clickable(onClick = onCloseAnyway)
+            ) {
+                Text(
+                    "仍要关闭",
+                    modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.sm),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BoxScope.VideoPlayerSeekFeedbackOverlay(
+    feedback: SeekFeedback,
+    colorScheme: ColorScheme,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = Color.Black.copy(alpha = 0.56f),
+        contentColor = Color.White,
+        shape = NordicShapes.full,
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.md),
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val deltaLabel = if (feedback.deltaSeconds >= 0) {
+                "+${formatDuration(feedback.deltaSeconds)}"
+            } else {
+                "-${formatDuration(-feedback.deltaSeconds)}"
+            }
+            Text(
+                deltaLabel,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (feedback.deltaSeconds >= 0) Color.White else colorScheme.primary,
+                maxLines = 1
+            )
+            Text(
+                formatVideoPlayerDurationLabel(feedback.targetPositionSeconds),
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Normal,
+                color = Color.White.copy(alpha = 0.66f),
+                maxLines = 1
             )
         }
     }
@@ -609,6 +703,7 @@ private fun VideoPlayerInfoRow(row: VideoPlayerInfoLine) {
 private fun VideoPlayerControls(
     visiblePosition: Float,
     durationSeconds: Int,
+    bufferedPositionSeconds: Int,
     timeline: VideoPlayerTimeline,
     scrubPosition: Float?,
     isPlaying: Boolean,
@@ -617,6 +712,7 @@ private fun VideoPlayerControls(
     colorScheme: ColorScheme,
     onScrubChange: (Float) -> Unit,
     onScrubFinished: () -> Unit,
+    onScrubCanceled: () -> Unit,
     onSeekBack: () -> Unit,
     onPlayPause: () -> Unit,
     onSeekForward: () -> Unit,
@@ -634,20 +730,19 @@ private fun VideoPlayerControls(
             modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.md),
             verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)
         ) {
-            Slider(
-                value = visiblePosition,
-                onValueChange = onScrubChange,
-                onValueChangeFinished = onScrubFinished,
-                valueRange = 0f..timeline.sliderMaxSeconds.toFloat(),
+            PlayerThinSlider(
+                position = visiblePosition,
+                duration = timeline.sliderMaxSeconds,
+                colorScheme = colorScheme,
                 enabled = hasVideo,
-                colors = SliderDefaults.colors(
-                    thumbColor = colorScheme.primary,
-                    activeTrackColor = colorScheme.primary,
-                    inactiveTrackColor = Color.White.copy(alpha = 0.22f),
-                    disabledThumbColor = Color.White.copy(alpha = 0.28f),
-                    disabledActiveTrackColor = Color.White.copy(alpha = 0.20f),
-                    disabledInactiveTrackColor = Color.White.copy(alpha = 0.12f)
-                )
+                activeColor = colorScheme.primary,
+                inactiveColor = Color.White.copy(alpha = 0.22f),
+                thumbColor = colorScheme.primary,
+                bufferedPosition = bufferedPositionSeconds.takeIf { it > 0 }?.toFloat(),
+                bufferColor = Color.White.copy(alpha = 0.30f),
+                onPositionChange = onScrubChange,
+                onPositionChangeFinished = onScrubFinished,
+                onPositionChangeCanceled = onScrubCanceled
             )
 
             Row(
@@ -663,7 +758,7 @@ private fun VideoPlayerControls(
                     maxLines = 1
                 )
                 Text(
-                    formatVideoPlayerDurationLabel(durationSeconds),
+                    formatVideoPlayerRemainingLabel(durationSeconds, visiblePosition.roundToInt()),
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Normal,
                     color = Color.White.copy(alpha = 0.52f),
@@ -883,6 +978,19 @@ internal data class VideoPlayerTimeline(
     val sliderMaxSeconds: Int
 )
 
+internal data class SeekFeedback(
+    val deltaSeconds: Int,
+    val targetPositionSeconds: Int
+)
+
+internal fun resolveSeekFeedbackLabel(deltaSeconds: Int): String {
+    return if (deltaSeconds >= 0) {
+        "+${formatDuration(deltaSeconds)}"
+    } else {
+        "-${formatDuration(-deltaSeconds)}"
+    }
+}
+
 internal fun resolveVideoPlayerTimeline(
     positionSeconds: Int,
     durationSeconds: Int
@@ -902,6 +1010,12 @@ internal fun resolveVideoPlayerTimeline(
 
 internal fun formatVideoPlayerDurationLabel(durationSeconds: Int): String {
     return if (durationSeconds > 0) formatDuration(durationSeconds) else "--:--"
+}
+
+internal fun formatVideoPlayerRemainingLabel(durationSeconds: Int, positionSeconds: Int): String {
+    if (durationSeconds <= 0) return "--:--"
+    val safePosition = positionSeconds.coerceIn(0, durationSeconds)
+    return "-${formatDuration(durationSeconds - safePosition)}"
 }
 
 internal fun videoPlayerStatusText(

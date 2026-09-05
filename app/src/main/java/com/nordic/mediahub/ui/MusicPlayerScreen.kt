@@ -73,7 +73,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -83,7 +82,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.Player
@@ -910,84 +908,6 @@ private fun PlayerConsole(
     }
 }
 
-/**
- * Thin-line progress bar with a small circular thumb — replaces the stock Material3 [androidx.compose.material3.Slider]
- * to match the mainstream music-app aesthetic. Keeps the scrub-local-state contract:
- * onPositionChange fires during drag, onPositionChangeFinished fires on release and is
- * the only place a real [onSeek] should land.
- */
-@Composable
-private fun PlayerThinSlider(
-    position: Float,
-    duration: Int,
-    colorScheme: ColorScheme,
-    enabled: Boolean,
-    onPositionChange: (Float) -> Unit,
-    onPositionChangeFinished: () -> Unit,
-    onPositionChangeCanceled: () -> Unit
-) {
-    val safeDuration = maxOf(duration, 1)
-    val progress = (position / safeDuration).coerceIn(0f, 1f)
-    val trackHeight = 4.dp
-    val thumbSize = 12.dp
-
-    val activeColor = if (enabled) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.faint)
-    val inactiveColor = colorScheme.onSurface.copy(alpha = if (enabled) 0.14f else 0.08f)
-    val thumbColor = if (enabled) colorScheme.primary else colorScheme.onSurface.copy(alpha = 0.2f)
-
-    BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(thumbSize + trackHeight) // touch target room
-            .pointerInput(enabled, safeDuration) {
-                if (!enabled) return@pointerInput
-                detectDragGestures(
-                    onDragStart = { offset ->
-                        onPositionChange(resolvePlayerThinSliderPosition(offset.x, size.width, safeDuration))
-                    },
-                    onDragEnd = { onPositionChangeFinished() },
-                    onDragCancel = { onPositionChangeCanceled() }
-                ) { change, _ ->
-                    change.consume()
-                    onPositionChange(resolvePlayerThinSliderPosition(change.position.x, size.width, safeDuration))
-                }
-            }
-            .padding(vertical = (thumbSize - trackHeight) / 2),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        val density = LocalDensity.current
-        val thumbOffsetPx = resolvePlayerThinSliderThumbOffsetPx(
-            trackWidthPx = constraints.maxWidth.toFloat(),
-            thumbSizePx = with(density) { thumbSize.toPx() },
-            progress = progress
-        )
-        // Inactive track
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(trackHeight)
-                .clip(NordicShapes.full)
-                .background(inactiveColor)
-        )
-        // Active track
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(progress)
-                .height(trackHeight)
-                .clip(NordicShapes.full)
-                .background(activeColor)
-        )
-        // Thumb
-        Box(
-            modifier = Modifier
-                .offset { IntOffset(thumbOffsetPx.roundToInt(), 0) }
-                .size(thumbSize)
-                .clip(NordicShapes.full)
-                .background(SolidColor(thumbColor))
-        )
-    }
-}
-
 @Composable
 private fun PlayerIconButton(
     icon: ImageVector,
@@ -1118,18 +1038,6 @@ internal fun resolveActiveLyricIndex(
     return lines.indexOfLast { line ->
         line.startMillis != null && line.startMillis <= normalizedPositionMillis
     }.takeIf { it >= 0 }
-}
-
-internal fun resolvePlayerThinSliderPosition(pointerX: Float, trackWidth: Int, durationSeconds: Int): Float {
-    val safeDuration = maxOf(durationSeconds, 1)
-    if (trackWidth <= 0) return 0f
-    val ratio = (pointerX / trackWidth.toFloat()).coerceIn(0f, 1f)
-    return ratio * safeDuration
-}
-
-internal fun resolvePlayerThinSliderThumbOffsetPx(trackWidthPx: Float, thumbSizePx: Float, progress: Float): Float {
-    val travelPx = (trackWidthPx - thumbSizePx).coerceAtLeast(0f)
-    return travelPx * progress.coerceIn(0f, 1f)
 }
 
 /**

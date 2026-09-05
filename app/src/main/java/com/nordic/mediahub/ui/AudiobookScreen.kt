@@ -751,19 +751,11 @@ private fun AudiobookDetailHeader(
                 item.progress?.let { progress ->
                     MetaChip("续播 ${formatDuration(progress.currentTimeSeconds)}", colorScheme)
                 }
-                Surface(
-                    color = colorScheme.primary,
-                    contentColor = colorScheme.onPrimary,
-                    shape = NordicShapes.full,
-                    modifier = Modifier.height(36.dp).clickable(onClick = onPlay)
-                ) {
-                    Box(
-                        modifier = Modifier.padding(horizontal = NordicSpacing.lg),
-                        contentAlignment = Center
-                    ) {
-                        Text("继续播放", style = MaterialTheme.typography.labelLarge)
-                    }
-                }
+                PrimaryActionButton(
+                    text = "继续播放",
+                    colorScheme = colorScheme,
+                    onClick = onPlay
+                )
             }
         }
 

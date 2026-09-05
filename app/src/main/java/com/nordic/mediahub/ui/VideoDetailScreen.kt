@@ -299,52 +299,6 @@ private fun VideoDetailHero(
 }
 
 @Composable
-private fun SecondaryActionButton(
-    text: String,
-    colorScheme: ColorScheme,
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(
-        interactionSource = interactionSource,
-        pressedScale = 0.985f,
-        enabled = enabled
-    )
-    Surface(
-        color = if (enabled) colorScheme.primary.copy(alpha = 0.18f) else colorScheme.primary.copy(alpha = 0.10f),
-        contentColor = colorScheme.primary,
-        shape = NordicShapes.full,
-        border = BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.22f)),
-        modifier = modifier
-            .fillMaxWidth()
-            .height(48.dp)
-            .scale(scale)
-            .clickable(
-                enabled = enabled,
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
-    ) {
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text,
-                style = MaterialTheme.typography.titleSmall,
-                color = colorScheme.primary,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-@Composable
 internal fun VideoEpisodeRow(
     episode: VideoItem,
     colorScheme: ColorScheme,

@@ -288,6 +288,31 @@ class AudiobookScreenTest {
         assertEquals(emptyList<AudiobookChapter>(), sortAudiobookDetailChapters(emptyList()))
     }
 
+    @Test
+    fun sleepTimerRemainingLabel_reportsInactiveWhenNoTimer() {
+        assertEquals("未开启", sleepTimerRemainingLabel(sleepTimerRemainingSeconds = null, atChapterEnd = false))
+    }
+
+    @Test
+    fun sleepTimerRemainingLabel_reportsChapterEndMode() {
+        assertEquals(
+            "将在当前章节结束时停止",
+            sleepTimerRemainingLabel(sleepTimerRemainingSeconds = null, atChapterEnd = true)
+        )
+    }
+
+    @Test
+    fun sleepTimerRemainingLabel_reportsStoppedWhenExpired() {
+        assertEquals("已停止", sleepTimerRemainingLabel(sleepTimerRemainingSeconds = 0, atChapterEnd = false))
+    }
+
+    @Test
+    fun sleepTimerRemainingLabel_formatsCountdown() {
+        assertEquals("45秒后停止", sleepTimerRemainingLabel(sleepTimerRemainingSeconds = 45, atChapterEnd = false))
+        assertEquals("1分30秒后停止", sleepTimerRemainingLabel(sleepTimerRemainingSeconds = 90, atChapterEnd = false))
+        assertEquals("10分0秒后停止", sleepTimerRemainingLabel(sleepTimerRemainingSeconds = 600, atChapterEnd = false))
+    }
+
     private fun library(id: String): AudiobookLibrarySummary {
         return AudiobookLibrarySummary(
             id = id,

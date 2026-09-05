@@ -387,30 +387,42 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         }
     }
 
-    val closeCurrentAudiobookPlayback = remember(closeAudiobookPlayback) {
+    val closeCurrentAudiobookPlayback = remember {
         {
-            if (mediaSwitchInProgress.compareAndSet(false, true)) {
-                closeAudiobookPlayback(
-                    {
-                        bottomDockVisible = true
-                        mediaSwitchInProgress.set(false)
-                    },
-                    { mediaSwitchInProgress.set(false) }
-                )
-            }
+            // Minimize: hide the full-screen player but keep the audiobook
+            // session playing so it can be reopened from the dock now-playing bar.
+            bottomDockVisible = true
+            showAudiobookPlayer = false
         }
     }
-    val closeCurrentVideoPlayback = remember(closeVideoPlayback) {
+    val closeCurrentAudiobookPlaybackAnyway = remember(audiobookVM) {
         {
-            if (mediaSwitchInProgress.compareAndSet(false, true)) {
-                closeVideoPlayback(
-                    {
-                        bottomDockVisible = true
-                        mediaSwitchInProgress.set(false)
-                    },
-                    { mediaSwitchInProgress.set(false) }
-                )
-            }
+            audiobookVM.closeAudiobookPlaybackAnyway(
+                onClosed = {
+                    showAudiobookPlayer = false
+                    bottomDockVisible = true
+                }
+            )
+        }
+    }
+    val closeCurrentVideoPlayback = remember {
+        {
+            // Minimize: hide the full-screen player but keep video playing so it
+            // can be reopened from the dock now-playing bar.
+            bottomDockVisible = true
+            showVideoPlayer = false
+            isFullscreen = false
+        }
+    }
+    val closeCurrentVideoPlaybackAnyway = remember(videoVM, closeCurrentVideoPlayback) {
+        {
+            videoVM.closeVideoPlaybackAnyway(
+                onClosed = {
+                    showVideoPlayer = false
+                    isFullscreen = false
+                    bottomDockVisible = true
+                }
+            )
         }
     }
 
@@ -505,7 +517,15 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             )
         }
     }
-    val openPlayer = remember { { showPlayer = true } }
+    val openNowPlayingPlayer = remember(audiobookVM, videoVM) {
+        {
+            when {
+                audiobookVM.state.value.session != null -> showAudiobookPlayer = true
+                videoVM.state.value.video != null -> showVideoPlayer = true
+                else -> showPlayer = true
+            }
+        }
+    }
 
     LaunchedEffect(showAudiobookPlayer) {
         audiobookVM.setPlayerVisible(showAudiobookPlayer)
@@ -687,9 +707,11 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                     ) {
                         PlaybackDockSlot(
                             musicVM = musicVM,
+                            audiobookVM = audiobookVM,
+                            videoVM = videoVM,
                             selectedTab = selectedTab,
                             colorScheme = colorScheme,
-                            onOpenPlayer = openPlayer,
+                            onOpenPlayer = openNowPlayingPlayer,
                             onSelect = { selectedTab = it }
                         )
                     }
@@ -712,14 +734,16 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         isFullscreen = isFullscreen,
         colorScheme = colorScheme,
         closeVideoPlayback = closeCurrentVideoPlayback,
+        closeVideoPlaybackAnyway = closeCurrentVideoPlaybackAnyway,
         onToggleFullscreen = { isFullscreen = !isFullscreen }
     )
 
-    AudiobookPlayerLayer(
+AudiobookPlayerLayer(
         audiobookVM = audiobookVM,
         showAudiobookPlayer = showAudiobookPlayer,
         colorScheme = colorScheme,
-        closeAudiobookPlayback = closeCurrentAudiobookPlayback
+        closeAudiobookPlayback = closeCurrentAudiobookPlayback,
+        closeAudiobookPlaybackAnyway = closeCurrentAudiobookPlaybackAnyway
     )
 
     BackHandler(enabled = showPlayer) {
@@ -742,32 +766,65 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
 @Composable
 private fun PlaybackDockSlot(
     musicVM: MusicPlaybackViewModel,
+    audiobookVM: AudiobookPlaybackViewModel,
+    videoVM: VideoPlaybackViewModel,
     selectedTab: Int,
     colorScheme: ColorScheme,
     onOpenPlayer: () -> Unit,
     onSelect: (Int) -> Unit
 ) {
-    val playbackState by musicVM.state.collectAsStateWithLifecycle()
-    val currentSong = playbackState.currentSong
-    val isPlaying = playbackState.isPlaying
-    val playbackStatus = when {
-        playbackState.errorMessage != null -> playbackState.errorMessage
-        playbackState.isBuffering -> "正在缓冲"
+    val musicState by musicVM.state.collectAsStateWithLifecycle()
+    val audiobookState by audiobookVM.state.collectAsStateWithLifecycle()
+    val videoState by videoVM.state.collectAsStateWithLifecycle()
+
+    val audiobookSession = audiobookState.session
+    val currentVideo = videoState.video
+    val currentSong = musicState.currentSong
+
+    val nowPlaying: DockNowPlayingContent? = when {
+        audiobookSession != null -> DockNowPlayingContent.Audiobook(
+            title = audiobookSession.displayTitle,
+            author = audiobookSession.displayAuthor,
+            coverUrl = audiobookSession.coverUrl
+        )
+        currentVideo != null -> DockNowPlayingContent.Video(currentVideo.title)
+        currentSong != null -> DockNowPlayingContent.Music(currentSong)
         else -> null
     }
-    val onPlayPause = remember(musicVM, onOpenPlayer) {
+
+    val isPlaying = when {
+        audiobookSession != null -> audiobookState.isPlaying
+        currentVideo != null -> videoState.isPlaying
+        else -> musicState.isPlaying
+    }
+
+    val playbackStatus = when {
+        audiobookState.errorMessage != null -> audiobookState.errorMessage
+        audiobookState.isBuffering -> "正在缓冲"
+        videoState.errorMessage != null -> videoState.errorMessage
+        videoState.isBuffering -> "正在缓冲"
+        musicState.errorMessage != null -> musicState.errorMessage
+        musicState.isBuffering -> "正在缓冲"
+        else -> null
+    }
+
+    val currentOnOpenPlayer by rememberUpdatedState(onOpenPlayer)
+    val onPlayPause = remember(musicVM, audiobookVM, videoVM, currentOnOpenPlayer) {
         {
-            if (musicVM.state.value.currentSong == null) {
-                onOpenPlayer()
-            } else {
-                musicVM.togglePlayPause()
+            // Read live state at click time so a newly started session is not
+            // shadowed by the composition-time snapshot.
+            when {
+                audiobookVM.state.value.session != null -> audiobookVM.togglePlayPause()
+                videoVM.state.value.video != null -> videoVM.togglePlayPause()
+                musicVM.state.value.currentSong != null -> musicVM.togglePlayPause()
+                else -> currentOnOpenPlayer()
             }
         }
     }
     PolishedPlaybackDock(
         selected = selectedTab,
         colorScheme = colorScheme,
-        currentSong = currentSong,
+        nowPlaying = nowPlaying,
         isPlaying = isPlaying,
         playbackStatus = playbackStatus,
         onOpenPlayer = onOpenPlayer,
@@ -823,12 +880,13 @@ private fun VideoPlayerLayer(
     isFullscreen: Boolean,
     colorScheme: ColorScheme,
     closeVideoPlayback: () -> Unit,
+    closeVideoPlaybackAnyway: () -> Unit,
     onToggleFullscreen: () -> Unit
 ) {
     val videoPlaybackState by videoVM.state.collectAsStateWithLifecycle()
     val videoPlaybackError by videoVM.error.collectAsStateWithLifecycle()
 
-    BackHandler(enabled = showVideoPlayer || videoPlaybackState.video != null) {
+    BackHandler(enabled = showVideoPlayer || videoPlaybackError != null) {
         closeVideoPlayback()
     }
 
@@ -837,7 +895,7 @@ private fun VideoPlayerLayer(
     }
 
     AnimatedVisibility(
-        visible = showVideoPlayer || videoPlaybackState.video != null,
+        visible = showVideoPlayer || videoPlaybackError != null,
         enter = NordicMotion.enterSlideUp,
         exit = NordicMotion.exitSlideDown
     ) {
@@ -858,6 +916,7 @@ private fun VideoPlayerLayer(
             onToggleFullscreen = onToggleFullscreen,
             isFullscreen = isFullscreen,
             onClose = { closeVideoPlayback() },
+            onCloseAnyway = closeVideoPlaybackAnyway,
             modifier = Modifier.fillMaxSize()
         )
     }
@@ -868,10 +927,12 @@ private fun AudiobookPlayerLayer(
     audiobookVM: AudiobookPlaybackViewModel,
     showAudiobookPlayer: Boolean,
     colorScheme: ColorScheme,
-    closeAudiobookPlayback: () -> Unit
+    closeAudiobookPlayback: () -> Unit,
+    closeAudiobookPlaybackAnyway: () -> Unit
 ) {
     val audiobookPlaybackState by audiobookVM.state.collectAsStateWithLifecycle()
     val audiobookPlaybackError by audiobookVM.error.collectAsStateWithLifecycle()
+    val audiobookBookmarks by audiobookVM.bookmarks.collectAsStateWithLifecycle()
 
     BackHandler(enabled = showAudiobookPlayer || audiobookPlaybackError != null) {
         closeAudiobookPlayback()
@@ -886,6 +947,11 @@ private fun AudiobookPlayerLayer(
             state = audiobookPlaybackState,
             colorScheme = colorScheme,
             externalError = audiobookPlaybackError,
+            bookmarks = audiobookBookmarks,
+            onAddBookmark = { audiobookVM.addBookmarkAtCurrentPosition() },
+            onDeleteBookmark = { bookmarkId -> audiobookVM.deleteBookmark(bookmarkId) },
+            onSetSleepTimer = { minutes, atChapterEnd -> audiobookVM.setSleepTimer(minutes, atChapterEnd) },
+            onCancelSleepTimer = { audiobookVM.cancelSleepTimer() },
             onSeek = audiobookVM::seekTo,
             onSeekBack = { audiobookVM.seekBackBy() },
             onSeekForward = { audiobookVM.seekForwardBy() },
@@ -893,7 +959,8 @@ private fun AudiobookPlayerLayer(
             onSeekToNextChapter = audiobookVM::seekToNextChapter,
             onCyclePlaybackSpeed = audiobookVM::cyclePlaybackSpeed,
             onPlayPause = audiobookVM::togglePlayPause,
-            onClose = closeAudiobookPlayback
+            onClose = closeAudiobookPlayback,
+            onCloseAnyway = closeAudiobookPlaybackAnyway
         )
     }
 }

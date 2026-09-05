@@ -54,6 +54,7 @@ data class VideoPlaybackState(
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,
     val positionSeconds: Int = 0,
+    val bufferedPositionSeconds: Int = 0,
     val durationSeconds: Int = 0,
     val errorMessage: String? = null,
     val aspectRatioMode: AspectRatioMode = AspectRatioMode.FIT,
@@ -179,11 +180,11 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
             _state.update { it.copy(errorMessage = null) }
         }
 
+        // A replaced item is already prepared above; only a prior ended item
+        // (same replay) needs to restart from zero. Avoid a redundant second
+        // prepare while the async state transition is still IDLE/BUFFERING.
         if (player.playbackState == Player.STATE_ENDED) {
             player.seekTo(0L)
-        }
-        if (player.playbackState == Player.STATE_IDLE) {
-            player.prepare()
         }
         player.play()
         publishPlayerState()
@@ -211,9 +212,6 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
             _state.update { it.copy(errorMessage = null) }
         }
 
-        if (player.playbackState == Player.STATE_IDLE) {
-            player.prepare()
-        }
         player.seekTo(0L)
         player.play()
         publishPlayerState()
@@ -297,6 +295,11 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
                 isPlaying = player.isPlaying,
                 isBuffering = player.playbackState == Player.STATE_BUFFERING,
                 positionSeconds = (player.currentPosition.coerceAtLeast(0L) / 1000L).toInt(),
+                bufferedPositionSeconds = player.bufferedPosition
+                    .takeIf { buffered -> buffered != C.TIME_UNSET }
+                    ?.coerceAtLeast(0L)
+                    ?.div(1000L)
+                    ?.toInt() ?: 0,
                 durationSeconds = (playerDuration?.div(1000L)?.toInt() ?: video.durationSeconds)
                     .coerceAtLeast(video.durationSeconds),
                 errorMessage = when (player.playbackState) {

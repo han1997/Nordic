@@ -63,6 +63,30 @@ class VideoPlayerScreenTest {
     }
 
     @Test
+    fun formatVideoPlayerRemainingLabel_formatsRemainingTime() {
+        assertEquals("-1:40", formatVideoPlayerRemainingLabel(durationSeconds = 120, positionSeconds = 20))
+    }
+
+    @Test
+    fun formatVideoPlayerRemainingLabel_usesUnknownLabelWhenDurationUnknown() {
+        assertEquals("--:--", formatVideoPlayerRemainingLabel(durationSeconds = 0, positionSeconds = 20))
+        assertEquals("--:--", formatVideoPlayerRemainingLabel(durationSeconds = -1, positionSeconds = 20))
+    }
+
+    @Test
+    fun formatVideoPlayerRemainingLabel_clampsPositionToDuration() {
+        assertEquals("-0:00", formatVideoPlayerRemainingLabel(durationSeconds = 120, positionSeconds = 500))
+        assertEquals("-2:00", formatVideoPlayerRemainingLabel(durationSeconds = 120, positionSeconds = 0))
+    }
+
+    @Test
+    fun resolveSeekFeedbackLabel_formatsForwardAndBackwardDeltas() {
+        assertEquals("+0:30", resolveSeekFeedbackLabel(30))
+        assertEquals("-0:10", resolveSeekFeedbackLabel(-10))
+        assertEquals("+0:00", resolveSeekFeedbackLabel(0))
+    }
+
+    @Test
     fun videoPlayerStatusText_prioritizesErrors() {
         assertEquals(
             "播放异常",

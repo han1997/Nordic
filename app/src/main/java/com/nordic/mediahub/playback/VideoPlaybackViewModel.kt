@@ -61,7 +61,8 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                         val currentVideo = currentState.video
                         if (currentVideo == null ||
                             currentVideo.id != initialVideo.id ||
-                            currentVideo.streamUrl.isNullOrBlank()
+                            currentVideo.streamUrl.isNullOrBlank() ||
+                            currentState.errorMessage != null
                         ) {
                             null
                         } else {
@@ -86,6 +87,34 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                 )
             }
         }.launchIn(viewModelScope)
+
+        // Safety net: when an active, playable video transitions from playing to
+        // paused, push an immediate progress sync so a quick open/pause session
+        // reports position without waiting for the 30s periodic loop.
+        var lastIsPlaying = false
+        engine.state
+            .onEach { state ->
+                val video = state.video
+                val nowPlaying = state.isPlaying
+                val wasPlaying = lastIsPlaying
+                lastIsPlaying = nowPlaying
+                if (wasPlaying && !nowPlaying && video != null &&
+                    !video.streamUrl.isNullOrBlank() && state.errorMessage == null
+                ) {
+                    val repoInstance = _repository.value
+                    if (repoInstance != null) {
+                        val position = resolveVideoProgressSyncBaselineSeconds(state.positionSeconds, video)
+                        viewModelScope.launch {
+                            runCatching {
+                                repoInstance.syncPlaybackProgress(video, position, isPaused = true)
+                            }.onFailure { error ->
+                                Log.e("VideoPlayback", "暂停时同步视频进度失败", error)
+                            }
+                        }
+                    }
+                }
+            }
+            .launchIn(viewModelScope)
     }
 
     fun setError(message: String) {
@@ -97,6 +126,34 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun closeVideoPlayback(
+        onClosed: () -> Unit = {},
+        onFailed: (message: String) -> Unit = {}
+    ) {
+        closeVideoPlaybackInternal(
+            closeAnyway = false,
+            onClosed = onClosed,
+            onFailed = onFailed
+        )
+    }
+
+    /**
+     * Close video playback without blocking on the Emby stopped-progress sync.
+     * If the network is down, stop local playback so the user can leave, then
+     * attempt a best-effort background stopped report and drop failures.
+     */
+    fun closeVideoPlaybackAnyway(
+        onClosed: () -> Unit = {},
+        onFailed: (message: String) -> Unit = {}
+    ) {
+        closeVideoPlaybackInternal(
+            closeAnyway = true,
+            onClosed = onClosed,
+            onFailed = onFailed
+        )
+    }
+
+    private fun closeVideoPlaybackInternal(
+        closeAnyway: Boolean,
         onClosed: () -> Unit = {},
         onFailed: (message: String) -> Unit = {}
     ) {
@@ -117,9 +174,22 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                         onClosed()
                     }
                     .onFailure { error ->
-                        _error.value = error.message ?: "保存视频进度失败"
                         Log.e("VideoPlayback", "保存视频进度失败", error)
-                        onFailed(error.message ?: "保存视频进度失败")
+                        if (closeAnyway) {
+                            // Stop local playback and close immediately so the
+                            // user is not trapped by a slow network, then attempt
+                            // a best-effort background stopped report. Clear the
+                            // error so the player layer does not stay open.
+                            _error.value = null
+                            engine.stop()
+                            onClosed()
+                            viewModelScope.launch {
+                                runCatching { repo.stopPlaybackProgress(video, positionSeconds) }
+                            }
+                        } else {
+                            _error.value = error.message ?: "保存视频进度失败"
+                            onFailed(error.message ?: "保存视频进度失败")
+                        }
                     }
             }
         } else {
