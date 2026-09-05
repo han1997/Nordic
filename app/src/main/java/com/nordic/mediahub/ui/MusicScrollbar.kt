@@ -34,11 +34,54 @@ private const val MusicScrollbarAlpha = 0.28f
 private const val MusicScrollbarMinThumbFraction = 0.05f
 
 /**
+ * Snapshot of the scrollbar geometry derived from [LazyListLayoutInfo]. Computed
+ * in a single [androidx.compose.runtime.derivedStateOf] so a scroll frame only
+ * invalidates the thumb once instead of once per derived value.
+ */
+private data class MusicScrollbarGeometry(
+    val visible: Boolean,
+    val thumbFraction: Float,
+    val scrollFraction: Float
+)
+
+private fun resolveMusicScrollbarGeometry(
+    layoutInfo: androidx.compose.foundation.lazy.LazyListLayoutInfo
+): MusicScrollbarGeometry {
+    val total = layoutInfo.totalItemsCount
+    val shown = layoutInfo.visibleItemsInfo.size
+    val visible = shown > 0 && total > shown
+    val thumbFraction = if (total == 0 || shown == 0) {
+        1f
+    } else {
+        (shown.toFloat() / total.toFloat()).coerceIn(MusicScrollbarMinThumbFraction, 1f)
+    }
+    val scrollRange = total - shown
+    val scrollFraction = if (total <= 1 || scrollRange <= 0) {
+        0f
+    } else {
+        val first = layoutInfo.visibleItemsInfo.firstOrNull()
+        if (first == null) {
+            0f
+        } else {
+            // Continuous position = item index + in-item scroll progress. The
+            // first visible item's offset is <= 0 while scrolling into it, so
+            // the consumed fraction within that item is -offset / itemSize.
+            val itemSize = first.size.coerceAtLeast(1)
+            val inItemProgress = (-first.offset.toFloat() / itemSize).coerceIn(0f, 1f)
+            val position = first.index + inItemProgress
+            (position / scrollRange).coerceIn(0f, 1f)
+        }
+    }
+    return MusicScrollbarGeometry(visible, thumbFraction, scrollFraction)
+}
+
+/**
  * Display-only (non-draggable) scrollbar for a [LazyColumn], driven by
  * [LazyListState]. The thumb size reflects the visible/total ratio and its
  * position reflects scroll progress (index + pixel offset based, so it tracks
  * partial item scrolls smoothly). Hidden automatically when the content fits
- * the viewport, and only the thumb itself recomposes on scroll.
+ * the viewport. Geometry is computed in one derivedStateOf, so only the thumb
+ * recomposes on scroll — once per frame at most.
  */
 @Composable
 internal fun MusicScrollbar(
@@ -48,39 +91,14 @@ internal fun MusicScrollbar(
     enabled: Boolean = true
 ) {
     if (!enabled) return
-    val layoutInfo by remember(state) { derivedStateOf { state.layoutInfo } }
-    val visible by remember(state) {
-        derivedStateOf {
-            layoutInfo.visibleItemsInfo.isNotEmpty() &&
-                layoutInfo.totalItemsCount > layoutInfo.visibleItemsInfo.size
-        }
+    val geometry by remember(state) {
+        derivedStateOf { resolveMusicScrollbarGeometry(state.layoutInfo) }
     }
-    val thumbFraction by remember(state) {
-        derivedStateOf {
-            val total = layoutInfo.totalItemsCount
-            val shown = layoutInfo.visibleItemsInfo.size
-            if (total == 0 || shown == 0) 1f
-            else (shown.toFloat() / total.toFloat()).coerceIn(MusicScrollbarMinThumbFraction, 1f)
-        }
-    }
-    val scrollFraction by remember(state) {
-        derivedStateOf {
-            val total = layoutInfo.totalItemsCount
-            val shown = layoutInfo.visibleItemsInfo.size
-            val scrollRange = total - shown
-            if (total <= 1 || scrollRange <= 0) 0f
-            else {
-                val itemSize = layoutInfo.visibleItemsInfo.firstOrNull()?.size ?: 1
-                val ratio = state.firstVisibleItemScrollOffset.toFloat() / itemSize.coerceAtLeast(1)
-                ((state.firstVisibleItemIndex + ratio) / scrollRange).coerceIn(0f, 1f)
-            }
-        }
-    }
-    if (visible && thumbFraction < 1f) {
+    if (geometry.visible && geometry.thumbFraction < 1f) {
         BoxWithConstraints(modifier = modifier.fillMaxHeight()) {
             val trackHeight = maxHeight
-            val thumbHeight = trackHeight * thumbFraction
-            val offsetY = (trackHeight - thumbHeight) * scrollFraction
+            val thumbHeight = trackHeight * geometry.thumbFraction
+            val offsetY = (trackHeight - thumbHeight) * geometry.scrollFraction
             Box(
                 modifier = Modifier
                     .offset(y = offsetY)

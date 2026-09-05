@@ -45,6 +45,7 @@ import com.nordic.mediahub.ui.*
 import com.nordic.mediahub.ui.theme.*
 import coil.Coil
 import coil.ImageLoader
+import coil.memory.MemoryCache
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -262,6 +263,11 @@ class MainActivity : ComponentActivity() {
         Coil.setImageLoader(
             ImageLoader.Builder(this)
                 .crossfade(160)
+                .memoryCache {
+                    MemoryCache.Builder(this)
+                        .maxSizePercent(0.25)
+                        .build()
+                }
                 .okHttpClient {
                     OkHttpClient.Builder()
                         .addInterceptor(MediaAuthHeaderInterceptor())

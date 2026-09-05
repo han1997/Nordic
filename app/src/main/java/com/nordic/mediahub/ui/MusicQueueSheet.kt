@@ -545,6 +545,7 @@ private fun QueueRow(
                         url = song.coverArt,
                         contentDescription = song.title,
                         contentScale = ContentScale.Crop,
+                        crossfadeEnabled = false,
                         modifier = Modifier.matchParentSize()
                     )
                 } else {

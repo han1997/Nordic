@@ -17,6 +17,7 @@ internal fun AuthedAsyncImage(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Fit,
+    crossfadeEnabled: Boolean = true,
     onError: (() -> Unit)? = null
 ) {
     if (url.isNullOrBlank()) return
@@ -25,13 +26,17 @@ internal fun AuthedAsyncImage(
     // image when the bitmap resolves — combined with the crossfade below this
     // removes the cover-art pop-in. `ColorDrawable` is allocation-free to reuse.
     val placeholder = remember { ColorDrawable(Color.argb(0x28, 0x80, 0x80, 0x80)) }
-    val imageRequest = remember(url) {
+    val imageRequest = remember(url, crossfadeEnabled) {
         val cleanCacheKey = stripAuthQuery(url)
         ImageRequest.Builder(context)
             .data(url)
             .diskCacheKey(cleanCacheKey)
             .memoryCacheKey(cleanCacheKey)
-            .crossfade(200)
+            .apply {
+                // Fast list scrolling stacks many simultaneous crossfade
+                // animations on the RenderThread; list rows disable it.
+                if (crossfadeEnabled) crossfade(200)
+            }
             .placeholder(placeholder)
             .build()
     }

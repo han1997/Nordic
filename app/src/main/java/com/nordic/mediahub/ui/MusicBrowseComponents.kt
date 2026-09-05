@@ -213,7 +213,8 @@ internal fun PlaylistListRow(
                         url = playlist.coverArt,
                         contentDescription = playlist.name,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.matchParentSize()
+                        modifier = Modifier.matchParentSize(),
+                        crossfadeEnabled = false
                     )
                 } else {
                     Icon(
@@ -630,7 +631,8 @@ internal fun AlbumListRow(
                         url = album.coverArt,
                         contentDescription = album.name,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.matchParentSize()
+                        modifier = Modifier.matchParentSize(),
+                        crossfadeEnabled = false
                     )
                 } else {
                     Icon(

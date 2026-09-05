@@ -256,12 +256,6 @@ fun SongListRow(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {}
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(
-        interactionSource = interactionSource,
-        pressedScale = 0.992f
-    )
-
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
         contentColor = colorScheme.onSurface,
@@ -269,8 +263,7 @@ fun SongListRow(
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
         modifier = modifier
             .fillMaxWidth()
-            .scale(scale)
-            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+            .clickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),

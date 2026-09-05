@@ -213,7 +213,8 @@ internal fun CoverArt(
     shape: Shape = NordicShapes.sm,
     fallbackText: String? = null,
     initials: String? = null,
-    fallbackIcon: ImageVector? = null
+    fallbackIcon: ImageVector? = null,
+    crossfadeEnabled: Boolean = false
 ) {
     var imageFailed by remember(imageUrl) { mutableStateOf(false) }
     val fallbackAccent = remember(contentDescription) {
@@ -250,6 +251,7 @@ internal fun CoverArt(
                     contentDescription = contentDescription,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.matchParentSize(),
+                    crossfadeEnabled = crossfadeEnabled,
                     onError = { imageFailed = true }
                 )
             }
