@@ -220,6 +220,8 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
 
     fun cycleAspectRatio() = engine.cycleAspectRatio()
 
+    fun setPlaybackSpeed(speed: Float) = engine.setPlaybackSpeed(speed)
+
     fun attachSurface(surfaceView: android.view.SurfaceView) = engine.attachSurface(surfaceView)
 
     fun detachSurface(surfaceView: android.view.SurfaceView) = engine.detachSurface(surfaceView)

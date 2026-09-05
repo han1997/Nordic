@@ -58,7 +58,8 @@ data class VideoPlaybackState(
     val durationSeconds: Int = 0,
     val errorMessage: String? = null,
     val aspectRatioMode: AspectRatioMode = AspectRatioMode.FIT,
-    val videoAspectRatio: Float = 16f / 9f
+    val videoAspectRatio: Float = 16f / 9f,
+    val playbackSpeed: Float = 1f
 )
 
 interface VideoPlaybackBackend {
@@ -253,6 +254,12 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
         _state.update { it.copy(aspectRatioMode = resolveNextAspectRatioMode(it.aspectRatioMode)) }
     }
 
+    fun setPlaybackSpeed(speed: Float) {
+        val safeSpeed = resolveSafePlaybackSpeed(speed)
+        player.setPlaybackSpeed(safeSpeed)
+        publishPlayerState()
+    }
+
     override fun stop() {
         stopPositionUpdates()
         player.pause()
@@ -302,6 +309,7 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
                     ?.toInt() ?: 0,
                 durationSeconds = (playerDuration?.div(1000L)?.toInt() ?: video.durationSeconds)
                     .coerceAtLeast(video.durationSeconds),
+                playbackSpeed = player.playbackParameters.speed,
                 errorMessage = when (player.playbackState) {
                     Player.STATE_READY, Player.STATE_ENDED -> null
                     else -> it.errorMessage

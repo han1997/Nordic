@@ -131,6 +131,8 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
 
     fun toggleShuffleMode() = engine.toggleShuffleMode()
 
+    fun setPlaybackSpeed(speed: Float) = engine.setPlaybackSpeed(speed)
+
     fun seekToQueueIndex(index: Int) = engine.seekToQueueIndex(index)
 
     fun moveQueueItemToPlayNext(index: Int) = engine.moveQueueItemToPlayNext(index)

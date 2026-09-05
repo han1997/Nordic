@@ -242,6 +242,13 @@ class AudiobookPlaybackEngine(context: Context) {
         publishPlayerState()
     }
 
+    fun setPlaybackSpeed(speed: Float) {
+        val activeController = controller ?: return
+        val safeSpeed = if (speed.isFinite() && speed > 0f) speed else 1f
+        activeController.setPlaybackSpeed(safeSpeed)
+        publishPlayerState()
+    }
+
     /**
      * Starts a sleep timer. When [atChapterEnd] is true the timer stops playback
      * at the end of the chapter the listener is currently in, falling back to a

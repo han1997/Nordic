@@ -36,6 +36,7 @@ data class MusicPlaybackState(
     val errorMessage: String? = null,
     val repeatMode: Int = Player.REPEAT_MODE_OFF,
     val shuffleModeEnabled: Boolean = false,
+    val playbackSpeed: Float = 1f,
     val queue: List<NavidromeSong> = emptyList(),
     val queueIndex: Int = 0
 )
@@ -135,6 +136,25 @@ internal fun resolveMusicSeekByPosition(
     val target = safePosition.toLong() + deltaSeconds.toLong()
     return target.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
 }
+
+internal fun resolveSafePlaybackSpeed(speed: Float): Float {
+    return if (speed.isFinite() && speed > 0f) speed else 1f
+}
+
+internal fun resolvePlaybackSpeedLabel(speed: Float): String {
+    val safeSpeed = resolveSafePlaybackSpeed(speed)
+    val rounded = kotlin.math.round(safeSpeed * 100f) / 100f
+    return when (rounded) {
+        1f -> "1.0x"
+        1.5f -> "1.5x"
+        2f -> "2.0x"
+        0.75f -> "0.75x"
+        0.5f -> "0.5x"
+        else -> "${rounded}x"
+    }
+}
+
+internal val PLAYBACK_SPEED_OPTIONS = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
 
 @androidx.annotation.OptIn(UnstableApi::class)
 class MusicPlaybackEngine(context: Context) {
@@ -396,6 +416,13 @@ class MusicPlaybackEngine(context: Context) {
         publishPlayerState()
     }
 
+    fun setPlaybackSpeed(speed: Float) {
+        val activeController = controller ?: return
+        val safeSpeed = resolveSafePlaybackSpeed(speed)
+        activeController.setPlaybackSpeed(safeSpeed)
+        publishPlayerState()
+    }
+
     fun seekToQueueIndex(index: Int) {
         val activeController = controller ?: return
         if (index !in 0 until activeController.mediaItemCount) return
@@ -611,6 +638,7 @@ class MusicPlaybackEngine(context: Context) {
                 },
                 repeatMode = activeController.repeatMode,
                 shuffleModeEnabled = activeController.shuffleModeEnabled,
+                playbackSpeed = activeController.playbackParameters.speed,
                 queue = cachedQueue,
                 queueIndex = currentIndex
             )

@@ -248,6 +248,8 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
 
     fun cyclePlaybackSpeed() = engine.cyclePlaybackSpeed()
 
+    fun setPlaybackSpeed(speed: Float) = engine.setPlaybackSpeed(speed)
+
     fun setSleepTimer(minutes: Int, atChapterEnd: Boolean = false) =
         engine.setSleepTimer(minutes, atChapterEnd)
 

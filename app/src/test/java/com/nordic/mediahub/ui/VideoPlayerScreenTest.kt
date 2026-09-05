@@ -5,12 +5,78 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import com.nordic.mediahub.data.VideoItem
 import com.nordic.mediahub.playback.AspectRatioMode
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 @androidx.annotation.OptIn(UnstableApi::class)
 class VideoPlayerScreenTest {
+    @Test
+    fun resolveVideoGestureSide_splitsScreenAtHalfWidth() {
+        assertEquals(VideoGestureSide.Left, resolveVideoGestureSide(x = 10f, widthPx = 100f))
+        assertEquals(VideoGestureSide.Right, resolveVideoGestureSide(x = 90f, widthPx = 100f))
+        assertEquals(VideoGestureSide.Right, resolveVideoGestureSide(x = 50f, widthPx = 100f))
+        assertEquals(VideoGestureSide.Left, resolveVideoGestureSide(x = 10f, widthPx = 0f))
+    }
+
+    @Test
+    fun resolveVideoGestureAxis_isUndecidedBelowThreshold() {
+        assertEquals(
+            VideoGestureAxis.Undecided,
+            resolveVideoGestureAxis(accumulatedX = 20f, accumulatedY = 20f, decisionPx = 48f)
+        )
+    }
+
+    @Test
+    fun resolveVideoGestureAxis_locksToDominantAxis() {
+        assertEquals(
+            VideoGestureAxis.Horizontal,
+            resolveVideoGestureAxis(accumulatedX = 60f, accumulatedY = 10f, decisionPx = 48f)
+        )
+        assertEquals(
+            VideoGestureAxis.Vertical,
+            resolveVideoGestureAxis(accumulatedX = 5f, accumulatedY = 80f, decisionPx = 48f)
+        )
+        assertEquals(
+            VideoGestureAxis.Horizontal,
+            resolveVideoGestureAxis(accumulatedX = -80f, accumulatedY = 30f, decisionPx = 48f)
+        )
+    }
+
+    @Test
+    fun resolveVideoVerticalGestureStep_negatesDragAndNormalizesByHeight() {
+        // Upward drag (negative dy) should produce a positive step.
+        assertEquals(0.1f, resolveVideoVerticalGestureStep(dragAmountY = -100f, referenceHeightPx = 1000f), 0.0001f)
+        assertEquals(-0.05f, resolveVideoVerticalGestureStep(dragAmountY = 50f, referenceHeightPx = 1000f), 0.0001f)
+        assertEquals(0f, resolveVideoVerticalGestureStep(dragAmountY = -100f, referenceHeightPx = 0f))
+    }
+
+    @Test
+    fun videoPlaybackSpeedOptions_coversHillsYambyRange() {
+        assertEquals(listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f), VIDEO_PLAYBACK_SPEED_OPTIONS)
+    }
+
+    @Test
+    fun videoAdjustGestureState_accumulatesPerSideAndResetsBaselineOnSideSwitch() {
+        val state = VideoAdjustGestureState()
+
+        val first = state.applyStep(VideoGestureSide.Left, step = 0.1f, initialFraction = 0.5f)
+        assertEquals(0.6f, first, 0.0001f)
+        assertEquals(0.6f, state.progress, 0.0001f)
+        assertTrue(state.visible)
+
+        val second = state.applyStep(VideoGestureSide.Left, step = 0.1f, initialFraction = 0.5f)
+        assertEquals(0.7f, second, 0.0001f)
+
+        state.reset()
+        assertFalse(state.visible)
+
+        // New session on the other side starts from the initial fraction.
+        val volume = state.applyStep(VideoGestureSide.Right, step = 0.2f, initialFraction = 0.4f)
+        assertEquals(0.6f, volume, 0.0001f)
+    }
+
     @Test
     fun resolveVideoPlayerTimeline_keepsPositionWhenDurationUnknown() {
         val timeline = resolveVideoPlayerTimeline(

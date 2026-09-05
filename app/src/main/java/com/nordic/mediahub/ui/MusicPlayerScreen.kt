@@ -51,10 +51,13 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -88,6 +91,8 @@ import androidx.media3.common.Player
 import com.nordic.mediahub.data.MusicLyrics
 import com.nordic.mediahub.data.MusicLyricsLine
 import com.nordic.mediahub.data.NavidromeSong
+import com.nordic.mediahub.playback.PLAYBACK_SPEED_OPTIONS
+import com.nordic.mediahub.playback.resolvePlaybackSpeedLabel
 import com.nordic.mediahub.ui.theme.NordicAlpha
 import com.nordic.mediahub.ui.theme.NordicMotion
 import com.nordic.mediahub.ui.theme.NordicShapes
@@ -110,6 +115,11 @@ private const val SWIPE_TO_DISMISS_THRESHOLD_RATIO = 0.25f
 private const val FAVORITE_ERROR_NOTICE_DURATION_MS = 2000L
 
 /**
+ * How long the double-tap seek feedback chip stays visible before auto-hiding.
+ */
+private const val MUSIC_SEEK_FEEDBACK_DURATION_MS = 1200L
+
+/**
  * Maximum alpha decay applied to the player content while swiping down (at
  * the dismiss threshold the content is `1 - 0.6 = 0.4` opaque).
  */
@@ -120,6 +130,17 @@ private const val SWIPE_DISMISS_MAX_ALPHA_DECAY = 0.6f
  * `1 - 0.04 = 0.96` of its natural size).
  */
 private const val SWIPE_DISMISS_MAX_SCALE_DOWN = 0.04f
+
+/**
+ * Double-tap seek interval on the artwork/lyrics area (left half = back,
+ * right half = forward), mirroring mainstream music players.
+ */
+internal const val MUSIC_DOUBLE_TAP_SEEK_SECONDS = 10
+
+internal data class MusicSeekFeedback(
+    val deltaSeconds: Int,
+    val targetPositionSeconds: Int
+)
 
 @Composable
 fun MusicPlayerScreen(
@@ -136,6 +157,7 @@ fun MusicPlayerScreen(
     lyricsError: String?,
     repeatMode: Int = Player.REPEAT_MODE_OFF,
     shuffleModeEnabled: Boolean = false,
+    playbackSpeed: Float = 1f,
     onSeek: (Int) -> Unit,
     onPlayPause: () -> Unit,
     onClose: () -> Unit,
@@ -145,12 +167,15 @@ fun MusicPlayerScreen(
     onToggleShuffle: () -> Unit = {},
     onOpenQueue: () -> Unit = {},
     onToggleFavorite: (songId: String, starred: Boolean) -> Unit = { _, _ -> },
+    onSetPlaybackSpeed: (Float) -> Unit = {},
     favoriteError: SharedFlow<Unit>? = null,
     modifier: Modifier = Modifier
 ) {
     val resolvedDurationSeconds = maxOf(durationSeconds, song?.duration ?: 0, 1)
     var scrubPosition by remember(song?.id) { mutableStateOf<Float?>(null) }
     var showLyrics by rememberSaveable(song?.id) { mutableStateOf(false) }
+    var showSpeedSheet by remember(song?.id) { mutableStateOf(false) }
+    var seekFeedback by remember { mutableStateOf<MusicSeekFeedback?>(null) }
     val hasSong = song?.streamUrl?.isNotBlank() == true
     val visiblePosition = scrubPosition ?: positionSeconds.toFloat()
     val playbackStatusIsError = playbackError != null || (song != null && !hasSong)
@@ -160,6 +185,19 @@ fun MusicPlayerScreen(
         isPlaying -> "正在播放"
         song != null && !hasSong -> "这首歌缺少播放地址"
         else -> null
+    }
+    val feedbackScope = rememberCoroutineScope()
+    val feedbackJob = remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+
+    fun showSeekFeedback(delta: Int) {
+        feedbackJob.value?.cancel()
+        val target = (positionSeconds + delta).coerceIn(0, resolvedDurationSeconds)
+        seekFeedback = MusicSeekFeedback(deltaSeconds = delta, targetPositionSeconds = target)
+        onSeek(target)
+        feedbackJob.value = feedbackScope.launch {
+            delay(MUSIC_SEEK_FEEDBACK_DURATION_MS)
+            seekFeedback = null
+        }
     }
 
     BoxWithConstraints(
@@ -325,6 +363,8 @@ fun MusicPlayerScreen(
                 PlayerTopBar(
                     colorScheme = colorScheme,
                     compact = compact,
+                    playbackSpeed = playbackSpeed,
+                    onShowSpeedSheet = { showSpeedSheet = true },
                     onClose = onClose
                 )
                 PlayerPrimaryDisplay(
@@ -336,7 +376,9 @@ fun MusicPlayerScreen(
                     showLyrics = showLyrics,
                     colorScheme = colorScheme,
                     compact = compact,
+                    enabled = hasSong,
                     onToggleDisplay = { showLyrics = !showLyrics },
+                    onSeekRelative = { delta -> showSeekFeedback(delta) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
@@ -386,7 +428,30 @@ fun MusicPlayerScreen(
                     .align(Alignment.TopCenter)
                     .padding(top = statusTopPadding + NordicSpacing.md)
             )
+
+            // Double-tap seek feedback chip — mirrors the video player's
+            // transient "+10s / -10s" overlay so the gesture vocabulary is
+            // consistent across players.
+            seekFeedback?.let { feedback ->
+                MusicSeekFeedbackChip(
+                    feedback = feedback,
+                    colorScheme = colorScheme,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
         }
+    }
+
+    if (showSpeedSheet) {
+        MusicPlaybackSpeedSheet(
+            currentSpeed = playbackSpeed,
+            colorScheme = colorScheme,
+            onSelect = { speed ->
+                onSetPlaybackSpeed(speed)
+                showSpeedSheet = false
+            },
+            onDismiss = { showSpeedSheet = false }
+        )
     }
 }
 
@@ -394,6 +459,8 @@ fun MusicPlayerScreen(
 private fun PlayerTopBar(
     colorScheme: ColorScheme,
     compact: Boolean,
+    playbackSpeed: Float,
+    onShowSpeedSheet: () -> Unit,
     onClose: () -> Unit
 ) {
     Row(
@@ -418,8 +485,25 @@ private fun PlayerTopBar(
             modifier = Modifier.weight(1f),
             textAlign = TextAlign.Center
         )
-        // Right-side placeholder keeps the label centered (no more button here per Option B scope).
-        Spacer(modifier = Modifier.size(42.dp))
+        // Right-side playback-speed entry (音流-style): shows the active rate
+        // as text; opens the speed selection sheet.
+        Surface(
+            color = colorScheme.surface.copy(alpha = 0.58f),
+            contentColor = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
+            shape = NordicShapes.full,
+            modifier = Modifier
+                .size(42.dp)
+                .clickable(onClick = onShowSpeedSheet)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = resolvePlaybackSpeedLabel(playbackSpeed),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+            }
+        }
     }
 }
 
@@ -433,13 +517,30 @@ private fun PlayerPrimaryDisplay(
     showLyrics: Boolean,
     colorScheme: ColorScheme,
     compact: Boolean,
+    enabled: Boolean,
     onToggleDisplay: () -> Unit,
+    onSeekRelative: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val currentToggle by rememberUpdatedState(onToggleDisplay)
+    val currentSeekRelative by rememberUpdatedState(onSeekRelative)
+    val seekEnabled = enabled
     Box(
         modifier = modifier.pointerInput(Unit) {
-            detectTapGestures(onTap = { currentToggle() })
+            detectTapGestures(
+                onTap = { currentToggle() },
+                onDoubleTap = { offset ->
+                    if (seekEnabled) {
+                        val half = size.width / 2f
+                        val delta = if (offset.x < half) {
+                            -MUSIC_DOUBLE_TAP_SEEK_SECONDS
+                        } else {
+                            MUSIC_DOUBLE_TAP_SEEK_SECONDS
+                        }
+                        currentSeekRelative(delta)
+                    }
+                }
+            )
         }
     ) {
         if (showLyrics) {
@@ -1046,6 +1147,110 @@ internal fun resolveActiveLyricIndex(
  * so reading from the published song is sufficient for both initial state and revert-after-failure.
  */
 private fun resolveFavoriteDisplay(song: NavidromeSong?): Boolean = song?.starred != null
+
+/**
+ * Transient chip shown after a double-tap seek on the artwork/lyrics area,
+ * mirroring the video player's seek feedback overlay in light-theme styling.
+ */
+@Composable
+private fun MusicSeekFeedbackChip(
+    feedback: MusicSeekFeedback,
+    colorScheme: ColorScheme,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = colorScheme.surface.copy(alpha = 0.92f),
+        contentColor = colorScheme.onSurface,
+        shape = NordicShapes.full,
+        border = BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.24f)),
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = resolveSeekFeedbackLabel(feedback.deltaSeconds),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = colorScheme.primary,
+                maxLines = 1
+            )
+            Text(
+                text = formatDuration(feedback.targetPositionSeconds),
+                style = MaterialTheme.typography.bodySmall,
+                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
+                maxLines = 1
+            )
+        }
+    }
+}
+
+/**
+ * Playback-speed selection sheet (音流-style panel). Lists the shared
+ * [PLAYBACK_SPEED_OPTIONS] rates and highlights the active one. Selection is
+ * applied immediately and closes the sheet.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun MusicPlaybackSpeedSheet(
+    currentSpeed: Float,
+    colorScheme: ColorScheme,
+    onSelect: (Float) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = colorScheme.surface,
+        shape = NordicShapes.xl,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = NordicSpacing.lg)
+                .padding(bottom = NordicSpacing.xxl),
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
+        ) {
+            Text(
+                "播放速度",
+                style = MaterialTheme.typography.titleMedium,
+                color = colorScheme.onSurface,
+                modifier = Modifier.padding(bottom = NordicSpacing.xs)
+            )
+            PLAYBACK_SPEED_OPTIONS.forEach { speed ->
+                val selected = kotlin.math.abs(speed - currentSpeed) < 0.001f
+                Surface(
+                    color = if (selected) {
+                        colorScheme.primary.copy(alpha = 0.16f)
+                    } else {
+                        colorScheme.surfaceVariant.copy(alpha = 0.42f)
+                    },
+                    contentColor = colorScheme.onSurface,
+                    shape = NordicShapes.md,
+                    border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelect(speed) }
+                ) {
+                    Box(
+                        modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.md)
+                    ) {
+                        Text(
+                            text = resolvePlaybackSpeedLabel(speed),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = if (selected) colorScheme.primary else colorScheme.onSurface,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
 /**
  * Auto-dismissing pill shown when an optimistic favorite toggle fails and the

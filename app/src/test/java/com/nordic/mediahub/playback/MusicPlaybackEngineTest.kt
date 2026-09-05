@@ -14,6 +14,39 @@ class MusicPlaybackEngineTest {
     }
 
     @Test
+    fun resolveSafePlaybackSpeed_clampsInvalidSpeedsToOne() {
+        assertEquals(1f, resolveSafePlaybackSpeed(0f))
+        assertEquals(1f, resolveSafePlaybackSpeed(-1.5f))
+        assertEquals(1f, resolveSafePlaybackSpeed(Float.NaN))
+        assertEquals(1f, resolveSafePlaybackSpeed(Float.POSITIVE_INFINITY))
+        assertEquals(1.25f, resolveSafePlaybackSpeed(1.25f))
+    }
+
+    @Test
+    fun resolvePlaybackSpeedLabel_formatsCommonRates() {
+        assertEquals("0.5x", resolvePlaybackSpeedLabel(0.5f))
+        assertEquals("0.75x", resolvePlaybackSpeedLabel(0.75f))
+        assertEquals("1.0x", resolvePlaybackSpeedLabel(1f))
+        assertEquals("1.25x", resolvePlaybackSpeedLabel(1.25f))
+        assertEquals("1.5x", resolvePlaybackSpeedLabel(1.5f))
+        assertEquals("2.0x", resolvePlaybackSpeedLabel(2f))
+        assertEquals("1.1x", resolvePlaybackSpeedLabel(1.1f))
+    }
+
+    @Test
+    fun resolvePlaybackSpeedLabel_fallsBackToOneForInvalidInput() {
+        assertEquals("1.0x", resolvePlaybackSpeedLabel(0f))
+        assertEquals("1.0x", resolvePlaybackSpeedLabel(-2f))
+        assertEquals("1.0x", resolvePlaybackSpeedLabel(Float.NaN))
+    }
+
+    @Test
+    fun playbackSpeedOptions_coversMainstreamRange() {
+        assertEquals(listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f), PLAYBACK_SPEED_OPTIONS)
+    }
+
+
+    @Test
     fun resolveMusicSeekByPosition_clampsForwardToDuration() {
         assertEquals(200, resolveMusicSeekByPosition(currentPositionSeconds = 180, deltaSeconds = 30, durationSeconds = 200))
     }

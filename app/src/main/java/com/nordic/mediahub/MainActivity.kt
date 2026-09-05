@@ -859,6 +859,7 @@ private fun MusicPlayerLayer(
         lyricsError = lyricsError,
         repeatMode = playbackState.repeatMode,
         shuffleModeEnabled = playbackState.shuffleModeEnabled,
+        playbackSpeed = playbackState.playbackSpeed,
         onSeek = musicVM::seekTo,
         onPlayPause = musicVM::togglePlayPause,
         onClose = onClose,
@@ -868,6 +869,7 @@ private fun MusicPlayerLayer(
         onToggleShuffle = musicVM::toggleShuffleMode,
         onOpenQueue = onOpenQueue,
         onToggleFavorite = musicVM::toggleFavorite,
+        onSetPlaybackSpeed = musicVM::setPlaybackSpeed,
         favoriteError = musicVM.favoriteError,
         modifier = modifier
     )
@@ -913,6 +915,7 @@ private fun VideoPlayerLayer(
             },
             onPlayPause = videoVM::togglePlayPause,
             onCycleAspectRatio = videoVM::cycleAspectRatio,
+            onSetPlaybackSpeed = videoVM::setPlaybackSpeed,
             onToggleFullscreen = onToggleFullscreen,
             isFullscreen = isFullscreen,
             onClose = { closeVideoPlayback() },
@@ -958,6 +961,7 @@ private fun AudiobookPlayerLayer(
             onSeekToPreviousChapter = audiobookVM::seekToPreviousChapter,
             onSeekToNextChapter = audiobookVM::seekToNextChapter,
             onCyclePlaybackSpeed = audiobookVM::cyclePlaybackSpeed,
+            onSetPlaybackSpeed = audiobookVM::setPlaybackSpeed,
             onPlayPause = audiobookVM::togglePlayPause,
             onClose = closeAudiobookPlayback,
             onCloseAnyway = closeAudiobookPlaybackAnyway

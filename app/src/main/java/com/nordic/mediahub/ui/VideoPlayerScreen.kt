@@ -1,6 +1,10 @@
 package com.nordic.mediahub.ui
 
+import android.app.Activity
+import android.content.Context
+import android.media.AudioManager
 import android.view.SurfaceView
+import android.view.Window
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -29,21 +33,28 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AspectRatio
+import androidx.compose.material.icons.filled.BrightnessLow
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -55,10 +66,12 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -70,6 +83,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import com.nordic.mediahub.data.VideoItem
 import com.nordic.mediahub.playback.AspectRatioMode
 import com.nordic.mediahub.playback.VideoPlaybackState
+import com.nordic.mediahub.playback.resolvePlaybackSpeedLabel
 import com.nordic.mediahub.ui.theme.NordicMotion
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
@@ -81,6 +95,53 @@ import kotlin.math.roundToInt
 
 internal const val VIDEO_PLAYER_CONTROLS_AUTO_HIDE_MS = 4000L
 private const val VIDEO_PLAYER_CHROME_FADE_MS = NordicMotion.durationShort
+
+/** Speed rates offered by the video playback-speed sheet (Hills/Yamby-style). */
+internal val VIDEO_PLAYBACK_SPEED_OPTIONS = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f)
+
+/**
+ * Holds the mutable brightness/volume gesture state shared between the
+ * gesture recognizer and the center overlay. Lives outside recomposition so
+ * drags do not allocate per frame. Progress is tracked per side so repeated
+ * drags within one gesture session accumulate smoothly.
+ */
+internal class VideoAdjustGestureState {
+    var side by mutableStateOf(VideoGestureSide.Left)
+    var progress by mutableStateOf(0f)
+        private set
+    var visible by mutableStateOf(false)
+        private set
+    private var leftProgress = 0.5f
+    private var rightProgress = 0f
+
+    /**
+     * Applies [step] to the accumulated progress of [requestedSide] and
+     * returns the new value. Starts from a sensible baseline when a new
+     * gesture session begins (side change or fresh drag): brightness from
+     * mid-screen, volume from the current stream level.
+     */
+    fun applyStep(requestedSide: VideoGestureSide, step: Float, initialFraction: Float): Float {
+        if (!visible || side != requestedSide) {
+            if (requestedSide == VideoGestureSide.Left) {
+                leftProgress = initialFraction
+            } else {
+                rightProgress = initialFraction
+            }
+        }
+        val next = ((if (requestedSide == VideoGestureSide.Left) leftProgress else rightProgress) + step)
+            .coerceIn(0f, 1f)
+        if (requestedSide == VideoGestureSide.Left) leftProgress = next else rightProgress = next
+        side = requestedSide
+        progress = next
+        visible = true
+        return next
+    }
+
+    fun reset() {
+        visible = false
+        progress = 0f
+    }
+}
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
@@ -96,6 +157,7 @@ fun VideoPlayerScreen(
     onSeekRelative: (Int) -> Unit = {},
     onPlayPause: () -> Unit,
     onCycleAspectRatio: () -> Unit = {},
+    onSetPlaybackSpeed: (Float) -> Unit = {},
     onToggleFullscreen: () -> Unit = {},
     isFullscreen: Boolean = false,
     onClose: () -> Unit,
@@ -130,6 +192,22 @@ fun VideoPlayerScreen(
     var controlsVisible by remember { mutableStateOf(true) }
     var infoVisible by remember(video?.id) { mutableStateOf(false) }
     var seekFeedback by remember { mutableStateOf<SeekFeedback?>(null) }
+    var gesturesLocked by remember(video?.id) { mutableStateOf(false) }
+    var showSpeedSheet by remember(video?.id) { mutableStateOf(false) }
+    val adjustGestureState = remember { VideoAdjustGestureState() }
+    val context = LocalContext.current
+    val activityWindow = remember(context) {
+        (context as? Activity)?.window
+    }
+    val audioManager = remember(context) {
+        context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+    }
+    val brightnessController = remember(activityWindow) {
+        activityWindow?.let { VideoBrightnessController(it) }
+    }
+    val volumeController = remember(audioManager) {
+        audioManager?.let { VideoVolumeController(it) }
+    }
     val feedbackScope = rememberCoroutineScope()
     val feedbackJob = remember { AtomicReference<kotlinx.coroutines.Job?>(null) }
 
@@ -160,12 +238,16 @@ fun VideoPlayerScreen(
         infoVisible = false
     }
 
+    BackHandler(enabled = gesturesLocked) {
+        gesturesLocked = false
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
             .videoPlayerGestures(
-                enabled = video != null,
+                enabled = video != null && !gesturesLocked,
                 isFullscreen = isFullscreen,
                 durationSeconds = durationSeconds,
                 currentPositionSeconds = state.positionSeconds,
@@ -176,7 +258,30 @@ fun VideoPlayerScreen(
                 },
                 onScrubChange = { scrubPosition = it },
                 onSeek = onSeek,
-                onCycleAspectRatio = onCycleAspectRatio
+                onCycleAspectRatio = onCycleAspectRatio,
+                onBrightnessDrag = { step ->
+                    val controller = brightnessController
+                    if (controller != null) {
+                        val next = adjustGestureState.applyStep(
+                            requestedSide = VideoGestureSide.Left,
+                            step = step,
+                            initialFraction = 0.5f
+                        )
+                        controller.adjustByFraction(next)
+                    }
+                },
+                onVolumeDrag = { step ->
+                    val controller = volumeController
+                    if (controller != null) {
+                        val next = adjustGestureState.applyStep(
+                            requestedSide = VideoGestureSide.Right,
+                            step = step,
+                            initialFraction = controller.volumeFraction
+                        )
+                        controller.adjustByFraction(next)
+                    }
+                },
+                onGestureEnd = { adjustGestureState.reset() }
             )
     ) {
         VideoPlayerSurface(
@@ -221,6 +326,27 @@ fun VideoPlayerScreen(
             )
         }
 
+        // Brightness/volume vertical-drag indicator (Hills/Yamby-style center
+        // vertical bar with icon + progress).
+        if (adjustGestureState.visible) {
+            VideoAdjustGestureOverlay(
+                side = adjustGestureState.side,
+                progress = adjustGestureState.progress,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+
+        // Gesture lock overlay: when locked, only the unlock button responds.
+        if (gesturesLocked) {
+            VideoPlayerLockOverlay(
+                onUnlock = { gesturesLocked = false },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(NordicSpacing.lg)
+            )
+        }
+
         AnimatedVisibility(
             visible = controlsVisible,
             enter = fadeIn(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard)),
@@ -249,6 +375,8 @@ fun VideoPlayerScreen(
                     colorScheme = colorScheme,
                     hasVideo = video != null,
                     infoVisible = infoVisible,
+                    gesturesLocked = gesturesLocked,
+                    onToggleLock = { gesturesLocked = !gesturesLocked },
                     onToggleInfo = { infoVisible = !infoVisible },
                     onClose = onClose
                 )
@@ -262,6 +390,7 @@ fun VideoPlayerScreen(
                     isPlaying = state.isPlaying,
                     hasVideo = video != null,
                     isFullscreen = isFullscreen,
+                    playbackSpeed = state.playbackSpeed,
                     colorScheme = colorScheme,
                     onScrubChange = { scrubPosition = it },
                     onScrubFinished = {
@@ -274,6 +403,7 @@ fun VideoPlayerScreen(
                     onPlayPause = onPlayPause,
                     onSeekForward = onSeekForward,
                     onCycleAspectRatio = onCycleAspectRatio,
+                    onShowSpeedSheet = { showSpeedSheet = true },
                     onToggleFullscreen = onToggleFullscreen
                 )
             }
@@ -299,6 +429,18 @@ fun VideoPlayerScreen(
                 )
             }
         }
+    }
+
+    if (showSpeedSheet) {
+        VideoPlaybackSpeedSheet(
+            currentSpeed = state.playbackSpeed,
+            colorScheme = colorScheme,
+            onSelect = { speed ->
+                onSetPlaybackSpeed(speed)
+                showSpeedSheet = false
+            },
+            onDismiss = { showSpeedSheet = false }
+        )
     }
 }
 
@@ -378,6 +520,8 @@ private fun VideoPlayerTopBar(
     colorScheme: ColorScheme,
     hasVideo: Boolean,
     infoVisible: Boolean,
+    gesturesLocked: Boolean,
+    onToggleLock: () -> Unit,
     onToggleInfo: () -> Unit,
     onClose: () -> Unit
 ) {
@@ -422,6 +566,13 @@ private fun VideoPlayerTopBar(
                 colorScheme = colorScheme
             )
         }
+        VideoPlayerChromeButton(
+            icon = Icons.Filled.Lock,
+            colorScheme = colorScheme,
+            primary = gesturesLocked,
+            enabled = hasVideo,
+            onClick = onToggleLock
+        )
         VideoPlayerChromeButton(
             icon = Icons.Filled.Info,
             colorScheme = colorScheme,
@@ -709,6 +860,7 @@ private fun VideoPlayerControls(
     isPlaying: Boolean,
     hasVideo: Boolean,
     isFullscreen: Boolean,
+    playbackSpeed: Float,
     colorScheme: ColorScheme,
     onScrubChange: (Float) -> Unit,
     onScrubFinished: () -> Unit,
@@ -717,6 +869,7 @@ private fun VideoPlayerControls(
     onPlayPause: () -> Unit,
     onSeekForward: () -> Unit,
     onCycleAspectRatio: () -> Unit,
+    onShowSpeedSheet: () -> Unit,
     onToggleFullscreen: () -> Unit
 ) {
     Surface(
@@ -777,6 +930,14 @@ private fun VideoPlayerControls(
                     enabled = hasVideo,
                     size = 44.dp,
                     onClick = onCycleAspectRatio
+                )
+                Spacer(modifier = Modifier.width(NordicSpacing.md))
+                VideoPlayerChromeButton(
+                    text = resolvePlaybackSpeedLabel(playbackSpeed),
+                    colorScheme = colorScheme,
+                    enabled = hasVideo,
+                    size = 44.dp,
+                    onClick = onShowSpeedSheet
                 )
                 Spacer(modifier = Modifier.width(NordicSpacing.md))
                 VideoPlayerChromeButton(
@@ -1052,5 +1213,200 @@ internal fun resolveVideoPlayerResizeMode(aspectRatioMode: AspectRatioMode): Int
         AspectRatioMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
         AspectRatioMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_FILL
         AspectRatioMode.CROP -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+    }
+}
+
+/**
+ * Playback-speed selection sheet (Hills/Yamby-style menu). Selection is
+ * applied immediately via the engine and closes the sheet.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun VideoPlaybackSpeedSheet(
+    currentSpeed: Float,
+    colorScheme: ColorScheme,
+    onSelect: (Float) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = colorScheme.surface,
+        shape = NordicShapes.xl,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = NordicSpacing.lg)
+                .padding(bottom = NordicSpacing.xxl),
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
+        ) {
+            Text(
+                "播放速度",
+                style = MaterialTheme.typography.titleMedium,
+                color = colorScheme.onSurface,
+                modifier = Modifier.padding(bottom = NordicSpacing.xs)
+            )
+            VIDEO_PLAYBACK_SPEED_OPTIONS.forEach { speed ->
+                val selected = kotlin.math.abs(speed - currentSpeed) < 0.001f
+                Surface(
+                    color = if (selected) {
+                        colorScheme.primary.copy(alpha = 0.16f)
+                    } else {
+                        colorScheme.surfaceVariant.copy(alpha = 0.42f)
+                    },
+                    contentColor = colorScheme.onSurface,
+                    shape = NordicShapes.md,
+                    border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelect(speed) }
+                ) {
+                    Box(
+                        modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.md)
+                    ) {
+                        Text(
+                            text = resolvePlaybackSpeedLabel(speed),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = if (selected) colorScheme.primary else colorScheme.onSurface,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Center vertical indicator for the brightness/volume drag gesture: icon +
+ * thin vertical progress bar, shown only while the gesture is active.
+ */
+@Composable
+private fun VideoAdjustGestureOverlay(
+    side: VideoGestureSide,
+    progress: Float,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = Color.Black.copy(alpha = 0.62f),
+        contentColor = Color.White,
+        shape = NordicShapes.full,
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier.padding(NordicSpacing.lg),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
+        ) {
+            Icon(
+                imageVector = if (side == VideoGestureSide.Left) {
+                    Icons.Filled.BrightnessLow
+                } else {
+                    Icons.Filled.VolumeUp
+                },
+                contentDescription = if (side == VideoGestureSide.Left) "亮度" else "音量",
+                tint = Color.White,
+                modifier = Modifier.size(22.dp)
+            )
+            Box(
+                modifier = Modifier
+                    .width(6.dp)
+                    .height(120.dp)
+                    .clip(NordicShapes.full)
+                    .background(Color.White.copy(alpha = 0.22f))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .fillMaxHeight(progress.coerceIn(0f, 1f))
+                        .clip(NordicShapes.full)
+                        .background(Color.White)
+                )
+            }
+            Text(
+                text = "${(progress.coerceIn(0f, 1f) * 100).roundToInt()}%",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.White.copy(alpha = 0.86f),
+                maxLines = 1
+            )
+        }
+    }
+}
+
+/**
+ * Locked-state overlay: a single unlock button; all other gestures are
+ * disabled by the gesture modifier so pocket touches cannot seek or close.
+ */
+@Composable
+private fun VideoPlayerLockOverlay(
+    onUnlock: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = Color.Black.copy(alpha = 0.56f),
+        contentColor = Color.White,
+        shape = NordicShapes.full,
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+        modifier = modifier.size(44.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.clickable(onClick = onUnlock)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Lock,
+                contentDescription = "解除手势锁",
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Wraps window brightness adjustments for the left-half vertical gesture.
+ * `screenBrightness` is already normalized to 0..1 (BRIGHTNESS_OVERRIDE_NONE
+ * sentinel is negative), so [fraction] maps directly; keeps a small floor so
+ * the screen never goes fully black mid-gesture.
+ */
+internal class VideoBrightnessController(private val window: Window) {
+    fun adjustByFraction(fraction: Float) {
+        val clamped = fraction.coerceIn(0f, 1f)
+        val target = BRIGHTNESS_FRACTION_FLOOR + clamped * (1f - BRIGHTNESS_FRACTION_FLOOR)
+        val attributes = window.attributes
+        attributes.screenBrightness = target
+        window.attributes = attributes
+    }
+
+    companion object {
+        /** Keep a sliver of brightness so the screen never goes fully black mid-gesture. */
+        private const val BRIGHTNESS_FRACTION_FLOOR = 0.02f
+    }
+}
+
+/**
+ * Wraps STREAM_MUSIC volume adjustments for the right-half vertical gesture.
+ * Fraction 0..1 maps across [0, maxVolume]; reads the current volume as the
+ * baseline when constructed.
+ */
+internal class VideoVolumeController(private val audioManager: AudioManager) {
+    private val maxVolume: Int = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+    private val currentVolume: Int = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+
+    val volumeFraction: Float
+        get() = currentVolume.toFloat() / maxVolume.toFloat()
+
+    fun adjustByFraction(fraction: Float) {
+        val clamped = fraction.coerceIn(0f, 1f)
+        val target = (clamped * maxVolume).roundToInt().coerceIn(0, maxVolume)
+        if (target != currentVolume) {
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, target, 0)
+        }
     }
 }

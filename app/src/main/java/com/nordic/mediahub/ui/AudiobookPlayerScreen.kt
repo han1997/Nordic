@@ -81,6 +81,9 @@ private const val AUDIOBOOK_SWIPE_DISMISS_THRESHOLD_RATIO = 0.25f
 private const val AUDIOBOOK_SWIPE_DISMISS_MAX_SCALE_DOWN = 0.04f
 private const val AUDIOBOOK_SWIPE_DISMISS_MAX_ALPHA_DECAY = 0.6f
 
+/** Speed rates offered by the audiobook playback-speed sheet (audiobookshelf-style). */
+internal val AUDIOBOOK_PLAYBACK_SPEED_OPTIONS = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f, 2.5f, 3f)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AudiobookPlayerScreen(
@@ -98,6 +101,7 @@ fun AudiobookPlayerScreen(
     onSeekToPreviousChapter: () -> Unit = {},
     onSeekToNextChapter: () -> Unit = {},
     onCyclePlaybackSpeed: () -> Unit = {},
+    onSetPlaybackSpeed: (Float) -> Unit = {},
     onPlayPause: () -> Unit,
     onClose: () -> Unit,
     onCloseAnyway: () -> Unit = {}
@@ -107,6 +111,8 @@ fun AudiobookPlayerScreen(
     var scrubPosition by remember(session?.sessionId) { mutableStateOf<Float?>(null) }
     var showBookmarks by remember(session?.sessionId) { mutableStateOf(false) }
     var showSleepTimer by remember(session?.sessionId) { mutableStateOf(false) }
+    var showChapterList by remember(session?.sessionId) { mutableStateOf(false) }
+    var showSpeedSheet by remember(session?.sessionId) { mutableStateOf(false) }
     val visiblePosition = scrubPosition ?: state.positionSeconds.toFloat()
     val errorMessage = externalError ?: state.errorMessage
     val chapterNavigationEnabled = session != null && state.chapters.isNotEmpty()
@@ -285,10 +291,22 @@ fun AudiobookPlayerScreen(
                         text = formatPlaybackSpeed(state.playbackSpeed),
                         colorScheme = colorScheme,
                         enabled = playbackControlsEnabled,
-                        onClick = onCyclePlaybackSpeed
+                        onClick = { showSpeedSheet = true }
                     )
                     if (currentChapter != null) {
-                        MetaChip(currentChapter.title, colorScheme)
+                        MetaChip(
+                            text = currentChapter.title,
+                            colorScheme = colorScheme,
+                            enabled = chapterNavigationEnabled,
+                            onClick = { showChapterList = true }
+                        )
+                    } else {
+                        MetaChip(
+                            text = "章节",
+                            colorScheme = colorScheme,
+                            enabled = chapterNavigationEnabled,
+                            onClick = { showChapterList = true }
+                        )
                     }
                 }
             }
@@ -442,6 +460,217 @@ Spacer(Modifier.size(NordicSpacing.sm))
             },
             onDismiss = { showSleepTimer = false }
         )
+    }
+
+    if (showChapterList) {
+        AudiobookChapterListSheet(
+            chapters = sortedChapters,
+            currentPositionSeconds = state.positionSeconds,
+            colorScheme = colorScheme,
+            onSeekTo = { positionSeconds ->
+                showChapterList = false
+                onSeek(positionSeconds)
+            },
+            onDismiss = { showChapterList = false }
+        )
+    }
+
+    if (showSpeedSheet) {
+        AudiobookPlaybackSpeedSheet(
+            currentSpeed = state.playbackSpeed,
+            colorScheme = colorScheme,
+            onSelect = { speed ->
+                onSetPlaybackSpeed(speed)
+                showSpeedSheet = false
+            },
+            onDismiss = { showSpeedSheet = false }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AudiobookChapterListSheet(
+    chapters: List<AudiobookChapter>,
+    currentPositionSeconds: Int,
+    colorScheme: ColorScheme,
+    onSeekTo: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val currentChapterIndex = chapters.indexOfLast { chapter ->
+        chapter.startSeconds <= currentPositionSeconds
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = colorScheme.surface,
+        shape = NordicShapes.xl,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = NordicSpacing.lg)
+                .padding(bottom = NordicSpacing.xxl),
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
+                    Text(
+                        "章节",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = colorScheme.onSurface
+                    )
+                    Text(
+                        "共 ${chapters.size} 章 · 点击跳转",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
+                    )
+                }
+                AudiobookControlButton(
+                    icon = Icons.Filled.Close,
+                    contentDescription = "关闭章节列表",
+                    colorScheme = colorScheme,
+                    compact = false,
+                    enabled = true,
+                    onClick = onDismiss
+                )
+            }
+
+            LazyColumn(
+                modifier = Modifier.heightIn(max = 480.dp),
+                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
+            ) {
+                itemsIndexed(
+                    items = chapters,
+                    key = { index, chapter -> "${chapter.startSeconds}:$index" },
+                    contentType = { _, _ -> "audiobook-chapter-row" }
+                ) { index, chapter ->
+                    val isCurrent = index == currentChapterIndex
+                    Surface(
+                        color = if (isCurrent) {
+                            colorScheme.primary.copy(alpha = 0.14f)
+                        } else {
+                            colorScheme.surfaceVariant.copy(alpha = 0.42f)
+                        },
+                        shape = NordicShapes.md,
+                        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSeekTo(chapter.startSeconds) }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(
+                                horizontal = NordicSpacing.md,
+                                vertical = NordicSpacing.sm
+                            ),
+                            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "${index + 1}",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isCurrent) {
+                                    colorScheme.primary
+                                } else {
+                                    colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
+                                },
+                                maxLines = 1
+                            )
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
+                            ) {
+                                Text(
+                                    text = chapter.title,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Medium,
+                                    color = if (isCurrent) colorScheme.primary else colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = formatDuration(chapter.startSeconds),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Playback-speed panel (audiobookshelf-style): a selectable list of rates
+ * replacing the single tap-to-cycle chip interaction.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AudiobookPlaybackSpeedSheet(
+    currentSpeed: Float,
+    colorScheme: ColorScheme,
+    onSelect: (Float) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = colorScheme.surface,
+        shape = NordicShapes.xl,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = NordicSpacing.lg)
+                .padding(bottom = NordicSpacing.xxl),
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
+        ) {
+            Text(
+                "播放速度",
+                style = MaterialTheme.typography.titleMedium,
+                color = colorScheme.onSurface,
+                modifier = Modifier.padding(bottom = NordicSpacing.xs)
+            )
+            AUDIOBOOK_PLAYBACK_SPEED_OPTIONS.forEach { speed ->
+                val selected = kotlin.math.abs(speed - currentSpeed) < 0.001f
+                Surface(
+                    color = if (selected) {
+                        colorScheme.primary.copy(alpha = 0.16f)
+                    } else {
+                        colorScheme.surfaceVariant.copy(alpha = 0.42f)
+                    },
+                    contentColor = colorScheme.onSurface,
+                    shape = NordicShapes.md,
+                    border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelect(speed) }
+                ) {
+                    Box(
+                        modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.md)
+                    ) {
+                        Text(
+                            text = formatPlaybackSpeed(speed),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = if (selected) colorScheme.primary else colorScheme.onSurface,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
