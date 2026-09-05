@@ -1131,3 +1131,36 @@ HeaderActionGroup(四屏共用顶栏按钮组)Surface 移除 shadowElevation=4dp
 ### Next Steps
 
 - None - task complete
+
+
+## Session 150: 视频播放异常与后台不停播修复
+
+**Date**: 2026-09-05
+**Task**: 视频播放异常与后台不停播修复
+**Branch**: `main`
+
+### Summary
+
+三修复: 1)进度同步失败走独立 syncError 通道不再误报播放异常,关闭时同步失败照常关闭+后台重试; 2)进度baseline改本地位置优先,服务器记录仅作未开播回退,不再被其他设备进度顶高; 3)closeCurrentVideoPlayback 移除最小化后台播放语义,关闭即同步进度+停止引擎(用户明确不需要画中画)。测试更新, compile+test+lint 全绿。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `cc91b83` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
