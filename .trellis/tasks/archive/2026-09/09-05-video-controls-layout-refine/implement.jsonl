@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Spec index + verification commands (compile/test/lint gradle invocations)"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Design-token rules (NordicSpacing/NordicMotion/NordicShapes) for the controls row restructure; micro-interaction token rules; screen-transition rules"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Video Playback Display Modes scenario — Player controls row contract (must update the horizontalScroll clause), orientation/fullscreen contracts"}
+{"file": ".trellis/tasks/09-05-video-controls-layout-refine/prd.md", "reason": "Confirmed R1-R4 decisions: remove skip buttons, drop horizontalScroll, single-row three-group SpaceBetween layout"}

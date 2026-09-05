@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Spec index + full verification gate (compileDebugKotlin + testDebugUnitTest + lintDebug)"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify design-token compliance and micro-interaction rules for the restructured controls row"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Verify Player controls row contract update and orientation/fullscreen behavior not regressed"}
+{"file": ".trellis/tasks/09-05-video-controls-layout-refine/prd.md", "reason": "Acceptance criteria incl. no-scroll, removed skip buttons, centered play"}
