@@ -96,8 +96,6 @@ internal fun HeaderActionGroup(
         color = colorScheme.surfaceVariant.copy(alpha = 0.62f),
         contentColor = colorScheme.onSurface,
         shape = NordicShapes.md,
-        tonalElevation = 3.dp,
-        shadowElevation = 4.dp,
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
         modifier = modifier
     ) {
