@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-3.md`
-- **Total Sessions**: 151
+- **Total Sessions**: 152
 - **Last Active**: 2026-09-05
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-3.md` | ~1199 | Active |
+| `journal-3.md` | ~1232 | Active |
 | `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
@@ -31,6 +31,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 152 | 2026-09-05 | 视频全屏功能失效修复 | `36f39bc` | `main` |
 | 151 | 2026-09-05 | Emby播放记录拉取与及时同步 | `f43b28c` | `main` |
 | 150 | 2026-09-05 | 视频播放异常与后台不停播修复 | `cc91b83` | `main` |
 | 149 | 2026-09-05 | 视频播放页常用功能增强 | `e094137` | `main` |

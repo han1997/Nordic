@@ -1197,3 +1197,36 @@ HeaderActionGroup(四屏共用顶栏按钮组)Surface 移除 shadowElevation=4dp
 ### Next Steps
 
 - None - task complete
+
+
+## Session 152: 视频全屏功能失效修复
+
+**Date**: 2026-09-05
+**Task**: 视频全屏功能失效修复
+**Branch**: `main`
+
+### Summary
+
+根因: 全屏由两套控制器驱动(MainScreen LaunchedEffect + VideoPlayerLayer 始终组合的 DisposableEffect 都写 requestedOrientation)旋转重组时序竞争,且 isFullscreen rememberSaveable 进程重建后可能残留 true 而播放器已空导致卡横屏。修复: 删除 VideoPlayerLayer 重复 DisposableEffect,MainScreen 控制器 keyed on (isFullscreen,showVideoPlayer) 单一驱动,播放器关闭自动复位 isFullscreen 自愈,移除冗余 BackHandler。compile+test+lint 全绿。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `36f39bc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
