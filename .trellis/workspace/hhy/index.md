@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-3.md`
-- **Total Sessions**: 145
-- **Last Active**: 2026-08-29
+- **Total Sessions**: 146
+- **Last Active**: 2026-09-05
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-3.md` | ~999 | Active |
+| `journal-3.md` | ~1033 | Active |
 | `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
@@ -31,6 +31,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 146 | 2026-09-05 | 有声书/视频播放完善 + 三大播放页对标主流软件 | `29d4082`, `99db4cb` | `main` |
 | 145 | 2026-08-29 | Compose 流畅度与滑动优化 | `cd84708` | `main` |
 | 144 | 2026-08-29 | 优化 Gradle 构建与验证流程 | `33c7432` | `main` |
 | 143 | 2026-08-20 | UI 与逻辑继续优化：媒体浏览状态一致性 | `4032048`, `f6edfdb`, `3c3878a` | `main` |

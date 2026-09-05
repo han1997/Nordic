@@ -997,3 +997,37 @@ Moved the bottom dock out of Scaffold.bottomBar so hidden dock state leaves only
 ### Next Steps
 
 - None - task complete
+
+
+## Session 146: 有声书/视频播放完善 + 三大播放页对标主流软件
+
+**Date**: 2026-09-05
+**Task**: 有声书/视频播放完善 + 三大播放页对标主流软件
+**Branch**: `main`
+
+### Summary
+
+Batch A-E: 有声书书签激活、常驻now-playing dock(AB/视频)、共享薄滑杆、视频缓冲指示/剩余时间/双击反馈、有声书滑动关闭+睡眠定时器、关闭同步失败仍要关闭、进度同步门控、时长按track求和、视觉统一。Batch F: 音乐播放页倍速sheet+双击±10s反馈(音流)、有声书章节列表sheet+速度面板0.5-3x(audiobookshelf)、视频左亮右音量手势+手势锁+倍速菜单(Hills/Yamby)。compile+486 tests+lint 全绿。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `29d4082` | (see git log) |
+| `99db4cb` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
