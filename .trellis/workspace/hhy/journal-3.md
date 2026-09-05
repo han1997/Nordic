@@ -1098,3 +1098,36 @@ HeaderActionGroup(四屏共用顶栏按钮组)Surface 移除 shadowElevation=4dp
 ### Next Steps
 
 - None - task complete
+
+
+## Session 149: 视频播放页常用功能增强
+
+**Date**: 2026-09-05
+**Task**: 视频播放页常用功能增强
+**Branch**: `main`
+
+### Summary
+
+依据 Hills/Yamby/Infuse 调研补齐视频播放页常用功能: 下一集入口(resolveNextVideoEpisode 纯函数+控制行按钮+结尾30s浮层+VM目录上下文)、全屏自动横屏(SENSOR_LANDSCAPE 进出切换)、长按2x倍速(临时变速+指示chip+松开恢复)。新增4个单元测试, compile+490 tests+lint 全绿。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e094137` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
