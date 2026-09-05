@@ -150,6 +150,11 @@ fun VideoScreen(
     ) {
         if (!targetConfig.isReadyForVideoSync() || isLoading) return
 
+        // Capture the library request identity at refresh start. If the user
+        // switches libraries while this network round-trip is in flight, the
+        // stale catalog response must not write selectedLibraryId/videos/cache
+        // back over the newer chip selection.
+        val libraryRequestVersion = videoLibraryRequestVersion
         isLoading = true
         errorMessage = null
         try {
@@ -162,6 +167,7 @@ fun VideoScreen(
             if (!isCurrentVideoConfigRequest(requestVersion)) {
                 return
             }
+            val isCurrentLibraryRequest = videoLibraryRequestVersion == libraryRequestVersion
 
             val previousSelectedVideo = selectedVideo
             val refreshedSelectedVideo = resolveVideoSelectionAfterCatalogRefresh(
@@ -170,7 +176,9 @@ fun VideoScreen(
                 videos = catalog.items
             )
             libraries = catalog.libraries
-            selectedLibraryId = catalog.selectedLibraryId
+            if (isCurrentLibraryRequest) {
+                selectedLibraryId = catalog.selectedLibraryId
+            }
             videos = catalog.items
             selectedTypeFilter = resolveVideoTypeFilterAfterCatalogRefresh(
                 selectedTypeFilter = selectedTypeFilter,
@@ -180,14 +188,16 @@ fun VideoScreen(
             if (shouldShowVideoDetailInvalidationNotice(previousSelectedVideo, refreshedSelectedVideo)) {
                 videoDetailInvalidationNotice = "这个视频已不在刷新后的媒体库中，已返回视频列表。"
             }
-            val freshCache = cacheRepository.buildCache(
-                config = targetConfig,
-                libraries = catalog.libraries,
-                videos = catalog.items,
-                selectedLibraryId = catalog.selectedLibraryId
-            )
-            cacheUpdatedAtMillis = freshCache.updatedAtMillis
-            cacheRepository.save(targetConfig, freshCache)
+            if (isCurrentLibraryRequest) {
+                val freshCache = cacheRepository.buildCache(
+                    config = targetConfig,
+                    libraries = catalog.libraries,
+                    videos = catalog.items,
+                    selectedLibraryId = catalog.selectedLibraryId
+                )
+                cacheUpdatedAtMillis = freshCache.updatedAtMillis
+                cacheRepository.save(targetConfig, freshCache)
+            }
         } catch (e: Exception) {
             if (isCurrentVideoConfigRequest(requestVersion)) {
                 val hasCachedContent = libraries.isNotEmpty() || videos.isNotEmpty()
@@ -239,6 +249,9 @@ fun VideoScreen(
     // previous session). Cache-then-network: cached data renders immediately,
     // the silent refresh updates in place. `refreshVideo` self-guards with
     // `isLoading`, so this cannot stack with a manual refresh in flight.
+    // A library switch during the round-trip bumps `videoLibraryRequestVersion`,
+    // which makes refreshVideo skip the selectedLibraryId/cache write-back so
+    // the user's chip selection is not swallowed by the stale response.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         if (savedConfig.isReadyForVideoSync()) {
             scope.launch {

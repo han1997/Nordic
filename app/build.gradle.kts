@@ -47,7 +47,13 @@ dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.activity:activity-compose:1.8.2")
     implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.material3:material3")
+    // Pinned: the local BOM 2024.01.00 metadata resolves material3 to 1.1.2,
+    // whose LinearProgressIndicator bytecode calls KeyframesSpecConfig.at(...)
+    // with a covariant return type that only exists in animation-core 1.7+.
+    // Paired with animation-core 1.6.0 that throws NoSuchMethodError at runtime
+    // whenever MediaLoadingCard renders. material3 1.2.x is compiled against
+    // compose 1.6.x and is binary-compatible with animation-core 1.6.0.
+    implementation("androidx.compose.material3:material3:1.2.1")
     implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.ui:ui-tooling-preview")

@@ -607,6 +607,128 @@ class EmbyRepositoryTest {
     }
 
     @Test
+    fun getCatalog_deduplicatesItemsWithTheSameIdKeepingFirstOccurrenceOrder() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"movie-1","Name":"Arrival","Type":"Movie"},
+                    {"Id":"movie-2","Name":"Dune","Type":"Movie"},
+                    {"Id":"movie-1","Name":"Arrival Duplicate","Type":"Movie"},
+                    {"Id":"movie-3","Name":"Alien","Type":"Movie"}
+                  ],
+                  "TotalRecordCount": 4
+                }
+            """.trimIndent()
+        )
+
+        val catalog = repository(apiKey = "api-key").getCatalog()
+
+        assertEquals(
+            listOf("movie-1", "movie-2", "movie-3"),
+            catalog.items.map { it.id }
+        )
+        assertEquals(
+            listOf("Arrival", "Dune", "Alien"),
+            catalog.items.map { it.title }
+        )
+    }
+
+    @Test
+    fun getCatalog_stopsPaginatingWhenServerRepeatsTheSameFirstItem() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        // Both pages start with the same row: a server that ignores StartIndex.
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"movie-1","Name":"Arrival","Type":"Movie"},
+                    {"Id":"movie-2","Name":"Dune","Type":"Movie"}
+                  ],
+                  "TotalRecordCount": 9999
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"movie-1","Name":"Arrival Duplicate","Type":"Movie"},
+                    {"Id":"movie-3","Name":"Alien","Type":"Movie"}
+                  ],
+                  "TotalRecordCount": 9999
+                }
+            """.trimIndent()
+        )
+
+        val catalog = repository(apiKey = "api-key").getCatalog()
+
+        // users + views + 2 item pages: the second page triggered the stall
+        // guard (same first item id), and no third page was requested.
+        assertEquals(4, server.requestCount)
+        // The repeated page's items are discarded entirely (stall detected
+        // before appending), so only the first page's items remain.
+        assertEquals(
+            listOf("movie-1", "movie-2"),
+            catalog.items.map { it.id }
+        )
+    }
+
+    @Test
+    fun deduplicatedById_keepsSingleItemListAsIs() {
+        val item = video("movie-1", durationSeconds = 90)
+
+        assertEquals(listOf(item), listOf(item).deduplicatedById())
+    }
+
+    @Test
+    fun deduplicatedById_keepsFirstOccurrenceWhenDuplicatesExist() {
+        val first = VideoItem(
+            id = "movie-1",
+            libraryId = "library-1",
+            title = "First",
+            type = "Movie"
+        )
+        val second = VideoItem(
+            id = "movie-1",
+            libraryId = "library-1",
+            title = "Second",
+            type = "Movie"
+        )
+        val third = VideoItem(
+            id = "movie-2",
+            libraryId = "library-1",
+            title = "Third",
+            type = "Movie"
+        )
+
+        val result = listOf(first, second, third).deduplicatedById()
+
+        assertEquals(listOf(first, third), result)
+    }
+
+    @Test
     fun getCatalog_mapsSeriesEpisodeMetadataAndOnlyEpisodesArePlayable() = runTest {
         server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
         server.enqueueJson(

@@ -51,6 +51,24 @@ data class VideoCatalog(
     val items: List<VideoItem>
 )
 
+/**
+ * Keeps the first occurrence of each [VideoItem.id] in encounter order.
+ * Emby can return the same item twice for libraries containing nested
+ * collections (Recursive=true), and the browse grid keys rows by
+ * "libraryId:id", so duplicates would crash LazyVerticalGrid.
+ */
+internal fun List<VideoItem>.deduplicatedById(): List<VideoItem> {
+    if (size < 2) return this
+    val seen = HashSet<String>(size)
+    val result = ArrayList<VideoItem>(size)
+    for (item in this) {
+        if (seen.add(item.id)) {
+            result += item
+        }
+    }
+    return result
+}
+
 private const val EMBY_TICKS_PER_SECOND = 10_000_000L
 private const val EMBY_ITEMS_PAGE_SIZE = 100
 // TODO: confirm with `curl -H "X-Emby-Token: <key>" <emby-stream-url>` that the
@@ -211,6 +229,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
     private suspend fun getLibraryItems(session: EmbySession, libraryId: String): List<VideoItem> {
         val items = mutableListOf<VideoItem>()
         var startIndex = 0
+        var previousPageFirstItemId: String? = null
 
         while (true) {
             val response = requireResponseBody("获取 Emby 视频失败") {
@@ -223,6 +242,13 @@ class EmbyRepository(private val config: VideoServerConfig) {
                 )
             }
             val pageItems = response.items.orEmpty()
+            // Stall guard: a server that ignores StartIndex keeps returning the
+            // same first row, which would otherwise paginate forever.
+            val pageFirstItemId = pageItems.firstOrNull()?.id?.trim()
+            if (pageItems.isNotEmpty() && pageFirstItemId != null && pageFirstItemId == previousPageFirstItemId) {
+                break
+            }
+            previousPageFirstItemId = pageFirstItemId
             items += pageItems.mapNotNull { item -> item.toVideoItem(libraryId, session.token) }
             startIndex += pageItems.size
 
@@ -234,7 +260,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
             }
         }
 
-        return items
+        return items.deduplicatedById()
     }
 
     private fun EmbyItemDto.toVideoItem(libraryId: String, token: String): VideoItem? {
