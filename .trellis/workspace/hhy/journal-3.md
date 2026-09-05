@@ -1230,3 +1230,38 @@ HeaderActionGroup(四屏共用顶栏按钮组)Surface 移除 shadowElevation=4dp
 ### Next Steps
 
 - None - task complete
+
+
+## Session 153: 媒体库点击闪退修复+视频横竖屏手动切换
+
+**Date**: 2026-09-05
+**Task**: 媒体库点击闪退修复+视频横竖屏手动切换
+**Branch**: `main`
+
+### Summary
+
+1)媒体库点击闪退：logcat+字节码定位为material3 1.1.2与animation-core 1.6.0二进制不兼容(LinearProgressIndicator内NoSuchMethodError)，钉住material3 1.2.1修复；仓库层条目按id去重+分页同首页终止避免网格key冲突与死循环；ON_RESUME静默刷新加videoLibraryRequestVersion守卫，切库响应不再弹回旧库。2)视频横竖屏手动锁定：播放期间方向完全手动(非全屏默认竖锁、进全屏默认横锁)，控制栏新增旋转按钮(ScreenRotation)随时切换；按钮行加horizontalScroll修复窄屏溢出裁切。3)关闭播放器即时响应：不再阻塞等待Emby进度上报，改后台best-effort上报(失败重试一次)。真机验证通过，新增单测9个，compile+test+lint全绿。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a5023bc` | (see git log) |
+| `c7b2a18` | (see git log) |
+| `e80b7e8` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
