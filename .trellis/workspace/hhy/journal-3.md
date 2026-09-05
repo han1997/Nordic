@@ -1064,3 +1064,37 @@ HeaderActionGroup(四屏共用顶栏按钮组)Surface 移除 shadowElevation=4dp
 ### Next Steps
 
 - None - task complete
+
+
+## Session 148: 音乐库滑动卡顿两轮优化
+
+**Date**: 2026-09-05
+**Task**: 音乐库滑动卡顿两轮优化
+**Branch**: `main`
+
+### Summary
+
+第一轮(8d3e00a): AuthedAsyncImage 加 crossfadeEnabled 列表行禁用淡入、MusicScrollbar 合并4个 derivedStateOf 为1、SongListRow 移除 press-scale、Coil 显式 memoryCache 25%。第二轮(6fd2731): MusicScrollbar 重写为 drawBehind 渲染滚动帧零重组零subcomposition、CompactMusicShelfItem 移除 press-scale。compile+test+lint 全绿。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8d3e00a` | (see git log) |
+| `6fd2731` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
