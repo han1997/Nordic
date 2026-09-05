@@ -608,10 +608,14 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         bottomDockVisible = true
     }
 
-    LaunchedEffect(isFullscreen) {
+    // Single fullscreen controller: fullscreen is only meaningful while the
+    // video player layer is visible. Keyed on both flags so a restored
+    // `isFullscreen=true` without a player (process death) self-heals to
+    // portrait with system bars shown instead of a stuck landscape shell.
+    LaunchedEffect(isFullscreen, showVideoPlayer) {
         val activity = context as? ComponentActivity ?: return@LaunchedEffect
         val controller = WindowInsetsControllerCompat(activity.window, activity.window.decorView)
-        if (isFullscreen) {
+        if (isFullscreen && showVideoPlayer) {
             controller.systemBarsBehavior =
                 WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             controller.hide(WindowInsetsCompat.Type.systemBars())
@@ -619,6 +623,14 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         } else {
             controller.show(WindowInsetsCompat.Type.systemBars())
             activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
+
+    // Self-heal: closing the player while fullscreen must drop the fullscreen
+    // flag so the controller above restores portrait + system bars.
+    LaunchedEffect(showVideoPlayer) {
+        if (!showVideoPlayer && isFullscreen) {
+            isFullscreen = false
         }
     }
 
@@ -914,19 +926,9 @@ private fun VideoPlayerLayer(
     val videoPlaybackError by videoVM.error.collectAsStateWithLifecycle()
     val catalogVideos by videoVM.catalogVideos.collectAsStateWithLifecycle()
 
-    // Fullscreen auto-rotate: sensor landscape while fullscreen, system default
-    // otherwise (mainstream player convention).
-    val activity = LocalContext.current as? ComponentActivity
-    DisposableEffect(isFullscreen) {
-        if (activity != null) {
-            activity.requestedOrientation = if (isFullscreen) {
-                ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            } else {
-                ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-            }
-        }
-        onDispose { }
-    }
+    // Fullscreen orientation/system-bars control lives in MainScreen's single
+    // LaunchedEffect(isFullscreen, showVideoPlayer); no per-layer controller
+    // here (duplicate writers caused unstable fullscreen behavior).
 
     val nextEpisode = remember(videoPlaybackState.video, catalogVideos) {
         videoPlaybackState.video?.let { current -> resolveNextVideoEpisode(current, catalogVideos) }
@@ -943,10 +945,6 @@ private fun VideoPlayerLayer(
 
     BackHandler(enabled = showVideoPlayer || videoPlaybackError != null) {
         closeVideoPlayback()
-    }
-
-    BackHandler(enabled = isFullscreen) {
-        onToggleFullscreen()
     }
 
     AnimatedVisibility(
