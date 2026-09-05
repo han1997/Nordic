@@ -126,11 +126,20 @@ class MainActivityTest {
     }
 
     @Test
-    fun resolveVideoProgressSyncBaselineSeconds_usesStateWhenAlreadyAheadOfResume() {
+    fun resolveVideoProgressSyncBaselineSeconds_prefersLocalPositionOverServerRecord() {
+        // The local player position is authoritative: a server record that is
+        // ahead (watched further on another device) must not over-report.
         assertEquals(
             135,
             resolveVideoProgressSyncBaselineSeconds(
                 statePositionSeconds = 135,
+                video = video(playbackPositionSeconds = 90)
+            )
+        )
+        assertEquals(
+            40,
+            resolveVideoProgressSyncBaselineSeconds(
+                statePositionSeconds = 40,
                 video = video(playbackPositionSeconds = 90)
             )
         )

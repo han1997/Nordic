@@ -99,11 +99,16 @@ internal fun resolveVideoProgressSyncBaselineSeconds(
     statePositionSeconds: Int,
     video: VideoItem
 ): Int {
-    return maxOf(
-        0,
-        statePositionSeconds,
-        video.playbackPositionSeconds
-    )
+    // The local player position is authoritative for progress reporting. The
+    // server record is only a fallback when nothing has played locally yet
+    // (e.g. an immediate close before the first position tick); taking the
+    // max of both would over-report when the server progress is ahead (the
+    // item was watched further on another device).
+    return if (statePositionSeconds > 0) {
+        statePositionSeconds
+    } else {
+        video.playbackPositionSeconds.coerceAtLeast(0)
+    }
 }
 
 internal enum class AudiobookPlayRequestAction {
@@ -411,13 +416,24 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             )
         }
     }
-    val closeCurrentVideoPlayback = remember {
+    val closeCurrentVideoPlayback = remember(videoVM) {
         {
-            // Minimize: hide the full-screen player but keep video playing so it
-            // can be reopened from the dock now-playing bar.
-            bottomDockVisible = true
-            showVideoPlayer = false
-            isFullscreen = false
+            // Closing the video player stops playback entirely (no background
+            // playback / PiP): sync progress, stop the engine, then hide.
+            videoVM.closeVideoPlayback(
+                onClosed = {
+                    showVideoPlayer = false
+                    isFullscreen = false
+                    bottomDockVisible = true
+                },
+                onFailed = {
+                    // Sync failure must not trap the user in the player; the
+                    // VM already stops the engine and retries in background.
+                    showVideoPlayer = false
+                    isFullscreen = false
+                    bottomDockVisible = true
+                }
+            )
         }
     }
     val closeCurrentVideoPlaybackAnyway = remember(videoVM, closeCurrentVideoPlayback) {

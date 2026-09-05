@@ -33,6 +33,14 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     val error: StateFlow<String?> = _error.asStateFlow()
 
     /**
+     * Progress-sync failures (network, auth) reported here, separate from the
+     * player [error] channel: a failed progress report must never surface as
+     * "播放异常" inside the player UI.
+     */
+    private val _syncError = MutableStateFlow<String?>(null)
+    val syncError: StateFlow<String?> = _syncError.asStateFlow()
+
+    /**
      * In-memory episode context: the catalog list captured when playback was
      * started from the browse screen, used to resolve the "next episode"
      * target. Not persisted; cleared on stop.
@@ -93,7 +101,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                         }
                     },
                     onFailure = { error ->
-                        _error.value = error.message ?: "同步视频进度失败"
+                        _syncError.value = error.message ?: "同步视频进度失败"
                         Log.e("VideoPlayback", "同步视频进度失败", error)
                     }
                 )
@@ -120,6 +128,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                             runCatching {
                                 repoInstance.syncPlaybackProgress(video, position, isPaused = true)
                             }.onFailure { error ->
+                                _syncError.value = error.message ?: "同步视频进度失败"
                                 Log.e("VideoPlayback", "暂停时同步视频进度失败", error)
                             }
                         }
@@ -170,6 +179,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         onFailed: (message: String) -> Unit = {}
     ) {
         _error.value = null
+        _syncError.value = null
         val currentState = engine.state.value
         val video = currentState.video
         val repo = _repository.value
@@ -193,14 +203,22 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                             // a best-effort background stopped report. Clear the
                             // error so the player layer does not stay open.
                             _error.value = null
+                            _syncError.value = null
                             engine.stop()
                             onClosed()
                             viewModelScope.launch {
                                 runCatching { repo.stopPlaybackProgress(video, positionSeconds) }
                             }
                         } else {
-                            _error.value = error.message ?: "保存视频进度失败"
-                            onFailed(error.message ?: "保存视频进度失败")
+                            // Sync failure is not a player error: report it on the
+                            // sync channel and still close (the close path must
+                            // never trap the user in the player).
+                            _syncError.value = error.message ?: "保存视频进度失败"
+                            engine.stop()
+                            onClosed()
+                            viewModelScope.launch {
+                                runCatching { repo.stopPlaybackProgress(video, positionSeconds) }
+                            }
                         }
                     }
             }
