@@ -1164,3 +1164,36 @@ HeaderActionGroup(四屏共用顶栏按钮组)Surface 移除 shadowElevation=4dp
 ### Next Steps
 
 - None - task complete
+
+
+## Session 151: Emby播放记录拉取与及时同步
+
+**Date**: 2026-09-05
+**Task**: Emby播放记录拉取与及时同步
+**Branch**: `main`
+
+### Summary
+
+双向打通: 1)VideoScreen 加 ON_RESUME 生命周期钩子,每次进页静默 refreshVideo 拉取最新 UserData 播放记录(cache-then-network,isLoading 防重入); 2)VideoPlaybackViewModel.syncNow() 即时上报当前进度,VideoPlayerLayer ON_STOP(App退后台)时兜底触发,防30s周期间隔内进程被杀丢进度。compile+test+lint 全绿。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f43b28c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
