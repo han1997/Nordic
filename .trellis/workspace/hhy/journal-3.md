@@ -1298,3 +1298,37 @@ HeaderActionGroup(四屏共用顶栏按钮组)Surface 移除 shadowElevation=4dp
 ### Next Steps
 
 - None - task complete
+
+
+## Session 155: 移除视频横竖屏切换按钮 + 永久禁用 Trellis 子代理
+
+**Date**: 2026-09-06
+**Task**: 移除视频横竖屏切换按钮 + 永久禁用 Trellis 子代理
+**Branch**: `main`
+
+### Summary
+
+1) 移除视频播放页横竖屏切换按钮：删除 VideoPlayerScreen 中 ScreenRotation 按钮与 onToggleOrientation 参数链，方向改为跟随全屏的双锁定模型（全屏横锁/非全屏竖锁/关闭恢复系统控制），resolveVideoPlayerControlSizing 右侧按钮数从3/2改为2/1，方向单测与 VideoPlayerScreenTest 同步，emby-integration.md 契约与 CHANGELOG 更新。2) 在本项目永久禁用 Trellis 子代理：workflow.md 新增 Sub-Agent Policy，planning/in_progress breadcrumb 与 Skill Routing/Phase 1.2/1.3/2.1/2.2 全部改为主会话内联实现/检查/研究，移除平台分组标记；config.yaml 固定 codex.dispatch_mode=inline。compile+testDebugUnitTest+lintDebug 全绿。gradle.properties(org.gradle.tooling.parallel) 为既有手动改动，未提交。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `dee14b1` | (see git log) |
+| `d4de573` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
