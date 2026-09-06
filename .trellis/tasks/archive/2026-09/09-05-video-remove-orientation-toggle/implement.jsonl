@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "视频播放显示模式与全屏契约：onToggleOrientation 签名、manual-lock 方向模型、控制栏布局约定均需按本任务更新"}
+{"file": ".trellis/spec/backend/index.md", "reason": "backend spec 索引，Pre-Development Checklist 入口"}

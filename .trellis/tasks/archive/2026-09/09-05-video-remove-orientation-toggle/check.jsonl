@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "验证移除旋转按钮后实现与全屏/方向/控制栏契约一致"}
+{"file": ".trellis/spec/backend/index.md", "reason": "backend spec 索引，检查清单入口"}
