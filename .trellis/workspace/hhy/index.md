@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-3.md`
-- **Total Sessions**: 155
+- **Total Sessions**: 156
 - **Last Active**: 2026-09-06
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-3.md` | ~1334 | Active |
+| `journal-3.md` | ~1386 | Active |
 | `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
@@ -31,6 +31,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 156 | 2026-09-06 | 视频播放器布局与选集完善收尾 | `108305d` | `main` |
 | 155 | 2026-09-06 | 移除视频横竖屏切换按钮 + 永久禁用 Trellis 子代理 | `dee14b1`, `d4de573` | `main` |
 | 154 | 2026-09-05 | 视频播放控制栏布局收尾与窄屏回归 | `f5d12bc` | `main` |
 | 153 | 2026-09-05 | 媒体库点击闪退修复+视频横竖屏手动切换 | `a5023bc`, `c7b2a18`, `e80b7e8` | `main` |
