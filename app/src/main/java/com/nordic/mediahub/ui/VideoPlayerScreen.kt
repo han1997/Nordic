@@ -7,6 +7,8 @@ import android.view.SurfaceView
 import android.view.Window
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -14,76 +16,62 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.BrightnessLow
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FastForward
-import androidx.compose.material.icons.filled.Fullscreen
-import androidx.compose.material.icons.filled.FullscreenExit
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import com.nordic.mediahub.data.VideoItem
+import com.nordic.mediahub.playback.resolveVideoRelativeSeekPositionSeconds
 import com.nordic.mediahub.playback.AspectRatioMode
 import com.nordic.mediahub.playback.VideoPlaybackState
-import com.nordic.mediahub.playback.resolvePlaybackSpeedLabel
 import com.nordic.mediahub.ui.theme.NordicMotion
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
@@ -156,6 +144,7 @@ internal class VideoAdjustGestureState {
 fun VideoPlayerScreen(
     state: VideoPlaybackState,
     colorScheme: ColorScheme,
+    modifier: Modifier = Modifier,
     externalError: String? = null,
     onSurfaceReady: (SurfaceView) -> Unit,
     onSurfaceDisposed: (SurfaceView) -> Unit,
@@ -165,78 +154,65 @@ fun VideoPlayerScreen(
     onCycleAspectRatio: () -> Unit = {},
     onSetPlaybackSpeed: (Float) -> Unit = {},
     nextEpisode: VideoItem? = null,
+    episodeContext: List<VideoItem> = emptyList(),
+    onPlayEpisode: (VideoItem) -> Unit = {},
     onPlayNextEpisode: () -> Unit = {},
     onToggleFullscreen: () -> Unit = {},
     isFullscreen: Boolean = false,
     onClose: () -> Unit,
-    onCloseAnyway: () -> Unit = {},
-    modifier: Modifier = Modifier
+    onCloseAnyway: () -> Unit = {}
 ) {
     val video = state.video
     val durationSeconds = state.durationSeconds.coerceAtLeast(video?.durationSeconds ?: 0)
-    var scrubPosition by remember(video?.id) { mutableStateOf<Float?>(null) }
-    val errorMessage = externalError ?: state.errorMessage
-    val statusText = videoPlayerStatusText(
-        hasVideo = video != null,
-        isBuffering = state.isBuffering,
-        errorMessage = errorMessage
-    )
-    val statusTone = resolveVideoStatusTone(
-        hasVideo = video != null,
-        isBuffering = state.isBuffering,
-        errorMessage = errorMessage
-    )
+    val errorMessage = (externalError ?: state.errorMessage)?.takeIf { it.isNotBlank() }
+    val statusTone = resolveVideoStatusTone(video != null, state.isBuffering, errorMessage)
     val playerSubtitle = remember(video) { video?.metaTextForPlayer() }
+    val episodes = remember(video, episodeContext) { resolveVideoPlayerEpisodes(video, episodeContext) }
+    val hasNextEpisode = !nextEpisode?.streamUrl.isNullOrBlank()
     val videoAspectRatio = state.videoAspectRatio.takeIf { it > 0f } ?: 16f / 9f
     val currentOnSurfaceReady by rememberUpdatedState(onSurfaceReady)
     val currentOnSurfaceDisposed by rememberUpdatedState(onSurfaceDisposed)
-    val surfaceReadyCallback = remember {
-        { surface: SurfaceView -> currentOnSurfaceReady(surface) }
-    }
-    val surfaceDisposedCallback = remember {
-        { surface: SurfaceView -> currentOnSurfaceDisposed(surface) }
-    }
+    val surfaceReadyCallback = remember { { surface: SurfaceView -> currentOnSurfaceReady(surface) } }
+    val surfaceDisposedCallback = remember { { surface: SurfaceView -> currentOnSurfaceDisposed(surface) } }
 
-    var controlsVisible by remember { mutableStateOf(true) }
-    var infoVisible by remember(video?.id) { mutableStateOf(false) }
-    var seekFeedback by remember { mutableStateOf<SeekFeedback?>(null) }
+    var scrubPosition by remember(video?.id) { mutableStateOf<Float?>(null) }
+    var controlsVisible by remember(video?.id) { mutableStateOf(true) }
+    var activePanel by remember(video?.id) { mutableStateOf<VideoPlayerPanel?>(null) }
+    var seekFeedback by remember(video?.id) { mutableStateOf<SeekFeedback?>(null) }
     var gesturesLocked by remember(video?.id) { mutableStateOf(false) }
-    var showSpeedSheet by remember(video?.id) { mutableStateOf(false) }
     var isTempSpeeding by remember(video?.id) { mutableStateOf(false) }
-    val showNextEpisodeOverlay = nextEpisode != null && !state.isBuffering && errorMessage == null &&
-        durationSeconds > 0 && state.positionSeconds >= durationSeconds - VIDEO_NEXT_EPISODE_OVERLAY_LEAD_SECONDS
+    var nextPromptDismissed by remember(video?.id) { mutableStateOf(false) }
+    var interactionVersion by remember { mutableIntStateOf(0) }
     val adjustGestureState = remember { VideoAdjustGestureState() }
     val context = LocalContext.current
-    val activityWindow = remember(context) {
-        (context as? Activity)?.window
-    }
-    val audioManager = remember(context) {
-        context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-    }
-    val brightnessController = remember(activityWindow) {
-        activityWindow?.let { VideoBrightnessController(it) }
-    }
-    val volumeController = remember(audioManager) {
-        audioManager?.let { VideoVolumeController(it) }
-    }
+    val activityWindow = remember(context) { (context as? Activity)?.window }
+    val audioManager = remember(context) { context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager }
+    val brightnessController = remember(activityWindow) { activityWindow?.let { VideoBrightnessController(it) } }
+    val volumeController = remember(audioManager) { audioManager?.let { VideoVolumeController(it) } }
     val feedbackScope = rememberCoroutineScope()
     val feedbackJob = remember { AtomicReference<kotlinx.coroutines.Job?>(null) }
+    val prePressSpeed = remember { AtomicReference(1f) }
 
-    fun showSeekFeedback(delta: Int) {
-        feedbackJob.get()?.cancel()
-        val targetPosition = (state.positionSeconds + delta).coerceAtLeast(0)
-        seekFeedback = SeekFeedback(deltaSeconds = delta, targetPositionSeconds = targetPosition)
-        feedbackJob.set(
-            feedbackScope.launch {
-                delay(1200L)
-                seekFeedback = null
-            }
-        )
+    fun closePanel() {
+        activePanel = null
+        controlsVisible = true
+        interactionVersion++
     }
 
-    // Long-press temporary speed: remember the pre-press rate, jump to 2x on
-    // press, restore on release. Guarded so overlapping events cannot stack.
-    val prePressSpeed = remember { AtomicReference(1f) }
+    fun seekRelative(delta: Int) {
+        interactionVersion++
+        feedbackJob.get()?.cancel()
+        seekFeedback = SeekFeedback(
+            deltaSeconds = delta,
+            targetPositionSeconds = resolveVideoRelativeSeekPositionSeconds(state.positionSeconds, delta, durationSeconds)
+        )
+        onSeekRelative(delta)
+        feedbackJob.set(feedbackScope.launch {
+            delay(1200L)
+            seekFeedback = null
+        })
+    }
+
     fun startTempSpeed() {
         if (isTempSpeeding || video == null) return
         isTempSpeeding = true
@@ -250,245 +226,155 @@ fun VideoPlayerScreen(
         onSetPlaybackSpeed(prePressSpeed.get())
     }
 
-    LaunchedEffect(controlsVisible, state.isPlaying, scrubPosition, statusTone, infoVisible) {
-        if (controlsVisible && state.isPlaying && scrubPosition == null && statusTone == null && !infoVisible) {
+    fun playNextEpisode() {
+        if (!hasNextEpisode) return
+        closePanel()
+        onPlayNextEpisode()
+    }
+
+    LaunchedEffect(controlsVisible, state.isPlaying, scrubPosition, statusTone, activePanel, interactionVersion, isTempSpeeding) {
+        if (controlsVisible && state.isPlaying && scrubPosition == null && statusTone == null &&
+            activePanel == null && !isTempSpeeding
+        ) {
             delay(VIDEO_PLAYER_CONTROLS_AUTO_HIDE_MS)
             controlsVisible = false
         }
     }
-
-    BackHandler(enabled = isFullscreen) {
-        onToggleFullscreen()
+    LaunchedEffect(statusTone) {
+        if (statusTone != null) controlsVisible = true
     }
-
-    BackHandler(enabled = infoVisible) {
-        infoVisible = false
+    DisposableEffect(video?.id) {
+        onDispose { feedbackJob.get()?.cancel() }
     }
-
+    BackHandler(enabled = isFullscreen) { onToggleFullscreen() }
     BackHandler(enabled = gesturesLocked) {
         gesturesLocked = false
+        controlsVisible = true
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .videoPlayerGestures(
-                enabled = video != null && !gesturesLocked,
-                isFullscreen = isFullscreen,
-                durationSeconds = durationSeconds,
-                currentPositionSeconds = state.positionSeconds,
-                onToggleControls = { controlsVisible = !controlsVisible },
-                onSeekRelative = { delta ->
-                    showSeekFeedback(delta)
-                    onSeekRelative(delta)
-                },
-                onScrubChange = { scrubPosition = it },
-                onSeek = onSeek,
-                onCycleAspectRatio = onCycleAspectRatio,
-                onBrightnessDrag = { step ->
-                    val controller = brightnessController
-                    if (controller != null) {
-                        val next = adjustGestureState.applyStep(
-                            requestedSide = VideoGestureSide.Left,
-                            step = step,
-                            initialFraction = 0.5f
-                        )
-                        controller.adjustByFraction(next)
-                    }
-                },
-                onVolumeDrag = { step ->
-                    val controller = volumeController
-                    if (controller != null) {
-                        val next = adjustGestureState.applyStep(
-                            requestedSide = VideoGestureSide.Right,
-                            step = step,
-                            initialFraction = controller.volumeFraction
-                        )
-                        controller.adjustByFraction(next)
-                    }
-                },
-                onGestureEnd = { adjustGestureState.reset() },
-                onLongPressStart = { startTempSpeed() },
-                onLongPressEnd = { endTempSpeed() }
-            )
-    ) {
-        VideoPlayerSurface(
-            aspectRatioMode = state.aspectRatioMode,
-            videoAspectRatio = videoAspectRatio,
-            onSurfaceReady = surfaceReadyCallback,
-            onSurfaceDisposed = surfaceDisposedCallback,
-            modifier = Modifier.fillMaxSize()
-        )
-
-        AnimatedVisibility(
-            visible = controlsVisible,
-            enter = fadeIn(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard)),
-            exit = fadeOut(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard))
-        ) {
-            VideoPlayerScrim()
-        }
-
-        if (video == null) {
-            VideoPlayerCenterMessage(
-                title = "暂无视频",
-                subtitle = "从媒体库选择一个视频开始播放"
-            )
-        } else if (errorMessage != null) {
-            VideoPlayerCenterMessage(
-                title = "播放异常",
-                subtitle = errorMessage,
-                onCloseAnyway = onCloseAnyway
-            )
-        } else if (state.isBuffering) {
-            VideoPlayerCenterMessage(
-                title = "缓冲中",
-                subtitle = "正在准备视频流"
-            )
-        }
-
-        if (seekFeedback != null) {
-            VideoPlayerSeekFeedbackOverlay(
-                feedback = seekFeedback!!,
-                colorScheme = colorScheme,
-                modifier = Modifier.align(Alignment.Center)
-            )
-        }
-
-        // Long-press temporary-speed indicator.
-        if (isTempSpeeding) {
-            VideoPlayerTempSpeedChip(
-                modifier = Modifier.align(Alignment.Center)
-            )
-        }
-
-        // "Next episode" floating action near the end of an episode.
-        if (showNextEpisodeOverlay && !gesturesLocked) {
-            VideoPlayerNextEpisodeOverlay(
-                episodeTitle = nextEpisode?.title.orEmpty(),
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .then(if (isFullscreen) Modifier else Modifier.navigationBarsPadding())
-                    .padding(NordicSpacing.lg),
-                onClick = onPlayNextEpisode
-            )
-        }
-
-        // Brightness/volume vertical-drag indicator (Hills/Yamby-style center
-        // vertical bar with icon + progress).
-        if (adjustGestureState.visible) {
-            VideoAdjustGestureOverlay(
-                side = adjustGestureState.side,
-                progress = adjustGestureState.progress,
-                modifier = Modifier.align(Alignment.Center)
-            )
-        }
-
-        // Gesture lock overlay: when locked, only the unlock button responds.
-        if (gesturesLocked) {
-            VideoPlayerLockOverlay(
-                onUnlock = { gesturesLocked = false },
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .statusBarsPadding()
-                    .padding(NordicSpacing.lg)
-            )
-        }
-
-        AnimatedVisibility(
-            visible = controlsVisible,
-            enter = fadeIn(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard)),
-            exit = fadeOut(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard))
-        ) {
-            val timeline = resolveVideoPlayerTimeline(
-                positionSeconds = state.positionSeconds,
-                durationSeconds = durationSeconds
-            )
-            val visiblePosition = (scrubPosition ?: timeline.positionSeconds.toFloat())
-                .coerceIn(0f, timeline.sliderMaxSeconds.toFloat())
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .then(if (isFullscreen) Modifier else Modifier.statusBarsPadding())
-                    .then(if (isFullscreen) Modifier else Modifier.navigationBarsPadding())
-                    .padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.md),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                VideoPlayerTopBar(
-                    title = video?.title ?: "视频播放器",
-                    subtitle = playerSubtitle,
-                    statusText = statusText,
-                    statusTone = statusTone,
-                    colorScheme = colorScheme,
-                    hasVideo = video != null,
-                    infoVisible = infoVisible,
-                    gesturesLocked = gesturesLocked,
-                    onToggleLock = { gesturesLocked = !gesturesLocked },
-                    onToggleInfo = { infoVisible = !infoVisible },
-                    onClose = onClose
-                )
-
-                VideoPlayerControls(
-                    visiblePosition = visiblePosition,
-                    durationSeconds = durationSeconds,
-                    bufferedPositionSeconds = state.bufferedPositionSeconds,
-                    timeline = timeline,
-                    scrubPosition = scrubPosition,
-                    isPlaying = state.isPlaying,
-                    hasVideo = video != null,
+    val showChrome = controlsVisible && activePanel == null
+    Box(modifier.fillMaxSize().background(Color.Black)) {
+        Box(Modifier.fillMaxSize().then(if (activePanel != null) Modifier.clearAndSetSemantics {} else Modifier)) {
+            // Gestures belong to the video surface, not to an ancestor of the buttons or modal lists.
+            Box(
+                Modifier.fillMaxSize().videoPlayerGestures(
+                    enabled = video != null && !gesturesLocked && activePanel == null,
                     isFullscreen = isFullscreen,
-                    playbackSpeed = state.playbackSpeed,
-                    hasNextEpisode = nextEpisode != null,
-                    colorScheme = colorScheme,
+                    durationSeconds = durationSeconds,
+                    currentPositionSeconds = state.positionSeconds,
+                    onToggleControls = { controlsVisible = !controlsVisible },
+                    onSeekRelative = ::seekRelative,
+                    onScrubChange = { scrubPosition = it },
+                    onSeek = onSeek,
+                    onCycleAspectRatio = onCycleAspectRatio,
+                    onBrightnessDrag = { step ->
+                        brightnessController?.let { controller ->
+                            controller.adjustByFraction(adjustGestureState.applyStep(VideoGestureSide.Left, step, 0.5f))
+                        }
+                    },
+                    onVolumeDrag = { step ->
+                        volumeController?.let { controller ->
+                            controller.adjustByFraction(adjustGestureState.applyStep(VideoGestureSide.Right, step, controller.volumeFraction))
+                        }
+                    },
+                    onGestureEnd = { adjustGestureState.reset() },
+                    onLongPressStart = ::startTempSpeed,
+                    onLongPressEnd = ::endTempSpeed
+                )
+            ) {
+                VideoPlayerSurface(
+                    aspectRatioMode = state.aspectRatioMode,
+                    videoAspectRatio = videoAspectRatio,
+                    onSurfaceReady = surfaceReadyCallback,
+                    onSurfaceDisposed = surfaceDisposedCallback,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            AnimatedVisibility(visible = showChrome,
+                enter = fadeIn(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard)),
+                exit = fadeOut(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard))) {
+                VideoPlayerScrim()
+            }
+            if (video == null) {
+                VideoPlayerCenterMessage("暂无视频", "从媒体库选择一个视频开始播放")
+            } else if (errorMessage != null) {
+                VideoPlayerCenterMessage("播放异常", errorMessage, onCloseAnyway)
+            } else if (state.isBuffering) {
+                VideoPlayerCenterMessage("缓冲中", "正在准备视频流")
+            }
+            seekFeedback?.let { feedback ->
+                VideoPlayerSeekFeedbackOverlay(feedback, colorScheme, Modifier.align(Alignment.Center))
+            }
+            if (isTempSpeeding) VideoPlayerTempSpeedChip(Modifier.align(Alignment.Center))
+            if (adjustGestureState.visible) VideoAdjustGestureOverlay(
+                adjustGestureState.side, adjustGestureState.progress, Modifier.align(Alignment.Center)
+            )
+            if (gesturesLocked && !showChrome && activePanel == null) {
+                VideoPlayerLockOverlay(
+                    onUnlock = { gesturesLocked = false; controlsVisible = true },
+                    modifier = Modifier.align(Alignment.CenterStart)
+                        .windowInsetsPadding(WindowInsets.safeDrawing).padding(NordicSpacing.lg)
+                )
+            }
+            AnimatedVisibility(visible = showChrome,
+                enter = fadeIn(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard)),
+                exit = fadeOut(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard))) {
+                VideoPlayerChrome(
+                    state = state, colorScheme = colorScheme, subtitle = playerSubtitle,
+                    durationSeconds = durationSeconds, scrubPosition = scrubPosition,
+                    isFullscreen = isFullscreen, hasEpisodes = episodes.isNotEmpty(),
+                    hasNextEpisode = hasNextEpisode, hasPlaybackStatus = statusTone != null,
+                    gesturesLocked = gesturesLocked,
+                    onClose = { endTempSpeed(); onClose() },
+                    onToggleLock = { gesturesLocked = !gesturesLocked; interactionVersion++ },
+                    onPanel = { panel -> activePanel = panel; interactionVersion++ },
+                    onPlayPause = { onPlayPause(); interactionVersion++ },
+                    onSeekRelative = ::seekRelative,
+                    onCycleAspectRatio = { onCycleAspectRatio(); interactionVersion++ },
+                    onPlayNextEpisode = ::playNextEpisode,
+                    onToggleFullscreen = { onToggleFullscreen(); interactionVersion++ },
                     onScrubChange = { scrubPosition = it },
                     onScrubFinished = {
-                        val target = scrubPosition ?: visiblePosition
-                        onSeek(target.roundToInt())
+                        scrubPosition?.let { onSeek(it.roundToInt()) }
                         scrubPosition = null
+                        interactionVersion++
                     },
-                    onScrubCanceled = { scrubPosition = null },
-                    onPlayPause = onPlayPause,
-                    onCycleAspectRatio = onCycleAspectRatio,
-                    onShowSpeedSheet = { showSpeedSheet = true },
-                    onPlayNextEpisode = onPlayNextEpisode,
-                    onToggleFullscreen = onToggleFullscreen
+                    onScrubCanceled = { scrubPosition = null }
+                )
+            }
+            if (shouldShowVideoNextEpisodePrompt(
+                    hasNextEpisode, durationSeconds, state.positionSeconds, controlsVisible,
+                    activePanel != null, gesturesLocked, statusTone != null, nextPromptDismissed
+                )
+            ) {
+                VideoPlayerNextEpisodeOverlay(
+                    episodeTitle = nextEpisode?.title.orEmpty(), onClick = ::playNextEpisode,
+                    onDismiss = { nextPromptDismissed = true },
+                    modifier = Modifier.align(Alignment.TopEnd)
+                        .windowInsetsPadding(WindowInsets.safeDrawing).padding(NordicSpacing.lg)
                 )
             }
         }
-
-        AnimatedVisibility(
-            visible = infoVisible && video != null,
-            enter = fadeIn(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard)),
-            exit = fadeOut(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard)),
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .then(if (isFullscreen) Modifier else Modifier.statusBarsPadding())
-                .then(if (isFullscreen) Modifier else Modifier.navigationBarsPadding())
-                .padding(NordicSpacing.lg)
-        ) {
-            video?.let {
-                VideoPlayerInfoPanel(
-                    video = it,
-                    positionSeconds = state.positionSeconds,
-                    durationSeconds = durationSeconds,
-                    colorScheme = colorScheme,
-                    onClose = { infoVisible = false }
-                )
-            }
-        }
-    }
-
-    if (showSpeedSheet) {
-        VideoPlaybackSpeedSheet(
-            currentSpeed = state.playbackSpeed,
-            colorScheme = colorScheme,
-            onSelect = { speed ->
-                onSetPlaybackSpeed(speed)
-                showSpeedSheet = false
+        AnimatedContent(
+            modifier = Modifier.fillMaxSize(),
+            targetState = activePanel,
+            transitionSpec = {
+                fadeIn(tween(NordicMotion.durationShort)) togetherWith fadeOut(tween(NordicMotion.durationShort))
             },
-            onDismiss = { showSpeedSheet = false }
-        )
+            label = "video-player-panel"
+        ) { panel ->
+            if (panel != null) VideoPlayerPanelHost(
+                panel = panel, state = state, episodes = episodes, nextEpisode = nextEpisode,
+                isFullscreen = isFullscreen, onPanelChange = { activePanel = it }, onDismiss = ::closePanel,
+                onSetPlaybackSpeed = { speed -> onSetPlaybackSpeed(speed); closePanel() },
+                onCycleAspectRatio = onCycleAspectRatio,
+                onPlayEpisode = { selected ->
+                    closePanel()
+                    if (shouldPlaySelectedVideoEpisode(video, selected)) onPlayEpisode(selected)
+                },
+                onPlayNextEpisode = ::playNextEpisode
+            )
+        }
     }
 }
 
@@ -557,107 +443,6 @@ private fun VideoPlayerScrim() {
                 )
             )
     )
-}
-
-@Composable
-private fun VideoPlayerTopBar(
-    title: String,
-    subtitle: String?,
-    statusText: String?,
-    statusTone: VideoStatusTone?,
-    colorScheme: ColorScheme,
-    hasVideo: Boolean,
-    infoVisible: Boolean,
-    gesturesLocked: Boolean,
-    onToggleLock: () -> Unit,
-    onToggleInfo: () -> Unit,
-    onClose: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
-        verticalAlignment = Alignment.Top
-    ) {
-        VideoPlayerChromeButton(
-            icon = Icons.Filled.Close,
-            colorScheme = colorScheme,
-            primary = false,
-            onClick = onClose
-        )
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-        ) {
-            Text(
-                title,
-                style = MaterialTheme.typography.titleMedium,
-                lineHeight = 22.sp,
-                color = Color.White,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (!subtitle.isNullOrBlank()) {
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Normal,
-                    color = Color.White.copy(alpha = 0.66f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-        if (statusTone != null && !statusText.isNullOrBlank()) {
-            VideoPlayerStatusPill(
-                tone = statusTone,
-                text = statusText,
-                colorScheme = colorScheme
-            )
-        }
-        VideoPlayerChromeButton(
-            icon = Icons.Filled.Lock,
-            colorScheme = colorScheme,
-            primary = gesturesLocked,
-            enabled = hasVideo,
-            onClick = onToggleLock
-        )
-        VideoPlayerChromeButton(
-            icon = Icons.Filled.Info,
-            colorScheme = colorScheme,
-            primary = infoVisible,
-            enabled = hasVideo,
-            onClick = onToggleInfo
-        )
-    }
-}
-
-@Composable
-private fun VideoPlayerStatusPill(
-    tone: VideoStatusTone,
-    text: String,
-    colorScheme: ColorScheme
-) {
-    val containerColor = when (tone) {
-        VideoStatusTone.Buffering -> colorScheme.primary.copy(alpha = 0.18f)
-        VideoStatusTone.Error -> Color.Black.copy(alpha = 0.42f)
-        VideoStatusTone.Idle -> Color.Black.copy(alpha = 0.42f)
-    }
-    Surface(
-        color = containerColor,
-        contentColor = Color.White,
-        shape = NordicShapes.full,
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f))
-    ) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.SemiBold,
-            color = Color.White.copy(alpha = 0.86f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
 }
 
 @Composable
@@ -750,393 +535,6 @@ private fun BoxScope.VideoPlayerSeekFeedbackOverlay(
                 color = Color.White.copy(alpha = 0.66f),
                 maxLines = 1
             )
-        }
-    }
-}
-
-@Composable
-private fun VideoPlayerInfoPanel(
-    video: VideoItem,
-    positionSeconds: Int,
-    durationSeconds: Int,
-    colorScheme: ColorScheme,
-    onClose: () -> Unit
-) {
-    val chips = remember(video) { videoPlayerInfoChips(video) }
-    val rows = remember(video, positionSeconds, durationSeconds) {
-        videoPlayerInfoRows(
-            video = video,
-            positionSeconds = positionSeconds,
-            durationSeconds = durationSeconds
-        )
-    }
-    Surface(
-        color = Color.Black.copy(alpha = 0.68f),
-        contentColor = Color.White,
-        shape = NordicShapes.xl,
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
-        shadowElevation = 6.dp,
-        modifier = Modifier
-            .widthIn(max = 420.dp)
-            .fillMaxWidth()
-            .fillMaxHeight(0.78f)
-    ) {
-        Column(
-            modifier = Modifier
-                .padding(NordicSpacing.lg)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-                ) {
-                    Text(
-                        text = video.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    if (chips.isNotEmpty()) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            chips.take(3).forEach { chip ->
-                                VideoPlayerInfoChip(text = chip, colorScheme = colorScheme)
-                            }
-                        }
-                    }
-                }
-                VideoPlayerChromeButton(
-                    icon = Icons.Filled.Close,
-                    colorScheme = colorScheme,
-                    size = 40.dp,
-                    onClick = onClose
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(Color.White.copy(alpha = 0.10f))
-            )
-
-            rows.forEach { row ->
-                VideoPlayerInfoRow(row)
-            }
-
-            val overview = video.overview.trim()
-            if (overview.isNotBlank()) {
-                Text(
-                    text = overview,
-                    style = MaterialTheme.typography.bodyMedium,
-                    lineHeight = 20.sp,
-                    color = Color.White.copy(alpha = 0.76f)
-                )
-            } else {
-                Text(
-                    text = "暂无简介",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.52f)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun VideoPlayerInfoChip(text: String, colorScheme: ColorScheme) {
-    Surface(
-        color = colorScheme.primary.copy(alpha = 0.16f),
-        contentColor = Color.White,
-        shape = NordicShapes.full,
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
-    ) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.xs),
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.SemiBold,
-            color = Color.White.copy(alpha = 0.84f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-@Composable
-private fun VideoPlayerInfoRow(row: VideoPlayerInfoLine) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Top
-    ) {
-        Text(
-            text = row.label,
-            style = MaterialTheme.typography.bodySmall,
-            color = Color.White.copy(alpha = 0.52f)
-        )
-        Text(
-            text = row.value,
-            modifier = Modifier
-                .weight(1f)
-                .padding(start = NordicSpacing.lg),
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.SemiBold,
-            color = Color.White.copy(alpha = 0.82f),
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-internal data class VideoPlayerControlSizing(
-    val secondaryButtonSize: Dp,
-    val primaryButtonSize: Dp,
-    val buttonSpacing: Dp,
-    val sideGroupWidth: Dp
-)
-
-internal fun resolveVideoPlayerControlSizing(
-    availableWidth: Dp,
-    hasNextEpisode: Boolean
-): VideoPlayerControlSizing {
-    val secondaryButtonSize = 44.dp
-    val primaryButtonSize = 58.dp
-    val buttonSpacing = NordicSpacing.xs
-    val sideButtonCount = if (hasNextEpisode) 2 else 1
-    val sideGroupWidth = secondaryButtonSize * sideButtonCount + buttonSpacing * (sideButtonCount - 1)
-    val requiredWidth = sideGroupWidth * 2 + primaryButtonSize + buttonSpacing * 2
-    val scale = (availableWidth / requiredWidth).coerceIn(0f, 1f)
-    return VideoPlayerControlSizing(
-        secondaryButtonSize = secondaryButtonSize * scale,
-        primaryButtonSize = primaryButtonSize * scale,
-        buttonSpacing = buttonSpacing * scale,
-        sideGroupWidth = sideGroupWidth * scale
-    )
-}
-
-@Composable
-private fun VideoPlayerControls(
-    visiblePosition: Float,
-    durationSeconds: Int,
-    bufferedPositionSeconds: Int,
-    timeline: VideoPlayerTimeline,
-    scrubPosition: Float?,
-    isPlaying: Boolean,
-    hasVideo: Boolean,
-    isFullscreen: Boolean,
-    playbackSpeed: Float,
-    hasNextEpisode: Boolean,
-    colorScheme: ColorScheme,
-    onScrubChange: (Float) -> Unit,
-    onScrubFinished: () -> Unit,
-    onScrubCanceled: () -> Unit,
-    onPlayPause: () -> Unit,
-    onCycleAspectRatio: () -> Unit,
-    onShowSpeedSheet: () -> Unit,
-    onPlayNextEpisode: () -> Unit,
-    onToggleFullscreen: () -> Unit
-) {
-    Surface(
-        color = Color.Black.copy(alpha = 0.56f),
-        contentColor = Color.White,
-        shape = NordicShapes.xl,
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.md),
-            verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)
-        ) {
-            PlayerThinSlider(
-                position = visiblePosition,
-                duration = timeline.sliderMaxSeconds,
-                colorScheme = colorScheme,
-                enabled = hasVideo,
-                activeColor = colorScheme.primary,
-                inactiveColor = Color.White.copy(alpha = 0.22f),
-                thumbColor = colorScheme.primary,
-                bufferedPosition = bufferedPositionSeconds.takeIf { it > 0 }?.toFloat(),
-                bufferColor = Color.White.copy(alpha = 0.30f),
-                onPositionChange = onScrubChange,
-                onPositionChangeFinished = onScrubFinished,
-                onPositionChangeCanceled = onScrubCanceled
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    formatDuration(visiblePosition.roundToInt()),
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Normal,
-                    color = Color.White.copy(alpha = 0.68f),
-                    maxLines = 1
-                )
-                Text(
-                    formatVideoPlayerRemainingLabel(durationSeconds, visiblePosition.roundToInt()),
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Normal,
-                    color = Color.White.copy(alpha = 0.52f),
-                    maxLines = 1
-                )
-            }
-
-            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                val sizing = resolveVideoPlayerControlSizing(maxWidth, hasNextEpisode)
-                // 两侧等宽才会真正居中；按扣除内外边距后的宽度适配窄屏。
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        modifier = Modifier.width(sizing.sideGroupWidth),
-                        horizontalArrangement = Arrangement.spacedBy(sizing.buttonSpacing),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        VideoPlayerChromeButton(
-                            icon = Icons.Filled.AspectRatio,
-                            colorScheme = colorScheme,
-                            enabled = hasVideo,
-                            size = sizing.secondaryButtonSize,
-                            onClick = onCycleAspectRatio
-                        )
-                        VideoPlayerChromeButton(
-                            text = resolvePlaybackSpeedLabel(playbackSpeed),
-                            colorScheme = colorScheme,
-                            enabled = hasVideo,
-                            size = sizing.secondaryButtonSize,
-                            onClick = onShowSpeedSheet
-                        )
-                    }
-
-                    VideoPlayerChromeButton(
-                        icon = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        colorScheme = colorScheme,
-                        primary = true,
-                        enabled = hasVideo,
-                        size = sizing.primaryButtonSize,
-                        onClick = onPlayPause
-                    )
-
-                    Row(
-                        modifier = Modifier.width(sizing.sideGroupWidth),
-                        horizontalArrangement = Arrangement.spacedBy(sizing.buttonSpacing),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        if (hasNextEpisode) {
-                            VideoPlayerChromeButton(
-                                icon = Icons.Filled.SkipNext,
-                                colorScheme = colorScheme,
-                                enabled = true,
-                                size = sizing.secondaryButtonSize,
-                                onClick = onPlayNextEpisode
-                            )
-                        }
-                        VideoPlayerChromeButton(
-                            icon = if (isFullscreen) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
-                            colorScheme = colorScheme,
-                            enabled = hasVideo,
-                            size = sizing.secondaryButtonSize,
-                            onClick = onToggleFullscreen
-                        )
-                    }
-                }
-            }
-
-            if (scrubPosition != null) {
-                Text(
-                    "松开以跳转至 ${formatDuration(scrubPosition.roundToInt())}",
-                    modifier = Modifier.fillMaxWidth(),
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Normal,
-                    color = Color.White.copy(alpha = 0.58f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun VideoPlayerChromeButton(
-    icon: ImageVector? = null,
-    text: String? = null,
-    colorScheme: ColorScheme,
-    primary: Boolean = false,
-    enabled: Boolean = true,
-    size: Dp = 44.dp,
-    onClick: () -> Unit
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(
-        interactionSource = interactionSource,
-        pressedScale = 0.94f,
-        enabled = enabled
-    )
-    val containerColor = when {
-        primary && enabled -> colorScheme.primary
-        primary -> colorScheme.primary.copy(alpha = 0.30f)
-        enabled -> Color.Black.copy(alpha = 0.46f)
-        else -> Color.Black.copy(alpha = 0.24f)
-    }
-    val contentColor = when {
-        primary -> colorScheme.onPrimary
-        enabled -> Color.White
-        else -> Color.White.copy(alpha = 0.34f)
-    }
-
-    Surface(
-        color = containerColor,
-        contentColor = contentColor,
-        shape = NordicShapes.full,
-        border = if (primary) null else BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
-        shadowElevation = if (primary && enabled) 4.dp else 0.dp,
-        modifier = Modifier
-            .size(size)
-            .scale(scale)
-            .clickable(
-                enabled = enabled,
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            )
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            if (icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = contentColor,
-                    modifier = Modifier.size((size.value * 0.52f).dp)
-                )
-            } else if (!text.isNullOrBlank()) {
-                Text(
-                    text,
-                    fontSize = when {
-                        text.length > 2 -> 13.sp
-                        size > 50.dp -> 24.sp
-                        else -> 18.sp
-                    },
-                    fontWeight = FontWeight.Bold,
-                    color = contentColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Clip
-                )
-            }
         }
     }
 }
@@ -1299,70 +697,6 @@ internal fun resolveVideoPlayerResizeMode(aspectRatioMode: AspectRatioMode): Int
 }
 
 /**
- * Playback-speed selection sheet (Hills/Yamby-style menu). Selection is
- * applied immediately via the engine and closes the sheet.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun VideoPlaybackSpeedSheet(
-    currentSpeed: Float,
-    colorScheme: ColorScheme,
-    onSelect: (Float) -> Unit,
-    onDismiss: () -> Unit
-) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = colorScheme.surface,
-        shape = NordicShapes.xl,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = NordicSpacing.lg)
-                .padding(bottom = NordicSpacing.xxl),
-            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-        ) {
-            Text(
-                "播放速度",
-                style = MaterialTheme.typography.titleMedium,
-                color = colorScheme.onSurface,
-                modifier = Modifier.padding(bottom = NordicSpacing.xs)
-            )
-            VIDEO_PLAYBACK_SPEED_OPTIONS.forEach { speed ->
-                val selected = kotlin.math.abs(speed - currentSpeed) < 0.001f
-                Surface(
-                    color = if (selected) {
-                        colorScheme.primary.copy(alpha = 0.16f)
-                    } else {
-                        colorScheme.surfaceVariant.copy(alpha = 0.42f)
-                    },
-                    contentColor = colorScheme.onSurface,
-                    shape = NordicShapes.md,
-                    border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onSelect(speed) }
-                ) {
-                    Box(
-                        modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.md)
-                    ) {
-                        Text(
-                            text = resolvePlaybackSpeedLabel(speed),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = if (selected) colorScheme.primary else colorScheme.onSurface,
-                            maxLines = 1
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
  * Center vertical indicator for the brightness/volume drag gesture: icon +
  * thin vertical progress bar, shown only while the gesture is active.
  */
@@ -1388,7 +722,7 @@ private fun VideoAdjustGestureOverlay(
                 imageVector = if (side == VideoGestureSide.Left) {
                     Icons.Filled.BrightnessLow
                 } else {
-                    Icons.Filled.VolumeUp
+                    Icons.AutoMirrored.Filled.VolumeUp
                 },
                 contentDescription = if (side == VideoGestureSide.Left) "亮度" else "音量",
                 tint = Color.White,
@@ -1435,7 +769,7 @@ private fun VideoPlayerLockOverlay(
         contentColor = Color.White,
         shape = NordicShapes.full,
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
-        modifier = modifier.size(44.dp)
+        modifier = modifier.size(48.dp)
     ) {
         Box(
             contentAlignment = Alignment.Center,
@@ -1537,47 +871,26 @@ private fun VideoPlayerTempSpeedChip(
 private fun VideoPlayerNextEpisodeOverlay(
     episodeTitle: String,
     onClick: () -> Unit,
+    onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
-        color = Color.Black.copy(alpha = 0.68f),
+        color = Color.Black.copy(alpha = 0.72f),
         contentColor = Color.White,
         shape = NordicShapes.md,
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.16f)),
-        shadowElevation = 6.dp,
-        modifier = modifier.clickable(onClick = onClick)
+        modifier = modifier.widthIn(max = 300.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.md),
-            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm, Alignment.End),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Column(
-                modifier = Modifier.widthIn(max = 220.dp),
+                Modifier.weight(1f).clickable(role = Role.Button, onClick = onClick)
+                    .padding(NordicSpacing.md),
                 verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
             ) {
-                Text(
-                    text = "即将播放下一集",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color.White.copy(alpha = 0.66f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = episodeTitle.ifBlank { "下一集" },
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Text("播放下一集", style = MaterialTheme.typography.labelLarge, color = Color.White)
+                Text(episodeTitle, style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.68f), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Icon(
-                imageVector = Icons.Filled.SkipNext,
-                contentDescription = "播放下一集",
-                tint = Color.White,
-                modifier = Modifier.size(22.dp)
-            )
+            VideoPlayerChromeButton(Icons.Filled.Close, description = "暂不播放下一集", onClick = onDismiss)
         }
     }
 }

@@ -498,6 +498,8 @@ fun MusicQueueSheet(...) {
 - The music progress slider must use the pointer's absolute x position within the track to compute scrub position. Do not compute drag position from a stale external `position + dragAmount` value.
 - Dragging updates only local scrub display state. A real `seekTo(...)` happens only on normal drag release.
 - Drag cancel clears local scrub state and must not submit a real seek.
+- `PlayerThinSlider` 支持点按轨道与可访问性 `setProgress`：先设置本地目标，再完成一次 seek；真实拖动仍只在正常松手时提交，取消不提交。
+- 共享滑轨的回调通过 `rememberUpdatedState` 读取最新值，切换曲目/章节/剧集后不能保留旧 scrub 状态。默认高度不改变其他播放器，视频通过传入 modifier 扩大有效触控高度。
 - Relative music seek must clamp to `0..durationSeconds` when duration is known and positive.
 - When duration is unknown or `<= 0`, relative music seek should match video relative seek behavior: clamp only to non-negative `0..Int.MAX_VALUE`, allowing forward seek from the current non-negative position instead of forcing the target to `0`.
 - Music UI controls should expose short relative seek through the playback ViewModel/Engine, not by calculating target positions in Compose.

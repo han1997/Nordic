@@ -34,6 +34,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
@@ -302,7 +304,9 @@ private fun VideoDetailHero(
 internal fun VideoEpisodeRow(
     episode: VideoItem,
     colorScheme: ColorScheme,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isCurrent: Boolean = false,
+    compact: Boolean = false
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val scale = rememberPressScale(
@@ -324,13 +328,17 @@ internal fun VideoEpisodeRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(NordicShapes.sm)
+            .background(if (isCurrent) colorScheme.primaryContainer else Color.Transparent)
+            .semantics { selected = isCurrent }
             .scale(scale)
             .clickable(
                 enabled = !episode.streamUrl.isNullOrBlank(),
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
-            ),
+            )
+            .then(if (compact) Modifier.padding(NordicSpacing.sm) else Modifier),
         horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -338,7 +346,7 @@ internal fun VideoEpisodeRow(
             color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
             shape = NordicShapes.sm,
             border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
-            modifier = Modifier.width(116.dp)
+            modifier = Modifier.width(if (compact) 88.dp else 116.dp)
         ) {
             Box(
                 modifier = Modifier
@@ -366,7 +374,7 @@ internal fun VideoEpisodeRow(
                     )
                 } else if (showProgress) {
                     LinearProgressIndicator(
-                        progress = progressFraction,
+                        progress = { progressFraction },
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth(),
@@ -382,7 +390,7 @@ internal fun VideoEpisodeRow(
         ) {
             val label = remember(episode) { episode.episodeLabel() }
             Text(
-                label,
+                if (isCurrent) "正在播放 · $label" else label,
                 style = MaterialTheme.typography.bodySmall,
                 color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
                 maxLines = 1,
@@ -396,7 +404,9 @@ internal fun VideoEpisodeRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            val meta = remember(episode) { episode.metaText() }
+            val meta = remember(episode) {
+                if (episode.streamUrl.isNullOrBlank()) "暂不可播放" else episode.metaText()
+            }
             if (meta.isNotBlank()) {
                 Text(
                     meta,

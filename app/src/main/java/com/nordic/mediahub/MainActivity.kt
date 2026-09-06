@@ -531,6 +531,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     val onPlayVideo = remember(videoVM, runMediaHandoff) {
         { video: VideoItem ->
             val currentVideo = videoVM.state.value.video
+            val keepFullscreen = showVideoPlayer && isFullscreen
             runMediaHandoff(
                 MediaPlaybackKind.Video,
                 currentVideo != null && currentVideo.id != video.id,
@@ -540,6 +541,8 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                     showPlayer = false
                     showAudiobookPlayer = false
                     showVideoPlayer = true
+                    isFullscreen = keepFullscreen
+                    orientationLockedLandscape = keepFullscreen
                     releaseSwitch()
                 },
                 { }
@@ -799,6 +802,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         colorScheme = colorScheme,
         closeVideoPlayback = closeCurrentVideoPlayback,
         closeVideoPlaybackAnyway = closeCurrentVideoPlaybackAnyway,
+        onPlayEpisode = onPlayVideo,
         onToggleFullscreen = {
             // Fullscreen locks landscape; leaving fullscreen restores the
             // portrait lock. No manual rotation button exists.
@@ -952,6 +956,7 @@ private fun VideoPlayerLayer(
     colorScheme: ColorScheme,
     closeVideoPlayback: () -> Unit,
     closeVideoPlaybackAnyway: () -> Unit,
+    onPlayEpisode: (VideoItem) -> Unit,
     onToggleFullscreen: () -> Unit
 ) {
     val videoPlaybackState by videoVM.state.collectAsStateWithLifecycle()
@@ -998,9 +1003,11 @@ private fun VideoPlayerLayer(
             onCycleAspectRatio = videoVM::cycleAspectRatio,
             onSetPlaybackSpeed = videoVM::setPlaybackSpeed,
             nextEpisode = nextEpisode,
+            episodeContext = catalogVideos,
+            onPlayEpisode = onPlayEpisode,
             onPlayNextEpisode = {
                 val target = nextEpisode ?: return@VideoPlayerScreen
-                videoVM.play(target)
+                onPlayEpisode(target)
             },
             onToggleFullscreen = onToggleFullscreen,
             isFullscreen = isFullscreen,

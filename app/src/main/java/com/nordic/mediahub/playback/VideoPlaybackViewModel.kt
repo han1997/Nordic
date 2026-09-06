@@ -210,6 +210,11 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         val currentState = engine.state.value
         val video = currentState.video
         val repo = _repository.value
+        if (video != null) {
+            _catalogVideos.value = updateVideoEpisodeProgress(
+                _catalogVideos.value, video, currentState.positionSeconds
+            )
+        }
 
         // Closing must never block on the network: stop local playback and
         // dismiss the player immediately, then report the stopped position in
@@ -274,4 +279,17 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     override fun onCleared() {
         engine.release()
     }
+}
+
+/** Keep the in-player picker current even before the background Emby report/catalog refresh completes. */
+internal fun updateVideoEpisodeProgress(
+    videos: List<VideoItem>,
+    current: VideoItem,
+    positionSeconds: Int
+): List<VideoItem> {
+    if (!current.type.equals("Episode", ignoreCase = true)) return videos
+    val snapshot = current.copy(
+        playbackPositionSeconds = resolveVideoProgressSyncBaselineSeconds(positionSeconds, current)
+    )
+    return (videos.filterNot { it.id == current.id && it.libraryId == current.libraryId } + snapshot)
 }

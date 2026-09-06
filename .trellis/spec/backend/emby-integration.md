@@ -378,135 +378,98 @@ This preserves lightweight replay for the same stream while refreshing ExoPlayer
 ## Scenario: Video Playback Display Modes and Fullscreen
 
 ### 1. Scope / Trigger
-- Trigger: Changing video player display chrome, aspect-ratio behavior, fullscreen handling, or `VideoPlaybackState` fields consumed by `VideoPlayerScreen`.
-- Scope: Media3 video-size observation, player-surface resize mode, UI controls, Android system bars, and orientation handling.
-- Out of scope: Rebuilding Emby stream URLs, changing progress reporting, subtitle/audio-track selection, PiP, or next-episode behavior.
+
+- 修改视频播放控制层、选集、倍速/信息面板、画面比例、全屏与方向时适用。
+- 范围：Media3 画面尺寸、Compose 控制分区、同剧集上下文、本地进度快照和应用外壳的播放切换。
+- 不包含：字幕/音轨、清晰度/转码、投屏、画中画、自动连播与重建 Emby URL。
 
 ### 2. Signatures
+
 ```kotlin
 enum class AspectRatioMode { FIT, CROP, FILL }
-
-data class VideoPlaybackState(
-    val aspectRatioMode: AspectRatioMode = AspectRatioMode.FIT,
-    val videoAspectRatio: Float = 16f / 9f
-)
-
-interface VideoPlaybackBackend {
-    val state: StateFlow<VideoPlaybackState>
-    fun attachSurface(surfaceView: SurfaceView)
-    fun detachSurface(surfaceView: SurfaceView)
-    fun play(video: VideoItem)
-    fun playFromStart(video: VideoItem)
-    fun togglePlayPause()
-    fun seekTo(positionSeconds: Int)
-    fun seekBackBy(intervalSeconds: Int = 10)
-    fun seekForwardBy(intervalSeconds: Int = 30)
-    fun cycleAspectRatio()
-    fun stop()
-    fun release()
-}
-
-fun VideoPlaybackEngine.cycleAspectRatio()
-internal fun resolveNextAspectRatioMode(current: AspectRatioMode): AspectRatioMode
-internal fun resolveVideoAspectRatio(width: Int, height: Int, pixelWidthHeightRatio: Float): Float
-
-internal fun resolveVideoOrientationRequest(
-    showVideoPlayer: Boolean,
-    lockedLandscape: Boolean
-): Int
-
-internal fun resolveVideoPlayerControlSizing(
-    availableWidth: Dp,
-    hasNextEpisode: Boolean
-): VideoPlayerControlSizing
-
-fun VideoPlayerScreen(
-    onSeekRelative: (Int) -> Unit,
-    onCycleAspectRatio: () -> Unit,
-    onToggleFullscreen: () -> Unit,
-    isFullscreen: Boolean
-)
+internal enum class VideoPlayerPanel { Settings, Speed, Info, Episodes }
+internal fun resolveVideoPlayerToolLayout(
+    availableWidth: Dp, availableHeight: Dp,
+    hasEpisodes: Boolean, hasNextEpisode: Boolean,
+    fontScale: Float = 1f, hasPlaybackStatus: Boolean = false
+): VideoPlayerToolLayout
+internal fun useVideoPlayerSidePanel(isFullscreen: Boolean, width: Dp, height: Dp): Boolean
+internal fun resolveVideoPlayerEpisodes(current: VideoItem?, videos: List<VideoItem>): List<VideoItem>
+internal fun resolveNextVideoEpisode(current: VideoItem, videos: List<VideoItem>): VideoItem?
+internal fun shouldPlaySelectedVideoEpisode(current: VideoItem?, selected: VideoItem): Boolean
+internal fun updateVideoEpisodeProgress(videos: List<VideoItem>, current: VideoItem, positionSeconds: Int): List<VideoItem>
+internal fun resolveVideoOrientationRequest(showVideoPlayer: Boolean, lockedLandscape: Boolean): Int
 ```
+
+`VideoPlayerScreen` 接收 `episodeContext`、`onPlayEpisode`、`onPlayNextEpisode`、`onSeekRelative`、`onCycleAspectRatio`、`isFullscreen` 和 `onToggleFullscreen`。播放状态由 `VideoPlaybackState` 提供，UI 不持有 ExoPlayer。
 
 ### 3. Contracts
-- `VideoPlaybackBackend` is the UI-facing playback boundary. `VideoPlaybackEngine` is the Media3/ExoPlayer implementation behind that boundary; UI surfaces and view models should issue commands and observe `VideoPlaybackState` without depending on ExoPlayer types beyond the `SurfaceView` attach/detach contract.
-- `VideoPlaybackEngine` owns the current `AspectRatioMode`; Compose UI only renders the selected label and sends `onCycleAspectRatio`.
-- `onVideoSizeChanged` must publish the actual content aspect ratio using Media3 `VideoSize.width`, `height`, and `pixelWidthHeightRatio`.
-- Invalid video dimensions or invalid pixel ratios must fall back to `16f / 9f` so the surface never receives a zero or negative aspect ratio.
-- `VideoPlayerScreen` must wrap the `SurfaceView` in Media3 `AspectRatioFrameLayout` and map:
-  - `FIT` -> `RESIZE_MODE_FIT`
-  - `CROP` -> `RESIZE_MODE_ZOOM`
-  - `FILL` -> `RESIZE_MODE_FILL`
-- The `SurfaceView` child must explicitly fill the `AspectRatioFrameLayout`.
-- Fullscreen state belongs to the app shell because it controls system bars and requested orientation. `VideoPlayerScreen` receives `isFullscreen` and callbacks, but does not mutate Activity window state directly.
-- Orientation follows the dual-lock model: gravity never rotates playback. While the video player is visible the orientation is always locked (`resolveVideoOrientationRequest(showVideoPlayer, lockedLandscape)` in `MainActivity.kt`): portrait lock outside fullscreen, landscape lock while fullscreen. The lock is driven solely by the fullscreen state — entering fullscreen sets `lockedLandscape = true`, exiting restores `lockedLandscape = false`; no manual rotation button exists. Closing the player restores `SCREEN_ORIENTATION_UNSPECIFIED`.
-- Fullscreen hides system bars with transient swipe behavior. Leaving fullscreen restores system bars.
-- The Activity manifest must handle orientation/screen-size config changes when fullscreen orientation locking is used.
-- 播放控制栏保持单行三组 `Arrangement.SpaceBetween`：左侧比例/倍速，中间播放/暂停，右侧下一集（若有）/全屏。左右组必须使用相同的 `sideGroupWidth`，不能假设 `SpaceBetween` 会自动让不等宽分组之间的播放按钮居中。
-- `resolveVideoPlayerControlSizing` 接收控制栏内 `BoxWithConstraints.maxWidth`，即已经扣除外层与卡片内层左右边距的实际宽度。工具按钮/播放按钮的常规尺寸上限为 44dp/58dp，基础按钮间距使用 `NordicSpacing.xs`；按较多的一侧预留等宽分组，窄屏时按钮、间距和组宽一起等比缩小。不得以 `horizontalScroll`、裁剪末端按钮或让播放键偏离中心来解决宽度不足。
-- 不保留快退/快进按钮及其专用回调；双击左/右半屏仍通过 `onSeekRelative` 分别后退 10 秒/前进 30 秒。
+
+- **画面**：`VideoPlaybackEngine` 持有比例模式；`onVideoSizeChanged` 使用 width/height/pixelWidthHeightRatio 发布真实比例。无效尺寸回退 16:9。`SurfaceView` 必须填满 Media3 `AspectRatioFrameLayout`；FIT/CROP/FILL 分别映射 FIT/ZOOM/FILL，不重新创建媒体项或 seek。
+- **方向**：应用外壳是系统栏与方向唯一控制器。播放器显示时非全屏锁竖屏、全屏锁横屏；重力不改变方向，不提供独立旋转按钮；关闭恢复 `SCREEN_ORIENTATION_UNSPECIFIED`。全屏隐藏系统栏并允许瞬时滑出，退出恢复。Activity 保留方向/尺寸 configChanges。
+- **控制分层**：上方关闭、标题、更多；有足够高度时中间播放/暂停及后退 10 秒/前进 30 秒；下方时间线、倍速和工具。中央操作区不足 280dp 高或显示加载/错误时，播放按钮移到底栏，避免与状态提示重叠。
+- **实际占位**：工具按钮有效目标至少 48dp，主播放按钮 72dp。`resolveVideoPlayerToolLayout` 读取扣除安全区与边距后的实际宽高和 fontScale，先预留倍速、全屏、选集及必要的播放按钮，再容纳下一集/比例。放不下的低频项进入“播放设置”，不得按“无下一集就只剩一个侧按钮”的假设缩小或裁切控件。
+- **时间线**：展示已播/总时长、剩余时长及缓冲进度；未知时长显示 `--:--`，滑轨上限至少包含当前位置。复用 `PlayerThinSlider`，视频通过 modifier 扩大至 48dp 触控高度，取消拖动不 seek。
+- **显示/交互**：控制层初次显示，播放时无操作 4 秒后隐藏；暂停、拖动、状态提示、面板打开与临时倍速时不自动隐藏。按钮交互重置计时。错误/缓冲提示独立于控制层。
+- **面板**：`VideoPlayerPanel` 单一状态，不能同时打开多个面板；同窗口布局保持系统栏控制权不变。全屏且宽度至少 600dp、宽大于高时使用侧面板，否则使用底部面板。面板和 chrome 使用 `WindowInsets.safeDrawing`，全屏也避让刘海。
+- **手势**：识别器只附着视频 surface 容器，与控制层/面板是兄弟节点；打开面板禁用底层播放手势、隐藏其可访问性节点。回调使用 `rememberUpdatedState`，不得捕获上一集的 `remember(video.id)` 状态。手势锁仍只禁用播放手势，按钮不因此失效；隐藏 chrome 后保留解锁入口。
+- **返回优先级**：面板自身 BackHandler 优先关闭面板；再解手势锁、退出全屏，最后调用应用外壳关闭。不要让底层导航抢先退出播放器。
+- **剧集来源**：选集与下一集共用 `resolveVideoPlayerEpisodes`。当前项优先于旧目录副本，按 id 去重、按季/集/标题排序；只允许同 libraryId、同剧集的 Episode。双方 seriesId 非空时必须相同；缺失 ID 时可用非空 seriesName 忽略大小写匹配；无剧集身份只保留当前项，不混合所有无名剧集。
+- **选集呈现**：按季查看，0 季显示“特别篇”，null 显示“未分季”；初次定位当前季/集，高亮当前播放项。复用 `VideoEpisodeRow(isCurrent, compact)` 与已看/续播展示，稳定列表 key 为 id。电影不显示选集，最后一集仍能选集；上下文只有当前项时明确“暂无其他已载入剧集”，不虚构全集、不自动联网补库。
+- **切换**：点击当前集仅收起面板；无 streamUrl 的项禁用。新选集及下一集都经 MainScreen 的 `onPlayVideo` / `runMediaHandoff`，先快照/关闭原项，再启动目标，不能直接 `videoVM.play(next)` 绕过进度保存。切换前记录全屏意图，启动目标后恢复 fullscreen 与方向锁状态。
+- **本地进度**：ViewModel 关闭时用 `updateVideoEpisodeProgress` 更新内存剧集上下文，沿用 `resolveVideoProgressSyncBaselineSeconds` 的启动零值保护；用户在服务器目录刷新前切回同集也能续播。不改变已看标记、持久缓存或现有后台上报/重试语义。
+- **片尾提示**：有可播放下一集且进入最后 30 秒时，仅在控制层/面板隐藏、未锁定、无播放状态异常且未手动取消时出现；放在顶部边缘避开时间线与常见字幕区，点击才播放，不能写“即将播放”暗示自动连播。
+- **语义**：图标动作提供中文 contentDescription/Role；字幕、音轨、清晰度等没有真实能力的数据入口不得展示为可用功能。
 
 ### 4. Validation & Error Matrix
-- `width <= 0` or `height <= 0` -> publish `16f / 9f`.
-- `pixelWidthHeightRatio <= 0f` -> treat pixel ratio as `1f`.
-- `FIT` selected -> preserve full video in the viewport, accepting letterboxing.
-- `CROP` selected -> fill viewport by cropping edges.
-- `FILL` selected -> stretch to fill viewport.
-- Back pressed while fullscreen -> exit fullscreen before closing video playback.
-- Video player closed while fullscreen -> reset fullscreen state and restore system bars/orientation.
-- `MainScreen` disposed while fullscreen -> restore system bars/orientation in `onDispose`.
-- Player visible with `lockedLandscape = true` -> `SCREEN_ORIENTATION_LANDSCAPE` (no sensor flip).
-- Player visible with `lockedLandscape = false` -> `SCREEN_ORIENTATION_PORTRAIT` (no sensor flip).
-- Player closed -> `SCREEN_ORIENTATION_UNSPECIFIED` (system/gravity control restored).
-- Entering fullscreen -> `lockedLandscape = true`; exiting fullscreen -> `lockedLandscape = false`; no manual rotation control exists.
-- 布局回归需覆盖 320/360/392/720dp 屏幕宽度，先扣除外层与卡片内层合计 64dp 左右边距，再分别验证有/无下一集；按钮完整容纳，播放键中心等于可用宽度的一半。
-- 布局 helper 收到零或负可用宽度时返回零尺寸，不产生负宽度；正常宽屏不得把按钮放大到常规上限以上。
+
+| 输入/状态 | 行为 |
+| --- | --- |
+| 无效视频尺寸 / 未知时长 | 比例安全回退 / 总时长 `--:--`，允许非负相对跳转 |
+| 320/360/392/720dp，fontScale 1/1.5/2，有无选集/下一集 | 按实际按钮数预留 48dp 目标，溢出项收纳设置；播放与全屏不丢失 |
+| 高度 < 280dp 或缓冲/错误 | 播放操作位于底栏，中央留给状态信息 |
+| 横屏面板空间不足 | 回退底部面板，不用过窄侧栏 |
+| 打开面板后返回/拖动列表 | 只关闭/滚动面板，不 seek、不改音量、不退出全屏 |
+| 当前集不在目录或目录含重复项 | 加入真实当前项且去重；不因 stale copy 丢失 streamUrl |
+| 同名但双方 seriesId 不同 / libraryId 不同 | 排除，不串剧或跨库 |
+| 当前集/不可播放项被选择 | 当前集只关闭面板；不可播放项无播放请求 |
+| 切换剧集并切回 | 走原进度快照路径，使用更新的本地续播点，保留全屏 |
+| 显示控制栏、打开面板、锁定或取消片尾提示 | 不展示重复的下一集浮层 |
 
 ### 5. Good/Base/Bad Cases
-- Good: A 4:3 video reports pixel-adjusted aspect ratio and renders without horizontal stretching in `FIT`.
-- Good: User can cycle Fit -> Crop -> Fill -> Fit without replacing the Media3 item or seeking.
-- Good: Fullscreen removes app/system chrome and landscape-locks playback, then cleanly restores portrait-capable app UI on exit.
-- Base: Unknown video dimensions render as 16:9 until Media3 reports a real size.
-- Bad: Compose keeps a local aspect-ratio mode that diverges from `VideoPlaybackState`.
-- Bad: `SurfaceView` is added without match-parent layout params and renders smaller than the frame.
-- Bad: Fullscreen directly manipulates Activity state from `VideoPlayerScreen`, making the composable hard to test and reuse.
-- Bad: 忽略双层水平边距，或把不等宽三组直接交给 `SpaceBetween`，导致窄屏按钮被挤压、播放键偏离中心。
-- Bad: Orientation uses `SENSOR_LANDSCAPE`/`UNSPECIFIED` while the player is visible, letting gravity rotate playback against the dual-lock contract.
+
+- Good：窄屏仅收纳比例/下一集到更多，所有可见动作仍有足够触控面积。
+- Good：在全屏选择第二季的某集后仍横屏；再选回上一集，进度来自最近本地快照。
+- Base：电影只有基础播放工具，无选集和下一集；剧集只有当前数据时仍可查看当前项。
+- Bad：为有无下一集设置对称侧宽，却忘记左边始终存在两枚按钮。
+- Bad：选集直接调用 engine 或 VM 的 play，跳过旧项停止进度上报。
+- Bad：按空 seriesName 把无名条目合并；使用旧 callback 向已废弃的 Compose 状态写入。
 
 ### 6. Tests Required
-- Unit test `resolveNextAspectRatioMode(...)` for Fit -> Crop -> Fill -> Fit.
-- Unit test `resolveVideoAspectRatio(...)` for pixel-ratio application, invalid dimensions, and invalid pixel ratio.
-- Unit test `resolveVideoOrientationRequest(...)` for portrait lock outside fullscreen, landscape lock while fullscreen, and system control when the player is closed.
-- 单元测试 `resolveVideoPlayerControlSizing(...)`：常规尺寸上限、零/负宽度、有/无下一集、窄屏/横屏的组内按钮不溢出、组间距非负且播放键几何居中。
-- Compile check for Media3 `AspectRatioFrameLayout` API usage and callback wiring.
-- Lint and debug assemble when manifest config changes or fullscreen system UI handling changes.
+
+- `VideoPlayerScreenTest`：实际操作占位矩阵、紧凑回退、侧/底面板判定、片尾提示互斥、比例映射/时间线边界。
+- `VideoPlayerEpisodesTest`：身份/库隔离、缺失 ID 回退、去重与排序、当前项定位、季标签、同集/不可播放不重启。
+- `VideoEpisodeProgressTest`：切换后的内存续播点、启动零值保护、旧副本替换、电影不污染剧集上下文。
+- 保留 Engine 比例/初始续播和 MainActivity 方向/跨媒体 handoff 测试。
+- 运行 Kotlin 编译、受影响单元测试、lint 与 debug assemble。`VideoPlayerPreviewActivity` 仅位于 `src/debug`，使用离线合成数据检查横竖屏、面板/点击和状态，不访问真实账号；真实服务器上报仍需单独集成验证。
 
 ### 7. Wrong vs Correct
-#### Wrong
+
 ```kotlin
-// UI owns playback display state and can drift from the engine.
-var aspectRatioMode by remember { mutableStateOf(AspectRatioMode.FIT) }
+// Wrong: no stopped-progress snapshot and no local episode progress update.
+onPlayNextEpisode = { videoVM.play(next) }
+
+// Correct: reuse the app-shell handoff for both picker and Next.
+onPlayNextEpisode = { next?.let(onPlayEpisode) } // onPlayEpisode = onPlayVideo
 ```
 
-#### Correct
 ```kotlin
-// Engine owns the state; UI sends commands and renders state.
-VideoPlayerScreen(
-    state = videoPlaybackState,
-    onCycleAspectRatio = videoPlaybackEngine::cycleAspectRatio
-)
-```
+// Wrong: holds a callback writing to the previous episode's state.
+pointerInput(Unit) { detectTapGestures(onTap = { onToggleControls() }) }
 
-#### Wrong
-```kotlin
-frameLayout.setAspectRatio(videoSize.width.toFloat() / videoSize.height.toFloat())
-```
-
-#### Correct
-```kotlin
-frameLayout.setAspectRatio(
-    resolveVideoAspectRatio(videoSize.width, videoSize.height, videoSize.pixelWidthHeightRatio)
-)
+// Correct: gesture lifetime is stable, callback state is current.
+val currentToggle by rememberUpdatedState(onToggleControls)
+pointerInput(Unit) { detectTapGestures(onTap = { currentToggle() }) }
 ```
 
 ## Scenario: Media URL Auth Header and Disk Cache Hygiene

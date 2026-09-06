@@ -14,45 +14,72 @@ import org.junit.Test
 @androidx.annotation.OptIn(UnstableApi::class)
 class VideoPlayerScreenTest {
     @Test
-    fun resolveVideoPlayerControlSizing_keepsNormalSizesWhenSpaceAllows() {
-        for (hasNextEpisode in listOf(false, true)) {
-            val sizing = resolveVideoPlayerControlSizing(400.dp, hasNextEpisode)
-            assertEquals(44.dp, sizing.secondaryButtonSize)
-            assertEquals(58.dp, sizing.primaryButtonSize)
-            assertEquals(4.dp, sizing.buttonSpacing)
-            assertEquals(if (hasNextEpisode) 92.dp else 44.dp, sizing.sideGroupWidth)
-        }
-    }
-
-    @Test
-    fun resolveVideoPlayerControlSizing_fitsNarrowPortraitAndLandscapeWithCenteredPlay() {
-        // 屏幕宽度扣除外层和卡片各 16dp 的左右边距。
-        for (screenWidth in listOf(320, 360, 392, 720)) {
-            val availableWidth = (screenWidth - 64).dp
-            for (hasNextEpisode in listOf(false, true)) {
-                val sizing = resolveVideoPlayerControlSizing(availableWidth, hasNextEpisode)
-                val sideButtonCount = if (hasNextEpisode) 2 else 1
-                val sideContentWidth = sizing.secondaryButtonSize * sideButtonCount +
-                    sizing.buttonSpacing * (sideButtonCount - 1)
-                assertEquals(sizing.sideGroupWidth.value, sideContentWidth.value, 0.001f)
-
-                val occupiedWidth = sizing.sideGroupWidth * 2 + sizing.primaryButtonSize
-                val groupGap = (availableWidth - occupiedWidth) / 2
-                assertTrue(groupGap.value >= sizing.buttonSpacing.value - 0.001f)
-                val playCenter = sizing.sideGroupWidth + groupGap + sizing.primaryButtonSize / 2
-                assertEquals(availableWidth.value / 2, playCenter.value, 0.001f)
-                assertTrue(sizing.primaryButtonSize > sizing.secondaryButtonSize)
-                assertTrue(sizing.secondaryButtonSize > 0.dp)
+    fun toolLayout_reservesActualActionWidthsWithoutShrinkingTouchTargets() {
+        for (width in listOf(320, 360, 392, 720)) {
+            for (height in listOf(240, 360, 720)) {
+                for (hasEpisodes in listOf(false, true)) {
+                    for (hasNext in listOf(false, true)) {
+                        for (fontScale in listOf(1f, 1.5f, 2f)) {
+                            for (hasStatus in listOf(false, true)) {
+                                val availableWidth = (width - 32).dp
+                                val layout = resolveVideoPlayerToolLayout(
+                                    availableWidth, height.dp, hasEpisodes, hasNext, fontScale, hasStatus
+                                )
+                                val icons = 1 + (if (hasEpisodes) 1 else 0) +
+                                    (if (layout.showCenterTransport) 0 else 1) +
+                                    (if (layout.showInlineNextEpisode) 1 else 0) +
+                                    (if (layout.showInlineAspectRatio) 1 else 0)
+                                // These are the actual rendered actions, not a symmetric-group assumption.
+                                val occupied = layout.speedButtonWidth + 48.dp * icons + 4.dp * icons
+                                assertEquals(occupied, layout.occupiedWidth)
+                                assertTrue("$width/$height/$fontScale: $layout", occupied <= availableWidth)
+                                assertTrue(layout.speedButtonWidth >= 56.dp)
+                                assertFalse(!hasNext && layout.showInlineNextEpisode)
+                                assertEquals(height >= 280 && !hasStatus, layout.showCenterTransport)
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 
     @Test
-    fun resolveVideoPlayerControlSizing_clampsUnavailableWidthToZero() {
-        for (width in listOf(0.dp, (-1).dp)) {
-            val sizing = resolveVideoPlayerControlSizing(width, hasNextEpisode = true)
-            assertEquals(VideoPlayerControlSizing(0.dp, 0.dp, 0.dp, 0.dp), sizing)
-        }
+    fun toolLayout_movesOptionalActionsIntoSettingsInShortNarrowWindows() {
+        val compact = resolveVideoPlayerToolLayout(288.dp, 240.dp, true, true, 2f)
+        assertFalse(compact.showCenterTransport)
+        assertFalse(compact.showInlineAspectRatio)
+        assertFalse(compact.showInlineNextEpisode)
+        val wide = resolveVideoPlayerToolLayout(688.dp, 360.dp, true, true)
+        assertTrue(wide.showCenterTransport)
+        assertTrue(wide.showInlineAspectRatio)
+        assertTrue(wide.showInlineNextEpisode)
+    }
+
+    @Test
+    fun sidePanel_requiresFullscreenAndEnoughLandscapeSpace() {
+        assertTrue(useVideoPlayerSidePanel(true, 720.dp, 360.dp))
+        assertFalse(useVideoPlayerSidePanel(false, 720.dp, 360.dp))
+        assertFalse(useVideoPlayerSidePanel(true, 392.dp, 720.dp))
+        assertFalse(useVideoPlayerSidePanel(true, 560.dp, 280.dp))
+    }
+
+    @Test
+    fun nextEpisodePrompt_onlyAppearsAtEndWhenItCannotOverlapChromeOrPanels() {
+        fun show(
+            hasNext: Boolean = true, duration: Int = 100, position: Int = 70,
+            controls: Boolean = false, panel: Boolean = false, locked: Boolean = false,
+            status: Boolean = false, dismissed: Boolean = false
+        ) = shouldShowVideoNextEpisodePrompt(hasNext, duration, position, controls, panel, locked, status, dismissed)
+        assertTrue(show())
+        assertFalse(show(position = 69))
+        assertFalse(show(duration = 0))
+        assertFalse(show(hasNext = false))
+        assertFalse(show(controls = true))
+        assertFalse(show(panel = true))
+        assertFalse(show(locked = true))
+        assertFalse(show(status = true))
+        assertFalse(show(dismissed = true))
     }
 
     @Test

@@ -94,6 +94,16 @@ internal fun Modifier.videoPlayerGestures(
 ): Modifier = composed {
     if (!enabled) return@composed this
 
+    val currentOnToggleControls by rememberUpdatedState(onToggleControls)
+    val currentOnSeekRelative by rememberUpdatedState(onSeekRelative)
+    val currentOnScrubChange by rememberUpdatedState(onScrubChange)
+    val currentOnSeek by rememberUpdatedState(onSeek)
+    val currentOnCycleAspectRatio by rememberUpdatedState(onCycleAspectRatio)
+    val currentOnBrightnessDrag by rememberUpdatedState(onBrightnessDrag)
+    val currentOnVolumeDrag by rememberUpdatedState(onVolumeDrag)
+    val currentOnGestureEnd by rememberUpdatedState(onGestureEnd)
+    val currentOnLongPressStart by rememberUpdatedState(onLongPressStart)
+    val currentOnLongPressEnd by rememberUpdatedState(onLongPressEnd)
     var widthPx by remember { mutableStateOf(0f) }
     var heightPx by remember { mutableStateOf(0f) }
     val currentPosition by rememberUpdatedState(currentPositionSeconds)
@@ -116,9 +126,9 @@ internal fun Modifier.videoPlayerGestures(
         val heightReference = if (heightPx > 0f) heightPx else 0f
         val step = resolveVideoVerticalGestureStep(dragAmountY, heightReference)
         val dragHandler = if (resolveVideoGestureSide(originX, widthPx) == VideoGestureSide.Left) {
-            onBrightnessDrag
+            currentOnBrightnessDrag
         } else {
-            onVolumeDrag
+            currentOnVolumeDrag
         }
         dragHandler?.invoke(step)
     }
@@ -130,7 +140,7 @@ internal fun Modifier.videoPlayerGestures(
         }
         .pointerInput(enabled) {
             detectTapGestures(
-                onTap = { onToggleControls() },
+                onTap = { currentOnToggleControls() },
                 onDoubleTap = { offset ->
                     if (widthPx > 0f) {
                         val delta = if (offset.x < widthPx / 2f) {
@@ -138,19 +148,19 @@ internal fun Modifier.videoPlayerGestures(
                         } else {
                             VIDEO_GESTURE_SKIP_FORWARD_SECONDS
                         }
-                        onSeekRelative(delta)
+                        currentOnSeekRelative(delta)
                     }
                 },
                 onLongPress = {
                     // Long-press temporary speed: press starts it; release is
                     // detected by the dedicated press-tracking pointerInput
                     // below (detectTapGestures has no release callback here).
-                    onLongPressStart?.invoke()
+                    currentOnLongPressStart?.invoke()
                 }
             )
         }
-        .pointerInput(enabled, onLongPressEnd) {
-            if (onLongPressEnd == null) return@pointerInput
+        .pointerInput(enabled) {
+            if (currentOnLongPressEnd == null) return@pointerInput
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false)
                 // Track a pressed pointer; when it lifts and a long-press speed
@@ -164,7 +174,7 @@ internal fun Modifier.videoPlayerGestures(
                         if (event.changes.none { it.id == down.id }) break
                     }
                 } finally {
-                    onLongPressEnd.invoke()
+                    currentOnLongPressEnd?.invoke()
                 }
             }
         }
@@ -193,7 +203,7 @@ internal fun Modifier.videoPlayerGestures(
                                         (scrubAccumulatedPx.value / widthPx) * durationSeconds
                                     val clamped = newScrub.coerceIn(0f, durationSeconds.toFloat())
                                     scrubCurrentValue.value = clamped
-                                    onScrubChange(clamped)
+                                    currentOnScrubChange(clamped)
                                 }
                             }
                             VideoGestureAxis.Vertical -> {
@@ -205,17 +215,17 @@ internal fun Modifier.videoPlayerGestures(
                     },
                     onDragEnd = {
                         if (gestureAxis.value == VideoGestureAxis.Horizontal) {
-                            onSeek(scrubCurrentValue.value.roundToInt())
-                            onScrubChange(null)
+                            currentOnSeek(scrubCurrentValue.value.roundToInt())
+                            currentOnScrubChange(null)
                         }
-                        onGestureEnd?.invoke()
+                        currentOnGestureEnd?.invoke()
                         resetGestureState()
                     },
                     onDragCancel = {
                         if (gestureAxis.value == VideoGestureAxis.Horizontal) {
-                            onScrubChange(null)
+                            currentOnScrubChange(null)
                         }
-                        onGestureEnd?.invoke()
+                        currentOnGestureEnd?.invoke()
                         resetGestureState()
                     }
                 )
@@ -227,8 +237,8 @@ internal fun Modifier.videoPlayerGestures(
                         dispatchVerticalStep(dragAmount, change.position.x)
                         change.consume()
                     },
-                    onDragEnd = { onGestureEnd?.invoke() },
-                    onDragCancel = { onGestureEnd?.invoke() }
+                    onDragEnd = { currentOnGestureEnd?.invoke() },
+                    onDragCancel = { currentOnGestureEnd?.invoke() }
                 )
             }
         }
@@ -249,7 +259,7 @@ internal fun Modifier.videoPlayerGestures(
                         } else if (distance > 0f) {
                             val scale = distance / pinchBaselineDistance.value
                             if (scale >= VIDEO_PINCH_CYCLE_THRESHOLD) {
-                                onCycleAspectRatio()
+                                currentOnCycleAspectRatio()
                                 pinchBaselineDistance.value = distance
                             }
                         }

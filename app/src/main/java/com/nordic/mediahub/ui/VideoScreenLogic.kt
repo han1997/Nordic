@@ -225,22 +225,7 @@ internal fun resolveNextVideoEpisode(
     videos: List<VideoItem>
 ): VideoItem? {
     if (!current.type.equals("Episode", ignoreCase = true)) return null
-    val sameSeries = videos.filter { candidate ->
-        candidate.id != current.id &&
-            candidate.type.equals("Episode", ignoreCase = true) &&
-            (
-                (!current.seriesId.isNullOrBlank() && candidate.seriesId == current.seriesId) ||
-                    (
-                        current.seriesId.isNullOrBlank() &&
-                            !current.seriesName.isNullOrBlank() &&
-                            candidate.seriesName.equals(current.seriesName, ignoreCase = true)
-                        )
-                )
-    }.sortedWith(
-        compareBy<VideoItem> { it.seasonNumber ?: Int.MAX_VALUE }
-            .thenBy { it.episodeNumber ?: Int.MAX_VALUE }
-            .thenBy { it.title }
-    )
+    val sameSeries = resolveVideoPlayerEpisodes(current, videos).filter { it.id != current.id }
     val currentIndex = sameSeries.indexOfFirst { candidate ->
         (candidate.seasonNumber ?: Int.MAX_VALUE) == (current.seasonNumber ?: Int.MAX_VALUE) &&
             (candidate.episodeNumber ?: Int.MAX_VALUE) == (current.episodeNumber ?: Int.MAX_VALUE) &&
@@ -261,6 +246,42 @@ internal fun resolveNextVideoEpisode(
         }
     }
 }
+
+/** Same-series context shared by the picker and Next episode; the active item wins stale catalog copies. */
+internal fun resolveVideoPlayerEpisodes(current: VideoItem?, videos: List<VideoItem>): List<VideoItem> {
+    if (current == null || !current.type.equals("Episode", ignoreCase = true)) return emptyList()
+    val related = videos.filter { candidate ->
+        candidate.type.equals("Episode", ignoreCase = true) &&
+            candidate.libraryId == current.libraryId &&
+            if (!current.seriesId.isNullOrBlank() && !candidate.seriesId.isNullOrBlank()) {
+                candidate.seriesId == current.seriesId
+            } else {
+                !current.seriesName.isNullOrBlank() &&
+                    candidate.seriesName.equals(current.seriesName, ignoreCase = true)
+            }
+    }
+    return (listOf(current) + related).distinctBy { it.id }.sortedWith(
+        compareBy<VideoItem> { it.seasonNumber ?: Int.MAX_VALUE }
+            .thenBy { it.episodeNumber ?: Int.MAX_VALUE }
+            .thenBy { it.title }
+    )
+}
+
+internal fun videoPlayerSeasonLabel(season: Int?): String = when (season) {
+    null -> "未分季"
+    0 -> "特别篇"
+    else -> "第 $season 季"
+}
+
+internal fun videoPlayerSeasons(episodes: List<VideoItem>): List<Int?> =
+    episodes.map { it.seasonNumber }.distinct().sortedBy { it ?: Int.MAX_VALUE }
+
+internal fun videoPlayerEpisodeStartIndex(episodes: List<VideoItem>, currentId: String): Int =
+    episodes.indexOfFirst { it.id == currentId }.coerceAtLeast(0)
+
+internal fun shouldPlaySelectedVideoEpisode(current: VideoItem?, selected: VideoItem): Boolean =
+    selected.id != current?.id && selected.type.equals("Episode", ignoreCase = true) &&
+        !selected.streamUrl.isNullOrBlank()
 
 internal enum class VideoTypeFilter(val label: String) {
     All("全部"),
