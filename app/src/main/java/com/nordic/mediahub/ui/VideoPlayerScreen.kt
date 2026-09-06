@@ -45,7 +45,6 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.ColorScheme
@@ -168,7 +167,6 @@ fun VideoPlayerScreen(
     nextEpisode: VideoItem? = null,
     onPlayNextEpisode: () -> Unit = {},
     onToggleFullscreen: () -> Unit = {},
-    onToggleOrientation: () -> Unit = {},
     isFullscreen: Boolean = false,
     onClose: () -> Unit,
     onCloseAnyway: () -> Unit = {},
@@ -454,8 +452,7 @@ fun VideoPlayerScreen(
                     onCycleAspectRatio = onCycleAspectRatio,
                     onShowSpeedSheet = { showSpeedSheet = true },
                     onPlayNextEpisode = onPlayNextEpisode,
-                    onToggleFullscreen = onToggleFullscreen,
-                    onToggleOrientation = onToggleOrientation
+                    onToggleFullscreen = onToggleFullscreen
                 )
             }
         }
@@ -915,7 +912,7 @@ internal fun resolveVideoPlayerControlSizing(
     val secondaryButtonSize = 44.dp
     val primaryButtonSize = 58.dp
     val buttonSpacing = NordicSpacing.xs
-    val sideButtonCount = if (hasNextEpisode) 3 else 2
+    val sideButtonCount = if (hasNextEpisode) 2 else 1
     val sideGroupWidth = secondaryButtonSize * sideButtonCount + buttonSpacing * (sideButtonCount - 1)
     val requiredWidth = sideGroupWidth * 2 + primaryButtonSize + buttonSpacing * 2
     val scale = (availableWidth / requiredWidth).coerceIn(0f, 1f)
@@ -947,8 +944,7 @@ private fun VideoPlayerControls(
     onCycleAspectRatio: () -> Unit,
     onShowSpeedSheet: () -> Unit,
     onPlayNextEpisode: () -> Unit,
-    onToggleFullscreen: () -> Unit,
-    onToggleOrientation: () -> Unit = {}
+    onToggleFullscreen: () -> Unit
 ) {
     Surface(
         color = Color.Black.copy(alpha = 0.56f),
@@ -1049,13 +1045,6 @@ private fun VideoPlayerControls(
                                 onClick = onPlayNextEpisode
                             )
                         }
-                        VideoPlayerChromeButton(
-                            icon = Icons.Filled.ScreenRotation,
-                            colorScheme = colorScheme,
-                            enabled = hasVideo,
-                            size = sizing.secondaryButtonSize,
-                            onClick = onToggleOrientation
-                        )
                         VideoPlayerChromeButton(
                             icon = if (isFullscreen) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
                             colorScheme = colorScheme,

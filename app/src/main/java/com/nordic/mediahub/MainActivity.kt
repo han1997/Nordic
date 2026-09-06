@@ -115,11 +115,10 @@ internal fun resolveVideoProgressSyncBaselineSeconds(
 
 /**
  * Resolves the requested Activity orientation for the video player shell.
- * Manual-lock model: gravity never changes playback orientation. While the
- * video player is visible the orientation is always manually locked
- * (portrait default when opened outside fullscreen, landscape default when
- * entering fullscreen); the orientation button swaps between the two.
- * Anything else restores system control.
+ * Dual-lock model: gravity never changes playback orientation. While the
+ * video player is visible the orientation is always locked (portrait when
+ * outside fullscreen, landscape while fullscreen); the lock follows the
+ * fullscreen state only. Anything else restores system control.
  */
 internal fun resolveVideoOrientationRequest(
     showVideoPlayer: Boolean,
@@ -333,10 +332,10 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     var showAudiobookPlayer by rememberSaveable { mutableStateOf(false) }
     var showVideoPlayer by rememberSaveable { mutableStateOf(false) }
     var isFullscreen by rememberSaveable { mutableStateOf(false) }
-    // Manual orientation lock while the video player is visible: true =
-    // locked landscape (default on fullscreen enter), false = locked portrait
-    // (default when opening outside fullscreen). Gravity never rotates
-    // playback on its own.
+    // Orientation lock while the video player is visible: true = locked
+    // landscape (set on fullscreen enter), false = locked portrait (set on
+    // fullscreen exit or when opening outside fullscreen). Gravity never
+    // rotates playback on its own; the lock follows fullscreen state only.
     var orientationLockedLandscape by rememberSaveable { mutableStateOf(false) }
     var showQueueSheet by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
@@ -636,8 +635,8 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     // video player layer is visible. Keyed on both flags so a restored
     // `isFullscreen=true` without a player (process death) self-heals to
     // portrait with system bars shown instead of a stuck landscape shell.
-    // Orientation follows the manual-lock model: locked landscape/portrait
-    // while fullscreen, system-controlled otherwise.
+    // Orientation follows the dual-lock model: landscape while fullscreen,
+    // portrait otherwise, system-controlled when the player is closed.
     LaunchedEffect(isFullscreen, showVideoPlayer, orientationLockedLandscape) {
         val activity = context as? ComponentActivity ?: return@LaunchedEffect
         val controller = WindowInsetsControllerCompat(activity.window, activity.window.decorView)
@@ -801,13 +800,11 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         closeVideoPlayback = closeCurrentVideoPlayback,
         closeVideoPlaybackAnyway = closeCurrentVideoPlaybackAnyway,
         onToggleFullscreen = {
-            // Fullscreen defaults to landscape lock; leaving fullscreen
-            // restores portrait lock. The orientation button can still swap
-            // either state afterwards.
+            // Fullscreen locks landscape; leaving fullscreen restores the
+            // portrait lock. No manual rotation button exists.
             orientationLockedLandscape = !isFullscreen
             isFullscreen = !isFullscreen
-        },
-        onToggleOrientation = { orientationLockedLandscape = !orientationLockedLandscape }
+        }
     )
 
 AudiobookPlayerLayer(
@@ -955,8 +952,7 @@ private fun VideoPlayerLayer(
     colorScheme: ColorScheme,
     closeVideoPlayback: () -> Unit,
     closeVideoPlaybackAnyway: () -> Unit,
-    onToggleFullscreen: () -> Unit,
-    onToggleOrientation: () -> Unit = {}
+    onToggleFullscreen: () -> Unit
 ) {
     val videoPlaybackState by videoVM.state.collectAsStateWithLifecycle()
     val videoPlaybackError by videoVM.error.collectAsStateWithLifecycle()
@@ -1007,7 +1003,6 @@ private fun VideoPlayerLayer(
                 videoVM.play(target)
             },
             onToggleFullscreen = onToggleFullscreen,
-            onToggleOrientation = onToggleOrientation,
             isFullscreen = isFullscreen,
             onClose = { closeVideoPlayback() },
             onCloseAnyway = closeVideoPlaybackAnyway,

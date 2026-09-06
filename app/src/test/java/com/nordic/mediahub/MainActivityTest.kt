@@ -302,7 +302,7 @@ class MainActivityTest {
     }
 
     @Test
-    fun resolveVideoOrientationRequest_locksLandscapeWhenToggled() {
+    fun resolveVideoOrientationRequest_locksLandscapeWhileFullscreen() {
         assertEquals(
             ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE,
             resolveVideoOrientationRequest(

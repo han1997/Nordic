@@ -20,7 +20,7 @@ class VideoPlayerScreenTest {
             assertEquals(44.dp, sizing.secondaryButtonSize)
             assertEquals(58.dp, sizing.primaryButtonSize)
             assertEquals(4.dp, sizing.buttonSpacing)
-            assertEquals(if (hasNextEpisode) 140.dp else 92.dp, sizing.sideGroupWidth)
+            assertEquals(if (hasNextEpisode) 92.dp else 44.dp, sizing.sideGroupWidth)
         }
     }
 
@@ -31,7 +31,7 @@ class VideoPlayerScreenTest {
             val availableWidth = (screenWidth - 64).dp
             for (hasNextEpisode in listOf(false, true)) {
                 val sizing = resolveVideoPlayerControlSizing(availableWidth, hasNextEpisode)
-                val sideButtonCount = if (hasNextEpisode) 3 else 2
+                val sideButtonCount = if (hasNextEpisode) 2 else 1
                 val sideContentWidth = sizing.secondaryButtonSize * sideButtonCount +
                     sizing.buttonSpacing * (sideButtonCount - 1)
                 assertEquals(sizing.sideGroupWidth.value, sideContentWidth.value, 0.001f)
