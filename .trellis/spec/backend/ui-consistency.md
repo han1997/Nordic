@@ -13,6 +13,8 @@ internal fun shouldScrollMediaSegments(availableWidth: Dp, minimumWidths: List<D
 ```
 
 - `MediaPageHeader` / `HeaderActionGroup` / `AnimatedIconButton` / `ScreenBackButton`：页头与导航。
+- `MediaPlayerSheet(title, colors, onDismiss, subtitle?, skipPartiallyExpanded?, content)`：音乐/有声书/视频播放器弹层（倍速、章节、睡眠定时、书签、均衡器等）的统一容器，内部自带标题头、关闭按钮、86% 最大高度、导航栏安全区与共享水平边距。
+- `MediaPlayerChoiceRow(title, selected, colors, onClick, subtitle?)`：弹层内选择行的统一实现；`selected = null` 表示动作行（Role.Button），非空表示互斥选择（Role.RadioButton）。
 - `MediaChoiceChip`：有声书/视频库选择及视频类型选择；不是非交互 `MetaChip`。
 - `MediaSegmentedControl<T>`：音乐发现/歌曲/歌单导航、歌曲排序和专辑排序；接收稳定 key、显示标签和原始回调。
 - `MediaSearchField`：音乐远程搜索、歌曲本地过滤、视频本地搜索；数据与 debounce 仍由调用方管理。
@@ -39,6 +41,8 @@ internal fun shouldScrollMediaSegments(availableWidth: Dp, minimumWidths: List<D
 ### 选择与分段
 
 - 互斥选择使用 `selectable`、`Role.Tab` 与 `selectableGroup`；选中不仅依赖颜色，也必须暴露 selected 语义。
+- 播放器弹层选择行必须复用 `MediaPlayerChoiceRow`，不得在单个弹层里另写近似实现。选中态使用 `primaryContainer` 完整背景 + `onPrimaryContainer` 文字 + 勾选图标；未选中态使用 `surfaceVariant` 0.42 alpha 容器 + `onSurface` 文字；选中副标题用 `onPrimaryContainer` 0.78 alpha，未选中副标题用 `onSurfaceVariant`。行最小高度 56dp，容器圆角 md。
+- 新弹层接入统一容器时，删除本地 `ModalBottomSheet` + 手写标题 Row 的重复实现（参考 `MusicEqualizerSheet` 的迁移），保持原有 `skipPartiallyExpanded` 与内容逻辑不变。
 - 分段容器 outer md(16dp)、inner sm(12dp)，保留 4dp 内边距/间距；每个选项至少 48dp 高，容器至少 56dp，字体增大时自然增高。
 - `rememberTextMeasurer` 测量真实 label，加入两侧 12dp padding 得到最小项宽；不能用字符数量或固定字宽代替。
 - ≤4 项且等分宽度能完整容纳最宽标签时用等宽 Row；否则使用同一表面中的 LazyRow。>4 项始终使用 LazyRow。
