@@ -1485,3 +1485,37 @@ Verified Kotlin compilation, unit tests, and lint; committed the app-wide UI com
 ### Next Steps
 
 - None - task complete
+
+
+## Session 160: 有声书域 UI 精修
+
+**Date**: 2026-09-07
+**Task**: 有声书域 UI 精修
+**Branch**: `main`
+
+### Summary
+
+第四批有声书域精修：AudiobookDetailHeader 复用音乐集合布局策略（新增 resolveAudiobookCollectionLayout 薄委托 resolveMusicCollectionLayout，窄屏/大字体堆叠居中、宽屏并列 128/160dp），标题声明 heading 语义、metadata 改 FlowRow、播放按钮限宽 360dp；MusicCollectionDescription 提升为 internal 并复用到有声书简介卡片（3 行截断 + 展开/收起按 itemId 隔离）；新增 audiobookAuthorLabel（空白→未知作者）应用到 summary 卡、详情作者行、页头副标题三处；「章节」节头 onBackground→onSurface、简介卡边框 0.05f→0.045f、书签行选中副标题对齐 onPrimaryContainer 0.78 alpha。质量门禁全绿（compile + 525 单测 0 失败 + lint 0 错误 + assembleDebug），APK 与第四批 manual-checklist.md 已交付待真机验收。spec ui-consistency.md 业务页面扩展沉淀有声书域条目。gradle.properties 为用户本地配置，未提交。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2391a15` | (see git log) |
+| `f0478b2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
