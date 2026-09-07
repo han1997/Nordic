@@ -30,15 +30,15 @@
 | 有声书 | 倍速面板 | `AudiobookPlayerScreen.kt:AudiobookPlaybackSpeedSheet` | 第一批已共享化；无进一步改动 | 待验证 | 待验证 | 待验证 | 待验证 |
 | 有声书 | 定时关闭面板 | `AudiobookPlayerScreen.kt:AudiobookSleepTimerSheet` | 第一批已统一；无进一步改动 | 待验证 | 待验证 | 待验证 | 待验证 |
 | 有声书 | 书签面板 / 添加 / 删除 | `AudiobookPlayerScreen.kt:AudiobookBookmarkSheet` | 第一批已统一；第四批：书签行选中副标题对齐 0.78 alpha 规范 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 视频 | 媒体库 / 库切换 / 聚焦区 / 继续观看 | `VideoScreen.kt, VideoBrowseComponents.kt` | 库选择已统一；聚焦/卡片/继续观看仍待精查 | 待验证 | 待验证 | 待验证 | 待验证 |
+| 视频 | 媒体库 / 库切换 / 聚焦区 / 继续观看 | `VideoScreen.kt, VideoBrowseComponents.kt` | 库选择已统一；第五批：节头 heading/SemiBold、推荐卡 fontScale 自适应（videoShelfCardSize） | 待验证 | 待验证 | 待验证 | 待验证 |
 | 视频 | 搜索 / 类型筛选 / 无结果 | `VideoBrowseComponents.kt:VideoBrowserControls` | 搜索与类型选择已统一；组合交互/空态真机待验 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 视频 | 电影详情 / 简介 / 续播与从头播放 | `VideoDetailScreen.kt` | 共享主次动作已改；影片详情排版仍待精查 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 视频 | 剧集详情 / 已看筛选 / 剧集行 | `VideoDetailScreen.kt:VideoEpisodeFilterRow, VideoEpisodeRow` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 视频 | 竖屏播放器 / 横屏全屏 / 手势反馈 / 锁定 | `VideoPlayerScreen.kt, VideoPlayerChrome.kt` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 视频 | 更多设置面板 | `VideoPlayerPanels.kt:Settings` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 视频 | 倍速面板 | `VideoPlayerPanels.kt:Speed` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 视频 | 影片信息面板 | `VideoPlayerPanels.kt:Info` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 视频 | 按季选集面板 | `VideoPlayerPanels.kt:Episodes` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
+| 视频 | 电影详情 / 简介 / 续播与从头播放 | `VideoDetailScreen.kt` | 共享主次动作已改；第五批：简介展开收起（MusicCollectionDescription）、分集筛选迁移 MediaChoiceChip | 待验证 | 待验证 | 待验证 | 待验证 |
+| 视频 | 剧集详情 / 已看筛选 / 剧集行 | `VideoDetailScreen.kt:VideoEpisodeFilterRow, VideoEpisodeRow` | 第五批已改动：筛选 chip 统一、剧集行边框 0.045f、节头语义 | 待验证 | 待验证 | 待验证 | 待验证 |
+| 视频 | 竖屏播放器 / 横屏全屏 / 手势反馈 / 锁定 | `VideoPlayerScreen.kt, VideoPlayerChrome.kt` | chrome 按钮 48dp 已合规；white-on-black 为已记录例外 | 待验证 | 待验证 | 待验证 | 待验证 |
+| 视频 | 更多设置面板 | `VideoPlayerPanels.kt:Settings` | 设置行 64dp 已合规；无进一步改动 | 待验证 | 待验证 | 待验证 | 待验证 |
+| 视频 | 倍速面板 | `VideoPlayerPanels.kt:Speed` | 第五批已改动：选择行迁移 MediaPlayerChoiceRow（primaryContainer + 勾选） | 待验证 | 待验证 | 待验证 | 待验证 |
+| 视频 | 影片信息面板 | `VideoPlayerPanels.kt:Info` | 入口已审查；信息行排版合规，无进一步改动 | 待验证 | 待验证 | 待验证 | 待验证 |
+| 视频 | 按季选集面板 | `VideoPlayerPanels.kt:Episodes` | 入口已审查；季筛选为面板内 M3 FilterChip（深色面板上下文），保留 | 待验证 | 待验证 | 待验证 | 待验证 |
 | 配置 | 配置首页 / 主题操作 / 保存反馈 | `ServerConfigScreen.kt` | 共享主题/页头已更新；表单与反馈仍待精查 | 待验证 | 待验证 | 待验证 | 待验证 |
 | 配置 | Navidrome 表单 / 测试连接 / 校验 | `ConfigCards.kt:NavidromeConfigCard` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
 | 配置 | AudiobookShelf 表单 / 测试连接 / 校验 | `ConfigCards.kt:AudiobookConfigCard` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
