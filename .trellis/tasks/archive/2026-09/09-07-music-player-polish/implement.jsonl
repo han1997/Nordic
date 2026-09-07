@@ -1,0 +1,4 @@
+﻿{"file": ".trellis/spec/backend/index.md", "reason": "Spec index with pre-development checklist and verification commands"}
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "Shared UI contract: MediaPlayerSheet/ChoiceRow, touch targets, selectable semantics, token rules"}
+{"file": ".trellis/spec/backend/music-ui.md", "reason": "Music UI conventions: Chinese default labels, list rows, sheet dialogs"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Token system rules, motion convergence, queue drag contract, verification gates"}
