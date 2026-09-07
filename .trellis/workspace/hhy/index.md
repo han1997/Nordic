@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-3.md`
-- **Total Sessions**: 160
+- **Total Sessions**: 161
 - **Last Active**: 2026-09-07
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-3.md` | ~1521 | Active |
+| `journal-3.md` | ~1555 | Active |
 | `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
@@ -31,6 +31,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 161 | 2026-09-07 | 视频域 UI 精修 | `5e26cd9`, `6195e08` | `main` |
 | 160 | 2026-09-07 | 有声书域 UI 精修 | `2391a15`, `f0478b2` | `main` |
 | 159 | 2026-09-07 | 音乐域播放器三面 UI 精修 | `21b1b55`, `8cfb7c2` | `main` |
 | 158 | 2026-09-07 | 统一播放器弹层容器与壳层触达目标 | `95ac347`, `30b6dbc` | `main` |

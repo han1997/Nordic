@@ -1519,3 +1519,37 @@ Verified Kotlin compilation, unit tests, and lint; committed the app-wide UI com
 ### Next Steps
 
 - None - task complete
+
+
+## Session 161: 视频域 UI 精修
+
+**Date**: 2026-09-07
+**Task**: 视频域 UI 精修
+**Branch**: `main`
+
+### Summary
+
+第五批视频域精修：三处节头（推荐区/全部 N 项/分集）补 heading 语义 + SemiBold 对齐音乐首页节头规范；新增 videoShelfCardSize(fontScale)（132dp × 钳制 scale 上限 176dp）替换推荐海报卡固定 132dp，与音乐 musicShelfArtworkSize 同一增长策略并补单测；视频详情分集筛选从裸 clickable 自绘 chip 迁移到 MediaChoiceChip + selectableGroup；播放器倍速面板选择行从裸 Row 迁移到 MediaPlayerChoiceRow（primaryContainer + 勾选，深色面板 colors 参数兼容）；详情简介复用 MusicCollectionDescription 展开收起；剧集行缩略图边框 0.05f→0.045f 对齐卡片家族。质量门禁全绿（compile + 526 单测 0 失败含新增用例 + lint 0 错误 + assembleDebug），APK 与第五批 manual-checklist.md 已交付待真机验收。过程中 Gradle daemon 卡死导致 test 结果不落盘，kill daemon 重跑确认真实执行。spec ui-consistency.md 业务页面扩展沉淀视频域条目。gradle.properties 为用户本地配置，未提交。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `5e26cd9` | (see git log) |
+| `6195e08` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
