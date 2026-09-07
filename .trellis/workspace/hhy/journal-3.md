@@ -1384,3 +1384,36 @@ HeaderActionGroup(四屏共用顶栏按钮组)Surface 移除 shadowElevation=4dp
 ### Next Steps
 
 - None - task complete
+
+
+## Session 157: Complete app UI unification
+
+**Date**: 2026-09-07
+**Task**: Complete app UI unification
+**Branch**: `main`
+
+### Summary
+
+Verified Kotlin compilation, unit tests, and lint; committed the app-wide UI component and design-token unification; archived the Trellis task.
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6389f11` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
