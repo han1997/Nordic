@@ -1,5 +1,6 @@
 package com.nordic.mediahub.ui
 
+import androidx.compose.ui.unit.dp
 import com.nordic.mediahub.data.VideoItem
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -8,6 +9,15 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VideoScreenTest {
+    @Test
+    fun videoShelfCardSize_growsWithFontScaleAndCapsAt176dp() {
+        assertEquals(132.dp, videoShelfCardSize(1f))
+        assertEquals(198.dp.coerceAtMost(176.dp), videoShelfCardSize(1.5f))
+        assertEquals(176.dp, videoShelfCardSize(2f))
+        assertEquals(132.dp, videoShelfCardSize(0.5f))
+        assertEquals(132.dp, videoShelfCardSize(Float.NaN))
+    }
+
     @Test
     fun continueWatchingShelf_ordersByLastPlayedDateBeforeResumePositionFallback() {
         val oldNearFinished = video(

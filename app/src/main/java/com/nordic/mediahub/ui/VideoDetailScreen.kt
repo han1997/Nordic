@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PlayArrow
@@ -36,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
@@ -98,12 +100,7 @@ internal fun VideoDetailScreen(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    video.overview.ifBlank { "暂无简介" },
-                    style = MaterialTheme.typography.bodyMedium,
-                    lineHeight = 21.sp,
-                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium)
-                )
+                MusicCollectionDescription(video.id, video.overview.ifBlank { "暂无简介" }, colorScheme)
             }
         }
 
@@ -117,6 +114,8 @@ internal fun VideoDetailScreen(
                         "分集",
                         style = MaterialTheme.typography.headlineMedium,
                         color = colorScheme.onBackground,
+                        modifier = Modifier.semantics { heading() },
+                        fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -160,7 +159,7 @@ private fun VideoEpisodeFilterRow(
     onSelect: (VideoEpisodeFilter) -> Unit
 ) {
     LazyRow(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
     ) {
         items(
@@ -168,23 +167,12 @@ private fun VideoEpisodeFilterRow(
             key = { it.name },
             contentType = { "video-episode-filter" }
         ) { filter ->
-            val selected = filter == selectedFilter
-            Surface(
-                color = if (selected) colorScheme.primary.copy(alpha = 0.16f) else colorScheme.surfaceVariant.copy(alpha = 0.50f),
-                contentColor = if (selected) colorScheme.primary else colorScheme.onSurface,
-                shape = NordicShapes.full,
-                border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
-                modifier = Modifier.clickable { onSelect(filter) }
-            ) {
-                Text(
-                    text = filter.label,
-                    modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+            MediaChoiceChip(
+                text = filter.label,
+                selected = filter == selectedFilter,
+                colorScheme = colorScheme,
+                onClick = { onSelect(filter) }
+            )
         }
     }
 }
@@ -345,7 +333,7 @@ internal fun VideoEpisodeRow(
         Surface(
             color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
             shape = NordicShapes.sm,
-            border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
+            border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
             modifier = Modifier.width(if (compact) 88.dp else 116.dp)
         ) {
             Box(

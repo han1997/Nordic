@@ -174,19 +174,12 @@ internal fun VideoPlayerPanelHost(
                             }
                             VideoPlayerPanel.Speed -> LazyColumn(Modifier.weight(1f)) {
                                 items(VIDEO_PLAYBACK_SPEED_OPTIONS, key = { it }) { speed ->
-                                    val selected = abs(speed - state.playbackSpeed) < 0.001f
-                                    Row(
-                                        Modifier.fillMaxWidth().heightIn(min = 56.dp)
-                                            .semantics { this.selected = selected }
-                                            .clickable(role = Role.RadioButton) { onSetPlaybackSpeed(speed) }
-                                            .padding(horizontal = NordicSpacing.md),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(resolvePlaybackSpeedLabel(speed), Modifier.weight(1f),
-                                            color = if (selected) colors.primary else colors.onSurface,
-                                            style = MaterialTheme.typography.bodyMedium)
-                                        if (selected) Icon(Icons.Filled.Check, "当前倍速", tint = colors.primary)
-                                    }
+                                    MediaPlayerChoiceRow(
+                                        title = resolvePlaybackSpeedLabel(speed),
+                                        selected = abs(speed - state.playbackSpeed) < 0.001f,
+                                        colors = colors,
+                                        onClick = { onSetPlaybackSpeed(speed) }
+                                    )
                                 }
                             }
                             VideoPlayerPanel.Info -> VideoPlayerInfoContent(

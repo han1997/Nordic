@@ -1,5 +1,7 @@
 package com.nordic.mediahub.ui
 
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.nordic.mediahub.data.VideoItem
 
 internal fun VideoItem.metaText(): String {
@@ -10,6 +12,16 @@ internal fun VideoItem.metaText(): String {
         if (playbackPositionSeconds > 0 && !isPlayed) add("看到 ${formatLongDuration(playbackPositionSeconds)}")
         if (isPlayed) add("已播放")
     }.joinToString("  /  ")
+}
+
+/**
+ * Spotlight shelf poster-card width. Same fontScale growth policy as the
+ * music home shelf (`musicShelfArtworkSize`): base size × clamped scale,
+ * capped so large fonts never push a 2:3 poster past the viewport.
+ */
+internal fun videoShelfCardSize(fontScale: Float): Dp {
+    val scale = fontScale.takeIf { it.isFinite() && it > 0f }?.coerceAtLeast(1f) ?: 1f
+    return (132.dp * scale).coerceAtMost(176.dp)
 }
 
 internal data class VideoDetailPlayAction(
