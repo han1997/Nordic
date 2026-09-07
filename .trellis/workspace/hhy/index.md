@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-3.md`
-- **Total Sessions**: 161
-- **Last Active**: 2026-09-07
+- **Total Sessions**: 162
+- **Last Active**: 2026-09-08
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-3.md` | ~1555 | Active |
+| `journal-3.md` | ~1589 | Active |
 | `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
@@ -31,6 +31,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 162 | 2026-09-08 | 配置域与公共状态组件精修（UI 统一收官批） | `609f57c`, `8c4c47b` | `main` |
 | 161 | 2026-09-07 | 视频域 UI 精修 | `5e26cd9`, `6195e08` | `main` |
 | 160 | 2026-09-07 | 有声书域 UI 精修 | `2391a15`, `f0478b2` | `main` |
 | 159 | 2026-09-07 | 音乐域播放器三面 UI 精修 | `21b1b55`, `8cfb7c2` | `main` |

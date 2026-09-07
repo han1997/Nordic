@@ -1553,3 +1553,37 @@ Verified Kotlin compilation, unit tests, and lint; committed the app-wide UI com
 ### Next Steps
 
 - None - task complete
+
+
+## Session 162: 配置域与公共状态组件精修（UI 统一收官批）
+
+**Date**: 2026-09-08
+**Task**: 配置域与公共状态组件精修（UI 统一收官批）
+**Branch**: `main`
+
+### Summary
+
+第六批配置域收官：视频服务器类型选择从裸 clickable 自绘容器迁移到 MediaChoiceChip + selectableGroup（删除与说明行重复的「后续支持」副文案）；ServerConfigCard 容器对齐卡片家族（surfaceVariant 0.5 alpha + md 圆角）并补标题 heading 语义；ConfigTextField 标签移入 TextField label 参数（TalkBack 可朗读字段名）、placeholder/输入统一 bodyLarge 解决 design-audit 遗留的层级错位；保存/测试连接按钮从 M3 Button(40dp) 迁移到 PrimaryActionButton/SecondaryActionButton（48dp+ 触达）；状态消息限三行省略。公共 MediaStateCard 标题补 heading 语义、Compact 边框 0.045f 对齐卡片家族。文档同步：CHANGELOG 补第三至六批改进条目，DESIGN.md 第 7 节补跨域共享组件现状（弹层容器/选择行/集合布局/海报卡尺寸策略），覆盖矩阵全部行达到已审查/已改动。质量门禁全绿（compile + 526 单测 0 失败 + lint 0 错误 + assembleDebug），APK 与第六批 manual-checklist.md（含全局回归清单）已交付待真机验收。gradle.properties 为用户本地配置，未提交。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `609f57c` | (see git log) |
+| `8c4c47b` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
