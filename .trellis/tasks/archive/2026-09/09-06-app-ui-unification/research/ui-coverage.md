@@ -19,10 +19,10 @@
 | 音乐 | 歌单列表 | `MusicScreenV2Pages.kt:MusicPlaylistsPage` | 列表/新建入口/元信息已统一；待真机验证 | 待验证 | 待验证 | 待验证 | 待验证 |
 | 音乐 | 歌单详情 / 管理操作 / 曲目列表 | `MusicScreenV2Pages.kt:MusicPlaylistDetailPage` | 概览/简介/管理动作/列表已统一；不声明新增未有的排序功能 | 待验证 | 待验证 | 待验证 | 待验证 |
 | 音乐 | 歌单创建 / 重命名 / 删除确认弹窗 | `MusicScreenV2.kt:AlertDialog` | 字段/提交/删除语义已改；原忙碌守卫保留，待真机验证 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 音乐 | 主播放器 / 歌词视图 / 缺失歌词 | `MusicPlayerScreen.kt` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 音乐 | 队列面板 / 拖拽 / 当前定位 / 清空确认 | `MusicQueueSheet.kt` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 音乐 | 播放速度面板 | `MusicPlayerScreen.kt:MusicPlaybackSpeedSheet` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 音乐 | 均衡器面板 / 预设 / 自定义 | `MusicEqualizerSheet.kt` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
+| 音乐 | 主播放器 / 歌词视图 / 缺失歌词 | `MusicPlayerScreen.kt` | 第三批已审查：transient pill 合并为 MediaTransientPill、歌词字号常量化并记录例外；渐变停靠点按先例 out-of-scope | 待验证 | 待验证 | 待验证 | 待验证 |
+| 音乐 | 队列面板 / 拖拽 / 当前定位 / 清空确认 | `MusicQueueSheet.kt` | 第三批已改动：迁移 MediaPlayerSheet + trailing 槽位、未知歌手文案、48dp 触达、未用参数与魔法数清理 | 待验证 | 待验证 | 待验证 | 待验证 |
+| 音乐 | 播放速度面板 | `MusicPlayerScreen.kt:MusicPlaybackSpeedSheet` | 已共享化（第一批）；无进一步改动 | 待验证 | 待验证 | 待验证 | 待验证 |
+| 音乐 | 均衡器面板 / 预设 / 自定义 | `MusicEqualizerSheet.kt` | 第三批已改动：预设 chip selectable/Role 语义、primaryContainer 选中语言、48dp、widthIn 标签 | 待验证 | 待验证 | 待验证 | 待验证 |
 | 有声书 | 书库首页 / 库选择 / 书籍卡片 | `AudiobookScreen.kt` | 库选择已统一；书籍卡片/详情仍待精查 | 待验证 | 待验证 | 待验证 | 待验证 |
 | 有声书 | 书籍详情 / 播放入口 / 章节 | `AudiobookScreen.kt:AudiobookDetailHeader` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
 | 有声书 | 主播放器 / 封面信息切换 / 进度 | `AudiobookPlayerScreen.kt` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
