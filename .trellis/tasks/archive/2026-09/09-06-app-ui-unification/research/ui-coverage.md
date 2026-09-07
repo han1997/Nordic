@@ -23,13 +23,13 @@
 | 音乐 | 队列面板 / 拖拽 / 当前定位 / 清空确认 | `MusicQueueSheet.kt` | 第三批已改动：迁移 MediaPlayerSheet + trailing 槽位、未知歌手文案、48dp 触达、未用参数与魔法数清理 | 待验证 | 待验证 | 待验证 | 待验证 |
 | 音乐 | 播放速度面板 | `MusicPlayerScreen.kt:MusicPlaybackSpeedSheet` | 已共享化（第一批）；无进一步改动 | 待验证 | 待验证 | 待验证 | 待验证 |
 | 音乐 | 均衡器面板 / 预设 / 自定义 | `MusicEqualizerSheet.kt` | 第三批已改动：预设 chip selectable/Role 语义、primaryContainer 选中语言、48dp、widthIn 标签 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 有声书 | 书库首页 / 库选择 / 书籍卡片 | `AudiobookScreen.kt` | 库选择已统一；书籍卡片/详情仍待精查 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 有声书 | 书籍详情 / 播放入口 / 章节 | `AudiobookScreen.kt:AudiobookDetailHeader` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 有声书 | 主播放器 / 封面信息切换 / 进度 | `AudiobookPlayerScreen.kt` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 有声书 | 章节面板 / 当前定位 | `AudiobookPlayerScreen.kt:AudiobookChapterListSheet` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 有声书 | 倍速面板 | `AudiobookPlayerScreen.kt:AudiobookPlaybackSpeedSheet` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 有声书 | 定时关闭面板 | `AudiobookPlayerScreen.kt:AudiobookSleepTimerSheet` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 有声书 | 书签面板 / 添加 / 删除 | `AudiobookPlayerScreen.kt:AudiobookBookmarkSheet` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
+| 有声书 | 书库首页 / 库选择 / 书籍卡片 | `AudiobookScreen.kt` | 库选择已统一；第四批：summary 卡作者缺省文案「未知作者」 | 待验证 | 待验证 | 待验证 | 待验证 |
+| 有声书 | 书籍详情 / 播放入口 / 章节 | `AudiobookScreen.kt:AudiobookDetailHeader` | 第四批已改动：概览复用共享 collection layout（堆叠/并列自适应）、简介展开收起、作者缺省文案、节头/边框微对齐 | 待验证 | 待验证 | 待验证 | 待验证 |
+| 有声书 | 主播放器 / 封面信息切换 / 进度 | `AudiobookPlayerScreen.kt` | 第一批已统一容器与触达；无进一步改动 | 待验证 | 待验证 | 待验证 | 待验证 |
+| 有声书 | 章节面板 / 当前定位 | `AudiobookPlayerScreen.kt:AudiobookChapterListSheet` | 第一批已统一（MediaPlayerSheet/ChoiceRow）；无进一步改动 | 待验证 | 待验证 | 待验证 | 待验证 |
+| 有声书 | 倍速面板 | `AudiobookPlayerScreen.kt:AudiobookPlaybackSpeedSheet` | 第一批已共享化；无进一步改动 | 待验证 | 待验证 | 待验证 | 待验证 |
+| 有声书 | 定时关闭面板 | `AudiobookPlayerScreen.kt:AudiobookSleepTimerSheet` | 第一批已统一；无进一步改动 | 待验证 | 待验证 | 待验证 | 待验证 |
+| 有声书 | 书签面板 / 添加 / 删除 | `AudiobookPlayerScreen.kt:AudiobookBookmarkSheet` | 第一批已统一；第四批：书签行选中副标题对齐 0.78 alpha 规范 | 待验证 | 待验证 | 待验证 | 待验证 |
 | 视频 | 媒体库 / 库切换 / 聚焦区 / 继续观看 | `VideoScreen.kt, VideoBrowseComponents.kt` | 库选择已统一；聚焦/卡片/继续观看仍待精查 | 待验证 | 待验证 | 待验证 | 待验证 |
 | 视频 | 搜索 / 类型筛选 / 无结果 | `VideoBrowseComponents.kt:VideoBrowserControls` | 搜索与类型选择已统一；组合交互/空态真机待验 | 待验证 | 待验证 | 待验证 | 待验证 |
 | 视频 | 电影详情 / 简介 / 续播与从头播放 | `VideoDetailScreen.kt` | 共享主次动作已改；影片详情排版仍待精查 | 待验证 | 待验证 | 待验证 | 待验证 |

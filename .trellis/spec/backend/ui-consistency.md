@@ -107,3 +107,5 @@ Text("播放", color = colorScheme.onPrimary)
 ## 业务页面扩展
 
 - 音乐集合、列表、封面、缺失信息与管理动作的进一步约束见 [music-ui.md](./music-ui.md)，对应组件复用本合同的字体、主题、动作尺寸和无障碍原则。
+- 有声书详情概览复用音乐集合布局策略：`resolveAudiobookCollectionLayout` 委托 `resolveMusicCollectionLayout`（窄屏/大字体堆叠居中，宽屏并列 128/160dp），不得另写固定 128dp Row。简介卡片复用 `MusicCollectionDescription`（3 行截断 + 展开/收起，按 itemId 隔离状态），保留域内标题容器。
+- 有声书作者缺省文案统一 `audiobookAuthorLabel`（空白 → 「未知作者」），summary 卡、详情作者行、页头副标题三处均不得静默省略作者行。
