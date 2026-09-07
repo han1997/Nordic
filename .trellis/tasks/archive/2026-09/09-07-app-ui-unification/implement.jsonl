@@ -1,0 +1,4 @@
+﻿{"file": ".trellis/spec/backend/index.md", "reason": "Spec index with pre-development checklist for the backend/UI layer"}
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "Core UI consistency contract: shared tokens, components, touch targets, semantics this task must follow"}
+{"file": ".trellis/spec/backend/music-ui.md", "reason": "Music UI conventions for sheets, queue, equalizer and player surfaces touched by this task"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Quality bar: compile/test/lint expectations and verification cadence"}
