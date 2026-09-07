@@ -1417,3 +1417,37 @@ Verified Kotlin compilation, unit tests, and lint; committed the app-wide UI com
 ### Next Steps
 
 - None - task complete
+
+
+## Session 158: 统一播放器弹层容器与壳层触达目标
+
+**Date**: 2026-09-07
+**Task**: 统一播放器弹层容器与壳层触达目标
+**Branch**: `main`
+
+### Summary
+
+第一批共享壳层收尾：MediaPlayerChoiceRow 增加选中/未选中统一容器与配对前景色；MusicEqualizerSheet 迁移到统一 MediaPlayerSheet 容器并移除本地 ModalBottomSheet 重复实现；AudiobookScreen 播放按钮与 MusicQueueSheet 队列图标动作提升到 NordicControlSizes.touchTarget 48dp；PlaybackDock 底部导航加入 selectableGroup/Role.Tab 选中语义。质量门禁全绿（compile + 525 单测 0 失败 + lint 0 错误），APK 与 manual-checklist.md 已交付待真机验收。spec ui-consistency.md 沉淀弹层容器与选择行契约。gradle.properties 为用户本地配置，未提交。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `95ac347` | (see git log) |
+| `30b6dbc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

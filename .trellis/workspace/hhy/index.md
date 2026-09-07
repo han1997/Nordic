@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-3.md`
-- **Total Sessions**: 157
+- **Total Sessions**: 158
 - **Last Active**: 2026-09-07
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-3.md` | ~1419 | Active |
+| `journal-3.md` | ~1453 | Active |
 | `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
@@ -31,6 +31,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 158 | 2026-09-07 | 统一播放器弹层容器与壳层触达目标 | `95ac347`, `30b6dbc` | `main` |
 | 157 | 2026-09-07 | Complete app UI unification | `6389f11` | `main` |
 | 156 | 2026-09-06 | 视频播放器布局与选集完善收尾 | `108305d` | `main` |
 | 155 | 2026-09-06 | 移除视频横竖屏切换按钮 + 永久禁用 Trellis 子代理 | `dee14b1`, `d4de573` | `main` |
