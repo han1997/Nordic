@@ -79,6 +79,12 @@ private const val QUEUE_DRAG_LIFT_SCALE_DOWN = 0.02f
 private const val QUEUE_DRAG_LIFT_ALPHA_DECAY = 0.08f
 
 /**
+ * Max height of the queue list inside the sheet. Layout sizing, not a
+ * spacing token tier.
+ */
+private val QUEUE_SHEET_LIST_MAX_HEIGHT = 520.dp
+
+/**
  * Tracks the active drag-reorder state at the [MusicQueueSheet] level so every
  * [QueueRow] can compute its own real-time displacement.
  *
@@ -170,24 +176,25 @@ fun MusicQueueSheet(
         }
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = colorScheme.surface,
-        shape = NordicShapes.xl,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    MediaPlayerSheet(
+        title = "播放队列",
+        colors = colorScheme,
+        onDismiss = onDismiss,
+        subtitle = queueSubtitle(queue.size, resolvedCurrentIndex, upcomingCount),
+        skipPartiallyExpanded = false,
+        trailingAction = {
+            QueueTextAction(
+                text = "清空后续",
+                enabled = upcomingCount > 0,
+                colorScheme = colorScheme,
+                onClick = onClearUpcoming
+            )
+        }
     ) {
         Column(
-            modifier = Modifier.padding(bottom = NordicSpacing.xxl),
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
         ) {
-            QueueSheetHeader(
-                queueSize = queue.size,
-                currentIndex = resolvedCurrentIndex,
-                upcomingCount = upcomingCount,
-                colorScheme = colorScheme,
-                onClearUpcoming = onClearUpcoming
-            )
-
             if (queue.isEmpty()) {
                 QueueEmptyState(colorScheme = colorScheme)
             } else {
@@ -199,13 +206,11 @@ fun MusicQueueSheet(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 520.dp)
+                        .heightIn(max = QUEUE_SHEET_LIST_MAX_HEIGHT)
                 ) {
                     LazyColumn(
                         state = listState,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 520.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
                     ) {
                         itemsIndexed(
@@ -259,8 +264,6 @@ fun MusicQueueSheet(
                                             removingIndex = null
                                         }
                                     },
-                                    onMoveUp = { onMoveQueueItem(index, index - 1) },
-                                    onMoveDown = { onMoveQueueItem(index, index + 1) },
                                     onDragStart = {
                                         dragState = QueueDragState(
                                             draggedIndex = index,
@@ -295,52 +298,6 @@ fun MusicQueueSheet(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun QueueSheetHeader(
-    queueSize: Int,
-    currentIndex: Int,
-    upcomingCount: Int,
-    colorScheme: ColorScheme,
-    onClearUpcoming: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = NordicSpacing.xl),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
-        ) {
-            Text(
-                "播放队列",
-                style = MaterialTheme.typography.titleMedium,
-                color = colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                queueSubtitle(queueSize, currentIndex, upcomingCount),
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Normal,
-                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        Spacer(modifier = Modifier.width(NordicSpacing.md))
-        QueueTextAction(
-            text = "清空后续",
-            enabled = upcomingCount > 0,
-            colorScheme = colorScheme,
-            onClick = onClearUpcoming
-        )
     }
 }
 
@@ -428,8 +385,6 @@ private fun QueueRow(
     onClick: () -> Unit,
     onPlayNext: () -> Unit,
     onRemove: () -> Unit,
-    onMoveUp: () -> Unit = {},
-    onMoveDown: () -> Unit = {},
     onDragStart: () -> Unit = {},
     onDrag: (Float) -> Unit = {},
     onDragEnd: (Int) -> Unit = {},
@@ -572,7 +527,7 @@ private fun QueueRow(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    song.artist ?: "Unknown",
+                    musicArtistLabel(song.artist),
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Normal,
                     color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
@@ -619,7 +574,7 @@ private fun QueueDragHandle(
         color = colorScheme.surfaceVariant.copy(alpha = if (enabled) 0.48f else 0.28f),
         contentColor = colorScheme.onSurface.copy(alpha = if (enabled) NordicAlpha.subtle else NordicAlpha.faint),
         shape = NordicShapes.full,
-        modifier = modifier.size(28.dp)
+        modifier = modifier.size(NordicControlSizes.touchTarget)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
@@ -653,6 +608,7 @@ private fun QueueTextAction(
         shape = NordicShapes.full,
         modifier = Modifier
             .width(58.dp)
+            .heightIn(min = NordicControlSizes.touchTarget)
             .clickable(enabled = enabled, onClick = onClick)
     ) {
         Box(

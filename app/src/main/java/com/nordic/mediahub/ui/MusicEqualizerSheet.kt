@@ -4,16 +4,20 @@ import android.media.audiofx.Equalizer
 import android.util.Log
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -33,11 +37,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicControlSizes
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
 import kotlin.math.roundToInt
@@ -128,29 +134,38 @@ fun MusicEqualizerSheet(
                                 key = { index, name -> "eq-preset-$name-$index" }
                             ) { index, name ->
                                 val isSelected = selectedPreset == index
+                                val source = remember { MutableInteractionSource() }
                                 Surface(
                                     color = if (isSelected) {
-                                        colorScheme.primary.copy(alpha = 0.18f)
+                                        colorScheme.primaryContainer
                                     } else {
                                         colorScheme.surfaceVariant.copy(alpha = 0.42f)
                                     },
                                     contentColor = if (isSelected) {
-                                        colorScheme.primary
+                                        colorScheme.onPrimaryContainer
                                     } else {
-                                        colorScheme.onSurface.copy(alpha = NordicAlpha.medium)
+                                        colorScheme.onSurface
                                     },
                                     shape = NordicShapes.full,
-                                    modifier = Modifier.clickable {
-                                        try {
-                                            equalizer?.usePreset(index.toShort())
-                                            selectedPreset = index
-                                            bandLevels = (0 until bandCount).map {
-                                                equalizer?.getBandLevel(it.toShort()) ?: 0
+                                    modifier = Modifier
+                                        .heightIn(min = NordicControlSizes.touchTarget)
+                                        .selectable(
+                                            selected = isSelected,
+                                            role = Role.RadioButton,
+                                            interactionSource = source,
+                                            indication = null,
+                                            onClick = {
+                                                try {
+                                                    equalizer?.usePreset(index.toShort())
+                                                    selectedPreset = index
+                                                    bandLevels = (0 until bandCount).map {
+                                                        equalizer?.getBandLevel(it.toShort()) ?: 0
+                                                    }
+                                                } catch (e: Exception) {
+                                                    Log.e("MusicEqualizer", "Failed to apply equalizer preset", e)
+                                                }
                                             }
-                                        } catch (e: Exception) {
-                                            Log.e("MusicEqualizer", "Failed to apply equalizer preset", e)
-                                        }
-                                    }
+                                        )
                                 ) {
                                     Text(
                                         name,
@@ -158,7 +173,7 @@ fun MusicEqualizerSheet(
                                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm)
+                                        modifier = Modifier.padding(horizontal = NordicSpacing.md)
                                     )
                                 }
                             }
@@ -202,7 +217,7 @@ fun MusicEqualizerSheet(
                                         freqLabel,
                                         style = MaterialTheme.typography.bodySmall,
                                         color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                                        modifier = Modifier.width(52.dp)
+                                        modifier = Modifier.widthIn(min = 52.dp)
                                     )
                                     Slider(
                                         value = level.toFloat(),
@@ -233,7 +248,7 @@ fun MusicEqualizerSheet(
                                         "${dbLabel}dB",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                                        modifier = Modifier.width(48.dp),
+                                        modifier = Modifier.widthIn(min = 48.dp),
                                         textAlign = TextAlign.End
                                     )
                                 }

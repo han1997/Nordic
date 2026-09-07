@@ -1,5 +1,6 @@
 package com.nordic.mediahub.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -35,9 +36,11 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nordic.mediahub.playback.resolvePlaybackSpeedLabel
+import com.nordic.mediahub.ui.theme.NordicAlpha
 import com.nordic.mediahub.ui.theme.NordicControlSizes
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
@@ -49,7 +52,8 @@ internal fun MediaPlayerSheetHeader(
     colors: ColorScheme,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    subtitle: String? = null
+    subtitle: String? = null,
+    trailingAction: (@Composable () -> Unit)? = null
 ) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
@@ -58,6 +62,9 @@ internal fun MediaPlayerSheetHeader(
                 maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.semantics { heading() })
             if (!subtitle.isNullOrBlank()) Text(subtitle, style = MaterialTheme.typography.bodySmall,
                 color = colors.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        if (trailingAction != null) {
+            trailingAction()
         }
         AnimatedIconButton(Icons.Filled.Close, "关闭$title", onDismiss, colorScheme = colors, containerColor = Color.Transparent)
     }
@@ -71,6 +78,7 @@ internal fun MediaPlayerSheet(
     onDismiss: () -> Unit,
     subtitle: String? = null,
     skipPartiallyExpanded: Boolean = true,
+    trailingAction: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val maxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.86f
@@ -85,7 +93,7 @@ internal fun MediaPlayerSheet(
                 .padding(horizontal = NordicSpacing.lg).padding(bottom = NordicSpacing.lg),
             verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
         ) {
-            MediaPlayerSheetHeader(title, colors, onDismiss, subtitle = subtitle)
+            MediaPlayerSheetHeader(title, colors, onDismiss, subtitle = subtitle, trailingAction = trailingAction)
             content()
         }
     }
@@ -145,5 +153,47 @@ internal fun MediaPlayerChoiceRow(
         }
         if (selected == true) Icon(Icons.Filled.Check, "当前选择", tint = colors.onPrimaryContainer)
     }
+    }
+}
+
+/**
+ * Shared transient notice pill for player surfaces (seek feedback, favorite
+ * failure, etc.): full-round surface with a subtle primary-tinted border and
+ * a primary leading message plus optional secondary detail. Single source of
+ * truth so overlay notices keep one visual language across players.
+ */
+@Composable
+internal fun MediaTransientPill(
+    message: String,
+    colors: ColorScheme,
+    modifier: Modifier = Modifier,
+    detail: String? = null
+) {
+    Surface(
+        color = colors.surface.copy(alpha = 0.94f),
+        contentColor = colors.onSurface,
+        shape = NordicShapes.full,
+        border = BorderStroke(1.dp, colors.primary.copy(alpha = 0.24f)),
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                message,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = colors.primary,
+                maxLines = 1
+            )
+            if (!detail.isNullOrBlank()) Text(
+                detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurface.copy(alpha = NordicAlpha.subtle),
+                maxLines = 1
+            )
+        }
     }
 }

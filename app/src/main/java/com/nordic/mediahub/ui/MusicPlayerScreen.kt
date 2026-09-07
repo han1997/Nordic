@@ -141,6 +141,17 @@ private const val SWIPE_DISMISS_MAX_SCALE_DOWN = 0.04f
  */
 internal const val MUSIC_DOUBLE_TAP_SEEK_SECONDS = 10
 
+/**
+ * Lyric display-surface type sizes. The lyrics view is a dedicated display
+ * surface, not a standard text slot: 18sp/24sp (16sp/20sp compact) sit
+ * between headlineMedium and titleMedium and are intentionally outside the
+ * 15-slot NordicTypography scale. Named constants keep the exception explicit.
+ */
+private val LYRIC_LINE_FONT_SIZE = 18.sp
+private val LYRIC_LINE_FONT_SIZE_COMPACT = 16.sp
+private val LYRIC_LINE_LINE_HEIGHT = 24.sp
+private val LYRIC_LINE_LINE_HEIGHT_COMPACT = 20.sp
+
 internal data class MusicSeekFeedback(
     val deltaSeconds: Int,
     val targetPositionSeconds: Int
@@ -678,8 +689,8 @@ private fun LyricLineText(
     )
     Text(
         text = text,
-        fontSize = if (compact) 16.sp else 18.sp,
-        lineHeight = if (compact) 20.sp else 24.sp,
+        fontSize = if (compact) LYRIC_LINE_FONT_SIZE_COMPACT else LYRIC_LINE_FONT_SIZE,
+        lineHeight = if (compact) LYRIC_LINE_LINE_HEIGHT_COMPACT else LYRIC_LINE_LINE_HEIGHT,
         color = animatedColor,
         fontWeight = FontWeight(weight = animatedWeight.toInt()),
         textAlign = TextAlign.Center,
@@ -851,33 +862,12 @@ private fun MusicSeekFeedbackChip(
     colorScheme: ColorScheme,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        color = colorScheme.surface.copy(alpha = 0.92f),
-        contentColor = colorScheme.onSurface,
-        shape = NordicShapes.full,
-        border = BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.24f)),
+    MediaTransientPill(
+        message = resolveSeekFeedbackLabel(feedback.deltaSeconds),
+        detail = formatDuration(feedback.targetPositionSeconds),
+        colors = colorScheme,
         modifier = modifier
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.sm),
-            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm, Alignment.CenterHorizontally),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = resolveSeekFeedbackLabel(feedback.deltaSeconds),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = colorScheme.primary,
-                maxLines = 1
-            )
-            Text(
-                text = formatDuration(feedback.targetPositionSeconds),
-                style = MaterialTheme.typography.bodySmall,
-                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                maxLines = 1
-            )
-        }
-    }
+    )
 }
 
 /**
@@ -922,18 +912,9 @@ private fun FavoriteErrorNotice(
         ),
         modifier = modifier
     ) {
-        Surface(
-            color = colorScheme.surface.copy(alpha = 0.94f),
-            contentColor = colorScheme.onSurface,
-            shape = NordicShapes.full,
-            border = BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.24f))
-        ) {
-            Text(
-                "收藏操作失败，已恢复",
-                style = MaterialTheme.typography.labelLarge,
-                color = colorScheme.primary,
-                modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.sm)
-            )
-        }
+        MediaTransientPill(
+            message = "收藏操作失败，已恢复",
+            colors = colorScheme
+        )
     }
 }
