@@ -12,6 +12,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -70,7 +72,7 @@ internal fun MediaStateCard(
         contentColor = contentColor,
         shape = shape,
         border = if (density == MediaStateDensity.Compact && !isError) {
-            BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f))
+            BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f))
         } else {
             null
         },
@@ -83,7 +85,8 @@ internal fun MediaStateCard(
             Text(
                 title,
                 style = MaterialTheme.typography.titleMedium,
-                color = contentColor
+                color = contentColor,
+                modifier = Modifier.semantics { heading() }
             )
             Text(
                 subtitle,

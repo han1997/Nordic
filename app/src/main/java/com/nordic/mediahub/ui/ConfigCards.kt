@@ -1,23 +1,19 @@
 package com.nordic.mediahub.ui
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -25,12 +21,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.nordic.mediahub.data.AudiobookShelfConfig
 import com.nordic.mediahub.data.NavidromeConfig
 import com.nordic.mediahub.data.VideoServerConfig
@@ -117,50 +114,20 @@ fun VideoConfigCard(
 ) {
     val supportedType = VideoServerType.EMBY
     ServerConfigCard(title = "视频服务器", colorScheme = colorScheme) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+        Row(
+            Modifier.fillMaxWidth().selectableGroup(),
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
+        ) {
             VideoServerType.values().forEach { type ->
                 val supported = type == supportedType
-                val selected = type == supportedType
-                val scale by animateFloatAsState(
-                    targetValue = if (selected) 1.01f else 1f,
-                    animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
+                MediaChoiceChip(
+                    text = videoServerTypeLabel(type),
+                    selected = type == supportedType,
+                    colorScheme = colorScheme,
+                    enabled = supported,
+                    modifier = Modifier.weight(1f),
+                    onClick = { onConfigChange(config.copy(type = type)) }
                 )
-                Surface(
-                    color = when {
-                        selected -> colorScheme.primary.copy(alpha = 0.16f)
-                        supported -> colorScheme.surfaceVariant.copy(alpha = 0.56f)
-                        else -> colorScheme.surfaceVariant.copy(alpha = 0.32f)
-                    },
-                    contentColor = when {
-                        selected -> colorScheme.primary
-                        supported -> colorScheme.onSurface
-                        else -> colorScheme.onSurface.copy(alpha = NordicAlpha.faint)
-                    },
-                    shape = NordicShapes.full,
-                    border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
-                    modifier = Modifier
-                        .weight(1f)
-                        .scale(scale)
-                        .clickable(enabled = supported) { onConfigChange(config.copy(type = type)) }
-                ) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.md),
-                        verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
-                    ) {
-                        Text(
-                            videoServerTypeLabel(type),
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Medium
-                        )
-                        if (!supported) {
-                            Text(
-                                "后续支持",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = colorScheme.onSurface.copy(alpha = NordicAlpha.faint)
-                            )
-                        }
-                    }
-                }
             }
         }
         Text(
@@ -220,21 +187,22 @@ private fun ServerConfigActions(
     statusIsError: Boolean
 ) {
     if (onTestConnection == null) {
-        Button(onClick = onSave, modifier = Modifier.fillMaxWidth()) {
-            Text("保存配置")
-        }
+        PrimaryActionButton(text = "保存配置", colorScheme = colorScheme, onClick = onSave)
     } else {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
-            OutlinedButton(
-                onClick = onTestConnection,
+            SecondaryActionButton(
+                text = if (isTestingConnection) "测试中..." else "测试连接",
+                colorScheme = colorScheme,
                 enabled = !isTestingConnection,
+                onClick = onTestConnection,
                 modifier = Modifier.weight(1f)
-            ) {
-                Text(if (isTestingConnection) "测试中..." else "测试连接")
-            }
-            Button(onClick = onSave, modifier = Modifier.weight(1f)) {
-                Text("保存配置")
-            }
+            )
+            PrimaryActionButton(
+                text = "保存配置",
+                colorScheme = colorScheme,
+                onClick = onSave,
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 
@@ -242,7 +210,9 @@ private fun ServerConfigActions(
         Text(
             text = statusMessage,
             style = MaterialTheme.typography.bodySmall,
-            color = if (statusIsError) colorScheme.error else colorScheme.primary
+            color = if (statusIsError) colorScheme.error else colorScheme.primary,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -268,8 +238,8 @@ private fun ServerConfigCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Surface(
-        color = colorScheme.surfaceVariant,
-        shape = NordicShapes.sm,
+        color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        shape = NordicShapes.md,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -279,7 +249,8 @@ private fun ServerConfigCard(
             Text(
                 title,
                 style = MaterialTheme.typography.titleMedium,
-                color = colorScheme.onSurface
+                color = colorScheme.onSurface,
+                modifier = Modifier.semantics { heading() }
             )
             content()
         }
@@ -295,22 +266,21 @@ fun ConfigTextField(
     isPassword: Boolean = false,
     onValueChange: (String) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
-        Text(label, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Normal, color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium))
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            placeholder = { Text(placeholder, style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface.copy(alpha = NordicAlpha.faint)) },
-            visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = colorScheme.primary,
-                unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.2f),
-                focusedTextColor = colorScheme.onSurface,
-                unfocusedTextColor = colorScheme.onSurface
-            ),
-            modifier = Modifier.fillMaxWidth(),
-            shape = NordicShapes.sm,
-            singleLine = true
-        )
-    }
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label, style = MaterialTheme.typography.bodyLarge) },
+        placeholder = { Text(placeholder, style = MaterialTheme.typography.bodyLarge, color = colorScheme.onSurface.copy(alpha = NordicAlpha.faint)) },
+        visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
+        textStyle = MaterialTheme.typography.bodyLarge,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = colorScheme.primary,
+            unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.2f),
+            focusedTextColor = colorScheme.onSurface,
+            unfocusedTextColor = colorScheme.onSurface
+        ),
+        modifier = Modifier.fillMaxWidth(),
+        shape = NordicShapes.sm,
+        singleLine = true
+    )
 }
