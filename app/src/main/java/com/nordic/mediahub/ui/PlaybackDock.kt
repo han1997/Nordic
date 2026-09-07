@@ -8,6 +8,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.LibraryMusic
@@ -27,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nordic.mediahub.data.NavidromeSong
 import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicControlSizes
 import com.nordic.mediahub.ui.theme.NordicMotion
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
@@ -58,7 +62,7 @@ private fun DockPlayPauseButton(
         modifier = Modifier.clickable(onClick = onPlayPause)
     ) {
         Box(
-            modifier = Modifier.size(38.dp),
+            modifier = Modifier.size(NordicControlSizes.touchTarget),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -201,7 +205,8 @@ internal fun PolishedBottomNav(selected: Int, colorScheme: ColorScheme, onSelect
         Modifier
             .fillMaxWidth()
             .height(58.dp)
-            .padding(horizontal = NordicSpacing.sm),
+            .padding(horizontal = NordicSpacing.sm)
+            .selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
     ) {
         PolishedNavItem(Icons.Filled.LibraryMusic, "音乐", selected == 0, colorScheme, Modifier.weight(1f)) { onSelect(0) }
@@ -240,7 +245,9 @@ internal fun PolishedNavItem(
             .scale(scale)
             .clip(NordicShapes.md)
             .background(color = itemColor)
-            .clickable(
+            .selectable(
+                selected = selected,
+                role = Role.Tab,
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick

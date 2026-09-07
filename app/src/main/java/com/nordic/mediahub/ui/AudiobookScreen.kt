@@ -38,6 +38,7 @@ import com.nordic.mediahub.data.formatCacheAge
 import com.nordic.mediahub.data.isCacheFresh
 import com.nordic.mediahub.data.isReadyForAudiobookSync
 import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicControlSizes
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
 import kotlinx.coroutines.launch
@@ -685,7 +686,7 @@ private fun AudiobookSummaryCard(
                 color = colorScheme.primary,
                 contentColor = colorScheme.onPrimary,
                 shape = NordicShapes.full,
-                modifier = Modifier.size(38.dp).clickable(onClick = onPlay)
+                modifier = Modifier.size(NordicControlSizes.touchTarget).clickable(onClick = onPlay)
             ) {
                 Box(contentAlignment = Center) {
                     Icon(

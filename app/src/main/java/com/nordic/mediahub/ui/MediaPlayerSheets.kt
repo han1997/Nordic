@@ -22,6 +22,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -122,6 +123,12 @@ internal fun MediaPlayerChoiceRow(
     val interaction = if (selected == null) Modifier.clickable(role = Role.Button, interactionSource = source,
         indication = null, onClick = onClick) else Modifier.selectable(selected = selected, role = Role.RadioButton,
         interactionSource = source, indication = null, onClick = onClick)
+    Surface(
+        color = if (selected == true) colors.primaryContainer else colors.surfaceVariant.copy(alpha = 0.42f),
+        contentColor = colors.onSurface,
+        shape = NordicShapes.md,
+        modifier = modifier.fillMaxWidth()
+    ) {
     Row(
         modifier.fillMaxWidth().heightIn(min = 56.dp).scale(scale)
             .then(interaction)
@@ -133,8 +140,10 @@ internal fun MediaPlayerChoiceRow(
                 color = if (selected == true) colors.onPrimaryContainer else colors.onSurface,
                 maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (!subtitle.isNullOrBlank()) Text(subtitle, style = MaterialTheme.typography.bodySmall,
-                color = colors.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                color = if (selected == true) colors.onPrimaryContainer.copy(alpha = 0.78f) else colors.onSurfaceVariant,
+                maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         if (selected == true) Icon(Icons.Filled.Check, "当前选择", tint = colors.onPrimaryContainer)
+    }
     }
 }
