@@ -2,6 +2,7 @@ package com.nordic.mediahub.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
@@ -24,30 +25,32 @@ object NordicAlpha {
 }
 
 /**
- * Material3 [Typography] for the Nordic media hub UI.
- *
- * Replaces scattered `fontSize = <magic>.sp` + `fontWeight` literals with a
- * finite named scale wired through `MaterialTheme.typography`.
- *
- * Convergence map (driven by `.trellis/tasks/08-02-ui`):
- *   - {28, 30, 32, 36, 38, 54} -> [displaySmall]  (hero / decorative glyphs)
- *   - {20, 22, 24, 26}         -> [headlineMedium]
- *   - {15, 16, 17, 18, 19}     -> [titleMedium]
- *   - {14} (SemiBold)          -> [titleSmall]
- *   - {14} (Normal/Medium)     -> [bodyMedium]
- *   - {13}                     -> [labelLarge]
- *   - {11, 12}                 -> [bodySmall]
- *
- * When a call site needs a weight that differs from the token's default, pass
- * `style = MaterialTheme.typography.<slot>` together with an explicit
- * `fontWeight = FontWeight.<x>` override (the explicit param wins).
+ * Complete native typography, including the slots used internally by Material
+ * dialogs, fields and menus. No component silently falls back to a different scale.
+ * Explicit line heights and zero tracking keep Chinese and Latin UI copy aligned.
  */
+private fun nordicTextStyle(size: Int, lineHeight: Int, weight: FontWeight) = TextStyle(
+    fontFamily = FontFamily.Default,
+    fontSize = size.sp,
+    lineHeight = lineHeight.sp,
+    fontWeight = weight,
+    letterSpacing = 0.sp
+)
+
 val NordicTypography = Typography(
-    displaySmall = TextStyle(fontSize = 32.sp, fontWeight = FontWeight.Bold),
-    headlineMedium = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold),
-    titleMedium = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
-    titleSmall = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
-    bodyMedium = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Normal),
-    labelLarge = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-    bodySmall = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium)
+    displayLarge = nordicTextStyle(40, 48, FontWeight.Bold),
+    displayMedium = nordicTextStyle(36, 44, FontWeight.Bold),
+    displaySmall = nordicTextStyle(32, 40, FontWeight.Bold),
+    headlineLarge = nordicTextStyle(28, 36, FontWeight.Bold),
+    headlineMedium = nordicTextStyle(22, 28, FontWeight.Bold),
+    headlineSmall = nordicTextStyle(20, 28, FontWeight.SemiBold),
+    titleLarge = nordicTextStyle(20, 28, FontWeight.SemiBold),
+    titleMedium = nordicTextStyle(16, 22, FontWeight.SemiBold),
+    titleSmall = nordicTextStyle(14, 20, FontWeight.SemiBold),
+    bodyLarge = nordicTextStyle(16, 24, FontWeight.Normal),
+    bodyMedium = nordicTextStyle(14, 20, FontWeight.Normal),
+    bodySmall = nordicTextStyle(12, 18, FontWeight.Medium),
+    labelLarge = nordicTextStyle(13, 18, FontWeight.SemiBold),
+    labelMedium = nordicTextStyle(12, 16, FontWeight.Medium),
+    labelSmall = nordicTextStyle(11, 16, FontWeight.Medium)
 )

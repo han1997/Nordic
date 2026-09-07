@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -20,11 +22,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -32,8 +38,9 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
@@ -52,10 +59,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
@@ -70,6 +81,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nordic.mediahub.data.AudiobookBookmark
 import com.nordic.mediahub.data.AudiobookChapter
+import com.nordic.mediahub.playback.resolvePlaybackSpeedLabel
 import com.nordic.mediahub.playback.AudiobookPlaybackState
 import com.nordic.mediahub.ui.theme.NordicAlpha
 import com.nordic.mediahub.ui.theme.NordicMotion
@@ -84,7 +96,7 @@ private const val AUDIOBOOK_SWIPE_DISMISS_MAX_ALPHA_DECAY = 0.6f
 /** Speed rates offered by the audiobook playback-speed sheet (audiobookshelf-style). */
 internal val AUDIOBOOK_PLAYBACK_SPEED_OPTIONS = listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f, 2.5f, 3f)
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AudiobookPlayerScreen(
     state: AudiobookPlaybackState,
@@ -100,21 +112,22 @@ fun AudiobookPlayerScreen(
     onSeekForward: () -> Unit = {},
     onSeekToPreviousChapter: () -> Unit = {},
     onSeekToNextChapter: () -> Unit = {},
-    onCyclePlaybackSpeed: () -> Unit = {},
     onSetPlaybackSpeed: (Float) -> Unit = {},
     onPlayPause: () -> Unit,
     onClose: () -> Unit,
     onCloseAnyway: () -> Unit = {}
 ) {
     val session = state.session
-    val duration = state.durationSeconds.coerceAtLeast(1)
+    val duration = state.durationSeconds.coerceAtLeast(0)
+    val timeline = resolvePlayerTimeline(state.positionSeconds, duration)
+    val currentOnClose by rememberUpdatedState(onClose)
     var scrubPosition by remember(session?.sessionId) { mutableStateOf<Float?>(null) }
     var showBookmarks by remember(session?.sessionId) { mutableStateOf(false) }
     var showSleepTimer by remember(session?.sessionId) { mutableStateOf(false) }
     var showChapterList by remember(session?.sessionId) { mutableStateOf(false) }
     var showSpeedSheet by remember(session?.sessionId) { mutableStateOf(false) }
-    val visiblePosition = scrubPosition ?: state.positionSeconds.toFloat()
-    val errorMessage = externalError ?: state.errorMessage
+    val visiblePosition = (scrubPosition ?: state.positionSeconds.toFloat()).coerceIn(0f, timeline.sliderMaxSeconds.toFloat())
+    val errorMessage = (externalError ?: state.errorMessage)?.takeIf { it.isNotBlank() }
     val chapterNavigationEnabled = session != null && state.chapters.isNotEmpty()
     val playbackControlsEnabled = session != null
     val sortedChapters = remember(state.chapters) {
@@ -126,6 +139,7 @@ fun AudiobookPlayerScreen(
     )
     val statusText = when {
         errorMessage != null -> errorMessage
+        session == null -> "从书库选择一本有声书"
         state.isBuffering -> "正在缓冲"
         state.isPlaying -> "正在播放"
         else -> "已暂停"
@@ -147,8 +161,7 @@ fun AudiobookPlayerScreen(
     ) {
         val compact = maxHeight < 740.dp
         val sidePadding = if (compact) NordicSpacing.lg else NordicSpacing.xl
-        val statusTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-        val topPadding = statusTopPadding + if (compact) NordicSpacing.sm else NordicSpacing.md
+        val topPadding = if (compact) NordicSpacing.sm else NordicSpacing.md
         val bottomPadding = if (compact) NordicSpacing.md else NordicSpacing.lg
         val sectionGap = NordicSpacing.md
         val screenHeightPx = with(LocalDensity.current) { maxHeight.toPx() }
@@ -162,7 +175,7 @@ fun AudiobookPlayerScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(Unit) {
+                .pointerInput(screenHeightPx, swipeThresholdPx) {
                     detectVerticalDragGestures(
                         onDragStart = {
                             dragYState.floatValue = 0f
@@ -183,7 +196,7 @@ fun AudiobookPlayerScreen(
                                             easing = NordicMotion.easingStandard
                                         )
                                     )
-                                    onClose()
+                                    currentOnClose()
                                 }
                             } else if (accumulated > 0f) {
                                 dismissScope.launch {
@@ -222,7 +235,7 @@ fun AudiobookPlayerScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .navigationBarsPadding()
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
                     .padding(
                         start = sidePadding,
                         top = topPadding,
@@ -231,199 +244,67 @@ fun AudiobookPlayerScreen(
                     ),
                 verticalArrangement = Arrangement.spacedBy(sectionGap)
             ) {
-            AudiobookPlayerTopBar(colorScheme = colorScheme, onClose = onClose)
-            AudiobookPrimaryDisplay(
-                title = session?.displayTitle ?: "有声书播放",
-                coverUrl = session?.coverUrl,
-                colorScheme = colorScheme,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-            )
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-            ) {
-                Text(
-                    session?.displayTitle ?: "等待播放",
-                    fontSize = if (compact) 22.sp else 25.sp,
-                    lineHeight = if (compact) 26.sp else 30.sp,
-                    color = colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    session?.displayAuthor?.takeIf { it.isNotBlank() } ?: statusText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (errorMessage == null) {
-                        colorScheme.onSurface.copy(alpha = NordicAlpha.medium)
-                    } else {
-                        colorScheme.error
+                MediaPlayerTopBar("有声书", colorScheme, onClose, resolvePlaybackSpeedLabel(state.playbackSpeed),
+                    onSpeed = { showSpeedSheet = true }, speedEnabled = playbackControlsEnabled)
+                MediaAudioPlayerBody(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    artwork = { displayModifier ->
+                        AudiobookPrimaryDisplay(session?.displayTitle ?: "有声书播放", session?.coverUrl,
+                            colorScheme, displayModifier)
                     },
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    controls = {
+                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
+                            Text(session?.displayTitle ?: "等待播放", style = MaterialTheme.typography.headlineMedium,
+                                color = colorScheme.onSurface, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            session?.displayAuthor?.takeIf { it.isNotBlank() }?.let { author ->
+                                Text(author, style = MaterialTheme.typography.bodyMedium,
+                                    color = colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            }
+                            currentChapter?.title?.takeIf { it.isNotBlank() }?.let { chapter ->
+                                Text("当前章节：$chapter", style = MaterialTheme.typography.bodySmall,
+                                    color = colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                        Text(statusText, style = MaterialTheme.typography.bodySmall,
+                            color = if (errorMessage != null) colorScheme.error else colorScheme.onSurfaceVariant,
+                            maxLines = 3, overflow = TextOverflow.Ellipsis)
+                        if (errorMessage != null) {
+                            MediaPlayerTool("仍要关闭", "停止并关闭有声书", colorScheme, onCloseAnyway,
+                                icon = Icons.Filled.Close, destructive = true)
+                        }
+                        MediaPlayerTimeline(visiblePosition, duration, colorScheme, playbackControlsEnabled,
+                            onScrub = { scrubPosition = it },
+                            onScrubFinished = {
+                                val target = scrubPosition ?: visiblePosition
+                                onSeek(target.toInt())
+                                scrubPosition = null
+                            },
+                            onScrubCancelled = { scrubPosition = null })
+                        MediaTransportRow(
+                            leading = MediaPlayerAction(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "上一章节",
+                                onSeekToPreviousChapter, chapterNavigationEnabled),
+                            previous = MediaPlayerAction(Icons.Filled.Replay30, "后退 30 秒", onSeekBack, playbackControlsEnabled),
+                            play = MediaPlayerAction(if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                if (state.isPlaying) "暂停" else "播放", onPlayPause, playbackControlsEnabled),
+                            next = MediaPlayerAction(Icons.Filled.Forward30, "前进 30 秒", onSeekForward, playbackControlsEnabled),
+                            trailing = MediaPlayerAction(Icons.AutoMirrored.Filled.KeyboardArrowRight, "下一章节",
+                                onSeekToNextChapter, chapterNavigationEnabled),
+                            colors = colorScheme
+                        )
+                        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm),
+                            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+                            MediaPlayerTool("章节", "章节列表", colorScheme, { showChapterList = true },
+                                icon = Icons.AutoMirrored.Filled.MenuBook, enabled = chapterNavigationEnabled)
+                            MediaPlayerTool("书签", "书签", colorScheme, { showBookmarks = true },
+                                icon = Icons.Filled.BookmarkBorder, enabled = playbackControlsEnabled)
+                            val timerActive = isAudiobookSleepTimerActive(state.sleepTimerRemainingSeconds, state.sleepTimerAtChapterEnd)
+                            MediaPlayerTool(if (timerActive) "定时中" else "定时",
+                                if (timerActive) sleepTimerRemainingLabel(state.sleepTimerRemainingSeconds, state.sleepTimerAtChapterEnd) else "睡眠定时器",
+                                colorScheme, { showSleepTimer = true }, icon = Icons.Filled.Bedtime,
+                                enabled = playbackControlsEnabled, active = timerActive)
+                        }
+                    }
                 )
-                if (errorMessage != null) {
-                    Surface(
-                        color = colorScheme.error.copy(alpha = 0.14f),
-                        contentColor = colorScheme.error,
-                        shape = NordicShapes.full,
-                        border = BorderStroke(1.dp, colorScheme.error.copy(alpha = 0.24f)),
-                        modifier = Modifier.clickable(onClick = onCloseAnyway)
-                    ) {
-                        Text(
-                            "仍要关闭",
-                            modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.sm),
-                            color = colorScheme.error,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1
-                        )
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
-                    MetaChip(formatDuration(duration), colorScheme)
-                    MetaChip(
-                        text = formatPlaybackSpeed(state.playbackSpeed),
-                        colorScheme = colorScheme,
-                        enabled = playbackControlsEnabled,
-                        onClick = { showSpeedSheet = true }
-                    )
-                    if (currentChapter != null) {
-                        MetaChip(
-                            text = currentChapter.title,
-                            colorScheme = colorScheme,
-                            enabled = chapterNavigationEnabled,
-                            onClick = { showChapterList = true }
-                        )
-                    } else {
-                        MetaChip(
-                            text = "章节",
-                            colorScheme = colorScheme,
-                            enabled = chapterNavigationEnabled,
-                            onClick = { showChapterList = true }
-                        )
-                    }
-                }
-            }
-            Surface(
-                color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                contentColor = colorScheme.onSurface,
-                shape = NordicShapes.xl,
-                border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(
-                        start = NordicSpacing.md,
-                        top = if (compact) NordicSpacing.sm else NordicSpacing.md,
-                        end = NordicSpacing.md,
-                        bottom = NordicSpacing.md
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-                ) {
-                    PlayerThinSlider(
-                        position = visiblePosition.coerceIn(0f, duration.toFloat()),
-                        duration = duration,
-                        colorScheme = colorScheme,
-                        enabled = playbackControlsEnabled,
-                        onPositionChange = { scrubPosition = it },
-                        onPositionChangeFinished = {
-                            val target = scrubPosition ?: visiblePosition
-                            onSeek(target.toInt())
-                            scrubPosition = null
-                        },
-                        onPositionChangeCanceled = { scrubPosition = null }
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            formatDuration(visiblePosition.toInt()),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
-                        )
-                        Text(
-                            formatDuration(duration),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
-                        )
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        AudiobookControlButton(
-                            icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                            contentDescription = "上一章节",
-                            colorScheme = colorScheme,
-                            compact = compact,
-                            enabled = chapterNavigationEnabled,
-                            onClick = onSeekToPreviousChapter
-                        )
-                        Spacer(Modifier.size(NordicSpacing.sm))
-                        AudiobookControlButton(
-                            icon = Icons.Filled.Replay30,
-                            contentDescription = "后退 30 秒",
-                            colorScheme = colorScheme,
-                            compact = compact,
-                            enabled = playbackControlsEnabled,
-                            onClick = onSeekBack
-                        )
-                        Spacer(Modifier.size(NordicSpacing.sm))
-                        AudiobookPlayButton(
-                            icon = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                            contentDescription = if (state.isPlaying) "暂停" else "播放",
-                            colorScheme = colorScheme,
-                            compact = compact,
-                            enabled = playbackControlsEnabled,
-                            onClick = onPlayPause
-                        )
-                        Spacer(Modifier.size(NordicSpacing.sm))
-                        AudiobookControlButton(
-                            icon = Icons.Filled.Forward30,
-                            contentDescription = "前进 30 秒",
-                            colorScheme = colorScheme,
-                            compact = compact,
-                            enabled = playbackControlsEnabled,
-                            onClick = onSeekForward
-                        )
-Spacer(Modifier.size(NordicSpacing.sm))
-                        AudiobookControlButton(
-                            icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                            contentDescription = "下一章节",
-                            colorScheme = colorScheme,
-                            compact = compact,
-                            enabled = chapterNavigationEnabled,
-                            onClick = onSeekToNextChapter
-                        )
-                        Spacer(Modifier.size(NordicSpacing.sm))
-                        AudiobookControlButton(
-                            icon = Icons.Filled.BookmarkBorder,
-                            contentDescription = "书签",
-                            colorScheme = colorScheme,
-                            compact = compact,
-                            enabled = playbackControlsEnabled,
-                            onClick = { showBookmarks = true }
-                        )
-                        Spacer(Modifier.size(NordicSpacing.sm))
-                        AudiobookControlButton(
-                            icon = Icons.Filled.Bedtime,
-                            contentDescription = "睡眠定时器",
-                            colorScheme = colorScheme,
-                            compact = compact,
-                            enabled = playbackControlsEnabled,
-                            onClick = { showSleepTimer = true }
-                        )
-                    }
-                }
-            }
             }
         }
     }
@@ -488,7 +369,6 @@ Spacer(Modifier.size(NordicSpacing.sm))
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AudiobookChapterListSheet(
     chapters: List<AudiobookChapter>,
@@ -497,184 +377,28 @@ private fun AudiobookChapterListSheet(
     onSeekTo: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val currentChapterIndex = chapters.indexOfLast { chapter ->
-        chapter.startSeconds <= currentPositionSeconds
-    }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = colorScheme.surface,
-        shape = NordicShapes.xl,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = NordicSpacing.lg)
-                .padding(bottom = NordicSpacing.xxl),
-            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
-                    Text(
-                        "章节",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = colorScheme.onSurface
-                    )
-                    Text(
-                        "共 ${chapters.size} 章 · 点击跳转",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
-                    )
-                }
-                AudiobookControlButton(
-                    icon = Icons.Filled.Close,
-                    contentDescription = "关闭章节列表",
-                    colorScheme = colorScheme,
-                    compact = false,
-                    enabled = true,
-                    onClick = onDismiss
+    val currentIndex = chapters.indexOfLast { it.startSeconds <= currentPositionSeconds }
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = currentIndex.coerceAtLeast(0))
+    MediaPlayerSheet("章节", colorScheme, onDismiss, "共 ${chapters.size} 章 · 点击跳转", skipPartiallyExpanded = false) {
+        if (chapters.isEmpty()) MediaStateCard("暂无章节", "这本有声书未提供章节信息。", density = MediaStateDensity.Compact)
+        LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false), state = listState) {
+            itemsIndexed(chapters, key = { index, chapter -> "${chapter.startSeconds}:$index" },
+                contentType = { _, _ -> "audiobook-chapter-row" }) { index, chapter ->
+                MediaPlayerChoiceRow(
+                    title = "${index + 1}. ${chapter.title}", selected = index == currentIndex, colors = colorScheme,
+                    subtitle = "${formatDuration(chapter.startSeconds)} – ${formatDuration(chapter.endSeconds)}",
+                    onClick = { onSeekTo(chapter.startSeconds) }
                 )
             }
-
-            LazyColumn(
-                modifier = Modifier.heightIn(max = 480.dp),
-                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
-            ) {
-                itemsIndexed(
-                    items = chapters,
-                    key = { index, chapter -> "${chapter.startSeconds}:$index" },
-                    contentType = { _, _ -> "audiobook-chapter-row" }
-                ) { index, chapter ->
-                    val isCurrent = index == currentChapterIndex
-                    Surface(
-                        color = if (isCurrent) {
-                            colorScheme.primary.copy(alpha = 0.14f)
-                        } else {
-                            colorScheme.surfaceVariant.copy(alpha = 0.42f)
-                        },
-                        shape = NordicShapes.md,
-                        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSeekTo(chapter.startSeconds) }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(
-                                horizontal = NordicSpacing.md,
-                                vertical = NordicSpacing.sm
-                            ),
-                            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "${index + 1}",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isCurrent) {
-                                    colorScheme.primary
-                                } else {
-                                    colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
-                                },
-                                maxLines = 1
-                            )
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
-                            ) {
-                                Text(
-                                    text = chapter.title,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Medium,
-                                    color = if (isCurrent) colorScheme.primary else colorScheme.onSurface,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = formatDuration(chapter.startSeconds),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                                    maxLines = 1
-                                )
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 }
 
-/**
- * Playback-speed panel (audiobookshelf-style): a selectable list of rates
- * replacing the single tap-to-cycle chip interaction.
- */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AudiobookPlaybackSpeedSheet(
-    currentSpeed: Float,
-    colorScheme: ColorScheme,
-    onSelect: (Float) -> Unit,
-    onDismiss: () -> Unit
-) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = colorScheme.surface,
-        shape = NordicShapes.xl,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = NordicSpacing.lg)
-                .padding(bottom = NordicSpacing.xxl),
-            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-        ) {
-            Text(
-                "播放速度",
-                style = MaterialTheme.typography.titleMedium,
-                color = colorScheme.onSurface,
-                modifier = Modifier.padding(bottom = NordicSpacing.xs)
-            )
-            AUDIOBOOK_PLAYBACK_SPEED_OPTIONS.forEach { speed ->
-                val selected = kotlin.math.abs(speed - currentSpeed) < 0.001f
-                Surface(
-                    color = if (selected) {
-                        colorScheme.primary.copy(alpha = 0.16f)
-                    } else {
-                        colorScheme.surfaceVariant.copy(alpha = 0.42f)
-                    },
-                    contentColor = colorScheme.onSurface,
-                    shape = NordicShapes.md,
-                    border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onSelect(speed) }
-                ) {
-                    Box(
-                        modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.md)
-                    ) {
-                        Text(
-                            text = formatPlaybackSpeed(speed),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = if (selected) colorScheme.primary else colorScheme.onSurface,
-                            maxLines = 1
-                        )
-                    }
-                }
-            }
-        }
-    }
+private fun AudiobookPlaybackSpeedSheet(currentSpeed: Float, colorScheme: ColorScheme, onSelect: (Float) -> Unit, onDismiss: () -> Unit) {
+    MediaPlaybackSpeedSheet(AUDIOBOOK_PLAYBACK_SPEED_OPTIONS, currentSpeed, colorScheme, onSelect, onDismiss)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AudiobookSleepTimerSheet(
     sleepTimerRemainingSeconds: Int?,
@@ -684,115 +408,23 @@ private fun AudiobookSleepTimerSheet(
     onCancel: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val options = listOf(
-        "关闭" to (null to null),
-        "10 分钟" to (10 to false),
-        "20 分钟" to (20 to false),
-        "30 分钟" to (30 to false),
-        "45 分钟" to (45 to false),
-        "60 分钟" to (60 to false),
-        "本章结束" to (null to true)
-    )
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = colorScheme.surface,
-        shape = NordicShapes.xl,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = NordicSpacing.lg)
-                .padding(bottom = NordicSpacing.xxl),
-            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
-                    Text(
-                        "睡眠定时器",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = colorScheme.onSurface
-                    )
-                    Text(
-                        sleepTimerRemainingLabel(
-                            sleepTimerRemainingSeconds = sleepTimerRemainingSeconds,
-                            atChapterEnd = sleepTimerAtChapterEnd
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
-                    )
-                }
-                AudiobookControlButton(
-                    icon = Icons.Filled.Close,
-                    contentDescription = "关闭",
-                    colorScheme = colorScheme,
-                    compact = false,
-                    enabled = true,
-                    onClick = onDismiss
-                )
+    val active = isAudiobookSleepTimerActive(sleepTimerRemainingSeconds, sleepTimerAtChapterEnd)
+    MediaPlayerSheet("睡眠定时器", colorScheme, onDismiss,
+        sleepTimerRemainingLabel(sleepTimerRemainingSeconds, sleepTimerAtChapterEnd), skipPartiallyExpanded = false) {
+        LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false)) {
+            item { MediaPlayerChoiceRow("关闭", !active, colorScheme, onCancel) }
+            items(listOf(10, 20, 30, 45, 60), key = { it }) { minutes ->
+                // Remaining time cannot tell us which preset was originally chosen.
+                MediaPlayerChoiceRow("$minutes 分钟后停止", null, colorScheme, onClick = { onSet(minutes, false) })
             }
-
-            options.forEach { (label, value) ->
-                val (minutes, atChapterEnd) = value
-                val selected = if (minutes == null && atChapterEnd == null) {
-                    sleepTimerRemainingSeconds == null && !sleepTimerAtChapterEnd
-                } else if (atChapterEnd == true) {
-                    sleepTimerAtChapterEnd
-                } else {
-                    // Highlight the minute option whose countdown is still running
-                    // (remaining rounded up to whole minutes matches the option).
-                    val minutesOfRemaining = minutes?.let { m ->
-                        val remaining = sleepTimerRemainingSeconds
-                        if (!sleepTimerAtChapterEnd && remaining != null && remaining > 0) {
-                            kotlin.math.ceil(remaining / 60.0).toInt() == m
-                        } else {
-                            false
-                        }
-                    } ?: false
-                    minutesOfRemaining
-                }
-                Surface(
-                    color = if (selected) {
-                        colorScheme.primary.copy(alpha = 0.16f)
-                    } else {
-                        colorScheme.surfaceVariant.copy(alpha = 0.42f)
-                    },
-                    contentColor = colorScheme.onSurface,
-                    shape = NordicShapes.md,
-                    border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            if (minutes == null && atChapterEnd == null) {
-                                onCancel()
-                            } else {
-                                onSet(minutes ?: 0, atChapterEnd == true)
-                            }
-                        }
-                ) {
-                    Box(
-                        modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.md)
-                    ) {
-                        Text(
-                            label,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = if (selected) colorScheme.primary else colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
+            item { MediaPlayerChoiceRow("本章结束", active && sleepTimerAtChapterEnd, colorScheme,
+                onClick = { onSet(0, true) }) }
         }
     }
 }
+
+internal fun isAudiobookSleepTimerActive(remainingSeconds: Int?, atChapterEnd: Boolean): Boolean =
+    if (remainingSeconds != null && remainingSeconds <= 0) false else atChapterEnd || remainingSeconds != null
 
 internal fun sleepTimerRemainingLabel(
     sleepTimerRemainingSeconds: Int?,
@@ -811,7 +443,6 @@ internal fun sleepTimerRemainingLabel(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AudiobookBookmarkSheet(
     bookmarks: List<AudiobookBookmark>,
@@ -822,131 +453,18 @@ private fun AudiobookBookmarkSheet(
     onDelete: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = colorScheme.surface,
-        shape = NordicShapes.xl,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = NordicSpacing.lg)
-                .padding(bottom = NordicSpacing.xxl),
-            verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
-                    Text(
-                        "书签",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = colorScheme.onSurface
-                    )
-                    Text(
-                        "${bookmarks.size} 个书签",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
-                    )
-                }
-                AudiobookControlButton(
-                    icon = Icons.Filled.Close,
-                    contentDescription = "关闭书签",
-                    colorScheme = colorScheme,
-                    compact = false,
-                    enabled = true,
-                    onClick = onDismiss
-                )
-            }
-
-            Surface(
-                color = colorScheme.primary.copy(alpha = 0.16f),
-                contentColor = colorScheme.primary,
-                shape = NordicShapes.full,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onAddBookmark)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.md),
-                    horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm, Alignment.CenterHorizontally),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Bookmark,
-                        contentDescription = null,
-                        tint = colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        "在当前进度添加书签",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colorScheme.primary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 420.dp)
-            ) {
-                if (bookmarks.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = NordicSpacing.xxl),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.BookmarkBorder,
-                                contentDescription = null,
-                                tint = colorScheme.primary.copy(alpha = NordicAlpha.medium),
-                                modifier = Modifier.size(32.dp)
-                            )
-                            Text(
-                                "暂无书签，点击播放器中的书签按钮在当前进度添加",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                                textAlign = TextAlign.Center,
-                                maxLines = 3,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-                    ) {
-                        itemsIndexed(
-                            items = bookmarks,
-                            key = { index, bookmark -> "${bookmark.id}:$index" },
-                            contentType = { _, _ -> "audiobook-bookmark-row" }
-                        ) { _, bookmark ->
-                            val isAtBookmark =
-                                kotlin.math.abs(currentPositionSeconds - bookmark.positionSeconds) <= 2
-                            AudiobookBookmarkRow(
-                                bookmark = bookmark,
-                                colorScheme = colorScheme,
-                                isCurrent = isAtBookmark,
-                                onClick = { onJumpTo(bookmark.positionSeconds) },
-                                onDelete = { onDelete(bookmark.id) }
-                            )
-                        }
-                    }
-                }
+    MediaPlayerSheet("书签", colorScheme, onDismiss, "${bookmarks.size} 个书签", skipPartiallyExpanded = false) {
+        PrimaryActionButton("在 ${formatDuration(currentPositionSeconds)} 添加书签", colorScheme,
+            onClick = onAddBookmark, icon = Icons.Filled.Bookmark)
+        if (bookmarks.isEmpty()) {
+            MediaStateCard("暂无书签", "使用上方按钮标记当前进度，稍后可从这里跳回。", density = MediaStateDensity.Compact)
+        } else LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false),
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+            itemsIndexed(bookmarks, key = { index, bookmark -> "${bookmark.id}:$index" },
+                contentType = { _, _ -> "audiobook-bookmark-row" }) { _, bookmark ->
+                AudiobookBookmarkRow(bookmark, colorScheme,
+                    kotlin.math.abs(currentPositionSeconds.toLong() - bookmark.positionSeconds.toLong()) <= 2L,
+                    onClick = { onJumpTo(bookmark.positionSeconds) }, onDelete = { onDelete(bookmark.id) })
             }
         }
     }
@@ -960,242 +478,27 @@ private fun AudiobookBookmarkRow(
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Surface(
-        color = if (isCurrent) {
-            colorScheme.primary.copy(alpha = 0.14f)
-        } else {
-            colorScheme.surfaceVariant.copy(alpha = 0.42f)
-        },
-        shape = NordicShapes.md,
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick)
-                .padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.md),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Bookmark,
-                contentDescription = null,
-                tint = if (isCurrent) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(Modifier.size(NordicSpacing.md))
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
-            ) {
-                Text(
-                    bookmark.label.takeIf { it.isNotBlank() } ?: "书签",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    formatDuration(bookmark.positionSeconds),
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Normal,
-                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                    maxLines = 1
-                )
+    Surface(color = if (isCurrent) colorScheme.primaryContainer else colorScheme.surfaceVariant.copy(alpha = 0.42f),
+        shape = NordicShapes.md, modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().semantics { selected = isCurrent }
+            .clickable(role = Role.Button, onClickLabel = "跳转到书签", onClick = onClick)
+            .padding(NordicSpacing.sm), horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm),
+            verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
+                Text(bookmark.label.ifBlank { "书签" }, style = MaterialTheme.typography.bodyMedium,
+                    color = if (isCurrent) colorScheme.onPrimaryContainer else colorScheme.onSurface,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(formatDuration(bookmark.positionSeconds), style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
+                    color = if (isCurrent) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant)
             }
-            Spacer(Modifier.size(NordicSpacing.sm))
-            Surface(
-                color = colorScheme.error.copy(alpha = 0.14f),
-                contentColor = colorScheme.error,
-                shape = NordicShapes.full,
-                modifier = Modifier
-                    .size(34.dp)
-                    .clickable(onClick = onDelete)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Filled.Close,
-                        contentDescription = "删除书签",
-                        tint = colorScheme.error,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
+            MediaPlayerIconAction(MediaPlayerAction(Icons.Filled.Delete, "删除书签", onDelete), colorScheme, destructive = true)
         }
     }
 }
 
 @Composable
-private fun AudiobookPrimaryDisplay(
-    title: String,
-    coverUrl: String?,
-    colorScheme: ColorScheme,
-    modifier: Modifier = Modifier
-) {
-    BoxWithConstraints(
-        modifier = modifier,
-        contentAlignment = Alignment.Center
-    ) {
-        val side = minOf(maxWidth, maxHeight)
-
-        Surface(
-            color = colorScheme.surfaceVariant.copy(alpha = 0.48f),
-            shape = NordicShapes.xl,
-            shadowElevation = 10.dp,
-            border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
-            modifier = Modifier.size(side)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                colorScheme.primary.copy(alpha = 0.22f),
-                                colorScheme.secondary.copy(alpha = 0.14f),
-                                colorScheme.surfaceVariant.copy(alpha = 0.82f)
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                if (coverUrl != null) {
-                    AuthedAsyncImage(
-                        url = coverUrl,
-                        contentDescription = title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.44f)
-                            .aspectRatio(1f)
-                            .clip(NordicShapes.xl)
-                            .background(colorScheme.surface.copy(alpha = 0.62f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.MenuBook,
-                            contentDescription = null,
-                            tint = colorScheme.primary.copy(alpha = NordicAlpha.medium),
-                            modifier = Modifier.size(42.dp)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AudiobookPlayerTopBar(
-    colorScheme: ColorScheme,
-    onClose: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Surface(
-            color = colorScheme.surfaceVariant.copy(alpha = 0.58f),
-            contentColor = colorScheme.onSurface,
-            shape = NordicShapes.md,
-            border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
-            modifier = Modifier.size(42.dp).clickable(onClick = onClose)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Filled.KeyboardArrowDown,
-                    contentDescription = "关闭播放器",
-                    tint = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-        }
-        Text(
-            "有声书播放",
-            style = MaterialTheme.typography.titleSmall,
-            color = colorScheme.onSurface
-        )
-        Spacer(Modifier.size(42.dp))
-    }
-}
-
-@Composable
-private fun AudiobookControlButton(
-    icon: ImageVector,
-    contentDescription: String,
-    colorScheme: ColorScheme,
-    compact: Boolean,
-    enabled: Boolean,
-    onClick: () -> Unit
-) {
-    val foreground = if (enabled) {
-        colorScheme.primary
-    } else {
-        colorScheme.onSurface.copy(alpha = NordicAlpha.faint)
-    }
-
-    Surface(
-        color = if (enabled) colorScheme.primary.copy(alpha = 0.16f) else colorScheme.surface.copy(alpha = 0.30f),
-        contentColor = foreground,
-        shape = NordicShapes.full,
-        modifier = Modifier
-            .size(if (compact) 42.dp else 46.dp)
-            .clickable(enabled = enabled, onClick = onClick)
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                tint = foreground,
-                modifier = Modifier.size(if (compact) 22.dp else 24.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun AudiobookPlayButton(
-    icon: ImageVector,
-    contentDescription: String,
-    colorScheme: ColorScheme,
-    compact: Boolean,
-    enabled: Boolean,
-    onClick: () -> Unit
-) {
-    Surface(
-        color = if (enabled) colorScheme.primary else colorScheme.primary.copy(alpha = 0.32f),
-        contentColor = colorScheme.onPrimary,
-        shape = NordicShapes.full,
-        shadowElevation = if (enabled) 4.dp else 0.dp,
-        modifier = Modifier
-            .size(if (compact) 58.dp else 62.dp)
-            .clickable(enabled = enabled, onClick = onClick)
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                tint = colorScheme.onPrimary,
-                modifier = Modifier.size(if (compact) 30.dp else 32.dp)
-            )
-        }
-    }
-}
-
-private fun formatPlaybackSpeed(speed: Float): String {
-    val safeSpeed = speed.takeIf { it.isFinite() && it > 0f } ?: 1f
-    val rounded = kotlin.math.round(safeSpeed * 100f) / 100f
-    return when (rounded) {
-        1f -> "1x"
-        1.5f -> "1.5x"
-        2f -> "2x"
-        else -> "${rounded}x"
-    }
+private fun AudiobookPrimaryDisplay(title: String, coverUrl: String?, colorScheme: ColorScheme, modifier: Modifier = Modifier) {
+    MediaPlayerArtwork(title, coverUrl, Icons.AutoMirrored.Filled.MenuBook, colorScheme, modifier)
 }
 
 internal fun resolveCurrentAudiobookChapter(

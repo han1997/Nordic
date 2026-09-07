@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.MusicNote
@@ -33,6 +34,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -160,6 +163,7 @@ internal fun SearchResultSectionHeader(
         Text(
             title,
             style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.weight(1f, fill = false).semantics { heading() },
             color = colorScheme.onBackground,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -167,7 +171,7 @@ internal fun SearchResultSectionHeader(
         Text(
             count.toString(),
             style = MaterialTheme.typography.bodySmall,
-            color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
+            color = colorScheme.onSurfaceVariant,
             maxLines = 1
         )
     }
@@ -180,79 +184,17 @@ internal fun PlaylistListRow(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {}
 ) {
-    Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
-        contentColor = colorScheme.onSurface,
-        shape = NordicShapes.md,
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),
-            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(NordicShapes.sm)
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                colorScheme.primary.copy(alpha = 0.18f),
-                                colorScheme.secondary.copy(alpha = 0.12f)
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                if (playlist.coverArt != null) {
-                    AuthedAsyncImage(
-                        url = playlist.coverArt,
-                        contentDescription = playlist.name,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.matchParentSize(),
-                        crossfadeEnabled = false
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.QueueMusic,
-                        contentDescription = null,
-                        tint = colorScheme.primary.copy(alpha = NordicAlpha.subtle),
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-            }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
-            ) {
-                Text(
-                    playlist.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    playlist.comment?.takeIf { it.isNotBlank() } ?: playlist.owner ?: "Navidrome 歌单",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Normal,
-                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    "${playlist.songCount} 首  •  ${formatDuration(playlist.duration)}",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Normal,
-                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
-                )
-            }
-        }
-    }
+    MusicLibraryRow(
+        title = playlist.name,
+        subtitle = playlist.comment?.trim()?.takeIf { it.isNotEmpty() }
+            ?: playlist.owner?.trim()?.takeIf { it.isNotEmpty() } ?: "Navidrome 歌单",
+        metadata = listOfNotNull(musicSongCountLabel(playlist.songCount),
+            playlist.duration.takeIf { it > 0 }?.let(::formatDuration)).joinToString(" · "),
+        colorScheme = colorScheme, modifier = modifier,
+        clickLabel = "打开歌单", onClick = onClick,
+        artwork = { CoverArt(playlist.coverArt, playlist.name, colorScheme,
+            fallbackIcon = Icons.AutoMirrored.Filled.QueueMusic) }
+    )
 }
 
 @Composable
@@ -260,87 +202,17 @@ internal fun PlaylistDetailHeader(
     playlist: NavidromePlaylist,
     songCount: Int,
     colorScheme: ColorScheme,
-    onPlayAll: () -> Unit
+    onPlayAll: () -> Unit,
+    playEnabled: Boolean = true
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.lg),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(120.dp)
-                .clip(NordicShapes.lg)
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            colorScheme.primary.copy(alpha = 0.22f),
-                            colorScheme.secondary.copy(alpha = 0.16f)
-                        )
-                    )
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            if (playlist.coverArt != null) {
-                AuthedAsyncImage(
-                    url = playlist.coverArt,
-                    contentDescription = playlist.name,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.QueueMusic,
-                    contentDescription = null,
-                    tint = colorScheme.primary.copy(alpha = NordicAlpha.subtle),
-                    modifier = Modifier.size(42.dp)
-                )
-            }
-        }
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-        ) {
-            Text(
-                playlist.name,
-                style = MaterialTheme.typography.headlineMedium,
-                color = colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            playlist.comment?.takeIf { it.isNotBlank() }?.let { comment ->
-                Text(
-                    comment,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
-                MetaChip("${songCount} 首", colorScheme)
-                MetaChip(formatDuration(playlist.duration), colorScheme)
-            }
-            Surface(
-                color = colorScheme.primary,
-                contentColor = colorScheme.onPrimary,
-                shape = NordicShapes.full,
-                modifier = Modifier
-                    .height(36.dp)
-                    .clickable(onClick = onPlayAll)
-            ) {
-                Box(
-                    modifier = Modifier.padding(horizontal = NordicSpacing.lg),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        "播放全部",
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
-            }
-        }
-    }
+    MusicCollectionHeader(
+        itemId = playlist.id, title = playlist.name,
+        subtitle = playlist.owner?.trim()?.takeIf { it.isNotEmpty() }?.let { "创建者：$it" } ?: "Navidrome 歌单",
+        metadata = listOfNotNull(musicSongCountLabel(songCount), playlist.duration.takeIf { it > 0 }?.let(::formatDuration)),
+        artworkUrl = playlist.coverArt, fallbackIcon = Icons.AutoMirrored.Filled.QueueMusic,
+        colorScheme = colorScheme, onPlayAll = onPlayAll, playEnabled = playEnabled,
+        description = playlist.comment
+    )
 }
 
 @Composable
@@ -363,165 +235,36 @@ internal fun MusicSegmentedTabs(
     onSearchClick: () -> Unit = {}
 ) {
     val tabs = listOf("发现", "歌曲", "歌单")
-
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Surface(
-            color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
-            contentColor = colorScheme.onSurface,
-            shape = NordicShapes.md,
-            border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
-            modifier = Modifier
-                .weight(1f)
-                .height(48.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(NordicSpacing.xs),
-                horizontalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
-            ) {
-                tabs.forEachIndexed { index, label ->
-                    val selected = selectedTab == index
-                    val tabColor by animateColorAsState(
-                        targetValue = if (selected) colorScheme.surface.copy(alpha = 0.96f) else Color.Transparent,
-                        animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
-                    )
-                    val textColor by animateColorAsState(
-                        targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                        animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
-                    )
-
-                    Surface(
-                        color = tabColor,
-                        contentColor = textColor,
-                        shape = NordicShapes.md,
-                        tonalElevation = if (selected) 2.dp else 0.dp,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clickable { onTabSelected(index) }
-                    ) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                label,
-                                color = textColor,
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
-                }
-            }
-        }
-        MusicSearchButton(colorScheme = colorScheme, onClick = onSearchClick)
+        MediaSegmentedControl(
+            options = tabs.indices.toList(), selectedOption = selectedTab,
+            label = { tabs[it] }, optionKey = { "music-tab-$it" }, colorScheme = colorScheme,
+            onOptionSelected = onTabSelected, modifier = Modifier.weight(1f)
+        )
+        MusicSearchButton(colorScheme, onSearchClick)
     }
 }
 
 @Composable
-internal fun MusicSearchButton(
-    colorScheme: ColorScheme,
-    onClick: () -> Unit = {}
-) {
-    Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
-        contentColor = colorScheme.onSurface,
-        shape = NordicShapes.md,
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
-        modifier = Modifier
-            .height(48.dp)
-            .clickable(onClick = onClick)
-    ) {
-        Box(
-            modifier = Modifier
-                .height(48.dp)
-                .padding(horizontal = NordicSpacing.lg),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Search,
-                contentDescription = "搜索音乐",
-                tint = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-                modifier = Modifier.size(22.dp)
-            )
-        }
-    }
+internal fun MusicSearchButton(colorScheme: ColorScheme, onClick: () -> Unit = {}) {
+    AnimatedIconButton(Icons.Filled.Search, "搜索音乐", onClick, colorScheme = colorScheme)
 }
+
 @Composable
 internal fun SongSortSegmentedControl(
     selectedSort: MusicSongSort,
     colorScheme: ColorScheme,
     onSortSelected: (MusicSongSort) -> Unit
 ) {
-    val sorts = listOf(
-        MusicSongSort.Default,
-        MusicSongSort.Added,
-        MusicSongSort.Title,
-        MusicSongSort.Artist,
-        MusicSongSort.Album,
-        MusicSongSort.Duration
+    MediaSegmentedControl(
+        options = MusicSongSort.values().toList(), selectedOption = selectedSort,
+        label = { it.displayLabel() }, optionKey = { it.name }, colorScheme = colorScheme,
+        onOptionSelected = onSortSelected
     )
-
-    Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
-        contentColor = colorScheme.onSurface,
-        shape = NordicShapes.md,
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp)
-    ) {
-        LazyRow(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(NordicSpacing.xs),
-            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
-        ) {
-            items(sorts, key = { it.name }) { sort ->
-                val selected = selectedSort == sort
-                val tabColor by animateColorAsState(
-                    targetValue = if (selected) colorScheme.surface.copy(alpha = 0.96f) else Color.Transparent,
-                    animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
-                )
-                val textColor by animateColorAsState(
-                    targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                    animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
-                )
-
-                Surface(
-                    color = tabColor,
-                    contentColor = textColor,
-                    shape = NordicShapes.md,
-                    tonalElevation = if (selected) 2.dp else 0.dp,
-                    modifier = Modifier
-                        .height(40.dp)
-                        .clickable { onSortSelected(sort) }
-                ) {
-                    Box(
-                        modifier = Modifier.padding(horizontal = NordicSpacing.lg),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            sort.displayLabel(),
-                            color = textColor,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
-        }
-    }
 }
 
 @Composable
@@ -530,65 +273,12 @@ internal fun AlbumSortSegmentedControl(
     colorScheme: ColorScheme,
     onSortSelected: (NavidromeAlbumSort) -> Unit
 ) {
-    val sorts = listOf(
-        NavidromeAlbumSort.RecentlyAdded,
-        NavidromeAlbumSort.ReleaseYear,
-        NavidromeAlbumSort.Name
+    MediaSegmentedControl(
+        options = listOf(NavidromeAlbumSort.RecentlyAdded, NavidromeAlbumSort.ReleaseYear, NavidromeAlbumSort.Name),
+        selectedOption = selectedSort,
+        label = { it.displayLabel() }, optionKey = { it.name }, colorScheme = colorScheme,
+        onOptionSelected = onSortSelected
     )
-
-    Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
-        contentColor = colorScheme.onSurface,
-        shape = NordicShapes.md,
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(NordicSpacing.xs),
-            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
-        ) {
-            sorts.forEach { sort ->
-                val selected = selectedSort == sort
-                val tabColor by animateColorAsState(
-                    targetValue = if (selected) colorScheme.surface.copy(alpha = 0.96f) else Color.Transparent,
-                    animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
-                )
-                val textColor by animateColorAsState(
-                    targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                    animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
-                )
-
-                Surface(
-                    color = tabColor,
-                    contentColor = textColor,
-                    shape = NordicShapes.md,
-                    tonalElevation = if (selected) 2.dp else 0.dp,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clickable { onSortSelected(sort) }
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            sort.displayLabel(),
-                            color = textColor,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
-        }
-    }
 }
 
 @Composable
@@ -598,170 +288,27 @@ internal fun AlbumListRow(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {}
 ) {
-    Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
-        contentColor = colorScheme.onSurface,
-        shape = NordicShapes.md,
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),
-            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(NordicShapes.sm)
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                colorScheme.primary.copy(alpha = 0.18f),
-                                colorScheme.secondary.copy(alpha = 0.12f)
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                if (album.coverArt != null) {
-                    AuthedAsyncImage(
-                        url = album.coverArt,
-                        contentDescription = album.name,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.matchParentSize(),
-                        crossfadeEnabled = false
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Filled.MusicNote,
-                        contentDescription = null,
-                        tint = colorScheme.primary.copy(alpha = NordicAlpha.subtle),
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-            }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
-            ) {
-                Text(
-                    album.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    album.artist ?: "Unknown artist",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Normal,
-                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    buildString {
-                        append("${album.songCount} tracks")
-                        album.year?.let {
-                            append("  •  ")
-                            append(it)
-                        }
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Normal,
-                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
-                )
-            }
-        }
-    }
+    MusicLibraryRow(
+        title = album.name, subtitle = musicArtistLabel(album.artist),
+        metadata = listOfNotNull(musicSongCountLabel(album.songCount), album.year?.takeIf { it > 0 }?.toString()).joinToString(" · "),
+        colorScheme = colorScheme, modifier = modifier,
+        clickLabel = "打开专辑", onClick = onClick,
+        artwork = { CoverArt(album.coverArt, album.name, colorScheme, fallbackIcon = Icons.Filled.Album) }
+    )
 }
 
 @Composable
 internal fun AlbumDetailHeader(
     album: NavidromeAlbum,
     colorScheme: ColorScheme,
-    onPlayAll: () -> Unit
+    onPlayAll: () -> Unit,
+    songCount: Int = album.songCount,
+    playEnabled: Boolean = true
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.lg),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(120.dp)
-                .clip(NordicShapes.lg)
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            colorScheme.primary.copy(alpha = 0.22f),
-                            colorScheme.secondary.copy(alpha = 0.16f)
-                        )
-                    )
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            if (album.coverArt != null) {
-                AuthedAsyncImage(
-                    url = album.coverArt,
-                    contentDescription = album.name,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Filled.LibraryMusic,
-                    contentDescription = null,
-                    tint = colorScheme.primary.copy(alpha = NordicAlpha.subtle),
-                    modifier = Modifier.size(42.dp)
-                )
-            }
-        }
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-        ) {
-            Text(
-                album.name,
-                style = MaterialTheme.typography.headlineMedium,
-                color = colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            album.artist?.let { artist ->
-                Text(
-                    artist,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
-                MetaChip("${album.songCount} tracks", colorScheme)
-                album.year?.let { MetaChip(it.toString(), colorScheme) }
-            }
-            Surface(
-                color = colorScheme.primary,
-                contentColor = colorScheme.onPrimary,
-                shape = NordicShapes.full,
-                modifier = Modifier
-                    .height(36.dp)
-                    .clickable(onClick = onPlayAll)
-            ) {
-                Box(
-                    modifier = Modifier.padding(horizontal = NordicSpacing.lg),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        "播放全部",
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
-            }
-        }
-    }
+    MusicCollectionHeader(
+        itemId = album.id, title = album.name, subtitle = musicArtistLabel(album.artist),
+        metadata = listOfNotNull(musicSongCountLabel(songCount), album.year?.takeIf { it > 0 }?.toString()),
+        artworkUrl = album.coverArt, fallbackIcon = Icons.Filled.Album,
+        colorScheme = colorScheme, onPlayAll = onPlayAll, playEnabled = playEnabled
+    )
 }

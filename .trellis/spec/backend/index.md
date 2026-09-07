@@ -13,6 +13,8 @@ This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. 
 | [Directory Structure](./directory-structure.md) | Placing new source files, tests, DTOs, repositories, playback code, or Compose components |
 | [Persistence Guidelines](./database-guidelines.md) | Changing DataStore config, cache fields, readiness helpers, or local persistence behavior |
 | [Error Handling](./error-handling.md) | Adding repository calls, typed exceptions, `Response<T>` validation, or UI error propagation |
+| [音乐页面 UI](./music-ui.md) | 修改音乐发现、列表、专辑/歌手/歌单详情、集合操作与文案 |
+| [共享 UI 一致性](./ui-consistency.md) | 修改主题/字体、标题导航、分段选择、搜索输入或详情动作；执行跨页面一致性检查 |
 | [Quality Guidelines](./quality-guidelines.md) | Reviewing shared components, cache semantics, test coverage, and known anti-patterns |
 | [文档规范](./documentation-guidelines.md) | 编写中文优先沟通、用户可见文案、CHANGELOG 条目、README 更新或任务文档 |
 | [Logging Guidelines](./logging-guidelines.md) | Adding or changing `Log.*` calls or OkHttp logging interceptors |
@@ -26,6 +28,8 @@ This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. 
 - Read [Persistence Guidelines](./database-guidelines.md) before changing `ConfigRepository`, server config models, or cache models.
 - Read the "Cross-Domain Media Cache Refresh" scenario in [Persistence Guidelines](./database-guidelines.md) before changing any cache repository, TTL helpers, launch/manual refresh flow, or config-switch cache cleanup.
 - Read [Error Handling](./error-handling.md) before adding repository methods or changing exception behavior.
+- 修改音乐浏览/集合详情/歌单弹窗前，阅读 [音乐页面 UI](./music-ui.md)。
+- 修改共享视觉/交互组件前，先阅读 [共享 UI 一致性](./ui-consistency.md)，并保留逐页真机验收与自动检查的区别。
 - Read [Quality Guidelines](./quality-guidelines.md) before modifying shared UI state components, music library navigation, or cache contracts.
 - 修改用户可见文案、项目文档、任务文档、发布记录或开发规范前，先阅读 [文档规范](./documentation-guidelines.md)。
 - Read [Logging Guidelines](./logging-guidelines.md) before adding diagnostics.

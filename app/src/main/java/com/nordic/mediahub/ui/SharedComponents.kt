@@ -12,9 +12,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Column
@@ -38,12 +40,18 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nordic.mediahub.ui.theme.NordicControlSizes
 import com.nordic.mediahub.ui.theme.NordicAlpha
 import com.nordic.mediahub.ui.theme.NordicMotion
 import com.nordic.mediahub.ui.theme.NordicShapes
@@ -59,37 +67,40 @@ internal fun MediaPageHeader(
     showBack: Boolean = false,
     onBack: () -> Unit = {}
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
-        verticalAlignment = Alignment.Top
-    ) {
-        if (showBack) {
-            ScreenBackButton(
-                colorScheme = colorScheme,
-                onClick = onBack
-            )
-        }
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val layout = resolveMediaHeaderActionLayout(maxWidth, showBack, actions.size, LocalDensity.current.fontScale)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
+            verticalAlignment = Alignment.Top
         ) {
-            Text(
-                title,
-                style = MaterialTheme.typography.displaySmall,
-                color = colorScheme.onBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                maxLines = if (showBack) 1 else 2,
-                overflow = TextOverflow.Ellipsis
-            )
+            if (showBack) {
+                ScreenBackButton(colorScheme, Modifier.padding(top = NordicSpacing.xs), onBack)
+            }
+            Column(
+                modifier = Modifier.weight(1f).padding(top = if (showBack) NordicSpacing.md else NordicSpacing.sm),
+                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
+            ) {
+                Text(
+                    title,
+                    style = if (showBack) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.displaySmall,
+                    color = colorScheme.onBackground,
+                    maxLines = if (showBack) 2 else 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.semantics { heading() }
+                )
+                if (subtitle.isNotBlank()) {
+                    Text(
+                        subtitle,
+                        style = if (showBack) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
+                        color = colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            HeaderActionGroup(actions, maxInlineActions = layout.inlineActionCount)
         }
-        HeaderActionGroup(actions = actions)
     }
 }
 
@@ -169,40 +180,15 @@ internal fun ScreenBackButton(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
-        contentColor = colorScheme.onSurface,
-        shape = NordicShapes.md,
-        tonalElevation = 3.dp,
-        shadowElevation = 4.dp,
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
-        modifier = modifier
-            .height(42.dp)
-            .clickable(onClick = onClick)
-    ) {
-        Box(
-            modifier = Modifier
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            colorScheme.onSurface.copy(alpha = 0.05f),
-                            colorScheme.surface.copy(alpha = 0.0f),
-                            colorScheme.primary.copy(alpha = 0.03f)
-                        )
-                    )
-                )
-                .padding(horizontal = NordicSpacing.md),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "返回",
-                tint = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-                modifier = Modifier.size(22.dp)
-            )
-        }
-    }
+    AnimatedIconButton(
+        icon = Icons.AutoMirrored.Filled.ArrowBack,
+        contentDescription = "返回",
+        onClick = onClick,
+        modifier = modifier,
+        colorScheme = colorScheme
+    )
 }
+
 @Composable
 internal fun CoverArt(
     imageUrl: String?,
@@ -303,24 +289,24 @@ internal fun PrimaryActionButton(
         color = if (enabled) colorScheme.primary else colorScheme.primary.copy(alpha = 0.32f),
         contentColor = colorScheme.onPrimary,
         shape = NordicShapes.full,
-        shadowElevation = if (enabled) 4.dp else 0.dp,
         modifier = modifier
             .fillMaxWidth()
-            .height(52.dp)
+            .heightIn(min = 52.dp)
             .scale(scale)
             .clickable(
                 enabled = enabled,
+                role = Role.Button,
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
             )
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = NordicSpacing.lg),
+            modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.md),
             horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically
         ) {
-if (icon != null) {
+            if (icon != null) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
@@ -333,7 +319,9 @@ if (icon != null) {
                 style = MaterialTheme.typography.titleMedium,
                 color = colorScheme.onPrimary,
                 fontWeight = FontWeight.Bold,
-                maxLines = 1,
+                modifier = Modifier.weight(1f, fill = false),
+                textAlign = TextAlign.Center,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
         }
@@ -359,31 +347,33 @@ internal fun SecondaryActionButton(
         enabled = enabled
     )
     Surface(
-        color = if (enabled) colorScheme.primary.copy(alpha = 0.18f) else colorScheme.primary.copy(alpha = 0.10f),
-        contentColor = colorScheme.primary,
+        color = if (enabled) colorScheme.primaryContainer else colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        contentColor = colorScheme.onPrimaryContainer,
         shape = NordicShapes.full,
         border = BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.22f)),
         modifier = modifier
             .fillMaxWidth()
-            .height(48.dp)
+            .heightIn(min = NordicControlSizes.touchTarget)
             .scale(scale)
             .clickable(
                 enabled = enabled,
+                role = Role.Button,
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
             )
     ) {
         Box(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.sm),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text,
                 style = MaterialTheme.typography.titleSmall,
-                color = colorScheme.primary,
+                color = if (enabled) colorScheme.onPrimaryContainer else colorScheme.onSurface.copy(alpha = NordicAlpha.faint),
                 fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
         }

@@ -15,41 +15,46 @@ colors:
   ash-text: "#E8E8EE"
   slate-muted: "#9898A8"
   ink-text: "#1A1A20"
-  iron-muted: "#6B6B7B"
+  iron-muted: "#666676"
   coral-accent: "#FB7185"
   coral-accent-deep: "#E11D48"
 typography:
   display:
     fontFamily: "system-ui, Roboto, sans-serif"
-    fontSize: "30sp"
+    fontSize: "32sp"
     fontWeight: 700
-    lineHeight: 1.1
+    lineHeight: "40sp"
+    letterSpacing: "0sp"
   headline:
     fontFamily: "system-ui, Roboto, sans-serif"
-    fontSize: "24sp"
+    fontSize: "22sp"
     fontWeight: 700
-    lineHeight: 1.17
+    lineHeight: "28sp"
+    letterSpacing: "0sp"
   title:
     fontFamily: "system-ui, Roboto, sans-serif"
-    fontSize: "20sp"
+    fontSize: "16sp"
     fontWeight: 600
-    lineHeight: 1.3
+    lineHeight: "22sp"
+    letterSpacing: "0sp"
   body:
     fontFamily: "system-ui, Roboto, sans-serif"
-    fontSize: "15sp"
+    fontSize: "14sp"
     fontWeight: 400
-    lineHeight: 1.4
+    lineHeight: "20sp"
+    letterSpacing: "0sp"
   label:
     fontFamily: "system-ui, Roboto, sans-serif"
     fontSize: "13sp"
-    fontWeight: 500
-    lineHeight: 1.3
-    letterSpacing: "0.02em"
+    fontWeight: 600
+    lineHeight: "18sp"
+    letterSpacing: "0sp"
   caption:
     fontFamily: "system-ui, Roboto, sans-serif"
-    fontSize: "11sp"
+    fontSize: "12sp"
     fontWeight: 500
-    lineHeight: 1.3
+    lineHeight: "18sp"
+    letterSpacing: "0sp"
 rounded:
   xs: "8dp"
   sm: "12dp"
@@ -85,9 +90,9 @@ components:
     padding: "5dp 9dp"
   tab-segmented:
     backgroundColor: "{colors.twilight-slab}"
-    rounded: "{rounded.xl}"
-    padding: "0dp"
-    height: "48dp"
+    rounded: "16dp"
+    padding: "4dp"
+    minHeight: "56dp"
   dock-playback:
     backgroundColor: "{colors.frost-surface}"
     textColor: "{colors.ash-text}"
@@ -96,7 +101,7 @@ components:
     height: "124dp"
   button-play:
     backgroundColor: "{colors.dusk-violet}"
-    textColor: "{colors.snow-mist}"
+    textColor: "{colors.polar-shadow}"
     rounded: "{rounded.pill}"
     padding: "0dp"
     size: "38dp"
@@ -149,7 +154,7 @@ The palette evokes winter light at high latitude: deep twilight, pale snow, and 
 - **Cloud Surface** (#FFFEFF at 87% opacity / oklch(99.5% 0.001 290)): surface. Nearly white, carrying the same 87% opacity pattern as the dark surface.
 - **Drift Variant** (#EBEAF0 / oklch(94% 0.005 290)): surface variant for solid container fills in light mode.
 - **Ink Text** (#1A1A20 / oklch(11% 0.01 290)): primary text. Not pure black, tinted toward violet.
-- **Iron Muted** (#6B6B7B / oklch(48% 0.01 290)): secondary text.
+- **Iron Muted** (#666676): secondary text; verified against the light surface-variant background.
 - **Coral Accent Deep** (#E11D48 / oklch(51% 0.24 15)): light-mode destructive, currently unused.
 
 ### Named Rules
@@ -160,28 +165,19 @@ The palette evokes winter light at high latitude: deep twilight, pale snow, and 
 
 ## 3. Typography
 
-**Display Font:** system-ui, Roboto, sans-serif
-**Body Font:** system-ui, Roboto, sans-serif (same family; product UI does not need display/body pairing)
-**Label Font:** system-ui, Roboto, sans-serif (weight and tracking differentiate; not a separate family)
+统一使用 Android 平台默认无衬线（Roboto / Noto Sans CJK fallback），不引入字体文件。`ui/theme/Type.kt` 是完整的运行时定义，Material 原生输入框、菜单与弹窗也使用这套层级。
 
-**Character:** A single well-tuned sans doing all the work. Scale ratio is tight (1.2-1.25 between steps) as befits a product UI; headings command attention through weight and size, not through a different family. The system speaks Android native.
+| Material 槽 | 字号 / 行高 | 字重 |
+|---|---|---|
+| displayLarge / displayMedium / displaySmall | 40/48、36/44、32/40sp | Bold |
+| headlineLarge / headlineMedium / headlineSmall | 28/36、22/28、20/28sp | Bold / Bold / SemiBold |
+| titleLarge / titleMedium / titleSmall | 20/28、16/22、14/20sp | SemiBold |
+| bodyLarge / bodyMedium / bodySmall | 16/24、14/20、12/18sp | Normal / Normal / Medium |
+| labelLarge / labelMedium / labelSmall | 13/18、12/16、11/16sp | SemiBold / Medium / Medium |
 
-### Hierarchy
+所有槽字距为 0sp，避免中文与英文混排时意外落回 Material 默认 tracking。根页面标题用 displaySmall，返回型子页标题用 headlineMedium；普通正文与元信息分别用 bodyMedium / bodySmall。搜索输入与 placeholder 同为 bodyLarge。
 
-- **Display** (Bold, 30sp, 1.1 line-height): screen titles. "Music", "Audiobook", "Video" at the top of each tab. Only element at this scale.
-- **Headline** (Bold, 24sp, 1.17 line-height): hero banner album name, large player album art fallback. One per visible surface.
-- **Title** (SemiBold, 20sp, 1.3 line-height): section headers, empty-state headings, search button icons, large fallback icons.
-- **Body** (Regular, 15sp, 1.4 line-height): card titles, list row titles, now-playing song title, config field text, search body text. The workhorse.
-- **Label** (Medium, 13sp, 0.02em tracking): secondary text in cards, action button labels, nav item labels, segmented tab labels, chip body text. The information-dense voice.
-- **Caption** (Medium, 11sp, 1.3 line-height): title meta text, artist album counts, hero badge labels, nav item labels in compact mode. Smallest readable size.
-
-### Intermediate Sizes
-
-Between the named steps, the system uses 14sp (SemiBold, for hero artist name, section subtitles, meta chip body) and 12sp (Regular, for timestamps, tiny meta, queue sheet secondary text). These are not separate roles; they are contextual variants of Label and Caption respectively.
-
-### Named Rules
-
-**The Native Font Rule.** No custom font files. The system uses the Android platform default (Roboto, with Noto Sans CJK fallback). A custom typeface would add bundle size without earning its keep in a product UI where content, not chrome, is the visual event.
+较长标题与详情动作需要在受限宽度/大字体下换行或使用明确省略策略，不以强行缩小字体解决空间不足。
 
 ## 4. Elevation
 
@@ -217,19 +213,18 @@ The primary depth mechanism. Eight surface-variant alpha bands encode depth with
 ## 5. Components
 
 ### Buttons
-Refined and translucent. Light touch, soft edges, subtle feedback.
-- **Shape:** pill (999dp radius) for all button shapes
-- **Primary (filled):** Dusk Violet background, Snow Mist text, 38dp size, shadowElevation 2dp. Used exclusively for play/pause in the dock and player.
-- **Secondary (tonal):** primary.copy(alpha=0.18f) background, primary text. Used for non-filled control buttons in the player (shuffle, repeat, favorite).
-- **Ghost:** transparent background, onSurface icon/text. Used for top-bar actions, back buttons, search buttons.
-- **Disabled (filled):** primary.copy(alpha=0.32f) background, primary.copy(alpha=0.32f) text.
-- **Disabled (tonal):** surface.copy(alpha=0.34f) background, primary.copy(alpha=0.16f) icon/text for inactive track, onSurface.copy(alpha=0.28f) for text.
-- **Press feedback:** scale to 0.985x over 150ms (default) or 0.94x for header/icon buttons, easing FastOutSlowInEasing.
+
+- **导航/页头/搜索图标**：统一 48dp 实际点击区，md(16dp) 圆角或所在操作组的透明背景；图标 20–24dp，采用同一按压反馈。返回不单独增加阴影。
+- **主要详情动作**：primary / onPrimary 成对颜色，最小 52dp 高；允许两行长文字并自然增高，不强制所有主题白字。
+- **次要详情动作**：primaryContainer / onPrimaryContainer，最小 48dp 高，保留清晰禁用状态。
+- **媒体播放工具**：媒体专用视觉尺寸可不同，但实际点击区域和内容前景必须遵循可访问性与对应播放器合同；Dock/播放器逐页细化仍需单独验证。
+- **反馈**：默认 press scale 0.985，图标 0.94，150ms 标准 easing；可操作图标具有中文语义，不用空的伪按钮装饰。
 
 ### Chips
-Content-bearing metadata surfaces. Never interactive in the current implementation; always informational.
-- **Style:** pill shape (999dp), surface.copy(alpha=0.64f) background, onSurface.copy(alpha=0.72f) text at 12sp Medium (home meta) or surfaceVariant.copy(alpha=0.62f) background at 11sp (player meta).
-- **Internal padding:** horizontal 9dp, vertical 5dp.
+
+- `MetaChip` 等静态元信息仍是小尺寸信息载体，不应误标成可点击操作。
+- `MediaChoiceChip` 是互斥选择：md 圆角、至少 48dp 高、selected/disabled/Role.Tab 语义明确，选中底色与正文采用成对主题角色。
+- 大字体允许控件自然增高；长库名最多 240dp 宽，保留完整无障碍文本。
 
 ### Cards / Containers
 Not the lazy default; here they carry specific tonal roles.
@@ -240,12 +235,12 @@ Not the lazy default; here they carry specific tonal roles.
 - **Audiobook Card:** surfaceVariant (alpha 1.0), RoundedCornerShape(12dp), 64dp artwork at 8dp corners. Row padding 14dp.
 
 ### Inputs / Fields
-- **Search field:** OutlinedTextField, RoundedCornerShape(16dp), focused border primary, unfocused onSurface.copy(alpha=0.2f), placeholder onSurface.copy(alpha=0.4f).
+- **Search field:** 统一 `MediaSearchField`，md 圆角、primary/outline 焦点边框、surfaceVariant 0.42 底色、onSurfaceVariant 提示文字；包括搜索图标、清除入口和 Search IME。业务查询仍由调用方管理。
 
 ### Navigation
 - **Playback Dock:** persistent bottom. Surface at 0.94f alpha, RoundedCornerShape(28dp), shadowElevation 12dp, tonalElevation 6dp, BorderStroke(1dp, onSurface.copy(alpha=0.08f)). Now-playing bar (66dp height) sits above divider (1dp, onSurface.copy(alpha=0.07f)), then bottom nav row (58dp height).
 - **Nav items:** pill shape (18dp on unselected/selected background), selected bg primary.copy(alpha=0.13f), icon 19dp size, label 13sp SemiBold (selected) / 13sp Medium (unselected). Selected text/icon: primary. Unselected: onSurface.copy(alpha=0.58f). Press scale 0.97x at 150ms.
-- **Segmented Tabs:** outer container surfaceVariant.copy(alpha=0.56f), RoundedCornerShape(18dp), height 48dp, BorderStroke(1dp, onSurface.copy(alpha=0.06f)). Selected tab: surface at 0.96f, RoundedCornerShape(14dp), tonalElevation 2dp. Color transitions: 180ms FastOutSlowInEasing.
+- **Segmented Tabs:** 复用 `MediaSegmentedControl`：outer md(16dp)/surfaceVariant 0.56，inner sm(12dp)/selected surface 0.96；4dp 内边距、48dp 最小真实操作高度，整体至少 56dp。测量真实标签后决定等分/横向滚动，150ms 微动效。
 
 ### Now Playing Bar
 The signature component. Floating above the bottom nav, it is the only persistent connection between the content plane and the media plane.
@@ -266,7 +261,7 @@ The signature component. Floating above the bottom nav, it is the only persisten
 - **Do** let album artwork, video thumbnails, and audiobook covers carry the visual weight. The interface recedes.
 - **Do** use the gradient pattern (primary at alpha to secondary at lower alpha to surfaceVariant at high alpha) for artwork placeholders and hero surfaces. It is the identity system, not decoration.
 - **Do** enter with fadeIn(300ms) and exit with fadeOut(200ms). FastOutSlowInEasing always. This is the only transition rhythm.
-- **Do** stagger list item entrance with delay(index * 50ms) for a quiet cascade effect.
+- **Do** keep long-list interactions immediate; do not add per-item delays merely for decoration.
 
 ### Don't:
 - **Don't** use over-decorated card designs. Cards are translucent vessels for content, not visual events themselves. Nested cards are always wrong.
@@ -277,3 +272,17 @@ The signature component. Floating above the bottom nav, it is the only persisten
 - **Don't** use gradient text (background-clip: text with gradient). Typography earns emphasis through weight and size, not decoration.
 - **Don't** use glassmorphism as a default. Frosted-glass effects are reserved for specific surfaces (the dock, player overlay), not applied everywhere.
 - **Don't** use side-stripe borders (border-left/right > 1px as colored accent on cards, list items, or alerts). Rewrite with full borders, background tints, or nothing.
+
+## 7. 当前共享组件验收
+
+共享主题的文字前景以实际合成背景进行 4.5:1 对比度测试；深色浅紫按钮和浅色亮青按钮使用深色前景。浅色次要文字调整为 #666676，保证在 surfaceVariant 上可读。
+
+页头根据可用宽度和字体大小把多余操作收纳到菜单，不丢失功能。共享控件的自动化合同见 `.trellis/spec/backend/ui-consistency.md`；这些合同不代表整应用已完成逐页视觉验收，任务覆盖矩阵和真机反馈仍是必要证据。
+
+## 8. 音乐集合与列表
+
+专辑、歌手、歌单详情使用同一自适应概览：普通/宽屏封面 128/160dp，文字区不足时纵向排列，metadata 自动换行。首页集合概览不伪装播放动作，点击仍进入专辑。
+
+音乐列表统一 52dp artwork、16dp 外圆角、12/8dp 横纵内边距，长名称可两行；歌手头像保留圆形。尾部时长按实际空间移动，横向卡片在大字体下从 124dp 增大到最多 160dp。缺失图片通过共享 CoverArt 兜底。
+
+导航区域显示类别，集合真实名称在概览中呈现；仅明确空数据展示空态，错误与加载使用各自反馈。具体行为和验证边界见 `.trellis/spec/backend/music-ui.md`；真机验收仍需逐页完成。

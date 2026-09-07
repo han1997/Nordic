@@ -3,6 +3,8 @@ package com.nordic.mediahub.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,21 +17,21 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.nordic.mediahub.data.NavidromeAlbum
 import com.nordic.mediahub.data.NavidromeAlbumSort
@@ -59,6 +61,7 @@ private fun MusicPageList(
             modifier = Modifier.fillMaxSize(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(
                 start = NordicSpacing.lg,
+                top = if (isHome) 0.dp else NordicSpacing.md,
                 end = NordicSpacing.lg,
                 bottom = NordicSpacing.xxl
             ),
@@ -175,7 +178,7 @@ internal fun MusicHomePage(
         if (artists.isNotEmpty()) {
             item {
                 MusicSectionHeader(
-                    title = "常听歌手",
+                    title = "曲库歌手",
                     subtitle = "从熟悉的声音继续展开",
                     colorScheme = colorScheme,
                     actionLabel = "全部",
@@ -271,36 +274,10 @@ internal fun MusicSongsPage(
             }
         } else {
             item {
-                OutlinedTextField(
-                    value = songFilterQuery,
-                    onValueChange = onSongFilterChange,
-                    placeholder = {
-                        Text(
-                            "筛选标题、歌手或专辑",
-                            color = colorScheme.onSurface.copy(alpha = NordicAlpha.faint)
-                        )
-                    },
-                    trailingIcon = if (songFilterQuery.isNotBlank()) {
-                        {
-                            IconButton(onClick = onSongFilterClear) {
-                                Icon(
-                                    imageVector = Icons.Filled.Close,
-                                    contentDescription = "清除歌曲筛选",
-                                    tint = colorScheme.onSurface.copy(alpha = NordicAlpha.medium)
-                                )
-                            }
-                        }
-                    } else {
-                        null
-                    },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = colorScheme.primary,
-                        unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.2f)
-                    ),
-                    shape = NordicShapes.md,
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                MediaSearchField(
+                    value = songFilterQuery, onValueChange = onSongFilterChange,
+                    placeholder = "筛选标题、歌手或专辑", clearDescription = "清除歌曲筛选",
+                    onClear = onSongFilterClear, colorScheme = colorScheme
                 )
             }
             item {
@@ -373,65 +350,31 @@ internal fun MusicArtistDetailPage(
     artistAlbums: List<NavidromeAlbum>,
     colorScheme: ColorScheme,
     onOpenAlbumDetail: (NavidromeAlbum) -> Unit,
-    onPlayArtistAll: () -> Unit
+    onPlayArtistAll: () -> Unit,
+    hasVisibleError: Boolean = false
 ) {
     MusicPageList(isHome = false) {
         if (artist == null) {
+            item { MusicDetailEmptyState("未选择歌手", "返回首页选择一位歌手。") }
+        } else {
             item {
-                MusicDetailEmptyState(
-                    title = "未选择歌手",
-                    subtitle = "返回首页选择一位歌手。",
+                MusicCollectionHeader(
+                    itemId = artist.id, title = artist.name, subtitle = "",
+                    metadata = listOf(musicAlbumCountLabel(resolveMusicCollectionCount(
+                        artist.albumCount, artistAlbums.size, isLoadingArtistDetail, hasVisibleError))),
+                    artworkUrl = null, fallbackIcon = Icons.Filled.Person, initials = artist.initials,
+                    artworkShape = NordicShapes.full, colorScheme = colorScheme,
+                    onPlayAll = onPlayArtistAll,
+                    playEnabled = !isLoadingArtistDetail && artistAlbums.isNotEmpty()
                 )
             }
-        } else {
-            if (!isLoadingArtistDetail && artistAlbums.isNotEmpty()) {
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        Surface(
-                            color = colorScheme.primary,
-                            contentColor = colorScheme.onPrimary,
-                            shape = NordicShapes.full,
-                            modifier = Modifier
-                                .height(34.dp)
-                                .clickable { onPlayArtistAll() }
-                        ) {
-                            Box(
-                                modifier = Modifier.padding(horizontal = NordicSpacing.lg),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    "播放全部",
-                                    style = MaterialTheme.typography.labelLarge
-                                )
-                            }
-                        }
-                    }
-                }
-            }
             if (isLoadingArtistDetail) {
-                item {
-                    MediaLoadingCard(
-                        title = "正在加载歌手专辑",
-                        subtitle = "从 Navidrome 拉取该歌手的专辑列表。"
-                    )
-                }
-            } else if (artistAlbums.isEmpty()) {
-                item {
-                    MusicDetailEmptyState(
-                        title = "暂无专辑",
-                        subtitle = "该歌手暂无可用专辑。",
-                    )
-                }
+                item { MediaLoadingCard("正在加载歌手专辑", "从 Navidrome 拉取该歌手的专辑列表。") }
+            } else if (shouldShowMusicCollectionEmpty(false, artistAlbums.size, hasVisibleError)) {
+                item { MusicDetailEmptyState("暂无专辑", "该歌手暂无可用专辑。") }
             } else {
                 items(artistAlbums, key = { it.id }, contentType = { "artist-album-row" }) { album ->
-                    AlbumListRow(
-                        album = album,
-                        colorScheme = colorScheme,
-                        onClick = { onOpenAlbumDetail(album) }
-                    )
+                    AlbumListRow(album, colorScheme, onClick = { onOpenAlbumDetail(album) })
                 }
             }
         }
@@ -445,47 +388,31 @@ internal fun MusicAlbumDetailPage(
     albumDetailSongs: List<NavidromeSong>,
     colorScheme: ColorScheme,
     onSongSelected: (List<NavidromeSong>, Int, Boolean) -> Unit,
-    onPlayAlbumAll: () -> Unit
+    onPlayAlbumAll: () -> Unit,
+    hasVisibleError: Boolean = false
 ) {
     MusicPageList(isHome = false) {
         if (album == null) {
-            item {
-                MusicDetailEmptyState(
-                    title = "未选择专辑",
-                    subtitle = "返回首页选择一张专辑。",
-                )
-            }
-        } else if (isLoadingAlbumDetail) {
-            item {
-                MediaLoadingCard(
-                    title = "正在加载专辑曲目",
-                    subtitle = "从 Navidrome 拉取这张专辑的歌曲列表。"
-                )
-            }
+            item { MusicDetailEmptyState("未选择专辑", "返回首页选择一张专辑。") }
         } else {
             item {
                 AlbumDetailHeader(
-                    album = album,
-                    colorScheme = colorScheme,
-                    onPlayAll = onPlayAlbumAll
+                    album = album, colorScheme = colorScheme, onPlayAll = onPlayAlbumAll,
+                    songCount = resolveMusicCollectionCount(album.songCount, albumDetailSongs.size, isLoadingAlbumDetail, hasVisibleError),
+                    playEnabled = !isLoadingAlbumDetail && albumDetailSongs.isNotEmpty()
                 )
             }
-            itemsIndexed(
-                items = albumDetailSongs,
-                key = { index, song -> "album-song-${song.id}-$index" },
-                contentType = { _, _ -> "album-song-row" }
-            ) { index, song ->
-                SongListRow(
-                    song = song,
-                    colorScheme = colorScheme,
-                    onClick = {
-                        onSongSelected(
-                            albumDetailSongs,
-                            index,
-                            DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK
-                        )
-                    }
-                )
+            if (isLoadingAlbumDetail) {
+                item { MediaLoadingCard("正在加载专辑曲目", "从 Navidrome 拉取这张专辑的歌曲列表。") }
+            } else if (shouldShowMusicCollectionEmpty(false, albumDetailSongs.size, hasVisibleError)) {
+                item { MusicDetailEmptyState("暂无曲目", "这张专辑暂时没有曲目。") }
+            } else {
+                itemsIndexed(albumDetailSongs, key = { index, song -> "album-song-${song.id}-$index" },
+                    contentType = { _, _ -> "album-song-row" }) { index, song ->
+                    SongListRow(song, colorScheme, onClick = {
+                        onSongSelected(albumDetailSongs, index, DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK)
+                    })
+                }
             }
         }
     }
@@ -510,36 +437,11 @@ internal fun MusicSearchPage(
 ) {
     MusicPageList(isHome = false) {
         item {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = onSearchQueryChange,
-                placeholder = {
-                    Text(
-                        "搜索歌曲、专辑、歌手...",
-                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.faint)
-                    )
-                },
-                trailingIcon = if (shouldShowMusicSearchClearAction(searchQuery)) {
-                    {
-                        IconButton(onClick = onClearSearch) {
-                            Icon(
-                                imageVector = Icons.Filled.Close,
-                                contentDescription = "清除搜索关键词",
-                                tint = colorScheme.onSurface.copy(alpha = NordicAlpha.medium)
-                            )
-                        }
-                    }
-                } else {
-                    null
-                },
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = colorScheme.primary,
-                    unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.2f)
-                ),
-                shape = NordicShapes.md,
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+            MediaSearchField(
+                value = searchQuery, onValueChange = onSearchQueryChange,
+                placeholder = "搜索歌曲、专辑、歌手", clearDescription = "清除搜索关键词",
+                onClear = onClearSearch, colorScheme = colorScheme,
+                showClear = shouldShowMusicSearchClearAction(searchQuery)
             )
         }
 
@@ -676,53 +578,27 @@ internal fun MusicPlaylistsPage(
 ) {
     MusicPageList(isHome = false) {
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
-                Surface(
-                    color = colorScheme.primary,
-                    contentColor = colorScheme.onPrimary,
-                    shape = NordicShapes.full,
-                    modifier = Modifier
-                        .height(36.dp)
-                        .clickable { onCreatePlaylist() }
-                ) {
-                    Box(
-                        modifier = Modifier.padding(horizontal = NordicSpacing.lg),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("新建歌单", style = MaterialTheme.typography.labelLarge)
-                    }
-                }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
+                verticalAlignment = Alignment.CenterVertically) {
+                Text(if (isLoadingPlaylists) "正在更新歌单" else "${playlists.size} 个歌单",
+                    style = MaterialTheme.typography.bodySmall, color = colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f))
+                MusicCollectionAction("新建歌单", Icons.Filled.Add, colorScheme, onCreatePlaylist)
             }
         }
         if (isLoadingPlaylists) {
-            item {
-                MediaLoadingCard(
-                    title = "正在加载歌单",
-                    subtitle = "从 Navidrome 拉取你的歌单列表。"
-                )
-            }
+            item { MediaLoadingCard("正在加载歌单", "从 Navidrome 拉取你的歌单列表。") }
         } else if (playlists.isEmpty()) {
-            item {
-                MusicDetailEmptyState(
-                    title = "暂无歌单",
-                    subtitle = "Navidrome 中的歌单会显示在这里。",
-                )
-            }
+            item { MusicDetailEmptyState("暂无歌单", "Navidrome 中的歌单会显示在这里，也可以新建歌单。") }
         } else {
             items(playlists, key = { it.id }, contentType = { "playlist-row" }) { playlist ->
-                PlaylistListRow(
-                    playlist = playlist,
-                    colorScheme = colorScheme,
-                    onClick = { onOpenPlaylistDetail(playlist) }
-                )
+                PlaylistListRow(playlist, colorScheme, onClick = { onOpenPlaylistDetail(playlist) })
             }
         }
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun MusicPlaylistDetailPage(
     playlist: NavidromePlaylist?,
@@ -732,93 +608,38 @@ internal fun MusicPlaylistDetailPage(
     onSongSelected: (List<NavidromeSong>, Int, Boolean) -> Unit,
     onPlayAll: () -> Unit,
     onRenamePlaylist: () -> Unit,
-    onDeletePlaylist: () -> Unit
+    onDeletePlaylist: () -> Unit,
+    hasVisibleError: Boolean = false
 ) {
     MusicPageList(isHome = false) {
         if (playlist == null) {
-            item {
-                MusicDetailEmptyState(
-                    title = "未选择歌单",
-                    subtitle = "返回歌单列表选择一个歌单。",
-                )
-            }
-        } else if (isLoadingPlaylistDetail) {
-            item {
-                MediaLoadingCard(
-                    title = "正在加载歌单曲目",
-                    subtitle = "从 Navidrome 拉取这个歌单的歌曲列表。"
-                )
-            }
+            item { MusicDetailEmptyState("未选择歌单", "返回歌单列表选择一个歌单。") }
         } else {
             item {
                 PlaylistDetailHeader(
                     playlist = playlist,
-                    songCount = playlistSongs.size,
-                    colorScheme = colorScheme,
-                    onPlayAll = onPlayAll
+                    songCount = resolveMusicCollectionCount(playlist.songCount, playlistSongs.size, isLoadingPlaylistDetail, hasVisibleError),
+                    colorScheme = colorScheme, onPlayAll = onPlayAll,
+                    playEnabled = !isLoadingPlaylistDetail && playlistSongs.isNotEmpty()
                 )
             }
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-                ) {
-                    Surface(
-                        color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
-                        contentColor = colorScheme.onSurface,
-                        shape = NordicShapes.full,
-                        modifier = Modifier
-                            .height(34.dp)
-                            .clickable { onRenamePlaylist() }
-                    ) {
-                        Box(
-                            modifier = Modifier.padding(horizontal = NordicSpacing.lg),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("重命名", style = MaterialTheme.typography.labelLarge)
-                        }
-                    }
-                    Surface(
-                        color = colorScheme.error.copy(alpha = 0.1f),
-                        contentColor = colorScheme.error,
-                        shape = NordicShapes.full,
-                        modifier = Modifier
-                            .height(34.dp)
-                            .clickable { onDeletePlaylist() }
-                    ) {
-                        Box(
-                            modifier = Modifier.padding(horizontal = NordicSpacing.lg),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("删除歌单", style = MaterialTheme.typography.labelLarge)
-                        }
-                    }
+            if (!isLoadingPlaylistDetail) item {
+                FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+                    MusicCollectionAction("重命名", Icons.Filled.Edit, colorScheme, onRenamePlaylist)
+                    MusicCollectionAction("删除歌单", Icons.Filled.Delete, colorScheme, onDeletePlaylist, destructive = true)
                 }
             }
-            if (playlistSongs.isEmpty()) {
-                item {
-                    MusicDetailEmptyState(
-                        title = "暂无曲目",
-                        subtitle = "这个歌单暂时没有可播放曲目。",
-                    )
-                }
+            if (isLoadingPlaylistDetail) {
+                item { MediaLoadingCard("正在加载歌单曲目", "从 Navidrome 拉取这个歌单的歌曲列表。") }
+            } else if (shouldShowMusicCollectionEmpty(false, playlistSongs.size, hasVisibleError)) {
+                item { MusicDetailEmptyState("暂无曲目", "这个歌单暂时没有曲目。") }
             } else {
-                itemsIndexed(
-                    items = playlistSongs,
-                    key = { index, song -> "playlist-song-${song.id}-$index" },
-                    contentType = { _, _ -> "playlist-song-row" }
-                ) { index, song ->
-                    SongListRow(
-                        song = song,
-                        colorScheme = colorScheme,
-                        onClick = {
-                            onSongSelected(
-                                playlistSongs,
-                                index,
-                                DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK
-                            )
-                        }
-                    )
+                itemsIndexed(playlistSongs, key = { index, song -> "playlist-song-${song.id}-$index" },
+                    contentType = { _, _ -> "playlist-song-row" }) { index, song ->
+                    SongListRow(song, colorScheme, onClick = {
+                        onSongSelected(playlistSongs, index, DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK)
+                    })
                 }
             }
         }

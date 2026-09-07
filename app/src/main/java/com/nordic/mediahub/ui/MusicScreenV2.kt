@@ -13,7 +13,9 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -27,7 +29,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nordic.mediahub.data.NavidromeAlbum
@@ -801,12 +805,12 @@ fun MusicScreenV2(
         MusicLibraryPage.Home -> "音乐库"
         MusicLibraryPage.Albums -> "专辑"
         MusicLibraryPage.Songs -> "歌曲"
-        MusicLibraryPage.Artists -> "常听歌手"
-        MusicLibraryPage.ArtistDetail -> selectedArtist?.name ?: "歌手"
-        MusicLibraryPage.AlbumDetail -> selectedAlbum?.name ?: "专辑"
+        MusicLibraryPage.Artists -> "歌手"
+        MusicLibraryPage.ArtistDetail -> "歌手"
+        MusicLibraryPage.AlbumDetail -> "专辑"
         MusicLibraryPage.Search -> "搜索"
         MusicLibraryPage.Playlists -> "歌单"
-        MusicLibraryPage.PlaylistDetail -> selectedPlaylist?.name ?: "歌单"
+        MusicLibraryPage.PlaylistDetail -> "歌单"
     }
     val headerSubtitle = when (libraryPage) {
         MusicLibraryPage.Home -> when {
@@ -824,8 +828,8 @@ fun MusicScreenV2(
         }
         MusicLibraryPage.Songs -> refreshErrorSubtitle ?: "共 ${songs.size} 首，点一下直接播放"
         MusicLibraryPage.Artists -> refreshErrorSubtitle ?: "共 ${artists.size} 位歌手"
-        MusicLibraryPage.ArtistDetail -> refreshErrorSubtitle ?: "${selectedArtist?.albumCount ?: 0} 张专辑"
-        MusicLibraryPage.AlbumDetail -> refreshErrorSubtitle ?: selectedAlbum?.artist.orEmpty()
+        MusicLibraryPage.ArtistDetail -> refreshErrorSubtitle.orEmpty()
+        MusicLibraryPage.AlbumDetail -> refreshErrorSubtitle.orEmpty()
         MusicLibraryPage.Search -> "搜索歌曲、专辑、歌手"
         MusicLibraryPage.Playlists -> when {
             refreshErrorSubtitle != null -> refreshErrorSubtitle
@@ -833,12 +837,7 @@ fun MusicScreenV2(
             playlists.isNotEmpty() -> "共 ${playlists.size} 个歌单"
             else -> "浏览和播放 Navidrome 歌单"
         }
-        MusicLibraryPage.PlaylistDetail -> when {
-            refreshErrorSubtitle != null -> refreshErrorSubtitle
-            isLoadingPlaylistDetail -> "正在加载歌单曲目"
-            playlistSongs.isNotEmpty() -> "${playlistSongs.size} 首 · 点一下直接播放"
-            else -> selectedPlaylist?.comment ?: "歌单曲目"
-        }
+        MusicLibraryPage.PlaylistDetail -> refreshErrorSubtitle.orEmpty()
     }
 
     Column(
@@ -995,6 +994,7 @@ fun MusicScreenV2(
                     isLoadingArtistDetail = isLoadingArtistDetail,
                     artistAlbums = artistAlbums,
                     colorScheme = colorScheme,
+                    hasVisibleError = errorMsg != null,
                     onOpenAlbumDetail = { album -> openAlbumDetail(album) },
                     onPlayArtistAll = {
                         scope.launch {
@@ -1015,6 +1015,7 @@ fun MusicScreenV2(
                     isLoadingAlbumDetail = isLoadingAlbumDetail,
                     albumDetailSongs = albumDetailSongs,
                     colorScheme = colorScheme,
+                    hasVisibleError = errorMsg != null,
                     onSongSelected = onSongSelected,
                     onPlayAlbumAll = { playSongList(albumDetailSongs, "这张专辑没有可播放曲目") }
                 )
@@ -1080,6 +1081,7 @@ fun MusicScreenV2(
                     isLoadingPlaylistDetail = isLoadingPlaylistDetail,
                     playlistSongs = playlistSongs,
                     colorScheme = colorScheme,
+                    hasVisibleError = errorMsg != null,
                     onSongSelected = onSongSelected,
                     onPlayAll = { playSongList(playlistSongs, "这个歌单没有可播放曲目") },
                     onRenamePlaylist = {
@@ -1096,7 +1098,13 @@ fun MusicScreenV2(
         }
     }
 
+    fun submitPlaylistNameAction() {
+        if (playlistNameDraft.isBlank() || isPlaylistActionRunning) return
+        if (isCreatingPlaylist) createPlaylistFromDraft() else renamePlaylistFromDraft()
+    }
+
     if (isCreatingPlaylist || renamingPlaylist != null) {
+        val keyboard = LocalSoftwareKeyboardController.current
         AlertDialog(
             onDismissRequest = {
                 if (!isPlaylistActionRunning) closePlaylistActionDialogs()
@@ -1111,13 +1119,20 @@ fun MusicScreenV2(
                         onValueChange = { playlistNameDraft = it },
                         label = { Text("歌单名称") },
                         singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyLarge,
                         enabled = !isPlaylistActionRunning,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = colorScheme.primary,
-                            unfocusedBorderColor = colorScheme.onSurface.copy(alpha = 0.2f)
+                            unfocusedBorderColor = colorScheme.outline
                         ),
                         shape = NordicShapes.md,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = {
+                            if (playlistNameDraft.isNotBlank() && !isPlaylistActionRunning) {
+                                keyboard?.hide()
+                                submitPlaylistNameAction()
+                            }
+                        })
                     )
                     playlistActionError?.let { message ->
                         Text(
@@ -1131,15 +1146,9 @@ fun MusicScreenV2(
             confirmButton = {
                 TextButton(
                     enabled = playlistNameDraft.isNotBlank() && !isPlaylistActionRunning,
-                    onClick = {
-                        if (isCreatingPlaylist) {
-                            createPlaylistFromDraft()
-                        } else {
-                            renamePlaylistFromDraft()
-                        }
-                    }
+                    onClick = ::submitPlaylistNameAction
                 ) {
-                    Text(if (isPlaylistActionRunning) "处理中" else "确认")
+                    Text(if (isPlaylistActionRunning) "处理中" else if (isCreatingPlaylist) "创建" else "保存")
                 }
             },
             dismissButton = {
@@ -1174,6 +1183,7 @@ fun MusicScreenV2(
             confirmButton = {
                 TextButton(
                     enabled = !isPlaylistActionRunning,
+                    colors = ButtonDefaults.textButtonColors(contentColor = colorScheme.error),
                     onClick = { deleteSelectedPlaylist() }
                 ) {
                     Text(if (isPlaylistActionRunning) "处理中" else "删除")

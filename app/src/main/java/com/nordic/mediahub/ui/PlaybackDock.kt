@@ -347,7 +347,7 @@ internal fun PolishedNowPlayingBar(
             )
             val subtitle = when (nowPlaying) {
                 is DockNowPlayingContent.Music ->
-                    playbackStatus ?: nowPlaying.song.artist ?: nowPlaying.song.album ?: "Unknown artist"
+                    playbackStatus ?: nowPlaying.song.artist?.takeIf { it.isNotBlank() } ?: nowPlaying.song.album?.takeIf { it.isNotBlank() } ?: musicArtistLabel(null)
                 is DockNowPlayingContent.Audiobook ->
                     playbackStatus ?: nowPlaying.author?.takeIf { it.isNotBlank() } ?: "有声书"
                 is DockNowPlayingContent.Video ->

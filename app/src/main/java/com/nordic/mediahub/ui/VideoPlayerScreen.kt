@@ -614,10 +614,7 @@ internal fun videoPlayerProgressLabel(
     }
 }
 
-internal data class VideoPlayerTimeline(
-    val positionSeconds: Int,
-    val sliderMaxSeconds: Int
-)
+internal typealias VideoPlayerTimeline = PlayerTimeline
 
 internal data class SeekFeedback(
     val deltaSeconds: Int,
@@ -632,26 +629,10 @@ internal fun resolveSeekFeedbackLabel(deltaSeconds: Int): String {
     }
 }
 
-internal fun resolveVideoPlayerTimeline(
-    positionSeconds: Int,
-    durationSeconds: Int
-): VideoPlayerTimeline {
-    val safePosition = positionSeconds.coerceAtLeast(0)
-    val sliderMax = if (durationSeconds > 0) {
-        maxOf(durationSeconds, safePosition, 1)
-    } else {
-        maxOf(safePosition, 1)
-    }
+internal fun resolveVideoPlayerTimeline(positionSeconds: Int, durationSeconds: Int): VideoPlayerTimeline =
+    resolvePlayerTimeline(positionSeconds, durationSeconds)
 
-    return VideoPlayerTimeline(
-        positionSeconds = safePosition.coerceIn(0, sliderMax),
-        sliderMaxSeconds = sliderMax
-    )
-}
-
-internal fun formatVideoPlayerDurationLabel(durationSeconds: Int): String {
-    return if (durationSeconds > 0) formatDuration(durationSeconds) else "--:--"
-}
+internal fun formatVideoPlayerDurationLabel(durationSeconds: Int): String = formatKnownDuration(durationSeconds)
 
 internal fun formatVideoPlayerRemainingLabel(durationSeconds: Int, positionSeconds: Int): String {
     if (durationSeconds <= 0) return "--:--"

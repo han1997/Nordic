@@ -17,3 +17,6 @@ fun formatLongDuration(durationSeconds: Int): String {
         "${minutes}m"
     }
 }
+
+internal fun formatKnownDuration(durationSeconds: Int): String =
+    if (durationSeconds > 0) formatDuration(durationSeconds) else "--:--"

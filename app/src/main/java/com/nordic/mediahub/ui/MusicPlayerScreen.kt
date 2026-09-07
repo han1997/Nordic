@@ -30,6 +30,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -59,6 +61,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -91,6 +94,7 @@ import androidx.media3.common.Player
 import com.nordic.mediahub.data.MusicLyrics
 import com.nordic.mediahub.data.MusicLyricsLine
 import com.nordic.mediahub.data.NavidromeSong
+import com.nordic.mediahub.playback.resolveMusicSeekByPosition
 import com.nordic.mediahub.playback.PLAYBACK_SPEED_OPTIONS
 import com.nordic.mediahub.playback.resolvePlaybackSpeedLabel
 import com.nordic.mediahub.ui.theme.NordicAlpha
@@ -171,11 +175,13 @@ fun MusicPlayerScreen(
     favoriteError: SharedFlow<Unit>? = null,
     modifier: Modifier = Modifier
 ) {
-    val resolvedDurationSeconds = maxOf(durationSeconds, song?.duration ?: 0, 1)
+    val resolvedDurationSeconds = maxOf(durationSeconds, song?.duration ?: 0, 0)
+    val timeline = resolvePlayerTimeline(positionSeconds, resolvedDurationSeconds)
+    val currentOnClose by rememberUpdatedState(onClose)
     var scrubPosition by remember(song?.id) { mutableStateOf<Float?>(null) }
     var showLyrics by rememberSaveable(song?.id) { mutableStateOf(false) }
     var showSpeedSheet by remember(song?.id) { mutableStateOf(false) }
-    var seekFeedback by remember { mutableStateOf<MusicSeekFeedback?>(null) }
+    var seekFeedback by remember(song?.id) { mutableStateOf<MusicSeekFeedback?>(null) }
     val hasSong = song?.streamUrl?.isNotBlank() == true
     val visiblePosition = scrubPosition ?: positionSeconds.toFloat()
     val playbackStatusIsError = playbackError != null || (song != null && !hasSong)
@@ -184,14 +190,16 @@ fun MusicPlayerScreen(
         isBuffering -> "正在缓冲"
         isPlaying -> "正在播放"
         song != null && !hasSong -> "这首歌缺少播放地址"
+        song != null -> "已暂停"
         else -> null
     }
     val feedbackScope = rememberCoroutineScope()
     val feedbackJob = remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    DisposableEffect(song?.id) { onDispose { feedbackJob.value?.cancel() } }
 
     fun showSeekFeedback(delta: Int) {
         feedbackJob.value?.cancel()
-        val target = (positionSeconds + delta).coerceIn(0, resolvedDurationSeconds)
+        val target = resolveMusicSeekByPosition(positionSeconds, delta, resolvedDurationSeconds)
         seekFeedback = MusicSeekFeedback(deltaSeconds = delta, targetPositionSeconds = target)
         onSeek(target)
         feedbackJob.value = feedbackScope.launch {
@@ -218,8 +226,8 @@ fun MusicPlayerScreen(
     ) {
         val compact = maxHeight < 740.dp
         val sidePadding = if (compact) NordicSpacing.lg else NordicSpacing.xl
-        val statusTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-        val topPadding = statusTopPadding + if (compact) NordicSpacing.sm else NordicSpacing.md
+        val statusTopPadding = WindowInsets.safeDrawing.asPaddingValues().calculateTopPadding()
+        val topPadding = if (compact) NordicSpacing.sm else NordicSpacing.md
         val bottomPadding = if (compact) NordicSpacing.md else NordicSpacing.lg
         val sectionGap = if (compact) NordicSpacing.sm else NordicSpacing.md
         val screenHeightPx = with(LocalDensity.current) { maxHeight.toPx() }
@@ -276,7 +284,7 @@ fun MusicPlayerScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(Unit) {
+                .pointerInput(screenHeightPx, swipeThresholdPx) {
                     detectVerticalDragGestures(
                         onDragStart = {
                             // Whole-screen start region (no top-half restriction);
@@ -302,7 +310,7 @@ fun MusicPlayerScreen(
                                             easing = NordicMotion.easingStandard
                                         )
                                     )
-                                    onClose()
+                                    currentOnClose()
                                 }
                             } else if (accumulated > 0f) {
                                 // Rebound to 0 with a non-bouncy spring — pure
@@ -351,7 +359,7 @@ fun MusicPlayerScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .navigationBarsPadding()
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
                     .padding(
                         start = sidePadding,
                         top = topPadding,
@@ -360,61 +368,41 @@ fun MusicPlayerScreen(
                     ),
                 verticalArrangement = Arrangement.spacedBy(sectionGap)
             ) {
-                PlayerTopBar(
-                    colorScheme = colorScheme,
-                    compact = compact,
-                    playbackSpeed = playbackSpeed,
-                    onShowSpeedSheet = { showSpeedSheet = true },
-                    onClose = onClose
-                )
-                PlayerPrimaryDisplay(
-                    song = song,
-                    lyrics = lyrics,
-                    isLyricsLoading = isLyricsLoading,
-                    lyricsError = lyricsError,
-                    positionMillisFlow = positionMillisFlow,
-                    showLyrics = showLyrics,
-                    colorScheme = colorScheme,
-                    compact = compact,
-                    enabled = hasSong,
-                    onToggleDisplay = { showLyrics = !showLyrics },
-                    onSeekRelative = { delta -> showSeekFeedback(delta) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                )
-                PlayerTitleMetaRow(
-                    song = song,
-                    isFavorite = resolveFavoriteDisplay(song),
-                    colorScheme = colorScheme,
-                    compact = compact,
-                    onToggleFavorite = { id, starred -> onToggleFavorite(id, starred) },
-                    onOpenQueue = onOpenQueue
-                )
-                PlayerConsole(
-                    hasSong = hasSong,
-                    isPlaying = isPlaying,
-                    position = visiblePosition.coerceIn(0f, resolvedDurationSeconds.toFloat()),
-                    duration = resolvedDurationSeconds,
-                    colorScheme = colorScheme,
-                    compact = compact,
-                    playbackStatus = playbackStatus,
-                    playbackStatusIsError = playbackStatusIsError,
-                    onPositionChange = { scrubPosition = it },
-                    onPositionChangeFinished = {
-                        val target = scrubPosition ?: visiblePosition
-                        onSeek(target.toInt())
-                        scrubPosition = null
+                MediaPlayerTopBar("音乐播放", colorScheme, onClose, resolvePlaybackSpeedLabel(playbackSpeed),
+                    onSpeed = { showSpeedSheet = true }, speedEnabled = hasSong)
+                MediaAudioPlayerBody(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    artwork = { displayModifier ->
+                        PlayerPrimaryDisplay(
+                            song = song, lyrics = lyrics, isLyricsLoading = isLyricsLoading,
+                            lyricsError = lyricsError, positionMillisFlow = positionMillisFlow,
+                            showLyrics = showLyrics, colorScheme = colorScheme, compact = compact,
+                            enabled = hasSong, onToggleDisplay = { showLyrics = !showLyrics },
+                            onSeekRelative = { delta -> showSeekFeedback(delta) }, modifier = displayModifier
+                        )
                     },
-                    onPositionChangeCanceled = { scrubPosition = null },
-                    onPlayPause = onPlayPause,
-                    repeatMode = repeatMode,
-                    shuffleModeEnabled = shuffleModeEnabled,
-                    onSeekToNext = onSeekToNext,
-                    onSeekToPrevious = onSeekToPrevious,
-                    onToggleRepeat = onToggleRepeat,
-                    onToggleShuffle = onToggleShuffle
+                    controls = {
+                        PlayerTitleMetaRow(song, resolveFavoriteDisplay(song), colorScheme,
+                            onToggleFavorite = onToggleFavorite, onOpenQueue = onOpenQueue)
+                        PlayerConsole(
+                            hasSong = hasSong, isPlaying = isPlaying,
+                            position = visiblePosition.coerceIn(0f, timeline.sliderMaxSeconds.toFloat()),
+                            duration = resolvedDurationSeconds, colorScheme = colorScheme,
+                            playbackStatus = playbackStatus, playbackStatusIsError = playbackStatusIsError,
+                            onPositionChange = { scrubPosition = it },
+                            onPositionChangeFinished = {
+                                val target = scrubPosition ?: visiblePosition
+                                onSeek(target.toInt())
+                                scrubPosition = null
+                            },
+                            onPositionChangeCanceled = { scrubPosition = null }, onPlayPause = onPlayPause,
+                            repeatMode = repeatMode, shuffleModeEnabled = shuffleModeEnabled,
+                            onSeekToNext = onSeekToNext, onSeekToPrevious = onSeekToPrevious,
+                            onToggleRepeat = onToggleRepeat, onToggleShuffle = onToggleShuffle
+                        )
+                    }
                 )
+
             }
 
             // Favorite-failure notice — auto-dismissing pill overlay. Stays
@@ -452,58 +440,6 @@ fun MusicPlayerScreen(
             },
             onDismiss = { showSpeedSheet = false }
         )
-    }
-}
-
-@Composable
-private fun PlayerTopBar(
-    colorScheme: ColorScheme,
-    compact: Boolean,
-    playbackSpeed: Float,
-    onShowSpeedSheet: () -> Unit,
-    onClose: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(if (compact) 44.dp else 52.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        PlayerIconButton(
-            icon = Icons.Filled.KeyboardArrowDown,
-            colorScheme = colorScheme,
-            size = 42.dp,
-            onClick = onClose,
-            contentDescription = "关闭播放页"
-        )
-        Text(
-            text = "正在播放",
-            style = MaterialTheme.typography.labelLarge,
-            color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.weight(1f),
-            textAlign = TextAlign.Center
-        )
-        // Right-side playback-speed entry (音流-style): shows the active rate
-        // as text; opens the speed selection sheet.
-        Surface(
-            color = colorScheme.surface.copy(alpha = 0.58f),
-            contentColor = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-            shape = NordicShapes.full,
-            modifier = Modifier
-                .size(42.dp)
-                .clickable(onClick = onShowSpeedSheet)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(
-                    text = resolvePlaybackSpeedLabel(playbackSpeed),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1
-                )
-            }
-        }
     }
 }
 
@@ -564,65 +500,8 @@ private fun PlayerPrimaryDisplay(
 }
 
 @Composable
-private fun PlayerArtwork(
-    song: NavidromeSong?,
-    colorScheme: ColorScheme,
-    modifier: Modifier = Modifier
-) {
-    BoxWithConstraints(
-        modifier = modifier,
-        contentAlignment = Alignment.Center
-    ) {
-        val side = minOf(maxWidth, maxHeight)
-
-        Surface(
-            color = colorScheme.surfaceVariant.copy(alpha = 0.48f),
-            shape = NordicShapes.xl,
-            shadowElevation = 12.dp,
-            border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
-            modifier = Modifier.size(side)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                colorScheme.primary.copy(alpha = 0.24f),
-                                colorScheme.secondary.copy(alpha = 0.14f),
-                                colorScheme.surfaceVariant.copy(alpha = 0.82f)
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                if (song?.coverArt != null) {
-                    AuthedAsyncImage(
-                        url = song.coverArt,
-                        contentDescription = song.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.44f)
-                            .aspectRatio(1f)
-                            .clip(NordicShapes.xl)
-                            .background(colorScheme.surface.copy(alpha = 0.62f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.MusicNote,
-                            contentDescription = null,
-                            tint = colorScheme.primary.copy(alpha = NordicAlpha.medium),
-                            modifier = Modifier.size(42.dp)
-                        )
-                    }
-                }
-            }
-        }
-    }
+private fun PlayerArtwork(song: NavidromeSong?, colorScheme: ColorScheme, modifier: Modifier = Modifier) {
+    MediaPlayerArtwork(song?.title ?: "专辑封面", song?.coverArt, Icons.Filled.MusicNote, colorScheme, modifier)
 }
 
 @Composable
@@ -830,67 +709,26 @@ private fun PlayerTitleMetaRow(
     song: NavidromeSong?,
     isFavorite: Boolean,
     colorScheme: ColorScheme,
-    compact: Boolean,
     onToggleFavorite: (String, Boolean) -> Unit,
     onOpenQueue: () -> Unit
 ) {
-    val title = song?.title ?: "等待播放"
-    val artist = song?.artist ?: "音乐库"
-
-    Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
-            ) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    artist,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            // favorite ♥
-            PlayerIconButton(
-                icon = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                colorScheme = colorScheme,
-                size = if (compact) 36.dp else 40.dp,
-                tint = if (isFavorite) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-                onClick = {
-                    val id = song?.id
-                    if (!id.isNullOrBlank()) {
-                        onToggleFavorite(id, !isFavorite)
-                    }
-                },
-                contentDescription = if (isFavorite) "取消收藏" else "收藏"
-            )
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
+        verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
+            Text(song?.title ?: "等待播放", style = MaterialTheme.typography.headlineMedium,
+                color = colorScheme.onSurface, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(if (song == null) "从音乐库选择曲目" else musicArtistLabel(song.artist),
+                style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurfaceVariant,
+                maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        // secondary meta: queue (right-aligned) — moved out of primary control row per Option B.
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            PlayerIconButton(
-                icon = Icons.AutoMirrored.Filled.QueueMusic,
-                colorScheme = colorScheme,
-                size = 36.dp,
-                tint = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-                onClick = onOpenQueue,
-                contentDescription = "打开播放队列"
-            )
+        Row(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
+            MediaPlayerIconAction(MediaPlayerAction(
+                if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                if (isFavorite) "取消收藏" else "收藏",
+                onClick = { song?.id?.takeIf { it.isNotBlank() }?.let { onToggleFavorite(it, !isFavorite) } },
+                enabled = !song?.id.isNullOrBlank(), active = isFavorite
+            ), colorScheme)
+            MediaPlayerIconAction(MediaPlayerAction(Icons.AutoMirrored.Filled.QueueMusic, "打开播放队列", onOpenQueue), colorScheme)
         }
     }
 }
@@ -902,182 +740,37 @@ private fun PlayerConsole(
     position: Float,
     duration: Int,
     colorScheme: ColorScheme,
-    compact: Boolean,
     playbackStatus: String?,
     playbackStatusIsError: Boolean,
     onPositionChange: (Float) -> Unit,
     onPositionChangeFinished: () -> Unit,
     onPositionChangeCanceled: () -> Unit,
     onPlayPause: () -> Unit,
-    repeatMode: Int = Player.REPEAT_MODE_OFF,
-    shuffleModeEnabled: Boolean = false,
-    onSeekToNext: () -> Unit = {},
-    onSeekToPrevious: () -> Unit = {},
-    onToggleRepeat: () -> Unit = {},
-    onToggleShuffle: () -> Unit = {}
+    repeatMode: Int,
+    shuffleModeEnabled: Boolean,
+    onSeekToNext: () -> Unit,
+    onSeekToPrevious: () -> Unit,
+    onToggleRepeat: () -> Unit,
+    onToggleShuffle: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
-        PlayerThinSlider(
-            position = position,
-            duration = duration,
-            colorScheme = colorScheme,
-            enabled = hasSong,
-            onPositionChange = onPositionChange,
-            onPositionChangeFinished = onPositionChangeFinished,
-            onPositionChangeCanceled = onPositionChangeCanceled
+        if (playbackStatus != null) Text(playbackStatus, style = MaterialTheme.typography.bodySmall,
+            color = if (playbackStatusIsError) colorScheme.error else colorScheme.onSurfaceVariant,
+            maxLines = 3, overflow = TextOverflow.Ellipsis)
+        MediaPlayerTimeline(position, duration, colorScheme, hasSong, onPositionChange,
+            onPositionChangeFinished, onPositionChangeCanceled)
+        MediaTransportRow(
+            leading = MediaPlayerAction(Icons.Filled.Shuffle, if (shuffleModeEnabled) "关闭随机播放" else "开启随机播放",
+                onToggleShuffle, hasSong, shuffleModeEnabled),
+            previous = MediaPlayerAction(Icons.Filled.SkipPrevious, "上一首", onSeekToPrevious, hasSong),
+            play = MediaPlayerAction(if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                if (isPlaying) "暂停" else "播放", onPlayPause, hasSong),
+            next = MediaPlayerAction(Icons.Filled.SkipNext, "下一首", onSeekToNext, hasSong),
+            trailing = MediaPlayerAction(if (repeatMode == Player.REPEAT_MODE_ONE) Icons.Filled.RepeatOne else Icons.Filled.Repeat,
+                when (repeatMode) { Player.REPEAT_MODE_ONE -> "单曲循环"; Player.REPEAT_MODE_ALL -> "列表循环"; else -> "循环关闭" },
+                onToggleRepeat, hasSong, repeatMode != Player.REPEAT_MODE_OFF),
+            colors = colorScheme
         )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                formatDuration(position.toInt()),
-                style = MaterialTheme.typography.bodySmall,
-                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
-            )
-            if (playbackStatus != null) {
-                Text(
-                    playbackStatus,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (playbackStatusIsError) colorScheme.error
-                    else colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
-                )
-            }
-            Text(
-                formatDuration(duration),
-                style = MaterialTheme.typography.bodySmall,
-                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val repeatActive = repeatMode != Player.REPEAT_MODE_OFF
-            val repeatIcon: ImageVector = when (repeatMode) {
-                Player.REPEAT_MODE_ONE -> Icons.Filled.RepeatOne
-                else -> Icons.Filled.Repeat
-            }
-            val sideButtonSize: Dp = if (compact) 32.dp else 36.dp
-            val skipButtonSize: Dp = if (compact) 38.dp else 42.dp
-            PlayerIconButton(
-                icon = Icons.Filled.Shuffle,
-                colorScheme = colorScheme,
-                size = sideButtonSize,
-                enabled = hasSong,
-                active = shuffleModeEnabled,
-                onClick = onToggleShuffle,
-                contentDescription = "随机播放"
-            )
-            PlayerIconButton(
-                icon = Icons.Filled.SkipPrevious,
-                colorScheme = colorScheme,
-                size = skipButtonSize,
-                enabled = hasSong,
-                onClick = onSeekToPrevious,
-                contentDescription = "上一首"
-            )
-            PlayerIconButton(
-                icon = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                colorScheme = colorScheme,
-                size = if (compact) 62.dp else 68.dp,
-                filled = true,
-                enabled = hasSong,
-                onClick = onPlayPause,
-                contentDescription = if (isPlaying) "暂停" else "播放"
-            )
-            PlayerIconButton(
-                icon = Icons.Filled.SkipNext,
-                colorScheme = colorScheme,
-                size = skipButtonSize,
-                enabled = hasSong,
-                onClick = onSeekToNext,
-                contentDescription = "下一首"
-            )
-            PlayerIconButton(
-                icon = repeatIcon,
-                colorScheme = colorScheme,
-                size = sideButtonSize,
-                enabled = hasSong,
-                active = repeatActive,
-                showOneBadge = repeatMode == Player.REPEAT_MODE_ONE,
-                onClick = onToggleRepeat,
-                contentDescription = "循环模式"
-            )
-        }
-    }
-}
-
-@Composable
-private fun PlayerIconButton(
-    icon: ImageVector,
-    colorScheme: ColorScheme,
-    size: Dp,
-    filled: Boolean = false,
-    active: Boolean = false,
-    enabled: Boolean = true,
-    showOneBadge: Boolean = false,
-    tint: androidx.compose.ui.graphics.Color? = null,
-    onClick: () -> Unit = {},
-    contentDescription: String? = null
-) {
-    val background = when {
-        filled && enabled -> colorScheme.primary
-        filled -> colorScheme.primary.copy(alpha = 0.32f)
-        active && enabled -> colorScheme.primary.copy(alpha = 0.18f)
-        else -> colorScheme.surface.copy(alpha = if (enabled) 0.58f else 0.30f)
-    }
-    val foreground = tint ?: when {
-        filled -> colorScheme.onPrimary
-        active && enabled -> colorScheme.primary
-        enabled -> colorScheme.onSurface.copy(alpha = NordicAlpha.medium)
-        else -> colorScheme.onSurface.copy(alpha = NordicAlpha.faint)
-    }
-
-    Surface(
-        color = background,
-        contentColor = foreground,
-        shape = NordicShapes.full,
-        shadowElevation = if (filled && enabled) 4.dp else 0.dp,
-        modifier = Modifier
-            .size(size)
-            .clickable(enabled = enabled, onClick = onClick)
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                tint = foreground,
-                modifier = Modifier.size((size.value * 0.52f).dp)
-            )
-            if (showOneBadge) {
-                // Single-track-repeat "1" badge. Per Accent Scarcity the badge
-                // stays low-key: a small translucent surface chip (not a solid
-                // onPrimary block) with a thin primary-tinted border, nudged
-                // 2dp outward so it reads as an overlay rather than clipped
-                // to the icon edge.
-                Surface(
-                    color = colorScheme.surface.copy(alpha = 0.94f),
-                    contentColor = colorScheme.primary,
-                    shape = NordicShapes.full,
-                    border = BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.24f)),
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .offset(x = 2.dp, y = 2.dp)
-                        .size(10.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            "1",
-                            fontSize = 7.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colorScheme.primary
-                        )
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -1192,64 +885,9 @@ private fun MusicSeekFeedbackChip(
  * [PLAYBACK_SPEED_OPTIONS] rates and highlights the active one. Selection is
  * applied immediately and closes the sheet.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun MusicPlaybackSpeedSheet(
-    currentSpeed: Float,
-    colorScheme: ColorScheme,
-    onSelect: (Float) -> Unit,
-    onDismiss: () -> Unit
-) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = colorScheme.surface,
-        shape = NordicShapes.xl,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = NordicSpacing.lg)
-                .padding(bottom = NordicSpacing.xxl),
-            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-        ) {
-            Text(
-                "播放速度",
-                style = MaterialTheme.typography.titleMedium,
-                color = colorScheme.onSurface,
-                modifier = Modifier.padding(bottom = NordicSpacing.xs)
-            )
-            PLAYBACK_SPEED_OPTIONS.forEach { speed ->
-                val selected = kotlin.math.abs(speed - currentSpeed) < 0.001f
-                Surface(
-                    color = if (selected) {
-                        colorScheme.primary.copy(alpha = 0.16f)
-                    } else {
-                        colorScheme.surfaceVariant.copy(alpha = 0.42f)
-                    },
-                    contentColor = colorScheme.onSurface,
-                    shape = NordicShapes.md,
-                    border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onSelect(speed) }
-                ) {
-                    Box(
-                        modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.md)
-                    ) {
-                        Text(
-                            text = resolvePlaybackSpeedLabel(speed),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = if (selected) colorScheme.primary else colorScheme.onSurface,
-                            maxLines = 1
-                        )
-                    }
-                }
-            }
-        }
-    }
+internal fun MusicPlaybackSpeedSheet(currentSpeed: Float, colorScheme: ColorScheme, onSelect: (Float) -> Unit, onDismiss: () -> Unit) {
+    MediaPlaybackSpeedSheet(PLAYBACK_SPEED_OPTIONS, currentSpeed, colorScheme, onSelect, onDismiss)
 }
 
 /**

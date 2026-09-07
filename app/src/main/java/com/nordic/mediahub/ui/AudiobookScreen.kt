@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -611,7 +612,7 @@ private fun AudiobookLibrarySelector(
     onSelect: (String) -> Unit
 ) {
     LazyRow(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)
     ) {
         items(
@@ -619,23 +620,12 @@ private fun AudiobookLibrarySelector(
             key = { it.id },
             contentType = { "audiobook-library-chip" }
         ) { library ->
-            val selected = library.id == selectedLibraryId
-            Surface(
-                color = if (selected) colorScheme.primary.copy(alpha = 0.16f) else colorScheme.surfaceVariant.copy(alpha = 0.56f),
-                contentColor = if (selected) colorScheme.primary else colorScheme.onSurface,
-                shape = NordicShapes.md,
-                border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
-                modifier = Modifier.clickable { onSelect(library.id) }
-            ) {
-                Text(
-                    library.name,
-                    modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.md),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+            MediaChoiceChip(
+                text = library.name,
+                selected = library.id == selectedLibraryId,
+                colorScheme = colorScheme,
+                onClick = { onSelect(library.id) }
+            )
         }
     }
 }

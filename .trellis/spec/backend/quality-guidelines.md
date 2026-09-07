@@ -49,6 +49,7 @@ val NordicTypography = Typography(
 ```
 
 **Rules**:
+- `NordicTypography` 覆盖全部 15 个 Material 槽并声明行高/字距；上面的常用槽摘要不是完整定义。完整共享角色与响应式控件合同见 [ui-consistency.md](./ui-consistency.md)。
 - New UI code uses tokens; existing magic numbers converge to the nearest tier (see the convergence maps in the comments atop each token file).
 - `NordicShapes.full` (`RoundedCornerShape(50)`, percent-based) replaces both `RoundedCornerShape(999.dp)` and `CircleShape`.
 - Dynamic expressions stay dynamic: `if (compact) NordicShapes.lg else NordicShapes.xl` — do not collapse a dynamic branch to a single token just because both sides now resolve via tokens.
@@ -222,44 +223,20 @@ Use `MediaStateDensity.Compact` for detail-level empty states and the default pr
 
 ### Segmented control visual consistency
 
-All segmented tab / sort controls in the Music module (`MusicSegmentedTabs`, `AlbumSortSegmentedControl`, `SongSortSegmentedControl`) must share the same visual language, aligned to `DESIGN.md` `tab-segmented`:
+MusicSegmentedTabs、SongSortSegmentedControl、AlbumSortSegmentedControl 必须复用 `MediaSegmentedControl<T>`，而不是分别维护三份近似实现。
 
-- **Outer container**: `surfaceVariant.copy(alpha = 0.56f)`, `NordicShapes.md` (16dp — token convergence from DESIGN.md's 18dp), 48dp height, `BorderStroke(1dp, onSurface.copy(alpha = 0.06f))`.
-- **Inner tabs**: `surface.copy(alpha = 0.96f)` selected / `Color.Transparent` unselected, `NordicShapes.md` shape, `tonalElevation = 2.dp` when selected, `titleSmall` text style, `NordicAlpha.subtle` unselected text color.
-- **Layout**: `Row` + `weight(1f)` when tab count is small (≤4); `LazyRow` inside the container when tab count is large (>4, e.g. 6 song sort options). Both use `NordicSpacing.xs` padding and spacing.
-- **Animation**: `animateColorAsState` with `tween(NordicMotion.durationMicro, easing = NordicMotion.easingStandard)` for tab color and text color transitions.
-
-**Why**: When sort controls look different (e.g. one uses pill single items, another uses self-drawn segmented), users perceive them as unrelated controls even though they serve the same purpose. Visual unification reduces cognitive load and makes the design system legible.
-
-**Wrong vs Correct**:
-```kotlin
-// Wrong: sort control uses LazyRow + pill single items (NordicShapes.full), inconsistent with the segmented tab spec.
-LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
-    items(sorts) { sort ->
-        Surface(shape = NordicShapes.full, ...) { Text(..., style = labelLarge) }
-    }
-}
-```
-
-```kotlin
-// Correct: sort control uses the same self-drawn segmented style as other tabs.
-Surface(color = surfaceVariant.copy(alpha = 0.56f), shape = NordicShapes.md, ...) {
-    LazyRow(modifier = Modifier.padding(NordicSpacing.xs), ...) {
-        items(sorts) { sort ->
-            Surface(shape = NordicShapes.md, tonalElevation = if (selected) 2.dp else 0.dp, ...) {
-                Text(..., style = titleSmall)
-            }
-        }
-    }
-}
-```
+- 外层 `surfaceVariant` 0.56、md(16dp)；内层选中 `surface` 0.96、sm(12dp)，微动效使用 NordicMotion。
+- 项的真实点击区域至少 48dp，4dp 内边距使容器至少 56dp；大字体自然增高。
+- 真实测量标签和 padding；只有项数 ≤4 且等分空间足够时使用 Row，否则 LazyRow。禁止缩小字体/触控区来硬塞标签。
+- 使用 `selectableGroup` / `Role.Tab` / selected 语义；未选中可读文字使用 onSurfaceVariant。
+- 细节、边界与测试要求见 [共享 UI 一致性合同](./ui-consistency.md)。
 
 ### Shared media page shell
 
 Top-level Music, Audiobook, and Video browsing screens should use the shared page-shell components for headers instead of reimplementing local title/action rows. Server connection editing belongs in the unified `ServerConfigScreen`, not in per-media inline config panels.
 
 **Contracts**:
-- Use `MediaPageHeader(...)` for the screen title, dynamic subtitle, optional visible back button, and header actions.
+- Use `MediaPageHeader(...)` for the screen title, dynamic subtitle, optional visible back button, and header actions. It measures the available width/font scale and routes excess actions into a menu rather than shrinking 48dp targets; root/detail headings use the shared hierarchy.
 - Header actions should stay in `HeaderActionGroup` / `HeaderAction` so refresh, theme, and search affordances keep the same surface, sizing, and disabled behavior across media domains.
 - Icon-only controls and visual placeholders in shared UI must use Material vector icons (`ImageVector` / `Icon`), not text glyph pseudo-icons such as `"↻"`, `"⚙"`, `"▶"`, `"♪"`, `"×"`, or `"▤"`. Every actionable icon needs a meaningful `contentDescription`; purely decorative placeholders should use `contentDescription = null`.
 - Do not add new per-media config gear actions, `showConfig` state, or `MediaConfigPanel` server forms to Music, Audiobook, or Video screens. Use the bottom-nav `配置` tab and `ServerConfigScreen` instead.

@@ -4,30 +4,40 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicControlSizes
 import com.nordic.mediahub.ui.theme.NordicMotion
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
@@ -59,26 +69,30 @@ internal fun rememberPressScale(
 internal fun AnimatedIconButton(
     icon: ImageVector,
     contentDescription: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    colorScheme: ColorScheme = MaterialTheme.colorScheme,
+    containerColor: Color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
+    iconSize: Dp = NordicControlSizes.icon
 ) {
-    val colorScheme = MaterialTheme.colorScheme
     val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(interactionSource, pressedScale = 0.94f)
-
+    val scale = rememberPressScale(interactionSource, pressedScale = 0.94f, enabled = enabled)
     IconButton(
         onClick = onClick,
+        enabled = enabled,
         interactionSource = interactionSource,
-        modifier = Modifier
-            .size(42.dp)
-            .scale(scale)
-            .clip(NordicShapes.md)
-            .background(colorScheme.surfaceVariant.copy(alpha = 0.58f))
+        modifier = modifier.size(NordicControlSizes.touchTarget).scale(scale)
+            .clip(NordicShapes.md).background(containerColor)
+            .then(if (containerColor.alpha > 0f) {
+                Modifier.border(1.dp, colorScheme.onSurface.copy(alpha = 0.06f), NordicShapes.md)
+            } else Modifier)
     ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-            modifier = Modifier.size(22.dp)
+            tint = if (enabled) colorScheme.onSurfaceVariant else colorScheme.onSurface.copy(alpha = NordicAlpha.faint),
+            modifier = Modifier.size(iconSize)
         )
     }
 }
@@ -86,37 +100,52 @@ internal fun AnimatedIconButton(
 @Composable
 internal fun HeaderActionGroup(
     actions: List<HeaderAction>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    maxInlineActions: Int = actions.size
 ) {
     if (actions.isEmpty()) return
-
-    val colorScheme = MaterialTheme.colorScheme
-
+    val colors = MaterialTheme.colorScheme
+    val inlineCount = maxInlineActions.coerceIn(0, actions.size)
+    val inlineActions = actions.take(inlineCount)
+    val overflowActions = actions.drop(inlineCount)
+    var menuExpanded by remember(actions.map { it.contentDescription }) { mutableStateOf(false) }
     Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.62f),
-        contentColor = colorScheme.onSurface,
+        color = colors.surfaceVariant.copy(alpha = 0.56f),
+        contentColor = colors.onSurface,
         shape = NordicShapes.md,
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
+        border = BorderStroke(1.dp, colors.onSurface.copy(alpha = 0.06f)),
         modifier = modifier
     ) {
-        Box(
-            modifier = Modifier.background(
-                Brush.verticalGradient(
-                    listOf(
-                        colorScheme.onSurface.copy(alpha = 0.06f),
-                        colorScheme.surface.copy(alpha = 0.0f),
-                        colorScheme.primary.copy(alpha = 0.035f)
-                    )
-                )
-            )
+        Row(
+            Modifier.padding(NordicSpacing.xs),
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.xs),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.padding(NordicSpacing.xs),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                actions.forEach { action ->
-                    HeaderActionButton(action)
+            inlineActions.forEach { action ->
+                HeaderActionButton(action)
+            }
+            if (overflowActions.isNotEmpty()) {
+                Box {
+                    AnimatedIconButton(
+                        icon = Icons.Filled.MoreHoriz,
+                        contentDescription = "更多页面操作",
+                        onClick = { menuExpanded = true },
+                        containerColor = Color.Transparent,
+                        iconSize = NordicControlSizes.compactIcon
+                    )
+                    DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                        overflowActions.forEach { action ->
+                            DropdownMenuItem(
+                                text = { Text(action.contentDescription, style = MaterialTheme.typography.bodyMedium) },
+                                leadingIcon = { Icon(action.icon, contentDescription = null) },
+                                enabled = action.enabled,
+                                onClick = {
+                                    menuExpanded = false
+                                    action.onClick()
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -125,32 +154,12 @@ internal fun HeaderActionGroup(
 
 @Composable
 private fun HeaderActionButton(action: HeaderAction) {
-    val colorScheme = MaterialTheme.colorScheme
-    val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(
-        interactionSource = interactionSource,
-        pressedScale = 0.94f,
-        enabled = action.enabled
+    AnimatedIconButton(
+        icon = action.icon,
+        contentDescription = action.contentDescription,
+        onClick = action.onClick,
+        enabled = action.enabled,
+        containerColor = Color.Transparent,
+        iconSize = NordicControlSizes.compactIcon
     )
-
-    Box(
-        modifier = Modifier
-            .size(34.dp)
-            .scale(scale)
-            .clip(NordicShapes.md)
-            .clickable(
-                enabled = action.enabled,
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = action.onClick
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = action.icon,
-            contentDescription = action.contentDescription,
-            tint = colorScheme.onSurface.copy(alpha = if (action.enabled) NordicAlpha.medium else NordicAlpha.faint),
-            modifier = Modifier.size(20.dp)
-        )
-    }
 }

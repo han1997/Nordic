@@ -1053,7 +1053,6 @@ private fun AudiobookPlayerLayer(
             onSeekForward = { audiobookVM.seekForwardBy() },
             onSeekToPreviousChapter = audiobookVM::seekToPreviousChapter,
             onSeekToNextChapter = audiobookVM::seekToNextChapter,
-            onCyclePlaybackSpeed = audiobookVM::cyclePlaybackSpeed,
             onSetPlaybackSpeed = audiobookVM::setPlaybackSpeed,
             onPlayPause = audiobookVM::togglePlayPause,
             onClose = closeAudiobookPlayback,

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -25,10 +26,8 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -56,27 +55,16 @@ internal fun VideoLibrarySelector(
     onSelect: (String) -> Unit
 ) {
     LazyRow(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)
     ) {
         items(libraries, key = { it.id }, contentType = { "video-library-chip" }) { library ->
-            val selected = library.id == selectedLibraryId
-            Surface(
-                color = if (selected) colorScheme.primary.copy(alpha = 0.16f) else colorScheme.surfaceVariant.copy(alpha = 0.56f),
-                contentColor = if (selected) colorScheme.primary else colorScheme.onSurface,
-                shape = NordicShapes.md,
-                border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
-                modifier = Modifier.clickable { onSelect(library.id) }
-            ) {
-                Text(
-                    text = library.name,
-                    modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.md),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+            MediaChoiceChip(
+                text = library.name,
+                selected = library.id == selectedLibraryId,
+                colorScheme = colorScheme,
+                onClick = { onSelect(library.id) }
+            )
         }
     }
 }
@@ -337,7 +325,7 @@ internal fun ContinueWatchingCard(
                 )
                 if (video.durationSeconds > 0) {
                     LinearProgressIndicator(
-                        progress = progressFraction,
+                        progress = { progressFraction },
                         modifier = Modifier.fillMaxWidth(),
                         color = colorScheme.primary,
                         trackColor = Color.White.copy(alpha = 0.22f)
@@ -370,95 +358,24 @@ internal fun VideoBrowserControls(
                 horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = onSearchChange,
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    placeholder = {
-                        Text(
-                            "搜索标题、简介、年份",
-                            color = colorScheme.onSurface.copy(alpha = NordicAlpha.faint)
-                        )
-                    },
-                    shape = NordicShapes.md,
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = colorScheme.surfaceVariant.copy(alpha = 0.42f),
-                        unfocusedContainerColor = colorScheme.surfaceVariant.copy(alpha = 0.42f),
-                        disabledContainerColor = colorScheme.surfaceVariant.copy(alpha = 0.28f)
-                    )
+                MediaSearchField(
+                    value = searchQuery, onValueChange = onSearchChange,
+                    placeholder = "搜索标题、简介、年份", clearDescription = "清除视频搜索关键词",
+                    onClear = { onSearchChange("") }, colorScheme = colorScheme,
+                    modifier = Modifier.weight(1f)
                 )
-                Surface(
-                    color = colorScheme.surfaceVariant.copy(alpha = 0.56f),
-                    contentColor = colorScheme.onSurface,
-                    shape = NordicShapes.full,
-                    border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
-                    modifier = Modifier
-                        .size(48.dp)
-                        .clickable { onSearchCollapse() }
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Filled.Close,
-                            contentDescription = "收起搜索",
-                            tint = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
+                AnimatedIconButton(Icons.Filled.Close, "收起搜索", onSearchCollapse, colorScheme = colorScheme)
             }
         } else {
-            Surface(
-                color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
-                contentColor = colorScheme.onSurface,
-                shape = NordicShapes.full,
-                border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
-                modifier = Modifier.clickable { onToggleSearch() }
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.md),
-                    horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Search,
-                        contentDescription = "搜索",
-                        tint = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        "搜索",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1
-                    )
-                }
-            }
+            AnimatedIconButton(Icons.Filled.Search, "搜索视频", onToggleSearch, colorScheme = colorScheme)
         }
-
         LazyRow(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().selectableGroup(),
             horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
         ) {
             items(filters, key = { it.name }, contentType = { "video-type-filter" }) { filter ->
-                val selected = filter == selectedTypeFilter
-                Surface(
-                    color = if (selected) colorScheme.primary.copy(alpha = 0.16f) else colorScheme.surfaceVariant.copy(alpha = 0.50f),
-                    contentColor = if (selected) colorScheme.primary else colorScheme.onSurface,
-                    shape = NordicShapes.full,
-                    border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
-                    modifier = Modifier.clickable { onFilterSelected(filter) }
-                ) {
-                    Text(
-                        text = filter.label,
-                        modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                MediaChoiceChip(filter.label, filter == selectedTypeFilter, colorScheme,
+                    onClick = { onFilterSelected(filter) })
             }
         }
     }

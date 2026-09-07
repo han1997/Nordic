@@ -3,26 +3,38 @@ package com.nordic.mediahub.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -42,82 +54,22 @@ fun MusicHeroBanner(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val scale = rememberPressScale(interactionSource, enabled = onClick != null)
     Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.62f),
+        color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
         shape = NordicShapes.xl,
-        modifier = modifier
-            .fillMaxWidth()
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+        modifier = modifier.fillMaxWidth().scale(scale)
+            .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClickLabel = "查看专辑",
+                interactionSource = interactionSource, indication = null, onClick = onClick) else Modifier)
     ) {
-        Row(
-            modifier = Modifier
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            colorScheme.primary.copy(alpha = 0.18f),
-                            colorScheme.secondary.copy(alpha = 0.1f),
-                            colorScheme.surface.copy(alpha = 0.92f)
-                        )
-                    )
-                )
-                .padding(NordicSpacing.lg),
-            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.lg),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)
-            ) {
-                Text(
-                    "刚刚同步到你的曲库",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    album.name,
-                    style = MaterialTheme.typography.headlineMedium,
-                    lineHeight = 28.sp,
-                    color = colorScheme.onSurface,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    album.artist ?: "Unknown artist",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
-                    MetaChip("${album.songCount} tracks", colorScheme)
-                    album.year?.let { MetaChip(it.toString(), colorScheme) }
-                }
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(124.dp)
-                    .clip(NordicShapes.lg)
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                colorScheme.primary.copy(alpha = 0.22f),
-                                colorScheme.secondary.copy(alpha = 0.16f)
-                            )
-                        )
-                    )
-            ) {
-                if (album.coverArt != null) {
-                    AuthedAsyncImage(
-                        url = album.coverArt,
-                        contentDescription = album.name,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.matchParentSize()
-                    )
-                }
-            }
-        }
+        MusicCollectionHeader(
+            itemId = album.id, title = album.name, subtitle = musicArtistLabel(album.artist),
+            metadata = listOfNotNull(musicSongCountLabel(album.songCount), album.year?.takeIf { it > 0 }?.toString()),
+            artworkUrl = album.coverArt, fallbackIcon = Icons.Filled.Album,
+            colorScheme = colorScheme, onPlayAll = null,
+            modifier = Modifier.padding(NordicSpacing.lg)
+        )
     }
 }
 
@@ -143,15 +95,16 @@ fun MusicSectionHeader(
                 title,
                 style = MaterialTheme.typography.headlineMedium,
                 color = colorScheme.onBackground,
+                modifier = Modifier.semantics { heading() },
                 fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 subtitle,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Normal,
-                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
+                color = colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -164,17 +117,17 @@ fun MusicSectionHeader(
                 shape = NordicShapes.full,
                 border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
                 modifier = Modifier
-                    .height(34.dp)
-                    .clickable(onClick = onAction)
+                    .heightIn(min = 48.dp)
+                    .clickable(role = Role.Button, onClick = onAction)
             ) {
                 Box(
-                    modifier = Modifier.padding(horizontal = NordicSpacing.md),
+                    modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         actionLabel,
                         style = MaterialTheme.typography.labelLarge,
-                        color = colorScheme.primary
+                        color = colorScheme.onPrimaryContainer
                     )
                 }
             }
@@ -191,10 +144,10 @@ fun CompactAlbumShelfCard(
 ) {
     CompactMusicShelfItem(
         title = album.name,
-        subtitle = album.artist ?: "Unknown artist",
+        subtitle = musicArtistLabel(album.artist),
         meta = buildString {
-            append("${album.songCount} tracks")
-            album.year?.let {
+            append(musicSongCountLabel(album.songCount))
+            album.year?.takeIf { it > 0 }?.let {
                 append(" / ")
                 append(it)
             }
@@ -216,8 +169,8 @@ fun SongShelfCard(
 ) {
     CompactMusicShelfItem(
         title = song.title,
-        subtitle = song.artist ?: "Unknown artist",
-        meta = formatDuration(song.duration),
+        subtitle = musicArtistLabel(song.artist),
+        meta = musicTrackDurationLabel(song.duration),
         artworkUrl = song.coverArt,
         contentDescription = song.title,
         colorScheme = colorScheme,
@@ -235,7 +188,7 @@ fun ArtistShelfCard(
 ) {
     CompactMusicShelfItem(
         title = artist.name,
-        subtitle = "${artist.albumCount} albums",
+        subtitle = musicAlbumCountLabel(artist.albumCount),
         meta = "Artist",
         artworkUrl = null,
         contentDescription = artist.name,
@@ -254,65 +207,12 @@ fun SongListRow(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {}
 ) {
-    Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
-        contentColor = colorScheme.onSurface,
-        shape = NordicShapes.md,
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),
-            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            CoverArt(
-                imageUrl = song.coverArt,
-                contentDescription = song.title,
-                colorScheme = colorScheme
-            )
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
-            ) {
-                Text(
-                    song.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    song.artist ?: "Unknown artist",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Normal,
-                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                song.album?.takeIf { it.isNotBlank() }?.let { album ->
-                    Text(
-                        album,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Normal,
-                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-
-            Text(
-                formatDuration(song.duration),
-                style = MaterialTheme.typography.bodySmall,
-                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                maxLines = 1
-            )
-        }
-    }
+    MusicLibraryRow(
+        title = song.title, subtitle = musicArtistLabel(song.artist), metadata = song.album,
+        trailingText = musicTrackDurationLabel(song.duration),
+        colorScheme = colorScheme, modifier = modifier, clickLabel = "播放歌曲", onClick = onClick,
+        artwork = { CoverArt(song.coverArt, song.title, colorScheme, fallbackIcon = Icons.Filled.MusicNote) }
+    )
 }
 
 @Composable
@@ -322,54 +222,12 @@ fun ArtistListRow(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {}
 ) {
-    Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
-        contentColor = colorScheme.onSurface,
-        shape = NordicShapes.md,
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
-        modifier = modifier.fillMaxWidth().clickable(onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),
-            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            CoverArt(
-                imageUrl = null,
-                contentDescription = artist.name,
-                colorScheme = colorScheme,
-                shape = NordicShapes.full,
-                initials = artist.initials
-            )
-
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
-            ) {
-                Text(
-                    artist.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    "${artist.albumCount} albums",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Normal,
-                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            Text(
-                "歌手",
-                style = MaterialTheme.typography.bodySmall,
-                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
-            )
-        }
-    }
+    MusicLibraryRow(
+        title = artist.name, subtitle = musicAlbumCountLabel(artist.albumCount),
+        colorScheme = colorScheme, modifier = modifier, clickLabel = "查看歌手", onClick = onClick,
+        artwork = { CoverArt(null, artist.name, colorScheme, shape = NordicShapes.full,
+            initials = artist.initials, fallbackIcon = Icons.Filled.Person) }
+    )
 }
 
 @Composable
@@ -385,17 +243,18 @@ private fun CompactMusicShelfItem(
     initials: String? = null,
     onClick: () -> Unit = {}
 ) {
+    val artworkSize = musicShelfArtworkSize(LocalDensity.current.fontScale)
     Column(
         modifier = modifier
-            .width(124.dp)
-            .clickable(onClick = onClick),
+            .width(artworkSize)
+            .clickable(role = Role.Button, onClick = onClick),
         verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
     ) {
         CoverArt(
             imageUrl = artworkUrl,
             contentDescription = contentDescription,
             colorScheme = colorScheme,
-            size = 124.dp,
+            size = artworkSize,
             shape = artworkShape,
             initials = initials
         )
@@ -403,16 +262,17 @@ private fun CompactMusicShelfItem(
         Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
             Text(
                 title,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.titleSmall,
                 color = colorScheme.onSurface,
-                maxLines = 1,
+                minLines = 2,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Normal,
-                color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
+                color = colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -420,7 +280,7 @@ private fun CompactMusicShelfItem(
                 meta,
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Normal,
-                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
+                color = colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
