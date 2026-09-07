@@ -173,7 +173,7 @@ internal fun MusicCollectionHeader(
 }
 
 @Composable
-private fun MusicCollectionDescription(itemId: String, text: String, colors: ColorScheme) {
+internal fun MusicCollectionDescription(itemId: String, text: String, colors: ColorScheme) {
     var expanded by rememberSaveable(itemId, text) { mutableStateOf(false) }
     var canExpand by remember(itemId, text) { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }

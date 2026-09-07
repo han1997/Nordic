@@ -489,7 +489,7 @@ private fun AudiobookBookmarkRow(
                     color = if (isCurrent) colorScheme.onPrimaryContainer else colorScheme.onSurface,
                     maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(formatDuration(bookmark.positionSeconds), style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
-                    color = if (isCurrent) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant)
+                    color = if (isCurrent) colorScheme.onPrimaryContainer.copy(alpha = 0.78f) else colorScheme.onSurfaceVariant)
             }
             MediaPlayerIconAction(MediaPlayerAction(Icons.Filled.Delete, "删除书签", onDelete), colorScheme, destructive = true)
         }

@@ -20,8 +20,13 @@ import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -122,6 +127,19 @@ internal fun sortAudiobookDetailChapters(chapters: List<AudiobookChapter>): List
         )
         .map { indexed -> indexed.value }
 }
+
+/**
+ * Audiobook detail overview shares the music collection layout policy
+ * (stacked on narrow/large-font widths, side-by-side with 128/160dp artwork
+ * otherwise) by delegating to the tested music resolver.
+ */
+internal fun resolveAudiobookCollectionLayout(
+    availableWidth: Dp,
+    fontScale: Float
+): MusicCollectionLayout = resolveMusicCollectionLayout(availableWidth, fontScale)
+
+internal fun audiobookAuthorLabel(author: String?): String =
+    author?.trim()?.takeIf { it.isNotEmpty() } ?: "未知作者"
 
 @Composable
 fun AudiobookScreen(
@@ -392,7 +410,7 @@ fun AudiobookScreen(
                         else -> "连接 AudiobookShelf 后自动加载书库"
                     }
                     AudiobookLibraryPage.Detail -> refreshErrorSubtitle
-                        ?: selectedItem?.authors?.joinToString(" / ").orEmpty()
+                        ?: audiobookAuthorLabel(selectedItem?.authors?.joinToString(" / "))
                 },
                 actions = buildList {
                     if (savedConfig.isReadyForAudiobookSync()) {
@@ -592,7 +610,7 @@ fun AudiobookScreen(
                         Text(
                             "章节",
                             style = MaterialTheme.typography.titleMedium,
-                            color = colorScheme.onBackground
+                            color = colorScheme.onSurface
                         )
                     }
                         items(detailChapters, key = { it.id }, contentType = { "audiobook-chapter-row" }) { chapter ->
@@ -668,9 +686,7 @@ private fun AudiobookSummaryCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (item.author.isNotBlank()) {
-                    Text(item.author, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Normal, color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
+                Text(audiobookAuthorLabel(item.author), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Normal, color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 val meta = remember(item) {
                     buildList {
                         if (item.narrator.isNotBlank()) add("播讲 ${item.narrator}")
@@ -701,74 +717,93 @@ private fun AudiobookSummaryCard(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AudiobookDetailHeader(
     item: AudiobookItemDetail,
     colorScheme: ColorScheme,
     onPlay: () -> Unit
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(NordicSpacing.lg)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.lg),
-            verticalAlignment = Alignment.Top
-        ) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val layout = resolveAudiobookCollectionLayout(maxWidth, LocalDensity.current.fontScale)
+        val artwork: @Composable () -> Unit = {
             CoverArt(
                 imageUrl = item.coverUrl,
                 contentDescription = item.title,
                 colorScheme = colorScheme,
-                modifier = Modifier.size(128.dp),
+                modifier = Modifier.size(layout.artworkSize),
                 shape = NordicShapes.md,
                 fallbackIcon = Icons.AutoMirrored.Filled.MenuBook
             )
+        }
+        val details: @Composable () -> Unit = {
             Column(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = if (layout.stacked) Alignment.CenterHorizontally else Alignment.Start,
                 verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
             ) {
-                Text(item.title, style = MaterialTheme.typography.headlineMedium, color = colorScheme.onSurface)
+                Text(item.title, style = MaterialTheme.typography.headlineMedium, color = colorScheme.onSurface,
+                    textAlign = if (layout.stacked) TextAlign.Center else TextAlign.Start,
+                    maxLines = 3, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.semantics { heading() })
                 if (item.subtitle.isNotBlank()) {
-                    Text(item.subtitle, style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium))
+                    Text(item.subtitle, style = MaterialTheme.typography.bodyMedium,
+                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
+                        textAlign = if (layout.stacked) TextAlign.Center else TextAlign.Start,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
-                if (item.authors.isNotEmpty()) {
-                    Text(item.authors.joinToString(" / "), style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium))
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+                Text(audiobookAuthorLabel(item.authors.joinToString(" / ").takeIf { it.isNotBlank() }),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
+                    textAlign = if (layout.stacked) TextAlign.Center else TextAlign.Start,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis)
+                FlowRow(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm,
+                        if (layout.stacked) Alignment.CenterHorizontally else Alignment.Start),
+                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
+                ) {
                     MetaChip("${item.chapters.size} 章", colorScheme)
                     MetaChip(formatDuration(item.durationSeconds), colorScheme)
-                }
-                item.progress?.let { progress ->
-                    MetaChip("续播 ${formatDuration(progress.currentTimeSeconds)}", colorScheme)
+                    item.progress?.let { progress ->
+                        MetaChip("续播 ${formatDuration(progress.currentTimeSeconds)}", colorScheme)
+                    }
                 }
                 PrimaryActionButton(
                     text = "继续播放",
                     colorScheme = colorScheme,
-                    onClick = onPlay
+                    onClick = onPlay,
+                    modifier = Modifier.widthIn(max = 360.dp)
                 )
             }
         }
-
-        if (item.description.isNotBlank()) {
-            Surface(
-                color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                shape = NordicShapes.lg,
-                border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.05f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(NordicSpacing.lg),
-                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
+        Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.lg)) {
+            if (layout.stacked) {
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.lg)) {
+                    artwork()
+                    details()
+                }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.xxl), verticalAlignment = Alignment.Top) {
+                    artwork()
+                    Box(Modifier.weight(1f)) { details() }
+                }
+            }
+            if (item.description.isNotBlank()) {
+                Surface(
+                    color = colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    shape = NordicShapes.lg,
+                    border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("简介", style = MaterialTheme.typography.titleMedium, color = colorScheme.onSurface)
-                    Text(
-                        item.description,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Normal,
-                        lineHeight = 19.sp,
-                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium)
-                    )
+                    Column(
+                        modifier = Modifier.padding(NordicSpacing.lg),
+                        verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
+                    ) {
+                        Text("简介", style = MaterialTheme.typography.titleMedium, color = colorScheme.onSurface)
+                        MusicCollectionDescription(item.id, item.description, colorScheme)
+                    }
                 }
             }
         }
