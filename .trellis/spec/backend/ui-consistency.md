@@ -112,3 +112,4 @@ Text("播放", color = colorScheme.onPrimary)
 - 视频域节头（推荐区、全部 N 项、分集）使用 `headlineMedium` + `onBackground` + `Modifier.semantics { heading() }` + SemiBold，与音乐首页节头同一规范。
 - 视频海报推荐卡宽度使用 `videoShelfCardSize(fontScale)`（132dp × 钳制 scale，上限 176dp），与音乐 `musicShelfArtworkSize` 同一增长策略；不得写固定宽度。
 - 视频详情分集筛选、播放器倍速面板选择行分别复用 `MediaChoiceChip`（含 `selectableGroup`）与 `MediaPlayerChoiceRow`；不得另写裸 `clickable` 自绘选中样式。
+- 配置页表单遵循同一语言：`ConfigTextField` 用 TextField `label` 参数承载字段名（自带关联语义），placeholder/输入统一 `bodyLarge`；服务器卡片容器 `surfaceVariant` 0.5 alpha + md 圆角 + 标题 heading 语义；保存/测试连接使用 `PrimaryActionButton`/`SecondaryActionButton`；状态消息最多三行省略。服务器类型选择复用 `MediaChoiceChip`（enabled 表达支持状态），不另写自绘选中容器。

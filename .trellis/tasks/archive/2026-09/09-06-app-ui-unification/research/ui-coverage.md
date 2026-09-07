@@ -8,7 +8,7 @@
 |---|---|---|---|---|---|---|---|
 | 全局 | 底部导航 / 播放 Dock / 收起把手 | `MainActivity.kt, PlaybackDock.kt` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
 | 公共 | 页面标题 / 返回 / 操作菜单 | `SharedComponents.kt, AnimatedComponents.kt` | 共享组件已改；占位矩阵通过，更多菜单/字体真机待验 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 公共 | 加载 / 空内容 / 配置缺失 / 失败与重试 | `MediaStateComponents.kt` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
+| 公共 | 加载 / 空内容 / 配置缺失 / 失败与重试 | `MediaStateComponents.kt` | 第六批已审查：标题 heading 语义、Compact 边框 0.045f 对齐卡片家族 | 待验证 | 待验证 | 待验证 | 待验证 |
 | 音乐 | 发现首页 / 最近播放 / 推荐与快捷入口 | `MusicScreenV2Pages.kt:MusicHomePage, MusicHomeSections.kt` | 概览/卡片/中文文案已统一；待真机验证 | 待验证 | 待验证 | 待验证 | 待验证 |
 | 音乐 | 歌曲列表 / 排序 / 全部播放 | `MusicScreenV2Pages.kt:MusicSongsPage` | 列表/时长自适应已统一；待真机验证 | 待验证 | 待验证 | 待验证 | 待验证 |
 | 音乐 | 专辑列表 / 排序 | `MusicScreenV2Pages.kt:MusicAlbumsPage` | 列表/封面兜底已统一；待真机验证 | 待验证 | 待验证 | 待验证 | 待验证 |
@@ -39,10 +39,10 @@
 | 视频 | 倍速面板 | `VideoPlayerPanels.kt:Speed` | 第五批已改动：选择行迁移 MediaPlayerChoiceRow（primaryContainer + 勾选） | 待验证 | 待验证 | 待验证 | 待验证 |
 | 视频 | 影片信息面板 | `VideoPlayerPanels.kt:Info` | 入口已审查；信息行排版合规，无进一步改动 | 待验证 | 待验证 | 待验证 | 待验证 |
 | 视频 | 按季选集面板 | `VideoPlayerPanels.kt:Episodes` | 入口已审查；季筛选为面板内 M3 FilterChip（深色面板上下文），保留 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 配置 | 配置首页 / 主题操作 / 保存反馈 | `ServerConfigScreen.kt` | 共享主题/页头已更新；表单与反馈仍待精查 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 配置 | Navidrome 表单 / 测试连接 / 校验 | `ConfigCards.kt:NavidromeConfigCard` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 配置 | AudiobookShelf 表单 / 测试连接 / 校验 | `ConfigCards.kt:AudiobookConfigCard` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
-| 配置 | Emby 表单 / 认证方式 / 不支持服务说明 | `ConfigCards.kt:VideoConfigCard` | 入口已盘点，待逐项审查 | 待验证 | 待验证 | 待验证 | 待验证 |
+| 配置 | 配置首页 / 主题操作 / 保存反馈 | `ServerConfigScreen.kt` | 共享主题/页头已更新；第六批：状态消息限三行、卡片容器对齐 | 待验证 | 待验证 | 待验证 | 待验证 |
+| 配置 | Navidrome 表单 / 测试连接 / 校验 | `ConfigCards.kt:NavidromeConfigCard` | 第六批已改动：卡片 heading/容器、输入框 label 语义与 bodyLarge 统一、主次动作按钮 48dp+ | 待验证 | 待验证 | 待验证 | 待验证 |
+| 配置 | AudiobookShelf 表单 / 测试连接 / 校验 | `ConfigCards.kt:AudiobookConfigCard` | 第六批已改动：同 Navidrome 卡片统一 | 待验证 | 待验证 | 待验证 | 待验证 |
+| 配置 | Emby 表单 / 认证方式 / 不支持服务说明 | `ConfigCards.kt:VideoConfigCard` | 第六批已改动：类型选择迁移 MediaChoiceChip + selectableGroup、表单/按钮统一 | 待验证 | 待验证 | 待验证 | 待验证 |
 
 ## 通用状态矩阵
 
