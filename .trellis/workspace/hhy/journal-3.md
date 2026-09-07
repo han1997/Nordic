@@ -1451,3 +1451,37 @@ Verified Kotlin compilation, unit tests, and lint; committed the app-wide UI com
 ### Next Steps
 
 - None - task complete
+
+
+## Session 159: 音乐域播放器三面 UI 精修
+
+**Date**: 2026-09-07
+**Task**: 音乐域播放器三面 UI 精修
+**Branch**: `main`
+
+### Summary
+
+第三批音乐域精修：MusicQueueSheet 迁移到共享 MediaPlayerSheet，MediaPlayerSheetHeader 新增 trailingAction 槽位承载「清空后续」；队列行歌手缺省文案统一为「未知歌手」，拖拽把手与「下一首」按钮提升到 48dp 触达目标，删除未用的 onMoveUp/onMoveDown 参数并提取 520dp 列表高度常量。MusicEqualizerSheet 预设 chip 补 selectable/Role.RadioButton 单选语义，选中样式对齐 primaryContainer/onPrimaryContainer，最小高度 48dp，频率/dB 标签改 widthIn 支持大字体。MusicPlayerScreen 的 seek 反馈与收藏失败两个 transient pill 合并为共享 MediaTransientPill，歌词字号 16/18sp 显式常量化并在 spec 记录展示面例外。质量门禁全绿（compile + 525 单测 0 失败 + lint 0 错误 + assembleDebug），APK 与第三批 manual-checklist.md 已交付待真机验收。spec ui-consistency.md 沉淀 trailing 槽位、transient pill、均衡器 chip 语义与歌词字号例外契约。gradle.properties 为用户本地配置，未提交。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `21b1b55` | (see git log) |
+| `8cfb7c2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
