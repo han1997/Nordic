@@ -1,0 +1,4 @@
+﻿{"file": ".trellis/spec/backend/index.md", "reason": "Spec index with pre-development checklist and verification commands"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Emby API/repository contract when extending DTO and stream mapping"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Token system, verification gates, persistence conventions"}
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "Shared sheet/choice-row language for the new Tracks panel"}
