@@ -1587,3 +1587,37 @@ Verified Kotlin compilation, unit tests, and lint; committed the app-wide UI com
 ### Next Steps
 
 - None - task complete
+
+
+## Session 163: 视频字幕音轨选择与播放偏好持久化
+
+**Date**: 2026-09-08
+**Task**: 视频字幕音轨选择与播放偏好持久化
+**Branch**: `main`
+
+### Summary
+
+视频功能补全第一批：Emby getItems 请求补 MediaStreams 字段，新增 EmbyMediaStreamDto 并映射为 VideoStreamInfo/VideoStreamKind 域模型；VideoPlaybackEngine 为外挂字幕生成 VTT SubtitleConfiguration（从服务器 origin 重建 URL 避免路径泄漏，认证复用共享 OkHttp 拦截器），onTracksChanged 发布可用音轨/字幕轨，onCues 推送字幕内容到外置 SubtitleView（AndroidView 叠加在 Surface 上层，按需组合）；新增 setPreferredTextTrack/setPreferredAudioTrack 基于 TrackSelectionParameters override，字幕默认关闭由用户面板选择；UI 新增 VideoPlayerPanel.Tracks「字幕与音轨」面板（复用 MediaPlayerChoiceRow 统一选中语言）+ Settings 入口摘要行；倍速经 EncryptedConfigStore 新 key 持久化，ViewModel 启动恢复并在每次 setMediaItem 时应用。新增 6 个单测（VTT URL 构造/外挂描述符过滤/非法输入/倍速存取），总 532 用例全绿；lint 0 错误（补 @OptIn(UnstableApi) 两处）；assembleDebug 通过。过程中 Kotlin daemon 连接故障导致假 Unresolved 错误，改用 in-process 编译策略绕过。后续批次：PiP（独立任务，默认开+关窗即停）、章节/PlaybackInfo/片头跳过。gradle.properties 为用户本地配置，未提交。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f0da5a4` | (see git log) |
+| `1b0e78f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

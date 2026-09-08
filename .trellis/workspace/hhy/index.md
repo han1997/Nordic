@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-3.md`
-- **Total Sessions**: 162
+- **Total Sessions**: 163
 - **Last Active**: 2026-09-08
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-3.md` | ~1589 | Active |
+| `journal-3.md` | ~1623 | Active |
 | `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
@@ -31,6 +31,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 163 | 2026-09-08 | 视频字幕音轨选择与播放偏好持久化 | `f0da5a4`, `1b0e78f` | `main` |
 | 162 | 2026-09-08 | 配置域与公共状态组件精修（UI 统一收官批） | `609f57c`, `8c4c47b` | `main` |
 | 161 | 2026-09-07 | 视频域 UI 精修 | `5e26cd9`, `6195e08` | `main` |
 | 160 | 2026-09-07 | 有声书域 UI 精修 | `2391a15`, `f0478b2` | `main` |
