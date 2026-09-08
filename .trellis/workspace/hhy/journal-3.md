@@ -1621,3 +1621,36 @@ Verified Kotlin compilation, unit tests, and lint; committed the app-wide UI com
 ### Next Steps
 
 - None - task complete
+
+
+## Session 164: 视频画中画任务收尾归档
+
+**Date**: 2026-09-08
+**Task**: 视频画中画任务收尾归档
+**Branch**: `main`
+
+### Summary
+
+恢复未提交的 PiP 实现并完成数据/ViewModel/UI/Activity 贯通检查；修正 ON_STOP 关窗语义与自动进入时机；完整 compile/test/lint/assemble 全绿（546 单测、lint 0 错误）。工作提交 ba039b2。真机验收因无连接设备推迟，用户决定先归档任务。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ba039b2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
