@@ -9,6 +9,9 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.common.TrackSelectionParameters
+import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.okhttp.OkHttpDataSource
@@ -16,6 +19,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.nordic.mediahub.data.MediaAuthHeaderInterceptor
 import com.nordic.mediahub.data.VideoItem
+import com.nordic.mediahub.data.VideoStreamInfo
+import com.nordic.mediahub.data.VideoStreamKind
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -59,14 +65,90 @@ data class VideoPlaybackState(
     val errorMessage: String? = null,
     val aspectRatioMode: AspectRatioMode = AspectRatioMode.FIT,
     val videoAspectRatio: Float = 16f / 9f,
-    val playbackSpeed: Float = 1f
+    val playbackSpeed: Float = 1f,
+    val availableAudioStreams: List<VideoStreamInfo> = emptyList(),
+    val availableSubtitleStreams: List<VideoStreamInfo> = emptyList(),
+    val selectedSubtitleStream: VideoStreamInfo? = null,
+    val selectedAudioStream: VideoStreamInfo? = null
 )
+
+/**
+ * Resolves the Emby external-subtitle delivery URL for a stream index. The
+ * request itself is authenticated through the shared OkHttp interceptor, so
+ * no token is embedded in the URL.
+ */
+internal fun resolveExternalSubtitleUrl(baseUrl: String, itemId: String, streamIndex: Int): String? {
+    val base = baseUrl.toHttpUrlOrNull() ?: return null
+    val safeItemId = itemId.trim().takeIf { it.isNotBlank() } ?: return null
+    if (streamIndex < 0) return null
+    return base.newBuilder()
+        .addPathSegment("Videos")
+        .addPathSegment(safeItemId)
+        .addPathSegment(streamIndex.toString())
+        .addPathSegment("Subtitles")
+        .addQueryParameter("format", "vtt")
+        .build()
+        .toString()
+}
+
+/**
+ * Builds the Media3 subtitle configurations for external subtitle streams of
+ * a video. Selection stays off by default; the user opts in from the tracks
+ * panel.
+ */
+@androidx.annotation.OptIn(UnstableApi::class)
+internal fun externalSubtitleConfigurations(video: VideoItem): List<MediaItem.SubtitleConfiguration> {
+    return externalSubtitleDescriptors(video).map { descriptor ->
+        MediaItem.SubtitleConfiguration.Builder(android.net.Uri.parse(descriptor.url))
+            .setId(descriptor.id)
+            .setLabel(descriptor.label)
+            .setLanguage(descriptor.language)
+            .setMimeType(androidx.media3.common.MimeTypes.TEXT_VTT)
+            .build()
+    }
+}
+
+internal data class ExternalSubtitleDescriptor(
+    val url: String,
+    val id: String,
+    val label: String,
+    val language: String?
+)
+
+/** Pure (Uri-free) descriptor builder so the mapping stays unit-testable. */
+internal fun externalSubtitleDescriptors(video: VideoItem): List<ExternalSubtitleDescriptor> {
+    val baseUrl = video.streamUrl ?: return emptyList()
+    val streamBase = baseUrl.toHttpUrlOrNull() ?: return emptyList()
+    // Rebuild from the server origin so leftover stream path segments do not
+    // leak into the subtitle delivery path.
+    val originBase = streamBase.newBuilder()
+        .encodedPath("/")
+        .query(null)
+        .fragment(null)
+        .build()
+    return video.mediaStreams
+        .filter { it.kind == VideoStreamKind.Subtitle && it.isExternal }
+        .mapNotNull { stream ->
+            val url = resolveExternalSubtitleUrl(
+                baseUrl = originBase.toString(),
+                itemId = video.id,
+                streamIndex = stream.index
+            ) ?: return@mapNotNull null
+            ExternalSubtitleDescriptor(
+                url = url,
+                id = "emby-subtitle-${stream.index}",
+                label = stream.displayTitle ?: stream.language ?: "字幕 ${stream.index}",
+                language = stream.language
+            )
+        }
+}
 
 interface VideoPlaybackBackend {
     val state: StateFlow<VideoPlaybackState>
 
     fun attachSurface(surfaceView: SurfaceView)
     fun detachSurface(surfaceView: SurfaceView)
+    fun setSubtitleView(view: androidx.media3.ui.SubtitleView?)
     fun play(video: VideoItem)
     fun playFromStart(video: VideoItem)
     fun togglePlayPause()
@@ -74,6 +156,8 @@ interface VideoPlaybackBackend {
     fun seekBackBy(intervalSeconds: Int = VIDEO_SKIP_BACK_SECONDS)
     fun seekForwardBy(intervalSeconds: Int = VIDEO_SKIP_FORWARD_SECONDS)
     fun cycleAspectRatio()
+    fun setPreferredTextTrack(stream: VideoStreamInfo?)
+    fun setPreferredAudioTrack(stream: VideoStreamInfo?)
     fun stop()
     fun release()
 }
@@ -101,6 +185,10 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
         .setHandleAudioBecomingNoisy(true)
         .build()
     private var positionUpdateJob: Job? = null
+
+    /** Playback speed restored from persisted preferences; applied on each new media item. */
+    @Volatile
+    private var persistedPlaybackSpeed: Float = 1f
 
     private val _state = MutableStateFlow(VideoPlaybackState())
     override val state: StateFlow<VideoPlaybackState> = _state.asStateFlow()
@@ -141,9 +229,35 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
                 )
             }
         }
+
+        override fun onTracksChanged(tracks: Tracks) {
+            val video = _state.value.video ?: return
+            _state.update {
+                it.copy(
+                    availableAudioStreams = video.availableStreamsFor(VideoStreamKind.Audio, tracks),
+                    availableSubtitleStreams = video.availableStreamsFor(VideoStreamKind.Subtitle, tracks),
+                    selectedSubtitleStream = it.selectedSubtitleStream?.takeIf { selected ->
+                        video.availableStreamsFor(VideoStreamKind.Subtitle, tracks).any { s -> s.index == selected.index }
+                    },
+                    selectedAudioStream = it.selectedAudioStream?.takeIf { selected ->
+                        video.availableStreamsFor(VideoStreamKind.Audio, tracks).any { s -> s.index == selected.index }
+                    }
+                )
+            }
+        }
+
+        override fun onCues(cues: MutableList<androidx.media3.common.text.Cue>) {
+            currentCues = cues.toList()
+            subtitleView?.setCues(currentCues)
+        }
     }
 
     init {
+        // Subtitles stay off until the user picks a track from the panel.
+        player.trackSelectionParameters = player.trackSelectionParameters
+            .buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+            .build()
         player.addListener(playerListener)
     }
 
@@ -154,6 +268,14 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
     override fun detachSurface(surfaceView: SurfaceView) {
         player.clearVideoSurfaceView(surfaceView)
     }
+
+    override fun setSubtitleView(view: androidx.media3.ui.SubtitleView?) {
+        subtitleView = view
+        view?.setCues(currentCues)
+    }
+
+    private var subtitleView: androidx.media3.ui.SubtitleView? = null
+    private var currentCues: List<androidx.media3.common.text.Cue> = emptyList()
 
     override fun play(video: VideoItem) {
         if (video.streamUrl.isNullOrBlank()) {
@@ -169,9 +291,11 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
             _state.value = VideoPlaybackState(
                 video = video,
                 durationSeconds = video.durationSeconds,
-                isBuffering = true
+                isBuffering = true,
+                playbackSpeed = persistedPlaybackSpeed
             )
             player.setMediaItem(video.toMediaItem())
+            player.setPlaybackSpeed(persistedPlaybackSpeed)
             player.prepare()
             val startPositionMs = resolveVideoInitialStartPositionMs(video)
             if (startPositionMs > 0L) {
@@ -205,9 +329,11 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
             _state.value = VideoPlaybackState(
                 video = video,
                 durationSeconds = video.durationSeconds,
-                isBuffering = true
+                isBuffering = true,
+                playbackSpeed = persistedPlaybackSpeed
             )
             player.setMediaItem(video.toMediaItem())
+            player.setPlaybackSpeed(persistedPlaybackSpeed)
             player.prepare()
         } else {
             _state.update { it.copy(errorMessage = null) }
@@ -256,6 +382,49 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
 
     fun setPlaybackSpeed(speed: Float) {
         val safeSpeed = resolveSafePlaybackSpeed(speed)
+        player.setPlaybackSpeed(safeSpeed)
+        publishPlayerState()
+    }
+
+    override fun setPreferredTextTrack(stream: VideoStreamInfo?) {
+        _state.update { it.copy(selectedSubtitleStream = stream) }
+        if (stream == null) {
+            player.trackSelectionParameters = player.trackSelectionParameters
+                .buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+                .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+                .build()
+            return
+        }
+        val override = player.currentTracks.groups
+            .filter { it.type == C.TRACK_TYPE_TEXT }
+            .firstOrNull { it.mediaTrackGroup.id == stream.index.toString() }
+            ?.let { TrackSelectionOverride(it.mediaTrackGroup, 0) }
+        player.trackSelectionParameters = player.trackSelectionParameters
+            .buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+            .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+            .apply { override?.let { addOverride(it) } }
+            .build()
+    }
+
+    override fun setPreferredAudioTrack(stream: VideoStreamInfo?) {
+        _state.update { it.copy(selectedAudioStream = stream) }
+        if (stream == null) return
+        val override = player.currentTracks.groups
+            .filter { it.type == C.TRACK_TYPE_AUDIO }
+            .firstOrNull { it.mediaTrackGroup.id == stream.index.toString() }
+            ?.let { TrackSelectionOverride(it.mediaTrackGroup, 0) }
+        player.trackSelectionParameters = player.trackSelectionParameters
+            .buildUpon()
+            .clearOverridesOfType(C.TRACK_TYPE_AUDIO)
+            .apply { override?.let { addOverride(it) } }
+            .build()
+    }
+
+    fun applyPersistedPlaybackSpeed(speed: Float) {
+        val safeSpeed = resolveSafePlaybackSpeed(speed)
+        persistedPlaybackSpeed = safeSpeed
         player.setPlaybackSpeed(safeSpeed)
         publishPlayerState()
     }
@@ -376,8 +545,29 @@ internal fun resolveVideoAspectRatio(
     return width.toFloat() / height.toFloat() * safePixelRatio
 }
 
+/**
+ * Filters the video's declared streams of [kind] down to the ones actually
+ * exposed to the player (embedded tracks appear in [tracks]; external
+ * subtitle tracks are always offered since Media3 loads them lazily).
+ */
+@androidx.annotation.OptIn(UnstableApi::class)
+private fun VideoItem.availableStreamsFor(kind: VideoStreamKind, tracks: Tracks): List<VideoStreamInfo> {
+    val declared = mediaStreams.filter { it.kind == kind }
+    val externalSubtitle = kind == VideoStreamKind.Subtitle
+    return declared.filter { stream ->
+        externalSubtitle || tracks.groups.any { group ->
+            group.type == trackTypeFor(kind) && stream.index.toString() == group.mediaTrackGroup.id
+        }
+    }
+}
+
+private fun trackTypeFor(kind: VideoStreamKind): Int = when (kind) {
+    VideoStreamKind.Audio -> C.TRACK_TYPE_AUDIO
+    VideoStreamKind.Subtitle -> C.TRACK_TYPE_TEXT
+}
+
 private fun VideoItem.toMediaItem(): MediaItem {
-    return MediaItem.Builder()
+    val builder = MediaItem.Builder()
         .setUri(streamUrl)
         .setMediaId(id)
         .setMediaMetadata(
@@ -386,5 +576,9 @@ private fun VideoItem.toMediaItem(): MediaItem {
                 .setDescription(overview)
                 .build()
         )
-        .build()
+    val subtitleConfigurations = externalSubtitleConfigurations(this)
+    if (subtitleConfigurations.isNotEmpty()) {
+        builder.setSubtitleConfigurations(subtitleConfigurations)
+    }
+    return builder.build()
 }

@@ -214,6 +214,40 @@ class EncryptedConfigStoreTest {
         assertFalse(initial.isReadyForVideoSync())
     }
 
+    @Test
+    fun videoPlaybackSpeed_emitsNullWhenUnsetAndValueOnSave() = runBlocking {
+        val prefs = FakeSharedPreferences()
+        val store = EncryptedConfigStore(
+            context = null,
+            prefsProvider = { prefs },
+            legacyDataStoreSnapshot = { emptyMap() },
+            removeLegacyCredentialKeys = {}
+        )
+        assertNull(store.videoPlaybackSpeed.first())
+
+        val updated = async(start = CoroutineStart.UNDISPATCHED) {
+            store.videoPlaybackSpeed.first { it != null }
+        }
+        store.saveVideoPlaybackSpeed(1.5f)
+
+        assertEquals(1.5f, updated.await())
+    }
+
+    @Test
+    fun videoPlaybackSpeed_ignoresInvalidStoredValues() = runBlocking {
+        val prefs = FakeSharedPreferences()
+        prefs.edit()
+            .putString(EncryptedConfigKeys.VIDEO_PLAYBACK_SPEED, "not-a-number")
+            .commit()
+        val store = EncryptedConfigStore(
+            context = null,
+            prefsProvider = { prefs },
+            legacyDataStoreSnapshot = { emptyMap() },
+            removeLegacyCredentialKeys = {}
+        )
+        assertNull(store.videoPlaybackSpeed.first())
+    }
+
     private fun FakeSharedPreferences.writeNavidrome(url: String, user: String, pass: String) {
         edit()
             .putString(EncryptedConfigKeys.NAVIDROME_URL, url)

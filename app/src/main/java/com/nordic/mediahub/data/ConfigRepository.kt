@@ -19,6 +19,8 @@ class ConfigRepository(context: Context) {
 
     val videoConfig: Flow<VideoServerConfig> = store.videoConfig
 
+    val videoPlaybackSpeed: Flow<Float?> = store.videoPlaybackSpeed
+
     suspend fun saveNavidromeConfig(config: NavidromeConfig) {
         store.saveNavidromeConfig(config)
     }
@@ -33,6 +35,10 @@ class ConfigRepository(context: Context) {
 
     suspend fun saveVideoConfig(config: VideoServerConfig) {
         store.saveVideoConfig(config)
+    }
+
+    suspend fun saveVideoPlaybackSpeed(speed: Float) {
+        store.saveVideoPlaybackSpeed(speed)
     }
 }
 

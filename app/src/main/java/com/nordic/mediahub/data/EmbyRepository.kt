@@ -2,6 +2,7 @@ package com.nordic.mediahub.data
 
 import android.util.Log
 import com.nordic.mediahub.api.EmbyApi
+import com.nordic.mediahub.api.EmbyMediaStreamDto
 import com.nordic.mediahub.api.EmbyAuthenticateRequest
 import com.nordic.mediahub.api.EmbyItemDto
 import com.nordic.mediahub.api.EmbyPlaybackProgressRequest
@@ -42,8 +43,21 @@ data class VideoItem(
     val episodeNumber: Int? = null,
     val imageUrl: String? = null,
     val backdropImageUrl: String? = null,
-    val streamUrl: String? = null
+    val streamUrl: String? = null,
+    val mediaStreams: List<VideoStreamInfo> = emptyList()
 )
+
+/** A single audio/subtitle stream exposed by the server for track selection. */
+data class VideoStreamInfo(
+    val index: Int,
+    val kind: VideoStreamKind,
+    val codec: String?,
+    val language: String?,
+    val displayTitle: String?,
+    val isExternal: Boolean
+)
+
+enum class VideoStreamKind { Audio, Subtitle }
 
 data class VideoCatalog(
     val libraries: List<VideoLibrary>,
@@ -297,7 +311,25 @@ class EmbyRepository(private val config: VideoServerConfig) {
             episodeNumber = indexNumber,
             imageUrl = primaryImageUrl(itemId, token, imageTags.orEmpty()["Primary"]),
             backdropImageUrl = resolvedBackdrop,
-            streamUrl = if (isDirectlyPlayableVideoType(type)) streamUrl(itemId, token) else null
+            streamUrl = if (isDirectlyPlayableVideoType(type)) streamUrl(itemId, token) else null,
+            mediaStreams = mediaStreams.orEmpty().mapNotNull { it.toVideoStreamInfo() }
+        )
+    }
+
+    private fun EmbyMediaStreamDto.toVideoStreamInfo(): VideoStreamInfo? {
+        val streamIndex = index ?: return null
+        val kind = when (type?.uppercase()) {
+            "AUDIO" -> VideoStreamKind.Audio
+            "SUBTITLE" -> VideoStreamKind.Subtitle
+            else -> return null
+        }
+        return VideoStreamInfo(
+            index = streamIndex,
+            kind = kind,
+            codec = codec?.takeIf { it.isNotBlank() },
+            language = language?.takeIf { it.isNotBlank() },
+            displayTitle = (displayTitle ?: title)?.takeIf { it.isNotBlank() },
+            isExternal = isExternal == true
         )
     }
 

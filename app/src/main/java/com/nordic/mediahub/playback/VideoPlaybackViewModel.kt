@@ -86,6 +86,14 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
             .onEach { _repository.value = it }
             .launchIn(viewModelScope)
 
+        // Restore the persisted playback speed once at startup so every new
+        // media item starts at the user's preferred rate.
+        viewModelScope.launch {
+            configRepository.videoPlaybackSpeed.collect { speed ->
+                if (speed != null) engine.applyPersistedPlaybackSpeed(speed)
+            }
+        }
+
         combine(state.map { it.video?.id }, _repository) { videoId, repo ->
             videoId to repo
         }.distinctUntilChanged().onEach { (_, repo) ->
@@ -270,7 +278,18 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
 
     fun cycleAspectRatio() = engine.cycleAspectRatio()
 
-    fun setPlaybackSpeed(speed: Float) = engine.setPlaybackSpeed(speed)
+    fun setPlaybackSpeed(speed: Float) {
+        engine.setPlaybackSpeed(speed)
+        viewModelScope.launch { configRepository.saveVideoPlaybackSpeed(speed) }
+    }
+
+    fun setPreferredTextTrack(stream: com.nordic.mediahub.data.VideoStreamInfo?) =
+        engine.setPreferredTextTrack(stream)
+
+    fun setPreferredAudioTrack(stream: com.nordic.mediahub.data.VideoStreamInfo?) =
+        engine.setPreferredAudioTrack(stream)
+
+    fun attachSubtitleView(view: androidx.media3.ui.SubtitleView?) = engine.setSubtitleView(view)
 
     fun attachSurface(surfaceView: android.view.SurfaceView) = engine.attachSurface(surfaceView)
 

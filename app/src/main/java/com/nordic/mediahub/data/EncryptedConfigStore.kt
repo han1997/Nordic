@@ -31,11 +31,12 @@ internal object EncryptedConfigKeys {
     const val AUDIOBOOK_PASS = "audiobook_pass"
     const val AUDIOBOOK_LAST_ITEM_ID = "audiobook_last_item_id"
 
-    const val VIDEO_TYPE = "video_type"
-    const val VIDEO_URL = "video_url"
-    const val VIDEO_USER = "video_user"
-    const val VIDEO_PASS = "video_pass"
-    const val VIDEO_API_KEY = "video_api_key"
+        const val VIDEO_TYPE = "video_type"
+        const val VIDEO_URL = "video_url"
+        const val VIDEO_USER = "video_user"
+        const val VIDEO_PASS = "video_pass"
+        const val VIDEO_API_KEY = "video_api_key"
+        const val VIDEO_PLAYBACK_SPEED = "video_playback_speed"
 
     val ALL = listOf(
         NAVIDROME_URL, NAVIDROME_USER, NAVIDROME_PASS,
@@ -155,6 +156,16 @@ class EncryptedConfigStore(
                 ?.takeIf { it.isNotBlank() }
         }
 
+    /** Persisted video playback speed; null when unset (defaults to 1x). */
+    val videoPlaybackSpeed: Flow<Float?> =
+        configFlow(
+            watchedKeys = setOf(EncryptedConfigKeys.VIDEO_PLAYBACK_SPEED)
+        ) { p ->
+            p.getString(EncryptedConfigKeys.VIDEO_PLAYBACK_SPEED, null)
+                ?.toFloatOrNull()
+                ?.takeIf { it.isFinite() && it > 0f }
+        }
+
     val videoConfig: Flow<VideoServerConfig> =
         configFlow(
             watchedKeys = setOf(
@@ -198,6 +209,14 @@ class EncryptedConfigStore(
         withContext(Dispatchers.IO) {
             prefs.edit()
                 .putString(EncryptedConfigKeys.AUDIOBOOK_LAST_ITEM_ID, itemId)
+                .commit()
+        }
+    }
+
+    suspend fun saveVideoPlaybackSpeed(speed: Float) {
+        withContext(Dispatchers.IO) {
+            prefs.edit()
+                .putString(EncryptedConfigKeys.VIDEO_PLAYBACK_SPEED, speed.toString())
                 .commit()
         }
     }

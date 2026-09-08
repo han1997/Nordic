@@ -153,6 +153,9 @@ fun VideoPlayerScreen(
     onPlayPause: () -> Unit,
     onCycleAspectRatio: () -> Unit = {},
     onSetPlaybackSpeed: (Float) -> Unit = {},
+    onSetPreferredTextTrack: (com.nordic.mediahub.data.VideoStreamInfo?) -> Unit = {},
+    onSetPreferredAudioTrack: (com.nordic.mediahub.data.VideoStreamInfo?) -> Unit = {},
+    onAttachSubtitleView: (androidx.media3.ui.SubtitleView?) -> Unit = {},
     nextEpisode: VideoItem? = null,
     episodeContext: List<VideoItem> = emptyList(),
     onPlayEpisode: (VideoItem) -> Unit = {},
@@ -289,6 +292,18 @@ fun VideoPlayerScreen(
                     onSurfaceDisposed = surfaceDisposedCallback,
                     modifier = Modifier.fillMaxSize()
                 )
+                if (state.selectedSubtitleStream != null) {
+                    AndroidView(
+                        factory = { context ->
+                            androidx.media3.ui.SubtitleView(context, null).apply {
+                                setViewType(androidx.media3.ui.SubtitleView.VIEW_TYPE_WEB)
+                            }
+                        },
+                        update = { view -> onAttachSubtitleView(view) },
+                        onRelease = { view -> onAttachSubtitleView(null) },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
             AnimatedVisibility(visible = showChrome,
                 enter = fadeIn(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard)),
@@ -368,6 +383,14 @@ fun VideoPlayerScreen(
                 isFullscreen = isFullscreen, onPanelChange = { activePanel = it }, onDismiss = ::closePanel,
                 onSetPlaybackSpeed = { speed -> onSetPlaybackSpeed(speed); closePanel() },
                 onCycleAspectRatio = onCycleAspectRatio,
+                onSetPreferredTextTrack = { stream ->
+                    onSetPreferredTextTrack(stream)
+                    if (stream == null) closePanel()
+                },
+                onSetPreferredAudioTrack = { stream ->
+                    onSetPreferredAudioTrack(stream)
+                    closePanel()
+                },
                 onPlayEpisode = { selected ->
                     closePanel()
                     if (shouldPlaySelectedVideoEpisode(video, selected)) onPlayEpisode(selected)

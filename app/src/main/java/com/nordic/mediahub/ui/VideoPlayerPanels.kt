@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -81,6 +82,8 @@ internal fun VideoPlayerPanelHost(
     onDismiss: () -> Unit,
     onSetPlaybackSpeed: (Float) -> Unit,
     onCycleAspectRatio: () -> Unit,
+    onSetPreferredTextTrack: (com.nordic.mediahub.data.VideoStreamInfo?) -> Unit,
+    onSetPreferredAudioTrack: (com.nordic.mediahub.data.VideoStreamInfo?) -> Unit,
     onPlayEpisode: (VideoItem) -> Unit,
     onPlayNextEpisode: () -> Unit
 ) {
@@ -149,6 +152,10 @@ internal fun VideoPlayerPanelHost(
                                     resolvePlaybackSpeedLabel(state.playbackSpeed), colors) {
                                     onPanelChange(VideoPlayerPanel.Speed)
                                 }
+                                VideoPlayerSettingRow(Icons.Filled.Subtitles, "字幕与音轨",
+                                    resolveVideoTracksSummary(state), colors) {
+                                    onPanelChange(VideoPlayerPanel.Tracks)
+                                }
                                 VideoPlayerSettingRow(Icons.Filled.AspectRatio, "画面比例",
                                     videoPlayerAspectRatioLabel(state.aspectRatioMode), colors,
                                     onClick = onCycleAspectRatio)
@@ -182,6 +189,10 @@ internal fun VideoPlayerPanelHost(
                                     )
                                 }
                             }
+                            VideoPlayerPanel.Tracks -> VideoPlayerTracksContent(
+                                state, colors, onSetPreferredTextTrack, onSetPreferredAudioTrack,
+                                Modifier.weight(1f)
+                            )
                             VideoPlayerPanel.Info -> VideoPlayerInfoContent(
                                 video, state.positionSeconds,
                                 maxOf(state.durationSeconds, video.durationSeconds), colors,
@@ -299,6 +310,93 @@ private fun VideoPlayerEpisodesContent(
                     episode = episode, colorScheme = colors,
                     isCurrent = episode.id == current.id, compact = true,
                     onClick = { onSelect(episode) }
+                )
+            }
+        }
+    }
+}
+
+/** One-line summary for the Settings entry row. */
+internal fun resolveVideoTracksSummary(state: VideoPlaybackState): String {
+    val subtitle = state.selectedSubtitleStream
+    val audio = state.selectedAudioStream
+    val subtitleLabel = subtitle?.let { it.displayTitle ?: it.language } ?: "关闭"
+    val audioLabel = audio?.let { it.displayTitle ?: it.language }
+        ?: state.availableAudioStreams.firstOrNull()?.let { it.displayTitle ?: it.language }
+        ?: "默认"
+    return "字幕 $subtitleLabel · 音轨 $audioLabel"
+}
+
+@Composable
+private fun VideoPlayerTracksContent(
+    state: VideoPlaybackState,
+    colors: ColorScheme,
+    onSetPreferredTextTrack: (com.nordic.mediahub.data.VideoStreamInfo?) -> Unit,
+    onSetPreferredAudioTrack: (com.nordic.mediahub.data.VideoStreamInfo?) -> Unit,
+    modifier: Modifier
+) {
+    LazyColumn(
+        modifier.verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
+    ) {
+        item {
+            Text(
+                "字幕",
+                style = MaterialTheme.typography.titleSmall,
+                color = colors.onSurface.copy(alpha = NordicAlpha.medium),
+                modifier = Modifier.padding(top = NordicSpacing.sm)
+            )
+        }
+        item {
+            MediaPlayerChoiceRow(
+                title = "关闭字幕",
+                selected = state.selectedSubtitleStream == null,
+                colors = colors,
+                onClick = { onSetPreferredTextTrack(null) }
+            )
+        }
+        if (state.availableSubtitleStreams.isEmpty()) {
+            item {
+                Text(
+                    "这个视频没有可用的字幕轨道",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurface.copy(alpha = NordicAlpha.medium)
+                )
+            }
+        } else {
+            items(state.availableSubtitleStreams, key = { "sub-${it.index}" }) { stream ->
+                MediaPlayerChoiceRow(
+                    title = stream.displayTitle ?: stream.language ?: "字幕 ${stream.index}",
+                    selected = state.selectedSubtitleStream?.index == stream.index,
+                    colors = colors,
+                    onClick = { onSetPreferredTextTrack(stream) }
+                )
+            }
+        }
+        item {
+            Text(
+                "音轨",
+                style = MaterialTheme.typography.titleSmall,
+                color = colors.onSurface.copy(alpha = NordicAlpha.medium),
+                modifier = Modifier.padding(top = NordicSpacing.sm)
+            )
+        }
+        if (state.availableAudioStreams.isEmpty()) {
+            item {
+                Text(
+                    "没有检测到其他音轨",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurface.copy(alpha = NordicAlpha.medium)
+                )
+            }
+        } else {
+            items(state.availableAudioStreams, key = { "audio-${it.index}" }) { stream ->
+                MediaPlayerChoiceRow(
+                    title = stream.displayTitle ?: stream.language ?: "音轨 ${stream.index}",
+                    selected = state.selectedAudioStream?.index == stream.index ||
+                        (state.selectedAudioStream == null && stream == state.availableAudioStreams.firstOrNull()),
+                    colors = colors,
+                    onClick = { onSetPreferredAudioTrack(stream) }
                 )
             }
         }

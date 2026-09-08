@@ -6,7 +6,7 @@ import com.nordic.mediahub.playback.AspectRatioMode
 import com.nordic.mediahub.ui.theme.NordicSpacing
 
 internal enum class VideoPlayerPanel(val title: String) {
-    Settings("播放设置"), Speed("播放速度"), Info("影片信息"), Episodes("选集")
+    Settings("播放设置"), Speed("播放速度"), Info("影片信息"), Episodes("选集"), Tracks("字幕与音轨")
 }
 
 internal data class VideoPlayerToolLayout(
