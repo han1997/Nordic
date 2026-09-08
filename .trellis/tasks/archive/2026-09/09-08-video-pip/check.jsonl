@@ -1,0 +1,4 @@
+﻿{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Quality gates for check phase"}
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "Verify toggle row follows shared language"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "检查持久化往返、默认值和订阅竞态回归"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "检查 PiP 生命周期、平台比例限制和停止上报语义"}

@@ -1,0 +1,5 @@
+﻿{"file": ".trellis/spec/backend/index.md", "reason": "Spec index with pre-development checklist and verification commands"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Performance-first chrome rules, persistence conventions, verification gates"}
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "Settings panel row language for the PiP toggle"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "PiP 偏好存储与监听先于初始快照的订阅合同"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "PiP 资格、真实结束状态、ON_STOP 与展开语义"}
