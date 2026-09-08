@@ -48,6 +48,10 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     private val _catalogVideos = MutableStateFlow<List<VideoItem>>(emptyList())
     val catalogVideos: StateFlow<List<VideoItem>> = _catalogVideos.asStateFlow()
 
+    /** Picture-in-picture preference; enabled by default, persisted. */
+    private val _pipEnabled = MutableStateFlow(true)
+    val pipEnabled: StateFlow<Boolean> = _pipEnabled.asStateFlow()
+
     fun setEpisodeContext(videos: List<VideoItem>) {
         _catalogVideos.value = videos
     }
@@ -91,6 +95,13 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         viewModelScope.launch {
             configRepository.videoPlaybackSpeed.collect { speed ->
                 if (speed != null) engine.applyPersistedPlaybackSpeed(speed)
+            }
+        }
+
+        // Restore the persisted picture-in-picture preference.
+        viewModelScope.launch {
+            configRepository.videoPipEnabled.collect { enabled ->
+                _pipEnabled.value = enabled
             }
         }
 
@@ -290,6 +301,11 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         engine.setPreferredAudioTrack(stream)
 
     fun attachSubtitleView(view: androidx.media3.ui.SubtitleView?) = engine.setSubtitleView(view)
+
+    fun setPipEnabled(enabled: Boolean) {
+        _pipEnabled.value = enabled
+        viewModelScope.launch { configRepository.saveVideoPipEnabled(enabled) }
+    }
 
     fun attachSurface(surfaceView: android.view.SurfaceView) = engine.attachSurface(surfaceView)
 

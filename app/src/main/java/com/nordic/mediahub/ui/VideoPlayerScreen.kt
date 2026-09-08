@@ -156,6 +156,9 @@ fun VideoPlayerScreen(
     onSetPreferredTextTrack: (com.nordic.mediahub.data.VideoStreamInfo?) -> Unit = {},
     onSetPreferredAudioTrack: (com.nordic.mediahub.data.VideoStreamInfo?) -> Unit = {},
     onAttachSubtitleView: (androidx.media3.ui.SubtitleView?) -> Unit = {},
+    pipEnabled: Boolean = true,
+    onTogglePip: (Boolean) -> Unit = {},
+    isInPipMode: Boolean = false,
     nextEpisode: VideoItem? = null,
     episodeContext: List<VideoItem> = emptyList(),
     onPlayEpisode: (VideoItem) -> Unit = {},
@@ -249,8 +252,19 @@ fun VideoPlayerScreen(
     DisposableEffect(video?.id) {
         onDispose { feedbackJob.get()?.cancel() }
     }
-    BackHandler(enabled = isFullscreen) { onToggleFullscreen() }
-    BackHandler(enabled = gesturesLocked) {
+    LaunchedEffect(isInPipMode) {
+        if (isInPipMode) {
+            activePanel = null
+            scrubPosition = null
+            seekFeedback = null
+            adjustGestureState.reset()
+            endTempSpeed()
+        } else {
+            controlsVisible = true
+        }
+    }
+    BackHandler(enabled = !isInPipMode && isFullscreen) { onToggleFullscreen() }
+    BackHandler(enabled = !isInPipMode && gesturesLocked) {
         gesturesLocked = false
         controlsVisible = true
     }
@@ -261,7 +275,7 @@ fun VideoPlayerScreen(
             // Gestures belong to the video surface, not to an ancestor of the buttons or modal lists.
             Box(
                 Modifier.fillMaxSize().videoPlayerGestures(
-                    enabled = video != null && !gesturesLocked && activePanel == null,
+                    enabled = !isInPipMode && video != null && !gesturesLocked && activePanel == null,
                     isFullscreen = isFullscreen,
                     durationSeconds = durationSeconds,
                     currentPositionSeconds = state.positionSeconds,
@@ -286,7 +300,7 @@ fun VideoPlayerScreen(
                 )
             ) {
                 VideoPlayerSurface(
-                    aspectRatioMode = state.aspectRatioMode,
+                    aspectRatioMode = if (isInPipMode) AspectRatioMode.FIT else state.aspectRatioMode,
                     videoAspectRatio = videoAspectRatio,
                     onSurfaceReady = surfaceReadyCallback,
                     onSurfaceDisposed = surfaceDisposedCallback,
@@ -300,103 +314,109 @@ fun VideoPlayerScreen(
                             }
                         },
                         update = { view -> onAttachSubtitleView(view) },
-                        onRelease = { view -> onAttachSubtitleView(null) },
+                        onRelease = { onAttachSubtitleView(null) },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
             }
-            AnimatedVisibility(visible = showChrome,
-                enter = fadeIn(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard)),
-                exit = fadeOut(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard))) {
-                VideoPlayerScrim()
-            }
-            if (video == null) {
-                VideoPlayerCenterMessage("暂无视频", "从媒体库选择一个视频开始播放")
-            } else if (errorMessage != null) {
-                VideoPlayerCenterMessage("播放异常", errorMessage, onCloseAnyway)
-            } else if (state.isBuffering) {
-                VideoPlayerCenterMessage("缓冲中", "正在准备视频流")
-            }
-            seekFeedback?.let { feedback ->
-                VideoPlayerSeekFeedbackOverlay(feedback, colorScheme, Modifier.align(Alignment.Center))
-            }
-            if (isTempSpeeding) VideoPlayerTempSpeedChip(Modifier.align(Alignment.Center))
-            if (adjustGestureState.visible) VideoAdjustGestureOverlay(
-                adjustGestureState.side, adjustGestureState.progress, Modifier.align(Alignment.Center)
-            )
-            if (gesturesLocked && !showChrome && activePanel == null) {
-                VideoPlayerLockOverlay(
-                    onUnlock = { gesturesLocked = false; controlsVisible = true },
-                    modifier = Modifier.align(Alignment.CenterStart)
-                        .windowInsetsPadding(WindowInsets.safeDrawing).padding(NordicSpacing.lg)
+            if (!isInPipMode) {
+                AnimatedVisibility(visible = showChrome,
+                    enter = fadeIn(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard)),
+                    exit = fadeOut(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard))) {
+                    VideoPlayerScrim()
+                }
+                if (video == null) {
+                    VideoPlayerCenterMessage("暂无视频", "从媒体库选择一个视频开始播放")
+                } else if (errorMessage != null) {
+                    VideoPlayerCenterMessage("播放异常", errorMessage, onCloseAnyway)
+                } else if (state.isBuffering) {
+                    VideoPlayerCenterMessage("缓冲中", "正在准备视频流")
+                }
+                seekFeedback?.let { feedback ->
+                    VideoPlayerSeekFeedbackOverlay(feedback, colorScheme, Modifier.align(Alignment.Center))
+                }
+                if (isTempSpeeding) VideoPlayerTempSpeedChip(Modifier.align(Alignment.Center))
+                if (adjustGestureState.visible) VideoAdjustGestureOverlay(
+                    adjustGestureState.side, adjustGestureState.progress, Modifier.align(Alignment.Center)
                 )
-            }
-            AnimatedVisibility(visible = showChrome,
-                enter = fadeIn(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard)),
-                exit = fadeOut(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard))) {
-                VideoPlayerChrome(
-                    state = state, colorScheme = colorScheme, subtitle = playerSubtitle,
-                    durationSeconds = durationSeconds, scrubPosition = scrubPosition,
-                    isFullscreen = isFullscreen, hasEpisodes = episodes.isNotEmpty(),
-                    hasNextEpisode = hasNextEpisode, hasPlaybackStatus = statusTone != null,
-                    gesturesLocked = gesturesLocked,
-                    onClose = { endTempSpeed(); onClose() },
-                    onToggleLock = { gesturesLocked = !gesturesLocked; interactionVersion++ },
-                    onPanel = { panel -> activePanel = panel; interactionVersion++ },
-                    onPlayPause = { onPlayPause(); interactionVersion++ },
-                    onSeekRelative = ::seekRelative,
-                    onCycleAspectRatio = { onCycleAspectRatio(); interactionVersion++ },
-                    onPlayNextEpisode = ::playNextEpisode,
-                    onToggleFullscreen = { onToggleFullscreen(); interactionVersion++ },
-                    onScrubChange = { scrubPosition = it },
-                    onScrubFinished = {
-                        scrubPosition?.let { onSeek(it.roundToInt()) }
-                        scrubPosition = null
-                        interactionVersion++
-                    },
-                    onScrubCanceled = { scrubPosition = null }
-                )
-            }
-            if (shouldShowVideoNextEpisodePrompt(
-                    hasNextEpisode, durationSeconds, state.positionSeconds, controlsVisible,
-                    activePanel != null, gesturesLocked, statusTone != null, nextPromptDismissed
-                )
-            ) {
-                VideoPlayerNextEpisodeOverlay(
-                    episodeTitle = nextEpisode?.title.orEmpty(), onClick = ::playNextEpisode,
-                    onDismiss = { nextPromptDismissed = true },
-                    modifier = Modifier.align(Alignment.TopEnd)
-                        .windowInsetsPadding(WindowInsets.safeDrawing).padding(NordicSpacing.lg)
-                )
+                if (gesturesLocked && !showChrome && activePanel == null) {
+                    VideoPlayerLockOverlay(
+                        onUnlock = { gesturesLocked = false; controlsVisible = true },
+                        modifier = Modifier.align(Alignment.CenterStart)
+                            .windowInsetsPadding(WindowInsets.safeDrawing).padding(NordicSpacing.lg)
+                    )
+                }
+                AnimatedVisibility(visible = showChrome,
+                    enter = fadeIn(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard)),
+                    exit = fadeOut(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard))) {
+                    VideoPlayerChrome(
+                        state = state, colorScheme = colorScheme, subtitle = playerSubtitle,
+                        durationSeconds = durationSeconds, scrubPosition = scrubPosition,
+                        isFullscreen = isFullscreen, hasEpisodes = episodes.isNotEmpty(),
+                        hasNextEpisode = hasNextEpisode, hasPlaybackStatus = statusTone != null,
+                        gesturesLocked = gesturesLocked,
+                        onClose = { endTempSpeed(); onClose() },
+                        onToggleLock = { gesturesLocked = !gesturesLocked; interactionVersion++ },
+                        onPanel = { panel -> activePanel = panel; interactionVersion++ },
+                        onPlayPause = { onPlayPause(); interactionVersion++ },
+                        onSeekRelative = ::seekRelative,
+                        onCycleAspectRatio = { onCycleAspectRatio(); interactionVersion++ },
+                        onPlayNextEpisode = ::playNextEpisode,
+                        onToggleFullscreen = { onToggleFullscreen(); interactionVersion++ },
+                        onScrubChange = { scrubPosition = it },
+                        onScrubFinished = {
+                            scrubPosition?.let { onSeek(it.roundToInt()) }
+                            scrubPosition = null
+                            interactionVersion++
+                        },
+                        onScrubCanceled = { scrubPosition = null }
+                    )
+                }
+                if (shouldShowVideoNextEpisodePrompt(
+                        hasNextEpisode, durationSeconds, state.positionSeconds, controlsVisible,
+                        activePanel != null, gesturesLocked, statusTone != null, nextPromptDismissed
+                    )
+                ) {
+                    VideoPlayerNextEpisodeOverlay(
+                        episodeTitle = nextEpisode?.title.orEmpty(), onClick = ::playNextEpisode,
+                        onDismiss = { nextPromptDismissed = true },
+                        modifier = Modifier.align(Alignment.TopEnd)
+                            .windowInsetsPadding(WindowInsets.safeDrawing).padding(NordicSpacing.lg)
+                    )
+                }
             }
         }
-        AnimatedContent(
-            modifier = Modifier.fillMaxSize(),
-            targetState = activePanel,
-            transitionSpec = {
-                fadeIn(tween(NordicMotion.durationShort)) togetherWith fadeOut(tween(NordicMotion.durationShort))
-            },
-            label = "video-player-panel"
-        ) { panel ->
-            if (panel != null) VideoPlayerPanelHost(
-                panel = panel, state = state, episodes = episodes, nextEpisode = nextEpisode,
-                isFullscreen = isFullscreen, onPanelChange = { activePanel = it }, onDismiss = ::closePanel,
-                onSetPlaybackSpeed = { speed -> onSetPlaybackSpeed(speed); closePanel() },
-                onCycleAspectRatio = onCycleAspectRatio,
-                onSetPreferredTextTrack = { stream ->
-                    onSetPreferredTextTrack(stream)
-                    if (stream == null) closePanel()
+        if (!isInPipMode) {
+            AnimatedContent(
+                modifier = Modifier.fillMaxSize(),
+                targetState = activePanel,
+                transitionSpec = {
+                    fadeIn(tween(NordicMotion.durationShort)) togetherWith fadeOut(tween(NordicMotion.durationShort))
                 },
-                onSetPreferredAudioTrack = { stream ->
-                    onSetPreferredAudioTrack(stream)
-                    closePanel()
-                },
-                onPlayEpisode = { selected ->
-                    closePanel()
-                    if (shouldPlaySelectedVideoEpisode(video, selected)) onPlayEpisode(selected)
-                },
-                onPlayNextEpisode = ::playNextEpisode
-            )
+                label = "video-player-panel"
+            ) { panel ->
+                if (panel != null) VideoPlayerPanelHost(
+                    panel = panel, state = state, episodes = episodes, nextEpisode = nextEpisode,
+                    isFullscreen = isFullscreen, pipEnabled = pipEnabled,
+                    onPanelChange = { activePanel = it }, onDismiss = ::closePanel,
+                    onSetPlaybackSpeed = { speed -> onSetPlaybackSpeed(speed); closePanel() },
+                    onCycleAspectRatio = onCycleAspectRatio,
+                    onSetPreferredTextTrack = { stream ->
+                        onSetPreferredTextTrack(stream)
+                        if (stream == null) closePanel()
+                    },
+                    onSetPreferredAudioTrack = { stream ->
+                        onSetPreferredAudioTrack(stream)
+                        closePanel()
+                    },
+                    onTogglePip = onTogglePip,
+                    onPlayEpisode = { selected ->
+                        closePanel()
+                        if (shouldPlaySelectedVideoEpisode(video, selected)) onPlayEpisode(selected)
+                    },
+                    onPlayNextEpisode = ::playNextEpisode
+                )
+            }
         }
     }
 }

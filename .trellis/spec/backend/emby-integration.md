@@ -640,3 +640,75 @@ private fun backdropImageUrl(itemId: String, token: String, tag: String?): Strin
         .build().toString()
 }
 ```
+
+## Scenario: 视频画中画生命周期
+
+### 1. 范围 / 触发条件
+
+修改 PiP 进入、退出、Activity 生命周期、视频结束状态、播放器小窗 UI 或 PiP 设置时读取。本合同与上面的进度上报、全屏方向合同共同生效；音乐/有声书的后台播放不随视频改变。
+
+### 2. 关键签名
+
+- `VideoPictureInPicture.kt`：`resolveVideoPipBridgeState(showVideoPlayer, pipEnabled, playbackState, externalError): VideoPipBridgeState`、`resolveVideoPipAspectRatio(ratio: Float): Pair<Int, Int>`。
+- `VideoPlaybackState.playWhenReady: Boolean`、`hasEnded: Boolean` 分别来自 Media3 的 `playWhenReady` 与 `playbackState == Player.STATE_ENDED`。
+- `MainActivity.updateVideoPipState(state)`、`isInVideoPipMode`（Compose 可观察）、`dismissVideoPip()`。
+- `VideoPlayerScreen(..., pipEnabled, onTogglePip, isInPipMode)`；存储合同见 [Persistence Guidelines](./database-guidelines.md) 的“播放偏好与配置订阅”。
+
+### 3. 可执行合同
+
+- Manifest 必须声明 `supportsPictureInPicture="true"` 并处理 `orientation|screenSize|smallestScreenSize|screenLayout`。`minSdk 26` 不等于所有设备支持 PiP；调用前检查 `FEATURE_PICTURE_IN_PICTURE`。
+- 进入资格为：播放器可见、开关开启、有播放地址、播放器与外部错误均为空白、未结束，并且 `isPlaying || (isBuffering && playWhenReady)`。不能单独依赖 `isPlaying`，也不能把已暂停的缓冲当作继续播放。
+- API 26–30 通过 `onUserLeaveHint()` 主动进入，已有 PiP 不重复调用。API 31+ 在 Home 手势**之前**通过 `setPictureInPictureParams` 发布 `setAutoEnterEnabled(资格)`，不再重复主动进入。暂停/出错/关闭/禁用后必须发布 false。
+- 参数只随资格与比例变化更新，不随进度秒数更新。仅在系统成功应用后缓存“已应用”参数，`onResume` 重试过渡期间拒绝的更新，防止遗留自动进入资格。
+- PiP 比例在 `1:2.39..2.39:1` 内；超窄/超宽钳制到 `100/239` 或 `239/100`，非有限值及非正值回退 16:9。小窗使用 FIT，不改变用户保存的全屏显示模式。
+- 可见 PiP 的生命周期是 STARTED；不能在 `ON_PAUSE` 停止。`onPictureInPictureModeChanged(false)` 也会在展开回应用时触发，只更新可观察模式，**不能据此关播放器**。
+- `ON_STOP` 且非配置重建才走 `closeVideoPlayback`：先快照视频/位置，再停止本地播放和隐藏 UI，后台 best-effort 上报 Stopped（失败重试一次）。不要额外同时发送 Progress 与 Stopped；配置重建保留 `syncNow`。
+- PiP 自然结束使用 `hasEnded`，不能比较整数秒与 Emby 元数据时长。先关闭播放，再 `moveTaskToBack(true)` 退出 pinned 小窗；不要 `finish()` 单 Activity 并取消仍在上报的 ViewModel 协程。
+- PiP 中保留同一个视频 Surface 和字幕节点；控制、scrim、面板、下一集/手势提示与手势处理退出组合或禁用。进入时取消 scrub/临时倍速，展开后恢复控制，不重建播放会话。方向与系统栏仍只由 MainScreen 单一控制器负责，PiP 期间不重新写方向。
+
+### 4. 验证与错误矩阵
+
+| 条件 | 行为 |
+|---|---|
+| 播放中 / 请求播放的缓冲中离开 | 允许 PiP，持续播放与周期上报 |
+| 暂停 / 错误 / 无可播放视频 / 开关关闭 | 撤销自动进入资格 |
+| 设备不支持 / 系统不允许进入 | 不崩溃，实际 ON_STOP 后停止并上报 |
+| 小窗展开回应用 | 继续当前视频、原进度和全屏方向，不触发 Stopped |
+| 系统关闭小窗 / 无 PiP 进入后台 | ON_STOP 立即关闭，不等待网络 |
+| 配置重建 | 只同步，不当作主动关窗 |
+| STATE_ENDED，时长未知或元数据偏大 | 关闭小窗，不自动连播 |
+| 只更新 positionSeconds | PiP 参数不变 |
+
+### 5. 正常 / 基础 / 错误案例
+
+- 正常：全屏看剧 → Home 小窗 → 展开继续 → 再次 Home → 关闭小窗；最后一次操作才结束播放并上报停止位置。
+- 基础：从未设置开关时默认开启；设备禁用 PiP 时维持视频后台即停。
+- 错误：在模式 false 回调中 stop 导致展开即停；在 onUserLeaveHint 才设置 Android 12 自动进入；只隐藏页面却不退出 pinned 小窗；用 finish 取消停止上报。
+
+### 6. 必需测试
+
+- `VideoPictureInPictureTest`：资格开关/可见性、请求播放与暂停缓冲、两种错误源、无 URL、真实结束与未知时长、进度不影响参数、常规/异常/极端比例及平台区间扫描。
+- `EncryptedConfigStoreTest`：开关默认 true、往返存取、新 store 恢复 false 与订阅注册竞态。
+- compile、完整单测、lint、assemble；自动检查不能代替 API 26–30 / 31+ 真机的 Home、展开、关窗、结束、权限禁止、字幕与实际 Emby 上报检查。
+
+### 7. 错误与正确示例
+
+```kotlin
+// 错误：展开小窗也会走到这里。
+if (!isInPictureInPictureMode) closeVideoPlayback()
+
+// 正确：模式回调只发布状态；实际停止生命周期才关闭。
+isInVideoPipMode = isInPictureInPictureMode
+// ON_STOP 且 !isChangingConfigurations -> closeVideoPlayback()
+```
+
+```kotlin
+// 错误：实际媒体结束时，元数据 duration 可能更大或未知。
+if (positionSeconds >= durationSeconds) closeVideoPlayback()
+
+// 正确：由引擎发布真实 STATE_ENDED，小窗关闭不 finish Activity。
+if (isInPipMode && showVideoPlayer && videoPlaybackState.hasEnded) {
+    closeVideoPlayback()
+    activity?.dismissVideoPip()
+}
+```

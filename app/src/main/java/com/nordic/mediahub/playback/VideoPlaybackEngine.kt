@@ -59,6 +59,8 @@ data class VideoPlaybackState(
     val video: VideoItem? = null,
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,
+    val playWhenReady: Boolean = false,
+    val hasEnded: Boolean = false,
     val positionSeconds: Int = 0,
     val bufferedPositionSeconds: Int = 0,
     val durationSeconds: Int = 0,
@@ -204,6 +206,10 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
             if (!player.isPlaying) {
                 stopPositionUpdates()
             }
+        }
+
+        override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            publishPlayerState()
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -470,6 +476,8 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
                 video = video,
                 isPlaying = player.isPlaying,
                 isBuffering = player.playbackState == Player.STATE_BUFFERING,
+                playWhenReady = player.playWhenReady,
+                hasEnded = player.playbackState == Player.STATE_ENDED,
                 positionSeconds = (player.currentPosition.coerceAtLeast(0L) / 1000L).toInt(),
                 bufferedPositionSeconds = player.bufferedPosition
                     .takeIf { buffered -> buffered != C.TIME_UNSET }

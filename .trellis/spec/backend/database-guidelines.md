@@ -4,7 +4,7 @@
 
 ## Overview
 
-The app does not use Room, SQLite migrations, or an ORM. Local persistence is currently handled with AndroidX DataStore Preferences in `ConfigRepository` and JSON-encoded cache values in `NavidromeMusicCacheRepository`.
+应用不使用 Room、SQLite 迁移或 ORM。服务器配置与播放偏好由 `ConfigRepository` 委托 `EncryptedConfigStore`（EncryptedSharedPreferences）持久化；旧配置 DataStore 仅用于迁移。`NavidromeMusicCacheRepository` 等缓存仓库仍使用 DataStore 中的 JSON 值。
 
 Reference files:
 - `app/src/main/java/com/nordic/mediahub/data/ConfigRepository.kt`
@@ -591,4 +591,66 @@ fun init() = runBlocking { context.dataStore.data.first() }
 // Migration runs on a background IO scope; the UI is never blocked.
 private val migrationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 init { migrationScope.launch { runMigrationIfNeeded() } }
+```
+
+## Scenario: 播放偏好与配置订阅
+
+### 1. 范围 / 触发条件
+
+新增视频播放偏好，或修改 `EncryptedConfigStore.configFlow` 的初始快照、监听和清理逻辑时适用。此共享路径也服务三类服务器配置，不能以“仅一个开关”跳过跨域回归。
+
+### 2. 关键签名
+
+- `EncryptedConfigKeys.VIDEO_PIP_ENABLED = "video_pip_enabled"`，存储为字符串 `"true"` / `"false"`。
+- `EncryptedConfigStore.videoPipEnabled: Flow<Boolean>`、`suspend saveVideoPipEnabled(enabled: Boolean)`；`ConfigRepository` 透传。
+- `VideoPlaybackViewModel.pipEnabled: StateFlow<Boolean>`（初始 true）、`setPipEnabled(Boolean)`；UI 不直接写 SharedPreferences。
+- `private fun <T> configFlow(watchedKeys: Set<String>, read: (SharedPreferences) -> T): Flow<T>`。
+
+### 3. 可执行合同
+
+- PiP 键缺失或为非法字符串时默认 true；持久化 false 在新 store / 下次启动后仍是 false。保存使用 `Dispatchers.IO` 内的 `commit()`，不引入另一份内存-only 偏好来源。
+- 新播放偏好不属于旧版配置 DataStore 的迁移键，不为它扩展 `EncryptedConfigKeys.ALL` 的历史迁移快照。
+- 配置订阅顺序必须为：**注册 listener → 读取并发送当前值 → 等待关闭 → finally 注销 listener**。先读后监听会丢掉两步之间的并发保存，使 UI 保持旧配置或 `first { changed }` 永久等待。
+- 回调仍过滤 `watchedKeys`，`changedKey == null` 表示整体变化；保留 `distinctUntilChanged`，无变化保存不多发状态。
+- 初始读取失败或订阅取消也必须注销，不能只在成功执行到 `awaitClose` 后才安排清理。
+
+### 4. 验证与错误矩阵
+
+| 条件 | 结果 |
+|---|---|
+| PiP 键缺失 / 非法字符串 | true |
+| 保存 false 后重建 store | false |
+| 在 listener 注册过程中发生保存 | 注册后的初始快照可见新值，不漏掉最后一次保存 |
+| 保存无变化值 | distinctUntilChanged 丢弃重复状态 |
+| 取消订阅 / 初始 read 抛错 | finally 注销 listener |
+| 测试长时间停在 testDebugUnitTest | 先抓指定 worker 的线程栈，不能直接假定 Gradle daemon 坏了 |
+
+### 5. 正常 / 基础 / 错误案例
+
+- 正常：关闭 PiP → 快速离开播放器 → 下次启动仍保持关闭。
+- 基础：没有偏好键的旧安装直接默认开启，不新增一次历史迁移。
+- 错误：初始值先发出，再注册 listener；此时 IO 保存已经完成且没有后续写入，订阅永远收不到更新。
+
+### 6. 必需测试
+
+- `EncryptedConfigStoreTest.videoPipEnabled_defaultsTrueWhenUnsetAndRoundTrips`、`restoresDisabledPreferenceInNewStore`、`defaultsTrueForMalformedValue`。
+- `videoPipEnabled_observesWriteDuringListenerRegistration` 使用委托 SharedPreferences，在真正注册 listener 前写入 false；原先先读后监听实现应确定性超时，正确实现应立即获得 false，不靠 sleep 调度概率复现。
+- 配置流测试使用有限等待（该类 JUnit Timeout 5 秒，竞态用例 `withTimeout(1_000)`），避免一次通知丢失阻塞整个测试进程。
+- 共享 helper 改动后运行所有配置/迁移测试与完整 app 单测，不仅测试 PiP 单一字段。
+
+### 7. 错误与正确示例
+
+```kotlin
+// 错误：保存可能发生在这两行之间。
+emitCurrent()
+prefs.registerOnSharedPreferenceChangeListener(listener)
+
+// 正确：先建立监听，读取或等待异常时也能清理。
+prefs.registerOnSharedPreferenceChangeListener(listener)
+try {
+    emitCurrent()
+    awaitClose()
+} finally {
+    prefs.unregisterOnSharedPreferenceChangeListener(listener)
+}
 ```

@@ -1,7 +1,12 @@
 package com.nordic.mediahub
 
+import android.app.PictureInPictureParams
 import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
+import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
+import android.util.Rational
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
@@ -283,8 +288,76 @@ private fun AnimatedBottomDock(
 }
 
 class MainActivity : ComponentActivity() {
+    private var pipBridge = VideoPipBridgeState()
+    private var appliedPipBridge: VideoPipBridgeState? = null
+    internal var isInVideoPipMode by mutableStateOf(false)
+        private set
+
+    private val supportsVideoPip: Boolean
+        get() = packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
+
+    internal fun updateVideoPipState(state: VideoPipBridgeState) {
+        pipBridge = state
+        if (!supportsVideoPip || appliedPipBridge == state) return
+        try {
+            // Android 12+ must receive auto-enter eligibility BEFORE the Home gesture,
+            // including false when paused, errored, closed, or disabled in settings.
+            setPictureInPictureParams(videoPipParams())
+            appliedPipBridge = state
+        } catch (_: IllegalStateException) {
+            // PiP may be unavailable during a system transition. ON_STOP still stops video.
+        }
+    }
+
+    private fun videoPipParams(): PictureInPictureParams = PictureInPictureParams.Builder()
+        .setAspectRatio(Rational(pipBridge.aspectRatioNumerator, pipBridge.aspectRatioDenominator))
+        .apply {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                setAutoEnterEnabled(pipBridge.shouldEnterPip)
+            }
+        }
+        .build()
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S || !supportsVideoPip ||
+            !pipBridge.shouldEnterPip || isInPictureInPictureMode
+        ) return
+        try {
+            enterPictureInPictureMode(videoPipParams())
+        } catch (_: IllegalStateException) {
+            // Unsupported/rejected PiP falls back to the normal ON_STOP close path.
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Retry params rejected during a transition, including revoking stale auto-enter.
+        updateVideoPipState(pipBridge)
+    }
+
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration
+    ) {
+        isInVideoPipMode = isInPictureInPictureMode
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        // false also means expanding back into the app. Only ON_STOP indicates
+        // that the video is no longer visible and must stop.
+    }
+
+    internal fun dismissVideoPip() {
+        updateVideoPipState(VideoPipBridgeState())
+        if (isInPictureInPictureMode) {
+            // Unpin without finishing the single Activity: keep the VM alive
+            // long enough to send its best-effort stopped-progress report.
+            moveTaskToBack(true)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        isInVideoPipMode = isInPictureInPictureMode
         Coil.setImageLoader(
             ImageLoader.Builder(this)
                 .crossfade(160)
@@ -443,8 +516,8 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     }
     val closeCurrentVideoPlayback = remember(videoVM) {
         {
-            // Closing the video player stops playback entirely (no background
-            // playback / PiP): sync progress, stop the engine, then hide.
+            // Explicit close (including PiP dismissal) stops playback. Entering
+            // PiP is not a close and keeps the same engine/surface alive.
             videoVM.closeVideoPlayback(
                 onClosed = {
                     showVideoPlayer = false
@@ -640,8 +713,10 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     // portrait with system bars shown instead of a stuck landscape shell.
     // Orientation follows the dual-lock model: landscape while fullscreen,
     // portrait otherwise, system-controlled when the player is closed.
-    LaunchedEffect(isFullscreen, showVideoPlayer, orientationLockedLandscape) {
+    val isInPipMode = (context as? MainActivity)?.isInVideoPipMode == true
+    LaunchedEffect(isFullscreen, showVideoPlayer, orientationLockedLandscape, isInPipMode) {
         val activity = context as? ComponentActivity ?: return@LaunchedEffect
+        if (isInPipMode) return@LaunchedEffect
         val controller = WindowInsetsControllerCompat(activity.window, activity.window.decorView)
         if (isFullscreen && showVideoPlayer) {
             controller.systemBarsBehavior =
@@ -962,6 +1037,19 @@ private fun VideoPlayerLayer(
     val videoPlaybackState by videoVM.state.collectAsStateWithLifecycle()
     val videoPlaybackError by videoVM.error.collectAsStateWithLifecycle()
     val catalogVideos by videoVM.catalogVideos.collectAsStateWithLifecycle()
+    val pipEnabled by videoVM.pipEnabled.collectAsStateWithLifecycle()
+
+    val activity = LocalContext.current as? MainActivity
+    val isInPipMode = activity?.isInVideoPipMode == true
+    val pipBridge = resolveVideoPipBridgeState(
+        showVideoPlayer, pipEnabled, videoPlaybackState, videoPlaybackError
+    )
+    LaunchedEffect(activity, pipBridge) {
+        activity?.updateVideoPipState(pipBridge)
+    }
+    DisposableEffect(activity) {
+        onDispose { activity?.updateVideoPipState(VideoPipBridgeState()) }
+    }
 
     // Fullscreen orientation/system-bars control lives in MainScreen's single
     // LaunchedEffect(isFullscreen, showVideoPlayer); no per-layer controller
@@ -971,17 +1059,31 @@ private fun VideoPlayerLayer(
         videoPlaybackState.video?.let { current -> resolveNextVideoEpisode(current, catalogVideos) }
     }
 
-    // Lifecycle safety net: when the player layer goes to the background with
-    // a video active, push an immediate progress sync so the last position
-    // survives process death before the 30s periodic loop fires.
+    // Visible PiP is STARTED (paused, not stopped), including while buffering.
+    // ON_STOP means dismissal or background without PiP, not expansion. The
+    // close path snapshots and immediately reports Stopped; do not also race
+    // a separate Progress request against it. Recreation only needs a sync.
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
         if (showVideoPlayer) {
-            videoVM.syncNow()
+            if (activity?.isChangingConfigurations == true) {
+                videoVM.syncNow()
+            } else {
+                activity?.updateVideoPipState(VideoPipBridgeState())
+                closeVideoPlayback()
+            }
         }
     }
 
-    BackHandler(enabled = showVideoPlayer || videoPlaybackError != null) {
+    BackHandler(enabled = !isInPipMode && (showVideoPlayer || videoPlaybackError != null)) {
         closeVideoPlayback()
+    }
+
+    // Use Media3 STATE_ENDED, not rounded seconds or server duration metadata.
+    LaunchedEffect(activity, isInPipMode, showVideoPlayer, videoPlaybackState.hasEnded) {
+        if (isInPipMode && showVideoPlayer && videoPlaybackState.hasEnded) {
+            closeVideoPlayback()
+            activity?.dismissVideoPip()
+        }
     }
 
     AnimatedVisibility(
@@ -1005,6 +1107,9 @@ private fun VideoPlayerLayer(
             onSetPreferredTextTrack = videoVM::setPreferredTextTrack,
             onSetPreferredAudioTrack = videoVM::setPreferredAudioTrack,
             onAttachSubtitleView = videoVM::attachSubtitleView,
+            pipEnabled = pipEnabled,
+            onTogglePip = videoVM::setPipEnabled,
+            isInPipMode = isInPipMode,
             nextEpisode = nextEpisode,
             episodeContext = catalogVideos,
             onPlayEpisode = onPlayEpisode,

@@ -11,7 +11,7 @@ This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. 
 | Guide | Use When |
 |-------|----------|
 | [Directory Structure](./directory-structure.md) | Placing new source files, tests, DTOs, repositories, playback code, or Compose components |
-| [Persistence Guidelines](./database-guidelines.md) | Changing DataStore config, cache fields, readiness helpers, or local persistence behavior |
+| [Persistence Guidelines](./database-guidelines.md) | 修改加密配置、DataStore 迁移、播放偏好/订阅、缓存字段或就绪条件 |
 | [Error Handling](./error-handling.md) | Adding repository calls, typed exceptions, `Response<T>` validation, or UI error propagation |
 | [音乐页面 UI](./music-ui.md) | 修改音乐发现、列表、专辑/歌手/歌单详情、集合操作与文案 |
 | [共享 UI 一致性](./ui-consistency.md) | 修改主题/字体、标题导航、分段选择、搜索输入或详情动作；执行跨页面一致性检查 |
@@ -19,7 +19,7 @@ This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. 
 | [文档规范](./documentation-guidelines.md) | 编写中文优先沟通、用户可见文案、CHANGELOG 条目、README 更新或任务文档 |
 | [Logging Guidelines](./logging-guidelines.md) | Adding or changing `Log.*` calls or OkHttp logging interceptors |
 | [AudiobookShelf Integration Contract](./audiobookshelf-integration.md) | Changing audiobook auth, library browsing, playback sessions, progress sync, or Media3 audiobook state |
-| [Emby Integration Contract](./emby-integration.md) | Changing Emby auth, library/item mapping, video playback, progress reporting, or season/episode browsing |
+| [Emby Integration Contract](./emby-integration.md) | 修改 Emby 认证、媒体库映射、视频播放/画中画、进度上报或分季选集 |
 | [Navidrome Integration Contract](./navidrome-integration.md) | Changing star/favorite toggles, playlist CRUD, or Subsonic API star/unstar/getStarled2 endpoints |
 
 ## Pre-Development Checklist

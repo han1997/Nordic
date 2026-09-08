@@ -37,6 +37,7 @@ internal object EncryptedConfigKeys {
         const val VIDEO_PASS = "video_pass"
         const val VIDEO_API_KEY = "video_api_key"
         const val VIDEO_PLAYBACK_SPEED = "video_playback_speed"
+        const val VIDEO_PIP_ENABLED = "video_pip_enabled"
 
     val ALL = listOf(
         NAVIDROME_URL, NAVIDROME_USER, NAVIDROME_PASS,
@@ -166,6 +167,15 @@ class EncryptedConfigStore(
                 ?.takeIf { it.isFinite() && it > 0f }
         }
 
+    /** Picture-in-picture preference; enabled by default when unset. */
+    val videoPipEnabled: Flow<Boolean> =
+        configFlow(
+            watchedKeys = setOf(EncryptedConfigKeys.VIDEO_PIP_ENABLED)
+        ) { p ->
+            p.getString(EncryptedConfigKeys.VIDEO_PIP_ENABLED, null)
+                ?.toBooleanStrictOrNull() ?: true
+        }
+
     val videoConfig: Flow<VideoServerConfig> =
         configFlow(
             watchedKeys = setOf(
@@ -221,6 +231,14 @@ class EncryptedConfigStore(
         }
     }
 
+    suspend fun saveVideoPipEnabled(enabled: Boolean) {
+        withContext(Dispatchers.IO) {
+            prefs.edit()
+                .putString(EncryptedConfigKeys.VIDEO_PIP_ENABLED, enabled.toString())
+                .commit()
+        }
+    }
+
     suspend fun saveVideoConfig(config: VideoServerConfig) {
         withContext(Dispatchers.IO) {
             prefs.edit().apply {
@@ -246,11 +264,17 @@ class EncryptedConfigStore(
         read: (SharedPreferences) -> T
     ): Flow<T> = callbackFlow {
         val emitCurrent = { trySend(read(prefs)) }
-        emitCurrent()
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, changedKey ->
             if (changedKey == null || changedKey in watchedKeys) emitCurrent()
         }
         prefs.registerOnSharedPreferenceChangeListener(listener)
-        awaitClose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+        try {
+            // Listen before reading: a save between the first read and listener
+            // registration would otherwise be lost until another write occurs.
+            emitCurrent()
+            awaitClose()
+        } finally {
+            prefs.unregisterOnSharedPreferenceChangeListener(listener)
+        }
     }.distinctUntilChanged()
 }

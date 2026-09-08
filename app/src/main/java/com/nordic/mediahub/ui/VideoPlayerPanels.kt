@@ -3,6 +3,7 @@ package com.nordic.mediahub.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -32,6 +33,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Speed
@@ -42,6 +44,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -78,12 +81,14 @@ internal fun VideoPlayerPanelHost(
     episodes: List<VideoItem>,
     nextEpisode: VideoItem?,
     isFullscreen: Boolean,
+    pipEnabled: Boolean,
     onPanelChange: (VideoPlayerPanel) -> Unit,
     onDismiss: () -> Unit,
     onSetPlaybackSpeed: (Float) -> Unit,
     onCycleAspectRatio: () -> Unit,
     onSetPreferredTextTrack: (com.nordic.mediahub.data.VideoStreamInfo?) -> Unit,
     onSetPreferredAudioTrack: (com.nordic.mediahub.data.VideoStreamInfo?) -> Unit,
+    onTogglePip: (Boolean) -> Unit,
     onPlayEpisode: (VideoItem) -> Unit,
     onPlayNextEpisode: () -> Unit
 ) {
@@ -172,6 +177,14 @@ internal fun VideoPlayerPanelHost(
                                 VideoPlayerSettingRow(Icons.Filled.Info, "影片信息", "简介与播放进度", colors) {
                                     onPanelChange(VideoPlayerPanel.Info)
                                 }
+                                VideoPlayerSettingToggleRow(
+                                    icon = Icons.Filled.PictureInPictureAlt,
+                                    title = "画中画",
+                                    description = "离开应用时以小窗继续播放",
+                                    checked = pipEnabled,
+                                    colors = colors,
+                                    onCheckedChange = onTogglePip
+                                )
                                 Text(
                                     "双击左侧后退 10 秒，右侧前进 30 秒；长按临时 2 倍速。左右侧滑动分别调整亮度和音量。",
                                     style = MaterialTheme.typography.bodySmall,
@@ -232,6 +245,33 @@ private fun VideoPlayerSettingRow(
                 maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         Icon(Icons.Filled.ChevronRight, null, tint = colors.onSurface.copy(alpha = NordicAlpha.subtle))
+    }
+}
+
+@Composable
+private fun VideoPlayerSettingToggleRow(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    checked: Boolean,
+    colors: ColorScheme,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 64.dp)
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange)
+            .padding(vertical = NordicSpacing.sm),
+        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, tint = colors.onSurface, modifier = Modifier.size(24.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
+            Text(title, style = MaterialTheme.typography.bodyMedium)
+            Text(description, style = MaterialTheme.typography.bodySmall,
+                color = colors.onSurface.copy(alpha = NordicAlpha.medium),
+                maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        Switch(checked = checked, onCheckedChange = null)
     }
 }
 

@@ -5,14 +5,20 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.Rule
+import org.junit.rules.Timeout
 
 class EncryptedConfigStoreTest {
+    @get:Rule
+    val timeout: Timeout = Timeout.seconds(5)
+
     @Test
     fun runEncryptedConfigMigration_copiesAllLegacyKeysAndRemovesCredentialKeys() {
         val prefs = FakeSharedPreferences()
@@ -246,6 +252,77 @@ class EncryptedConfigStoreTest {
             removeLegacyCredentialKeys = {}
         )
         assertNull(store.videoPlaybackSpeed.first())
+    }
+
+    @Test
+    fun videoPipEnabled_defaultsTrueWhenUnsetAndRoundTrips() = runBlocking {
+        val prefs = FakeSharedPreferences()
+        val store = EncryptedConfigStore(
+            context = null,
+            prefsProvider = { prefs },
+            legacyDataStoreSnapshot = { emptyMap() },
+            removeLegacyCredentialKeys = {}
+        )
+        assertTrue(store.videoPipEnabled.first())
+
+        val disabled = async(start = CoroutineStart.UNDISPATCHED) {
+            store.videoPipEnabled.first { !it }
+        }
+        store.saveVideoPipEnabled(false)
+        assertFalse(disabled.await())
+
+        val reEnabled = async(start = CoroutineStart.UNDISPATCHED) {
+            store.videoPipEnabled.first { it }
+        }
+        store.saveVideoPipEnabled(true)
+        assertTrue(reEnabled.await())
+    }
+
+    @Test
+    fun videoPipEnabled_restoresDisabledPreferenceInNewStore() = runBlocking {
+        val prefs = FakeSharedPreferences()
+        fun newStore() = EncryptedConfigStore(
+            context = null,
+            prefsProvider = { prefs },
+            legacyDataStoreSnapshot = { emptyMap() },
+            removeLegacyCredentialKeys = {}
+        )
+        newStore().saveVideoPipEnabled(false)
+        assertFalse(newStore().videoPipEnabled.first())
+    }
+
+    @Test
+    fun videoPipEnabled_defaultsTrueForMalformedValue() = runBlocking {
+        val prefs = FakeSharedPreferences()
+        prefs.edit().putString(EncryptedConfigKeys.VIDEO_PIP_ENABLED, "invalid").commit()
+        val store = EncryptedConfigStore(
+            context = null,
+            prefsProvider = { prefs },
+            legacyDataStoreSnapshot = { emptyMap() },
+            removeLegacyCredentialKeys = {}
+        )
+        assertTrue(store.videoPipEnabled.first())
+    }
+
+    @Test
+    fun videoPipEnabled_observesWriteDuringListenerRegistration() = runBlocking {
+        val backing = FakeSharedPreferences()
+        val racingPrefs = object : SharedPreferences by backing {
+            override fun registerOnSharedPreferenceChangeListener(
+                listener: SharedPreferences.OnSharedPreferenceChangeListener
+            ) {
+                // Simulate a save racing the first subscription, before its listener exists.
+                backing.edit().putString(EncryptedConfigKeys.VIDEO_PIP_ENABLED, "false").commit()
+                backing.registerOnSharedPreferenceChangeListener(listener)
+            }
+        }
+        val store = EncryptedConfigStore(
+            context = null,
+            prefsProvider = { racingPrefs },
+            legacyDataStoreSnapshot = { emptyMap() },
+            removeLegacyCredentialKeys = {}
+        )
+        assertFalse(withTimeout(1_000) { store.videoPipEnabled.first { !it } })
     }
 
     private fun FakeSharedPreferences.writeNavidrome(url: String, user: String, pass: String) {
