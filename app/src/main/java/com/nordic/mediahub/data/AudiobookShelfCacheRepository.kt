@@ -8,7 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.first
 
-private const val AUDIOBOOK_CACHE_SCHEMA_VERSION = 1
+private const val AUDIOBOOK_CACHE_SCHEMA_VERSION = 2
 
 data class AudiobookShelfCache(
     val configKey: String = "",
@@ -16,7 +16,9 @@ data class AudiobookShelfCache(
     val libraries: List<AudiobookLibrarySummary> = emptyList(),
     val items: List<AudiobookItemSummary> = emptyList(),
     val selectedLibraryId: String? = null,
-    val itemDetails: Map<String, AudiobookItemDetail> = emptyMap()
+    val itemDetails: Map<String, AudiobookItemDetail> = emptyMap(),
+    val itemsByLibrary: Map<String, List<AudiobookItemSummary>> = emptyMap(),
+    val libraryFetchedAt: Map<String, Long> = emptyMap()
 )
 
 class AudiobookCacheRepository(
@@ -51,15 +53,42 @@ class AudiobookCacheRepository(
         config: AudiobookShelfConfig,
         libraries: List<AudiobookLibrarySummary>,
         items: List<AudiobookItemSummary>,
-        selectedLibraryId: String?
+        selectedLibraryId: String?,
+        itemsByLibrary: Map<String, List<AudiobookItemSummary>> = emptyMap(),
+        libraryFetchedAt: Map<String, Long> = emptyMap()
     ): AudiobookShelfCache {
         return AudiobookShelfCache(
             configKey = config.cacheKey(),
             updatedAtMillis = System.currentTimeMillis(),
             libraries = libraries,
             items = items,
-            selectedLibraryId = selectedLibraryId
+            selectedLibraryId = selectedLibraryId,
+            itemsByLibrary = itemsByLibrary,
+            libraryFetchedAt = libraryFetchedAt
         )
+    }
+
+    /**
+     * Persists one library's item list and stamps its fetch time, then evicts
+     * the least-recently-fetched libraries beyond [LIBRARY_CACHE_MAX_ENTRIES].
+     * Library switches render from this map instantly (cache-then-network)
+     * instead of re-fetching the whole library on every switch.
+     */
+    suspend fun saveLibraryItems(
+        config: AudiobookShelfConfig,
+        libraryId: String,
+        items: List<AudiobookItemSummary>
+    ) {
+        editCache(config) { existing ->
+            val fetchedAt = System.currentTimeMillis()
+            val mergedItems = existing.itemsByLibrary + (libraryId to items)
+            val mergedStamps = existing.libraryFetchedAt + (libraryId to fetchedAt)
+            val evicted = evictAudiobookLibrariesBeyondLimit(mergedItems, mergedStamps)
+            existing.copy(
+                itemsByLibrary = evicted.first,
+                libraryFetchedAt = evicted.second
+            )
+        }
     }
 
     suspend fun loadItemDetail(config: AudiobookShelfConfig, itemId: String): AudiobookItemDetail? {
@@ -114,4 +143,24 @@ fun AudiobookShelfConfig.cacheKey(): String {
     val normalizedUrl = normalizedBaseUrl().lowercase()
     val normalizedUser = username.trim().lowercase()
     return "$normalizedUrl|$normalizedUser|v$AUDIOBOOK_CACHE_SCHEMA_VERSION"
+}
+
+/**
+ * Drops the stalest library entries when the merged map exceeds the cache
+ * limit, ordered by fetch stamp (oldest evicted first). Same policy as the
+ * video domain's [evictBeyondLimit].
+ */
+internal fun evictAudiobookLibrariesBeyondLimit(
+    itemsByLibrary: Map<String, List<AudiobookItemSummary>>,
+    libraryFetchedAt: Map<String, Long>,
+    limit: Int = LIBRARY_CACHE_MAX_ENTRIES
+): Pair<Map<String, List<AudiobookItemSummary>>, Map<String, Long>> {
+    if (itemsByLibrary.size <= limit) return itemsByLibrary to libraryFetchedAt
+    val kept = libraryFetchedAt.entries
+        .sortedByDescending { it.value }
+        .take(limit)
+        .map { it.key }
+        .toSet()
+    return itemsByLibrary.filterKeys { it in kept } to
+        libraryFetchedAt.filterKeys { it in kept }
 }

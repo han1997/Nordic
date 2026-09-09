@@ -119,6 +119,61 @@ class AudiobookCacheRepositoryTest {
     }
 
     @Test
+    fun saveLibraryItems_thenLoad_returnsPerLibraryRows() = runCacheTest {
+        val repo = newRepo()
+        val cfg = config(user = "user-1")
+        repo.save(
+            cfg,
+            repo.buildCache(
+                config = cfg,
+                libraries = listOf(library("lib-1"), library("lib-2")),
+                items = listOf(summary("b1")),
+                selectedLibraryId = "lib-1"
+            )
+        )
+
+        repo.saveLibraryItems(cfg, "lib-2", listOf(summary("b2")))
+
+        val loaded = repo.load(cfg)
+        assertNotNull(loaded)
+        assertEquals(listOf("b2"), loaded!!.itemsByLibrary["lib-2"]!!.map { it.id })
+        assertTrue(loaded.libraryFetchedAt["lib-2"]!! > 0L)
+        // Existing browse fields and detail caches are untouched.
+        assertEquals(listOf("b1"), loaded.items.map { it.id })
+    }
+
+    @Test
+    fun saveLibraryItems_evictsStalestLibraryBeyondLimit() = runCacheTest {
+        val repo = newRepo()
+        val cfg = config(user = "user-1")
+        repo.save(
+            cfg,
+            repo.buildCache(
+                config = cfg,
+                libraries = listOf(library("lib-1")),
+                items = listOf(summary("b1")),
+                selectedLibraryId = "lib-1"
+            )
+        )
+
+        repeat(LIBRARY_CACHE_MAX_ENTRIES) { index ->
+            repo.saveLibraryItems(cfg, "lib-$index", listOf(summary("b-$index")))
+            Thread.sleep(2)
+        }
+        repo.saveLibraryItems(cfg, "lib-0", listOf(summary("b-0-refreshed")))
+        Thread.sleep(2)
+        repo.saveLibraryItems(cfg, "lib-new", listOf(summary("b-new")))
+
+        val loaded = repo.load(cfg)
+        assertNotNull(loaded)
+        val cachedLibraries = loaded!!.itemsByLibrary.keys
+        assertTrue("lib-new" in cachedLibraries)
+        assertTrue("lib-0" in cachedLibraries)
+        assertEquals(LIBRARY_CACHE_MAX_ENTRIES, cachedLibraries.size)
+        assertNull("stalest library evicted", loaded.itemsByLibrary["lib-1"])
+    }
+
+    @Test
     fun load_returnsNullForMalformedStoredJson() = runCacheTest {
         val dataStore = fakeDataStore()
         val repo = AudiobookCacheRepository(context = null, dataStoreProvider = { dataStore })

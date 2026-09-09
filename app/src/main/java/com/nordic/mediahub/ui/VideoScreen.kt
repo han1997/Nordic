@@ -35,6 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.EmbyRepository
 import com.nordic.mediahub.data.EmbyVideoCacheRepository
+import com.nordic.mediahub.data.RESUME_CATALOG_TTL_MILLIS
 import com.nordic.mediahub.data.VideoItem
 import com.nordic.mediahub.data.VideoLibrary
 import com.nordic.mediahub.data.VideoServerConfig
@@ -68,6 +69,12 @@ fun VideoScreen(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var cacheUpdatedAtMillis by remember { mutableStateOf<Long?>(null) }
+    // Per-library item caches (stale-while-revalidate): switching libraries
+    // renders from this map instantly, then a silent refresh updates in place.
+    // `libraryFetchedAt` drives the header cache-age label and the ON_RESUME
+    // catalog TTL gate.
+    var itemsByLibrary by remember { mutableStateOf<Map<String, List<VideoItem>>>(emptyMap()) }
+    var libraryFetchedAt by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
     // Server-side continue-watching list (Items/Resume). Null = not fetched
     // yet; empty list = server says nothing to resume. The list is persisted
     // in the video cache as raw server data, so cold starts restore the last
@@ -125,6 +132,8 @@ fun VideoScreen(
         selectedLibraryId = null
         videos = emptyList()
         resumeVideos = null
+        itemsByLibrary = emptyMap()
+        libraryFetchedAt = emptyMap()
         selectedVideo = resolveVideoSelectionAfterConfigChange(selectedVideo)
         searchQuery = ""
         searchExpanded = false
@@ -148,13 +157,19 @@ fun VideoScreen(
             selectedLibraryId = null
             videos = emptyList()
             selectedVideo = null
+            itemsByLibrary = emptyMap()
+            libraryFetchedAt = emptyMap()
             cacheUpdatedAtMillis = null
             return false
         }
 
         libraries = cached.libraries
         selectedLibraryId = cached.selectedLibraryId
-        videos = cached.videos
+        itemsByLibrary = cached.itemsByLibrary
+        libraryFetchedAt = cached.libraryFetchedAt
+        // Restore the selected library's cached rows; the launch refresh
+        // (TTL-gated) or a manual refresh updates them in place.
+        videos = cached.selectedLibraryId?.let { cached.itemsByLibrary[it] } ?: cached.videos
         selectedVideo = null
         // Restore the persisted server Resume rows so the continue-watching
         // shelf renders the last known server data before the silent refresh.
@@ -229,14 +244,39 @@ fun VideoScreen(
                 videoDetailInvalidationNotice = "这个视频已不在刷新后的媒体库中，已返回视频列表。"
             }
             if (isCurrentLibraryRequest) {
-                val freshCache = cacheRepository.buildCache(
-                    config = targetConfig,
-                    libraries = catalog.libraries,
-                    videos = catalog.items,
-                    selectedLibraryId = catalog.selectedLibraryId
-                )
-                cacheUpdatedAtMillis = freshCache.updatedAtMillis
-                cacheRepository.save(targetConfig, freshCache)
+                val selectedLibraryId = catalog.selectedLibraryId
+                if (selectedLibraryId != null) {
+                    val mergedByLibrary = itemsByLibrary + (selectedLibraryId to catalog.items)
+                    val mergedStamps = libraryFetchedAt +
+                        (selectedLibraryId to System.currentTimeMillis())
+                    val freshCache = cacheRepository.buildCache(
+                        config = targetConfig,
+                        libraries = catalog.libraries,
+                        videos = catalog.items,
+                        selectedLibraryId = selectedLibraryId,
+                        itemsByLibrary = mergedByLibrary,
+                        libraryFetchedAt = mergedStamps
+                    )
+                    itemsByLibrary = mergedByLibrary
+                    libraryFetchedAt = mergedStamps
+                    cacheUpdatedAtMillis = freshCache.updatedAtMillis
+                    cacheRepository.save(targetConfig, freshCache)
+                } else {
+                    // No video library exists on the server: the catalog is
+                    // authoritative-empty, so per-library caches reset too.
+                    val freshCache = cacheRepository.buildCache(
+                        config = targetConfig,
+                        libraries = catalog.libraries,
+                        videos = catalog.items,
+                        selectedLibraryId = null,
+                        itemsByLibrary = emptyMap(),
+                        libraryFetchedAt = emptyMap()
+                    )
+                    itemsByLibrary = emptyMap()
+                    libraryFetchedAt = emptyMap()
+                    cacheUpdatedAtMillis = freshCache.updatedAtMillis
+                    cacheRepository.save(targetConfig, freshCache)
+                }
             }
             refreshResumeItems(repo, targetConfig, requestVersion)
         } catch (e: Exception) {
@@ -285,10 +325,11 @@ fun VideoScreen(
         }
     }
 
-    // Re-entering the video screen always re-pulls the latest playback records
-    // (positions / played flags may have changed on another device or in a
-    // previous session). Cache-then-network: cached data renders immediately,
-    // the silent refresh updates in place. `refreshVideo` self-guards with
+    // Re-entering the video screen refreshes progress cheaply: the Resume list
+    // (single request) always re-pulls so cross-device progress stays current,
+    // while the heavy full-catalog re-pagination is TTL-gated — within
+    // RESUME_CATALOG_TTL_MILLIS of the selected library's last fetch the
+    // cached grid keeps rendering. `refreshVideo` self-guards with
     // `isLoading`, so this cannot stack with a manual refresh in flight.
     // A library switch during the round-trip bumps `videoLibraryRequestVersion`,
     // which makes refreshVideo skip the selectedLibraryId/cache write-back so
@@ -296,11 +337,27 @@ fun VideoScreen(
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         if (savedConfig.isReadyForVideoSync()) {
             scope.launch {
-                refreshVideo(
-                    targetConfig = savedConfig,
-                    targetLibraryId = selectedLibraryId,
-                    requestVersion = videoConfigStateVersion
-                )
+                val selectedLibraryIdSnapshot = selectedLibraryId
+                val catalogFresh = selectedLibraryIdSnapshot != null &&
+                    isCacheFresh(
+                        libraryFetchedAt[selectedLibraryIdSnapshot],
+                        RESUME_CATALOG_TTL_MILLIS
+                    )
+                if (!catalogFresh) {
+                    refreshVideo(
+                        targetConfig = savedConfig,
+                        targetLibraryId = selectedLibraryId,
+                        requestVersion = videoConfigStateVersion
+                    )
+                } else {
+                    // Cheap path: only the Resume list re-pulls, keeping
+                    // cross-device progress current without re-pagination.
+                    savedConfig.takeIf { it.isReadyForVideoSync() }?.let { config ->
+                        (embyRepository ?: EmbyRepository(config)).let { repo ->
+                            refreshResumeItems(repo, config, videoConfigStateVersion)
+                        }
+                    }
+                }
             }
         }
     }
@@ -356,7 +413,11 @@ fun VideoScreen(
         return
     }
 
-    val cacheAgeLabel = formatCacheAge(cacheUpdatedAtMillis)
+    // The cache-age label describes the selected library's rows, not the whole
+    // cache: per-library stamps are the freshest signal for what is on screen.
+    val cacheAgeLabel = formatCacheAge(
+        selectedLibraryId?.let { libraryFetchedAt[it] } ?: cacheUpdatedAtMillis
+    )
     val hasVideoContent = libraries.isNotEmpty() || videos.isNotEmpty()
     val refreshErrorSubtitle = mediaRefreshErrorSubtitle(errorMessage, hasVideoContent)
     val standaloneError = standaloneMediaError(errorMessage, hasVideoContent)
@@ -447,14 +508,29 @@ fun VideoScreen(
                         val libraryRequestVersion = videoLibraryRequestVersion
                         selectedLibraryId = libraryId
                         selectedVideo = null
-                        videos = emptyList()
                         searchQuery = ""
                         searchExpanded = false
                         selectedTypeFilter = VideoTypeFilter.All
+                        // Stale-while-revalidate: render the cached rows for
+                        // this library instantly (no spinner), then refresh
+                        // silently. Only a library with no cached rows shows
+                        // the loading full fetch.
+                        val cachedItems = itemsByLibrary[libraryId]
+                        if (cachedItems != null) {
+                            videos = cachedItems
+                            selectedTypeFilter = resolveVideoTypeFilterAfterCatalogRefresh(
+                                selectedTypeFilter = selectedTypeFilter,
+                                videos = cachedItems
+                            )
+                        } else {
+                            videos = emptyList()
+                        }
                         val repo = embyRepository ?: return@VideoLibrarySelector
                         val requestVersion = videoConfigStateVersion
                         scope.launch {
-                            isLoading = true
+                            if (cachedItems == null) {
+                                isLoading = true
+                            }
                             errorMessage = null
                             try {
                                 val loadedVideos = repo.getLibraryItems(libraryId)
@@ -467,11 +543,17 @@ fun VideoScreen(
                                         selectedTypeFilter = selectedTypeFilter,
                                         videos = loadedVideos
                                     )
+                                    itemsByLibrary = itemsByLibrary + (libraryId to loadedVideos)
+                                    libraryFetchedAt = libraryFetchedAt +
+                                        (libraryId to System.currentTimeMillis())
+                                    cacheRepository.saveLibraryItems(savedConfig, libraryId, loadedVideos)
                                     val updatedCache = cacheRepository.buildCache(
                                         config = savedConfig,
                                         libraries = libraries,
                                         videos = loadedVideos,
-                                        selectedLibraryId = libraryId
+                                        selectedLibraryId = libraryId,
+                                        itemsByLibrary = itemsByLibrary,
+                                        libraryFetchedAt = libraryFetchedAt
                                     )
                                     cacheUpdatedAtMillis = updatedCache.updatedAtMillis
                                     cacheRepository.save(savedConfig, updatedCache)
@@ -481,7 +563,11 @@ fun VideoScreen(
                                     videoLibraryRequestVersion == libraryRequestVersion &&
                                     selectedLibraryId == libraryId
                                 ) {
-                                    errorMessage = "加载视频列表失败: ${e.message ?: "未知错误"}"
+                                    // Cached rows stay visible; only a library
+                                    // with nothing cached surfaces the error.
+                                    if (videos.isEmpty()) {
+                                        errorMessage = "加载视频列表失败: ${e.message ?: "未知错误"}"
+                                    }
                                 }
                             } finally {
                                 if (videoConfigStateVersion == requestVersion &&

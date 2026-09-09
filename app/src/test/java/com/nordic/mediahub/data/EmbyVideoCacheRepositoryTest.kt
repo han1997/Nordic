@@ -143,6 +143,73 @@ class EmbyVideoCacheRepositoryTest {
     }
 
     @Test
+    fun saveLibraryItems_thenLoad_returnsPerLibraryRows() = runCacheTest {
+        val repo = newRepo()
+        val cfg = config(apiKey = "key-1")
+        repo.save(
+            cfg,
+            repo.buildCache(
+                config = cfg,
+                libraries = listOf(library("lib-1"), library("lib-2")),
+                videos = listOf(video("v1")),
+                selectedLibraryId = "lib-1"
+            )
+        )
+
+        repo.saveLibraryItems(cfg, "lib-2", listOf(video("v2"), video("v3")))
+
+        val loaded = repo.load(cfg)
+        assertNotNull(loaded)
+        assertEquals(listOf("v2", "v3"), loaded!!.itemsByLibrary["lib-2"]!!.map { it.id })
+        assertTrue(loaded.libraryFetchedAt["lib-2"]!! > 0L)
+        // Existing browse fields are untouched by the per-library write.
+        assertEquals(listOf("v1"), loaded.videos.map { it.id })
+    }
+
+    @Test
+    fun saveLibraryItems_evictsStalestLibraryBeyondLimit() = runCacheTest {
+        val repo = newRepo()
+        val cfg = config(apiKey = "key-1")
+        repo.save(
+            cfg,
+            repo.buildCache(
+                config = cfg,
+                libraries = listOf(library("lib-1")),
+                videos = listOf(video("v1")),
+                selectedLibraryId = "lib-1"
+            )
+        )
+
+        // Fill the cache to the limit with staggered stamps.
+        repeat(LIBRARY_CACHE_MAX_ENTRIES) { index ->
+            repo.saveLibraryItems(cfg, "lib-$index", listOf(video("v-$index")))
+            Thread.sleep(2)
+        }
+        // Touch lib-0 so lib-1 becomes the stalest entry.
+        repo.saveLibraryItems(cfg, "lib-0", listOf(video("v-0-refreshed")))
+        Thread.sleep(2)
+        repo.saveLibraryItems(cfg, "lib-new", listOf(video("v-new")))
+
+        val loaded = repo.load(cfg)
+        assertNotNull(loaded)
+        val cachedLibraries = loaded!!.itemsByLibrary.keys
+        assertTrue("lib-new" in cachedLibraries)
+        assertTrue("lib-0" in cachedLibraries)
+        assertEquals(LIBRARY_CACHE_MAX_ENTRIES, cachedLibraries.size)
+        assertNull("stalest library evicted", loaded.itemsByLibrary["lib-1"])
+    }
+
+    @Test
+    fun saveLibraryItems_withoutExistingCache_isNoOp() = runCacheTest {
+        val repo = newRepo()
+        val cfg = config(apiKey = "key-1")
+
+        repo.saveLibraryItems(cfg, "lib-1", listOf(video("v1")))
+
+        assertNull(repo.load(cfg))
+    }
+
+    @Test
     fun load_returnsNullForMalformedStoredJson() = runCacheTest {
         val dataStore = fakeDataStore()
         val repo = EmbyVideoCacheRepository(context = null, dataStoreProvider = { dataStore })

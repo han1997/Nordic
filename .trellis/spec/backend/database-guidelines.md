@@ -303,6 +303,9 @@ cacheRepository.save(targetConfig, freshCache)
 - Video detail has NO separate detail cache. `relatedEpisodes` is derived from the cached `videos` list at render time, so no extra request or detail-cache map is needed.
 - Config-switch cleanup: track the previous saved config. When the new config's `cacheKey()` differs from the previous, call `cacheRepository.clear(previousConfig)`. Never call `clear(newConfig)` — that would wipe the cache the launch flow just applied. `clear()` only removes the stored JSON when the stored `configKey` matches the argument.
 - Bump the domain's `*_CACHE_SCHEMA_VERSION` whenever persisted cache field semantics change (e.g. adding the Music detail-cache maps bumped Music v3→v4). Old caches are auto-invalidated because the `schemaVersion` in the key changes.
+- Per-library item caches (Video v3 / Audiobook v2): each domain cache additionally keeps `itemsByLibrary: Map<libraryId, List<item>>` + `libraryFetchedAt: Map<libraryId, Long>` so switching media libraries renders instantly from cache (stale-while-revalidate) instead of re-paginating the whole library. Writes go through `saveLibraryItems(config, libraryId, items)`, which stamps the fetch time and evicts the least-recently-fetched libraries beyond `LIBRARY_CACHE_MAX_ENTRIES` (4). Browse list fields (`videos` / `items`) stay authoritative for the currently selected library and are refreshed alongside the per-library map.
+- Library-switch flow (chip onSelect): if the target library has cached rows, render them immediately (no spinner), keep the existing `xxxLibraryRequestVersion` / config-version guards, then fetch fresh in the background; a failed background fetch keeps the cached rows visible and only surfaces an error when nothing is rendered. If the target library has no cached rows, keep the previous loading full-fetch behavior.
+- ON_RESUME catalog refresh (Video only) is TTL-gated per selected library: within `RESUME_CATALOG_TTL_MILLIS` (5 min, `data/CacheTtl.kt`) of the selected library's last fetch, re-entry only re-pulls the cheap Resume list (`refreshResumeItems`); beyond it, the full `refreshVideo` runs. Manual ↻ refresh always bypasses this gate. Use the shared `isCacheFresh(updatedAtMillis, ttlMillis)` overload for per-domain TTL windows; do not inline time math in screens.
 - Existing `xxxConfigStateVersion` guards must remain in place so stale async writes after a config change cannot repopulate state. Cache apply/refresh must respect the same request-version checks.
 - Cache repositories are constructed once per screen via `remember { XxxCacheRepository(context) }`. Do not construct them per refresh call.
 
@@ -324,6 +327,12 @@ cacheRepository.save(targetConfig, freshCache)
 | Config switch and cacheKey unchanged | Do not call clear (same account re-emission) |
 | `clear(config)` called but stored configKey does not match | No-op; do not remove another config's cache |
 | Cache schema version bumped | Old caches under the previous version are ignored (key mismatch) |
+| Library switch with cached rows for the target library | Render cached rows instantly (no spinner); background refresh updates in place and stamps `libraryFetchedAt` |
+| Library switch without cached rows | Loading full fetch as before |
+| Background library fetch fails with cached rows visible | Keep cached rows; no error card |
+| Background library fetch fails with nothing rendered | Show the contextual load error |
+| ON_RESUME within `RESUME_CATALOG_TTL_MILLIS` of the selected library's fetch | Only the Resume list re-pulls; no full catalog re-pagination |
+| ON_RESUME beyond the TTL or no selected library | Full `refreshVideo` runs (TTL-gated launch path unchanged) |
 | Old async refresh writes after config change | Ignored by `xxxConfigStateVersion` guard; cache not repopulated |
 
 ### 5. Good/Base/Bad Cases

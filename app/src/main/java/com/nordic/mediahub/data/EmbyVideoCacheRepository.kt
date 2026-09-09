@@ -8,7 +8,14 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.first
 
-private const val VIDEO_CACHE_SCHEMA_VERSION = 2
+private const val VIDEO_CACHE_SCHEMA_VERSION = 3
+
+/**
+ * Upper bound on cached per-library item lists. Switching to a library not in
+ * the cache falls back to the loading full fetch; keeping every visited
+ * library forever would grow the DataStore JSON without limit.
+ */
+internal const val LIBRARY_CACHE_MAX_ENTRIES = 4
 
 data class EmbyVideoCache(
     val configKey: String = "",
@@ -16,7 +23,9 @@ data class EmbyVideoCache(
     val libraries: List<VideoLibrary> = emptyList(),
     val videos: List<VideoItem> = emptyList(),
     val selectedLibraryId: String? = null,
-    val resumeVideos: List<VideoItem> = emptyList()
+    val resumeVideos: List<VideoItem> = emptyList(),
+    val itemsByLibrary: Map<String, List<VideoItem>> = emptyMap(),
+    val libraryFetchedAt: Map<String, Long> = emptyMap()
 )
 
 class EmbyVideoCacheRepository(
@@ -32,7 +41,8 @@ class EmbyVideoCacheRepository(
     suspend fun load(config: VideoServerConfig): EmbyVideoCache? {
         val cached = loadRaw(config) ?: return null
         return cached.takeIf {
-            it.libraries.isNotEmpty() || it.videos.isNotEmpty() || it.resumeVideos.isNotEmpty()
+            it.libraries.isNotEmpty() || it.videos.isNotEmpty() ||
+                it.resumeVideos.isNotEmpty() || it.itemsByLibrary.isNotEmpty()
         }
     }
 
@@ -62,18 +72,49 @@ class EmbyVideoCacheRepository(
         }
     }
 
+    /**
+     * Persists one library's item list and stamps its fetch time, then evicts
+     * the least-recently-fetched libraries beyond [LIBRARY_CACHE_MAX_ENTRIES].
+     * Library switches render from this map instantly (cache-then-network)
+     * instead of re-paginating the whole library on every switch.
+     */
+    suspend fun saveLibraryItems(
+        config: VideoServerConfig,
+        libraryId: String,
+        items: List<VideoItem>
+    ) {
+        val current = loadRaw(config) ?: return
+        val fetchedAt = System.currentTimeMillis()
+        val mergedItems = current.itemsByLibrary + (libraryId to items)
+        val mergedStamps = current.libraryFetchedAt + (libraryId to fetchedAt)
+        val evicted = evictBeyondLimit(mergedItems, mergedStamps)
+        dataStore.edit { prefs ->
+            prefs[videoCacheKey] = gson.toJson(
+                current.copy(
+                    itemsByLibrary = evicted.first,
+                    libraryFetchedAt = evicted.second,
+                    configKey = config.cacheKey()
+                )
+            )
+        }
+    }
+
     fun buildCache(
         config: VideoServerConfig,
         libraries: List<VideoLibrary>,
         videos: List<VideoItem>,
-        selectedLibraryId: String?
+        selectedLibraryId: String?,
+        itemsByLibrary: Map<String, List<VideoItem>> = emptyMap(),
+        libraryFetchedAt: Map<String, Long> = emptyMap()
     ): EmbyVideoCache {
         return EmbyVideoCache(
             configKey = config.cacheKey(),
             updatedAtMillis = System.currentTimeMillis(),
             libraries = libraries,
             videos = videos,
-            selectedLibraryId = selectedLibraryId
+            selectedLibraryId = selectedLibraryId,
+            itemsByLibrary = itemsByLibrary,
+            libraryFetchedAt = libraryFetchedAt
         )
     }
 
@@ -100,6 +141,26 @@ class EmbyVideoCacheRepository(
     private fun parseOrNull(json: String): EmbyVideoCache? {
         return runCatching { gson.fromJson(json, EmbyVideoCache::class.java) }.getOrNull()
     }
+}
+
+/**
+ * Drops the stalest library entries when the merged map exceeds the cache
+ * limit, ordered by fetch stamp (oldest evicted first). The freshly written
+ * library always survives because its stamp is the newest.
+ */
+internal fun evictBeyondLimit(
+    itemsByLibrary: Map<String, List<VideoItem>>,
+    libraryFetchedAt: Map<String, Long>,
+    limit: Int = LIBRARY_CACHE_MAX_ENTRIES
+): Pair<Map<String, List<VideoItem>>, Map<String, Long>> {
+    if (itemsByLibrary.size <= limit) return itemsByLibrary to libraryFetchedAt
+    val kept = libraryFetchedAt.entries
+        .sortedByDescending { it.value }
+        .take(limit)
+        .map { it.key }
+        .toSet()
+    return itemsByLibrary.filterKeys { it in kept } to
+        libraryFetchedAt.filterKeys { it in kept }
 }
 
 fun VideoServerConfig.cacheKey(): String {

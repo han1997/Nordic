@@ -47,7 +47,7 @@ class CacheKeyTest {
     @Test
     fun audiobookCacheKey_embedsSchemaVersion() {
         val cfg = AudiobookShelfConfig(serverUrl = "http://example.test", username = "u", password = "p")
-        assertTrue(cfg.cacheKey().endsWith("|v1"))
+        assertTrue(cfg.cacheKey().endsWith("|v2"))
     }
 
     @Test
@@ -84,6 +84,6 @@ class CacheKeyTest {
     @Test
     fun videoCacheKey_embedsSchemaVersion() {
         val cfg = VideoServerConfig(type = VideoServerType.EMBY, serverUrl = "http://example.test", apiKey = "key-a")
-        assertTrue(cfg.cacheKey().endsWith("|v2"))
+        assertTrue(cfg.cacheKey().endsWith("|v3"))
     }
 }

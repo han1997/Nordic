@@ -161,6 +161,10 @@ fun AudiobookScreen(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var cacheUpdatedAtMillis by remember { mutableStateOf<Long?>(null) }
+    // Per-library item caches (stale-while-revalidate): switching libraries
+    // renders from this map instantly, then a silent refresh updates in place.
+    var itemsByLibrary by remember { mutableStateOf<Map<String, List<AudiobookItemSummary>>>(emptyMap()) }
+    var libraryFetchedAt by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
     var audiobookConfigStateVersion by remember { mutableStateOf(0) }
     var previousAudiobookConfig by remember { mutableStateOf<AudiobookShelfConfig?>(null) }
     var audiobookResetNotice by remember { mutableStateOf<String?>(null) }
@@ -193,6 +197,8 @@ fun AudiobookScreen(
         items = emptyList()
         selectedItem = null
         loadingItemDetailId = null
+        itemsByLibrary = emptyMap()
+        libraryFetchedAt = emptyMap()
         isLoading = false
         errorMessage = null
         cacheUpdatedAtMillis = null
@@ -212,6 +218,8 @@ fun AudiobookScreen(
             selectedLibraryId = null
             items = emptyList()
             selectedItem = null
+            itemsByLibrary = emptyMap()
+            libraryFetchedAt = emptyMap()
             cacheUpdatedAtMillis = null
             return false
         }
@@ -219,7 +227,11 @@ fun AudiobookScreen(
         libraries = cached.libraries
         selectedLibraryId = cached.selectedLibraryId
             ?: resolveAudiobookSelectedLibraryId(null, cached.libraries)
-        items = cached.items
+        itemsByLibrary = cached.itemsByLibrary
+        libraryFetchedAt = cached.libraryFetchedAt
+        // Restore the selected library's cached rows; the launch refresh
+        // (TTL-gated) or a manual refresh updates them in place.
+        items = cached.selectedLibraryId?.let { cached.itemsByLibrary[it] } ?: cached.items
         selectedItem = null
         cacheUpdatedAtMillis = cached.updatedAtMillis
         errorMessage = null
@@ -270,12 +282,18 @@ fun AudiobookScreen(
             if (shouldShowDetailInvalidationNotice) {
                 audiobookDetailInvalidationNotice = "这本有声书已不在刷新后的书库中，已返回书库列表。"
             }
+            val mergedByLibrary = resolvedLibraryId?.let { itemsByLibrary + (it to refreshedItems) } ?: itemsByLibrary
+            val mergedStamps = resolvedLibraryId?.let { libraryFetchedAt + (it to System.currentTimeMillis()) } ?: libraryFetchedAt
             val freshCache = cacheRepository.buildCache(
                 config = targetConfig,
                 libraries = loadedLibraries,
                 items = refreshedItems,
-                selectedLibraryId = resolvedLibraryId
+                selectedLibraryId = resolvedLibraryId,
+                itemsByLibrary = mergedByLibrary,
+                libraryFetchedAt = mergedStamps
             )
+            itemsByLibrary = mergedByLibrary
+            libraryFetchedAt = mergedStamps
             cacheUpdatedAtMillis = freshCache.updatedAtMillis
             cacheRepository.save(targetConfig, freshCache)
         } catch (e: Exception) {
@@ -480,14 +498,25 @@ fun AudiobookScreen(
                             audiobookLibraryRequestVersion += 1
                             val libraryRequestVersion = audiobookLibraryRequestVersion
                             selectedLibraryId = libraryId
-                            items = emptyList()
                             selectedItem = null
                             loadingItemDetailId = null
                             errorMessage = null
+                            // Stale-while-revalidate: render cached rows for
+                            // this library instantly; only a library with no
+                            // cached rows shows the loading full fetch.
+                            val cachedItems = itemsByLibrary[libraryId]
+                            if (cachedItems != null) {
+                                items = cachedItems
+                                libraryPage = AudiobookLibraryPage.Home
+                            } else {
+                                items = emptyList()
+                            }
                             val repo = audiobookRepository ?: return@AudiobookLibrarySelector
                             val requestVersion = audiobookConfigStateVersion
                             scope.launch {
-                                isLoading = true
+                                if (cachedItems == null) {
+                                    isLoading = true
+                                }
                                 errorMessage = null
                                 try {
                                     val loadedItems = repo.getLibraryItems(libraryId)
@@ -499,11 +528,17 @@ fun AudiobookScreen(
                                         selectedItem = null
                                         libraryPage = AudiobookLibraryPage.Home
                                         loadingItemDetailId = null
+                                        itemsByLibrary = itemsByLibrary + (libraryId to loadedItems)
+                                        libraryFetchedAt = libraryFetchedAt +
+                                            (libraryId to System.currentTimeMillis())
+                                        cacheRepository.saveLibraryItems(savedConfig, libraryId, loadedItems)
                                         val updatedCache = cacheRepository.buildCache(
                                             config = savedConfig,
                                             libraries = libraries,
                                             items = loadedItems,
-                                            selectedLibraryId = libraryId
+                                            selectedLibraryId = libraryId,
+                                            itemsByLibrary = itemsByLibrary,
+                                            libraryFetchedAt = libraryFetchedAt
                                         )
                                         cacheUpdatedAtMillis = updatedCache.updatedAtMillis
                                         cacheRepository.save(savedConfig, updatedCache)
@@ -513,7 +548,11 @@ fun AudiobookScreen(
                                         audiobookLibraryRequestVersion == libraryRequestVersion &&
                                         selectedLibraryId == libraryId
                                     ) {
-                                        errorMessage = "加载书库失败: ${e.message ?: "未知错误"}"
+                                        // Cached rows stay visible; only a library
+                                        // with nothing cached surfaces the error.
+                                        if (items.isEmpty()) {
+                                            errorMessage = "加载书库失败: ${e.message ?: "未知错误"}"
+                                        }
                                     }
                                 } finally {
                                     if (audiobookConfigStateVersion == requestVersion &&

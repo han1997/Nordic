@@ -47,6 +47,31 @@ class CacheTtlTest {
     }
 
     @Test
+    fun isCacheFresh_withCustomTtl_respectsCallerWindow() {
+        val now = System.currentTimeMillis()
+        // Inside a 5-minute window: fresh.
+        assertTrue(isCacheFresh(now - 4 * 60_000L, RESUME_CATALOG_TTL_MILLIS))
+        // Exactly at the boundary: still fresh.
+        assertTrue(isCacheFresh(now - RESUME_CATALOG_TTL_MILLIS, RESUME_CATALOG_TTL_MILLIS))
+        // One millisecond beyond: stale.
+        assertFalse(isCacheFresh(now - (RESUME_CATALOG_TTL_MILLIS + 1L), RESUME_CATALOG_TTL_MILLIS))
+        // A 30-minute-old stamp is stale for the 5-minute window but fresh for the browse TTL.
+        val halfHourOld = now - CACHE_TTL_MILLIS
+        assertFalse(isCacheFresh(halfHourOld, RESUME_CATALOG_TTL_MILLIS))
+        assertTrue(isCacheFresh(halfHourOld))
+    }
+
+    @Test
+    fun isCacheFresh_withCustomTtl_rejectsInvalidInputs() {
+        val now = System.currentTimeMillis()
+        assertFalse(isCacheFresh(null, RESUME_CATALOG_TTL_MILLIS))
+        assertFalse(isCacheFresh(0L, RESUME_CATALOG_TTL_MILLIS))
+        assertFalse(isCacheFresh(now - 60_000L, 0L))
+        assertFalse(isCacheFresh(now - 60_000L, -1L))
+        assertFalse(isCacheFresh(now + 60_000L, RESUME_CATALOG_TTL_MILLIS))
+    }
+
+    @Test
     fun formatCacheAge_returnsNullForNullOrNonPositiveTimestamp() {
         assertNull(formatCacheAge(null))
         assertNull(formatCacheAge(0L))

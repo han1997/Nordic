@@ -9,6 +9,13 @@ package com.nordic.mediahub.data
 internal const val CACHE_TTL_MILLIS = 30L * 60L * 1000L
 
 /**
+ * TTL for the heavy full-catalog refresh triggered on ON_RESUME (returning to
+ * the video tab). Within this window a re-entry only refreshes the cheap
+ * Resume list instead of re-paginating the whole library.
+ */
+internal const val RESUME_CATALOG_TTL_MILLIS = 5L * 60L * 1000L
+
+/**
  * Returns true when a cache stamped with [updatedAtMillis] is still within the
  * browse cache TTL window. `null`, non-positive, or future-dated timestamps are
  * treated as stale so launch refresh still runs when no usable cache exists.
@@ -21,6 +28,17 @@ internal fun isCacheFresh(updatedAtMillis: Long?): Boolean {
     if (updatedAtMillis == null || updatedAtMillis <= 0L) return false
     val elapsed = System.currentTimeMillis() - updatedAtMillis
     return elapsed in 0..CACHE_TTL_MILLIS
+}
+
+/**
+ * Same freshness contract as [isCacheFresh] with a caller-supplied TTL window.
+ * Used for per-library entry caches and the ON_RESUME catalog TTL gate where
+ * the domain TTL differs from [CACHE_TTL_MILLIS].
+ */
+internal fun isCacheFresh(updatedAtMillis: Long?, ttlMillis: Long): Boolean {
+    if (updatedAtMillis == null || updatedAtMillis <= 0L || ttlMillis <= 0L) return false
+    val elapsed = System.currentTimeMillis() - updatedAtMillis
+    return elapsed in 0..ttlMillis
 }
 
 /**
