@@ -226,6 +226,14 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
     @Volatile
     private var autoSkipIntroEnabled: Boolean = true
 
+    /**
+     * The direct-play URL of the current item when the engine is playing a
+     * transcoded stream. Null when playing direct — used to fall back once on
+     * playback errors instead of surfacing them immediately.
+     */
+    @Volatile
+    private var directPlayFallbackUrl: String? = null
+
     private val _state = MutableStateFlow(VideoPlaybackState())
     override val state: StateFlow<VideoPlaybackState> = _state.asStateFlow()
 
@@ -247,6 +255,25 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            val fallbackUrl = directPlayFallbackUrl
+            if (fallbackUrl != null) {
+                // Transcoded stream failed: retry once with the direct stream,
+                // resuming at the last published position. A second failure
+                // surfaces as a normal playback error.
+                Log.e("VideoPlayback", "Transcoded playback failed, retrying direct stream", error)
+                directPlayFallbackUrl = null
+                val resumePositionMs = player.currentPosition.coerceAtLeast(0L)
+                val video = _state.value.video
+                if (video != null) {
+                    val directVideo = video.copy(streamUrl = fallbackUrl)
+                    _state.update { it.copy(isBuffering = true, errorMessage = null) }
+                    player.setMediaItem(directVideo.toMediaItem())
+                    player.prepare()
+                    if (resumePositionMs > 0L) player.seekTo(resumePositionMs)
+                    player.play()
+                    return
+                }
+            }
             Log.e("VideoPlayback", "Playback error", error)
             stopPositionUpdates()
             _state.update {
@@ -336,6 +363,7 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
                 introRange = video.introRange
             )
             introSkippedForCurrentItem = false
+            directPlayFallbackUrl = null
             player.setMediaItem(video.toMediaItem())
             player.setPlaybackSpeed(persistedPlaybackSpeed)
             player.prepare()
@@ -376,6 +404,7 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
                 introRange = video.introRange
             )
             introSkippedForCurrentItem = false
+            directPlayFallbackUrl = null
             player.setMediaItem(video.toMediaItem())
             player.setPlaybackSpeed(persistedPlaybackSpeed)
             player.prepare()
@@ -386,6 +415,21 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
         player.seekTo(0L)
         player.play()
         publishPlayerState()
+    }
+
+    /**
+     * Plays [video] through a transcoded HLS stream while keeping the original
+     * direct URL as a one-shot error fallback. The displayed video keeps its
+     * identity (id/metadata); only the media source URL differs.
+     */
+    fun playTranscoded(video: VideoItem, transcodeUrl: String, directUrl: String) {
+        if (transcodeUrl.isBlank()) {
+            play(video)
+            return
+        }
+        directPlayFallbackUrl = directUrl.takeIf { it.isNotBlank() }
+        val transcodedVideo = video.copy(streamUrl = transcodeUrl)
+        play(transcodedVideo)
     }
 
     override fun togglePlayPause() {
@@ -486,6 +530,7 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
 
     override fun stop() {
         stopPositionUpdates()
+        directPlayFallbackUrl = null
         player.pause()
         player.stop()
         player.clearMediaItems()

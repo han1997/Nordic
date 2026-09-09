@@ -39,6 +39,7 @@ internal object EncryptedConfigKeys {
         const val VIDEO_PLAYBACK_SPEED = "video_playback_speed"
         const val VIDEO_PIP_ENABLED = "video_pip_enabled"
         const val VIDEO_AUTO_SKIP_INTRO = "video_auto_skip_intro"
+        const val VIDEO_QUALITY_MODE = "video_quality_mode"
 
     val ALL = listOf(
         NAVIDROME_URL, NAVIDROME_USER, NAVIDROME_PASS,
@@ -186,6 +187,14 @@ class EncryptedConfigStore(
                 ?.toBooleanStrictOrNull() ?: true
         }
 
+    /** Video quality mode; AUTO when unset or unrecognized. */
+    val videoQualityMode: Flow<VideoQualityMode> =
+        configFlow(
+            watchedKeys = setOf(EncryptedConfigKeys.VIDEO_QUALITY_MODE)
+        ) { p ->
+            VideoQualityMode.fromName(p.getString(EncryptedConfigKeys.VIDEO_QUALITY_MODE, null))
+        }
+
     val videoConfig: Flow<VideoServerConfig> =
         configFlow(
             watchedKeys = setOf(
@@ -253,6 +262,14 @@ class EncryptedConfigStore(
         withContext(Dispatchers.IO) {
             prefs.edit()
                 .putString(EncryptedConfigKeys.VIDEO_AUTO_SKIP_INTRO, enabled.toString())
+                .commit()
+        }
+    }
+
+    suspend fun saveVideoQualityMode(mode: VideoQualityMode) {
+        withContext(Dispatchers.IO) {
+            prefs.edit()
+                .putString(EncryptedConfigKeys.VIDEO_QUALITY_MODE, mode.name)
                 .commit()
         }
     }

@@ -375,6 +375,40 @@ class EncryptedConfigStoreTest {
         assertTrue(store.videoAutoSkipIntro.first())
     }
 
+    @Test
+    fun videoQualityMode_defaultsToAutoAndRoundTrips() = runBlocking {
+        val prefs = FakeSharedPreferences()
+        val store = EncryptedConfigStore(
+            context = null,
+            prefsProvider = { prefs },
+            legacyDataStoreSnapshot = { emptyMap() },
+            removeLegacyCredentialKeys = {}
+        )
+        assertEquals(VideoQualityMode.AUTO, store.videoQualityMode.first())
+
+        val changed = async(start = CoroutineStart.UNDISPATCHED) {
+            store.videoQualityMode.first { it != VideoQualityMode.AUTO }
+        }
+        store.saveVideoQualityMode(VideoQualityMode.BITRATE_8M)
+        assertEquals(VideoQualityMode.BITRATE_8M, changed.await())
+    }
+
+    @Test
+    fun videoQualityMode_restoresPersistedModeInNewStoreAndFallsBackForMalformed() = runBlocking {
+        val prefs = FakeSharedPreferences()
+        fun newStore() = EncryptedConfigStore(
+            context = null,
+            prefsProvider = { prefs },
+            legacyDataStoreSnapshot = { emptyMap() },
+            removeLegacyCredentialKeys = {}
+        )
+        newStore().saveVideoQualityMode(VideoQualityMode.ORIGINAL)
+        assertEquals(VideoQualityMode.ORIGINAL, newStore().videoQualityMode.first())
+
+        prefs.edit().putString(EncryptedConfigKeys.VIDEO_QUALITY_MODE, "bogus").commit()
+        assertEquals(VideoQualityMode.AUTO, newStore().videoQualityMode.first())
+    }
+
     private fun FakeSharedPreferences.writeNavidrome(url: String, user: String, pass: String) {
         edit()
             .putString(EncryptedConfigKeys.NAVIDROME_URL, url)

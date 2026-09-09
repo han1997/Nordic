@@ -3,11 +3,17 @@ package com.nordic.mediahub.data
 import android.util.Log
 import com.nordic.mediahub.api.EmbyApi
 import com.nordic.mediahub.api.EmbyChapterDto
+import com.nordic.mediahub.api.EmbyDeviceProfileDto
 import com.nordic.mediahub.api.EmbyMediaStreamDto
 import com.nordic.mediahub.api.EmbyAuthenticateRequest
 import com.nordic.mediahub.api.EmbyItemDto
+import com.nordic.mediahub.api.EmbyPlaybackInfoRequest
+import com.nordic.mediahub.api.EmbyPlaybackInfoResponse
 import com.nordic.mediahub.api.EmbyPlaybackProgressRequest
+import com.nordic.mediahub.api.EmbyProfileContainerDto
+import com.nordic.mediahub.api.EmbyTranscodeProfileDto
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Response
@@ -70,6 +76,56 @@ data class VideoIntroRange(
 internal const val EMBY_MARKER_INTRO_START = "IntroStart"
 internal const val EMBY_MARKER_INTRO_END = "IntroEnd"
 
+/** Quality ladder: auto/original keep direct play; bitrate tiers force HLS transcode. */
+enum class VideoQualityMode(val label: String, val bitrateBps: Long?) {
+    AUTO("自动", null),
+    ORIGINAL("原始", null),
+    BITRATE_2M("2 Mbps", 2_000_000L),
+    BITRATE_4M("4 Mbps", 4_000_000L),
+    BITRATE_8M("8 Mbps", 8_000_000L),
+    BITRATE_20M("20 Mbps", 20_000_000L);
+
+    companion object {
+        fun fromName(raw: String?): VideoQualityMode =
+            entries.firstOrNull { it.name == raw?.trim()?.uppercase() } ?: AUTO
+    }
+}
+
+/** Server-issued playback session identity for transcoded playback reporting. */
+data class VideoPlaybackSession(
+    val playSessionId: String,
+    val mediaSourceId: String
+)
+
+/**
+ * Resolves the effective stream URL for a video under [mode].
+ * AUTO/ORIGINAL keep the direct stream; bitrate tiers build the HLS master
+ * playlist URL (server-side transcode to h264/aac). Returns null when the
+ * mode requires a transcode but [playbackSession] is missing (handshake
+ * failed) — callers fall back to the direct stream.
+ */
+internal fun resolveVideoPlaybackStreamUrl(
+    video: VideoItem,
+    mode: VideoQualityMode,
+    baseUrl: String,
+    playbackSession: VideoPlaybackSession?
+): String? {
+    val bitrate = mode.bitrateBps
+    if (bitrate == null || playbackSession == null) return video.streamUrl
+    val base = baseUrl.toHttpUrlOrNull() ?: return video.streamUrl
+    val mediaSourceId = playbackSession.mediaSourceId.ifBlank { "mediasource_${video.id}" }
+    return base.newBuilder()
+        .addPathSegment("Videos")
+        .addPathSegment(video.id)
+        .addPathSegment("master.m3u8")
+        .addQueryParameter("MediaSourceId", mediaSourceId)
+        .addQueryParameter("VideoCodec", "h264")
+        .addQueryParameter("AudioCodec", "aac")
+        .addQueryParameter("VideoBitrate", bitrate.toString())
+        .build()
+        .toString()
+}
+
 /** A single audio/subtitle stream exposed by the server for track selection. */
 data class VideoStreamInfo(
     val index: Int,
@@ -125,6 +181,9 @@ internal fun resolveEmbyPlaybackPositionTicks(positionSeconds: Int, durationSeco
 
 class EmbyRepository(private val config: VideoServerConfig) {
     private val baseUrl = config.normalizedBaseUrl()
+
+    /** Normalized server origin for building playback URLs outside the repository. */
+    fun baseUrlForStreamUrls(): String = baseUrl
     private var cachedSession: EmbySession? = null
 
     private val loggingInterceptor = HttpLoggingInterceptor { message ->
@@ -178,11 +237,16 @@ class EmbyRepository(private val config: VideoServerConfig) {
         throw Exception("加载视频列表失败: ${e.message}")
     }
 
-    suspend fun syncPlaybackProgress(video: VideoItem, positionSeconds: Int, isPaused: Boolean) = try {
+    suspend fun syncPlaybackProgress(
+        video: VideoItem,
+        positionSeconds: Int,
+        isPaused: Boolean,
+        playSessionId: String? = null
+    ) = try {
         val session = session()
         api.reportPlaybackProgress(
             token = session.token,
-            request = video.toPlaybackProgressRequest(positionSeconds, isPaused)
+            request = video.toPlaybackProgressRequest(positionSeconds, isPaused, playSessionId)
         ).requireSuccess("同步 Emby 视频进度失败")
     } catch (e: EmbyApiException) {
         throw e
@@ -190,16 +254,69 @@ class EmbyRepository(private val config: VideoServerConfig) {
         throw Exception("同步 Emby 视频进度失败: ${e.message}")
     }
 
-    suspend fun stopPlaybackProgress(video: VideoItem, positionSeconds: Int) = try {
+    suspend fun stopPlaybackProgress(
+        video: VideoItem,
+        positionSeconds: Int,
+        playSessionId: String? = null
+    ) = try {
         val session = session()
         api.reportPlaybackStopped(
             token = session.token,
-            request = video.toPlaybackProgressRequest(positionSeconds, isPaused = true)
+            request = video.toPlaybackProgressRequest(positionSeconds, isPaused = true, playSessionId)
         ).requireSuccess("同步 Emby 视频停止进度失败")
     } catch (e: EmbyApiException) {
         throw e
     } catch (e: Exception) {
         throw Exception("同步 Emby 视频停止进度失败: ${e.message}")
+    }
+
+    /**
+     * PlaybackInfo handshake for transcoded playback. Returns the server-issued
+     * session identity (PlaySessionId + MediaSourceId), or null when the server
+     * response is unusable — callers fall back to direct play.
+     */
+    suspend fun getPlaybackInfo(video: VideoItem, maxBitrateBps: Long): VideoPlaybackSession? = try {
+        val session = session()
+        val response = requireResponseBody("获取 Emby 播放信息失败") {
+            api.getPlaybackInfo(
+                itemId = video.id,
+                token = session.token,
+                userId = session.userId,
+                request = EmbyPlaybackInfoRequest(
+                    deviceProfile = EmbyDeviceProfileDto(
+                        maxStreamingBitrate = maxBitrateBps,
+                        directPlayProfiles = listOf(
+                            EmbyProfileContainerDto(container = "mp4,mkv,mov", type = "Video")
+                        ),
+                        transcodingProfiles = listOf(
+                            EmbyTranscodeProfileDto(
+                                container = "ts",
+                                type = "Video",
+                                protocol = "hls",
+                                videoCodec = "h264",
+                                audioCodec = "aac"
+                            )
+                        )
+                    ),
+                    userId = session.userId,
+                    maxStreamingBitrate = maxBitrateBps
+                )
+            )
+        }
+        response.toPlaybackSession()
+    } catch (e: EmbyApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("获取 Emby 播放信息失败: ${e.message}")
+    }
+
+    private fun EmbyPlaybackInfoResponse.toPlaybackSession(): VideoPlaybackSession? {
+        val playSessionId = playSessionId?.trim()?.takeIf { it.isNotBlank() } ?: return null
+        val mediaSourceId = mediaSources.orEmpty()
+            .firstOrNull()
+            ?.id?.trim()?.takeIf { it.isNotBlank() }
+            ?: return null
+        return VideoPlaybackSession(playSessionId = playSessionId, mediaSourceId = mediaSourceId)
     }
 
     private suspend fun session(): EmbySession {
@@ -460,11 +577,16 @@ class EmbyRepository(private val config: VideoServerConfig) {
         return ((this ?: 0L) / EMBY_TICKS_PER_SECOND).coerceAtLeast(0L).toInt()
     }
 
-    private fun VideoItem.toPlaybackProgressRequest(positionSeconds: Int, isPaused: Boolean): EmbyPlaybackProgressRequest {
+    private fun VideoItem.toPlaybackProgressRequest(
+        positionSeconds: Int,
+        isPaused: Boolean,
+        playSessionId: String? = null
+    ): EmbyPlaybackProgressRequest {
         return EmbyPlaybackProgressRequest(
             itemId = id,
             positionTicks = resolveEmbyPlaybackPositionTicks(positionSeconds, durationSeconds),
-            isPaused = isPaused
+            isPaused = isPaused,
+            playSessionId = playSessionId
         )
     }
 

@@ -7,7 +7,9 @@ import androidx.lifecycle.viewModelScope
 import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.EmbyRepository
 import com.nordic.mediahub.data.VideoItem
+import com.nordic.mediahub.data.VideoQualityMode
 import com.nordic.mediahub.data.isReadyForVideoSync
+import com.nordic.mediahub.data.resolveVideoPlaybackStreamUrl
 import com.nordic.mediahub.resolveVideoProgressSyncBaselineSeconds
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,6 +58,20 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     private val _autoSkipIntro = MutableStateFlow(true)
     val autoSkipIntro: StateFlow<Boolean> = _autoSkipIntro.asStateFlow()
 
+    /** Video quality preference; AUTO (direct play) by default, persisted. */
+    private val _qualityMode = MutableStateFlow(VideoQualityMode.AUTO)
+    val qualityMode: StateFlow<VideoQualityMode> = _qualityMode.asStateFlow()
+
+    /**
+     * Server-issued identity for the current transcoded session, carried on
+     * progress/stopped reports. Null during direct play.
+     */
+    @Volatile
+    private var activePlaySessionId: String? = null
+
+    /** Prevents concurrent quality handshakes for the same play request. */
+    private var qualityHandshakeJob: Job? = null
+
     fun setEpisodeContext(videos: List<VideoItem>) {
         _catalogVideos.value = videos
     }
@@ -76,7 +92,11 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         val position = resolveVideoProgressSyncBaselineSeconds(currentState.positionSeconds, video)
         viewModelScope.launch {
             runCatching {
-                repo.syncPlaybackProgress(video, position, isPaused = !currentState.isPlaying)
+                repo.syncPlaybackProgress(
+                    video, position,
+                    isPaused = !currentState.isPlaying,
+                    playSessionId = activePlaySessionId
+                )
             }.onFailure { error ->
                 _syncError.value = error.message ?: "同步视频进度失败"
                 Log.e("VideoPlayback", "即时同步视频进度失败", error)
@@ -118,6 +138,13 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
             }
         }
 
+        // Restore the persisted video quality mode; takes effect on next play.
+        viewModelScope.launch {
+            configRepository.videoQualityMode.collect { mode ->
+                _qualityMode.value = mode
+            }
+        }
+
         combine(state.map { it.video?.id }, _repository) { videoId, repo ->
             videoId to repo
         }.distinctUntilChanged().onEach { (_, repo) ->
@@ -150,7 +177,8 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                                     repoInstance.syncPlaybackProgress(
                                         video = currentVideo,
                                         positionSeconds = position,
-                                        isPaused = !isPlaying
+                                        isPaused = !isPlaying,
+                                        playSessionId = activePlaySessionId
                                     )
                                 }
                             )
@@ -182,7 +210,11 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                         val position = resolveVideoProgressSyncBaselineSeconds(state.positionSeconds, video)
                         viewModelScope.launch {
                             runCatching {
-                                repoInstance.syncPlaybackProgress(video, position, isPaused = true)
+                                repoInstance.syncPlaybackProgress(
+                                    video, position,
+                                    isPaused = true,
+                                    playSessionId = activePlaySessionId
+                                )
                             }.onFailure { error ->
                                 _syncError.value = error.message ?: "同步视频进度失败"
                                 Log.e("VideoPlayback", "暂停时同步视频进度失败", error)
@@ -260,11 +292,13 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
             )
             engine.stop()
             onClosed()
+            val closedPlaySessionId = activePlaySessionId
+            activePlaySessionId = null
             viewModelScope.launch {
-                runCatching { repo.stopPlaybackProgress(video, positionSeconds) }
+                runCatching { repo.stopPlaybackProgress(video, positionSeconds, closedPlaySessionId) }
                     .onFailure { firstError ->
                         Log.e("VideoPlayback", "保存视频进度失败，后台重试一次", firstError)
-                        runCatching { repo.stopPlaybackProgress(video, positionSeconds) }
+                        runCatching { repo.stopPlaybackProgress(video, positionSeconds, closedPlaySessionId) }
                             .onFailure { retryError ->
                                 Log.e("VideoPlayback", "重试保存视频进度失败", retryError)
                                 _syncError.value = retryError.message ?: "保存视频进度失败"
@@ -279,16 +313,70 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
 
     fun play(video: VideoItem) {
         _error.value = null
-        engine.play(video)
+        startPlaybackWithQuality(video, fromStart = false)
     }
 
     fun playFromStart(video: VideoItem) {
         _error.value = null
-        engine.playFromStart(video)
+        startPlaybackWithQuality(video, fromStart = true)
+    }
+
+    /**
+     * Starts playback honoring the quality mode. AUTO/ORIGINAL play the direct
+     * stream immediately; bitrate tiers run a PlaybackInfo handshake first and
+     * play the transcoded HLS stream (falling back to direct on handshake
+     * failure). The handshake never blocks playback start by more than the
+     * request itself; failures degrade to direct play.
+     */
+    private fun startPlaybackWithQuality(video: VideoItem, fromStart: Boolean) {
+        val mode = _qualityMode.value
+        val bitrate = mode.bitrateBps
+        val repo = _repository.value
+        if (bitrate == null || repo == null || video.streamUrl.isNullOrBlank()) {
+            activePlaySessionId = null
+            if (fromStart) engine.playFromStart(video) else engine.play(video)
+            return
+        }
+
+        qualityHandshakeJob?.cancel()
+        qualityHandshakeJob = viewModelScope.launch {
+            val session = runCatching { repo.getPlaybackInfo(video, bitrate) }
+                .onFailure { error ->
+                    Log.e("VideoPlayback", "PlaybackInfo 握手失败，回退直连播放", error)
+                }
+                .getOrNull()
+            val transcodeUrl = session?.let {
+                resolveVideoPlaybackStreamUrl(
+                    video = video,
+                    mode = mode,
+                    baseUrl = repoBaseUrl(repo),
+                    playbackSession = it
+                )
+            }
+            if (session != null && transcodeUrl != null && transcodeUrl != video.streamUrl) {
+                activePlaySessionId = session.playSessionId
+                engine.playTranscoded(
+                    video = video,
+                    transcodeUrl = transcodeUrl,
+                    directUrl = video.streamUrl.orEmpty()
+                )
+            } else {
+                activePlaySessionId = null
+                if (fromStart) engine.playFromStart(video) else engine.play(video)
+            }
+        }
+    }
+
+    private fun repoBaseUrl(repo: EmbyRepository): String = repo.baseUrlForStreamUrls()
+
+    fun setQualityMode(mode: VideoQualityMode) {
+        _qualityMode.value = mode
+        viewModelScope.launch { configRepository.saveVideoQualityMode(mode) }
     }
 
     fun stop() {
         _catalogVideos.value = emptyList()
+        activePlaySessionId = null
         engine.stop()
     }
 

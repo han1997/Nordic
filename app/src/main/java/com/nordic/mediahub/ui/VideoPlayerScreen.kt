@@ -161,6 +161,8 @@ fun VideoPlayerScreen(
     autoSkipIntro: Boolean = true,
     onToggleAutoSkipIntro: (Boolean) -> Unit = {},
     onSkipIntro: () -> Unit = {},
+    qualityMode: com.nordic.mediahub.data.VideoQualityMode = com.nordic.mediahub.data.VideoQualityMode.AUTO,
+    onSetQualityMode: (com.nordic.mediahub.data.VideoQualityMode) -> Unit = {},
     isInPipMode: Boolean = false,
     nextEpisode: VideoItem? = null,
     episodeContext: List<VideoItem> = emptyList(),
@@ -417,6 +419,7 @@ fun VideoPlayerScreen(
                     panel = panel, state = state, episodes = episodes, nextEpisode = nextEpisode,
                     isFullscreen = isFullscreen, pipEnabled = pipEnabled,
                     autoSkipIntro = autoSkipIntro,
+                    qualityMode = qualityMode,
                     onPanelChange = { activePanel = it }, onDismiss = ::closePanel,
                     onSetPlaybackSpeed = { speed -> onSetPlaybackSpeed(speed); closePanel() },
                     onCycleAspectRatio = onCycleAspectRatio,
@@ -430,6 +433,7 @@ fun VideoPlayerScreen(
                     },
                     onTogglePip = onTogglePip,
                     onToggleAutoSkipIntro = onToggleAutoSkipIntro,
+                    onSetQualityMode = onSetQualityMode,
                     onSeekTo = { position ->
                         closePanel()
                         onSeek(position)

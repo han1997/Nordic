@@ -7,7 +7,7 @@ import com.nordic.mediahub.ui.theme.NordicSpacing
 
 internal enum class VideoPlayerPanel(val title: String) {
     Settings("播放设置"), Speed("播放速度"), Info("影片信息"), Episodes("选集"), Tracks("字幕与音轨"),
-    Chapters("章节")
+    Chapters("章节"), Quality("清晰度")
 }
 
 internal data class VideoPlayerToolLayout(

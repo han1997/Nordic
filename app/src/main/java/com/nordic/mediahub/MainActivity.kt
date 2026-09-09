@@ -1039,6 +1039,7 @@ private fun VideoPlayerLayer(
     val catalogVideos by videoVM.catalogVideos.collectAsStateWithLifecycle()
     val pipEnabled by videoVM.pipEnabled.collectAsStateWithLifecycle()
     val autoSkipIntro by videoVM.autoSkipIntro.collectAsStateWithLifecycle()
+    val qualityMode by videoVM.qualityMode.collectAsStateWithLifecycle()
 
     val activity = LocalContext.current as? MainActivity
     val isInPipMode = activity?.isInVideoPipMode == true
@@ -1113,6 +1114,8 @@ private fun VideoPlayerLayer(
             autoSkipIntro = autoSkipIntro,
             onToggleAutoSkipIntro = videoVM::setAutoSkipIntro,
             onSkipIntro = videoVM::skipIntro,
+            qualityMode = qualityMode,
+            onSetQualityMode = videoVM::setQualityMode,
             isInPipMode = isInPipMode,
             nextEpisode = nextEpisode,
             episodeContext = catalogVideos,

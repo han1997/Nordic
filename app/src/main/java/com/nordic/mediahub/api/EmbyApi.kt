@@ -123,7 +123,73 @@ data class EmbyPlaybackProgressRequest(
     @SerializedName("PositionTicks")
     val positionTicks: Long,
     @SerializedName("IsPaused")
-    val isPaused: Boolean
+    val isPaused: Boolean,
+    /** Present for transcoded sessions; null keeps legacy direct-play reports unchanged. */
+    @SerializedName("PlaySessionId")
+    val playSessionId: String? = null
+)
+
+/** Minimal device profile: only the fields the server needs to accept the handshake. */
+data class EmbyDeviceProfileDto(
+    @SerializedName("MaxStreamingBitrate")
+    val maxStreamingBitrate: Long,
+    @SerializedName("DirectPlayProfiles")
+    val directPlayProfiles: List<EmbyProfileContainerDto>,
+    @SerializedName("TranscodingProfiles")
+    val transcodingProfiles: List<EmbyTranscodeProfileDto>
+)
+
+data class EmbyProfileContainerDto(
+    @SerializedName("Container")
+    val container: String,
+    @SerializedName("Type")
+    val type: String
+)
+
+data class EmbyTranscodeProfileDto(
+    @SerializedName("Container")
+    val container: String,
+    @SerializedName("Type")
+    val type: String,
+    @SerializedName("Protocol")
+    val protocol: String,
+    @SerializedName("VideoCodec")
+    val videoCodec: String,
+    @SerializedName("AudioCodec")
+    val audioCodec: String
+)
+
+data class EmbyPlaybackInfoRequest(
+    @SerializedName("DeviceProfile")
+    val deviceProfile: EmbyDeviceProfileDto,
+    @SerializedName("UserId")
+    val userId: String,
+    @SerializedName("AutoOpenLiveStream")
+    val autoOpenLiveStream: Boolean = false,
+    @SerializedName("MaxStreamingBitrate")
+    val maxStreamingBitrate: Long
+)
+
+data class EmbyMediaSourceDto(
+    @SerializedName("Id")
+    val id: String? = null,
+    @SerializedName("Protocol")
+    val protocol: String? = null,
+    @SerializedName("Container")
+    val container: String? = null,
+    @SerializedName("SupportsDirectPlay")
+    val supportsDirectPlay: Boolean? = null,
+    @SerializedName("SupportsDirectStream")
+    val supportsDirectStream: Boolean? = null,
+    @SerializedName("SupportsTranscoding")
+    val supportsTranscoding: Boolean? = null
+)
+
+data class EmbyPlaybackInfoResponse(
+    @SerializedName("PlaySessionId")
+    val playSessionId: String? = null,
+    @SerializedName("MediaSources")
+    val mediaSources: List<EmbyMediaSourceDto>? = null
 )
 
 interface EmbyApi {
@@ -169,6 +235,14 @@ interface EmbyApi {
         @Header("X-Emby-Token") token: String,
         @Body request: EmbyPlaybackProgressRequest
     ): Response<Unit>
+
+    @POST("Items/{itemId}/PlaybackInfo")
+    suspend fun getPlaybackInfo(
+        @Path("itemId") itemId: String,
+        @Header("X-Emby-Token") token: String,
+        @Query("UserId") userId: String,
+        @Body request: EmbyPlaybackInfoRequest
+    ): Response<EmbyPlaybackInfoResponse>
 }
 
 private const val EMBY_CLIENT_AUTHORIZATION =

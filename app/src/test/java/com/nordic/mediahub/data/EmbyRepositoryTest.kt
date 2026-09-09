@@ -1216,6 +1216,101 @@ class EmbyRepositoryTest {
     }
 
     @Test
+    fun getPlaybackInfo_postsDeviceProfileAndMapsSession() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "PlaySessionId": "session-1",
+                  "MediaSources": [
+                    {"Id": "mediasource_40035", "Protocol": "File", "Container": "mkv",
+                     "SupportsDirectPlay": true, "SupportsTranscoding": true}
+                  ]
+                }
+            """.trimIndent()
+        )
+
+        val session = repository(apiKey = "api-key").getPlaybackInfo(
+            video = video(id = "40035", durationSeconds = 2725),
+            maxBitrateBps = 4_000_000L
+        )
+
+        assertEquals(VideoPlaybackSession(playSessionId = "session-1", mediaSourceId = "mediasource_40035"), session)
+
+        val handshake = server.takeRequest()
+        assertEquals("/Users", handshake.path)
+        val playbackRequest = server.takeRequest()
+        assertTrue(playbackRequest.path.orEmpty().startsWith("/Items/40035/PlaybackInfo"))
+        assertEquals("api-key", playbackRequest.getHeader("X-Emby-Token"))
+        val body = playbackRequest.body.readUtf8()
+        assertTrue(body.contains(""""MaxStreamingBitrate":4000000"""))
+        assertTrue(body.contains(""""UserId":"u1""""))
+        assertTrue(body.contains(""""Container":"ts""""))
+        assertTrue(body.contains(""""Protocol":"hls""""))
+    }
+
+    @Test
+    fun getPlaybackInfo_returnsNullWhenPlaySessionOrMediaSourceMissing() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson("""{"MediaSources": [{"Id": "ms-1"}]}""")
+
+        assertNull(
+            repository(apiKey = "api-key").getPlaybackInfo(
+                video = video(id = "40035", durationSeconds = 100),
+                maxBitrateBps = 4_000_000L
+            )
+        )
+    }
+
+    @Test
+    fun resolveVideoPlaybackStreamUrl_buildsHlsMasterUrlForBitrateTiers() {
+        val item = video(id = "40035", durationSeconds = 100)
+        val session = VideoPlaybackSession(playSessionId = "s1", mediaSourceId = "ms-1")
+
+        val url = resolveVideoPlaybackStreamUrl(
+            video = item,
+            mode = VideoQualityMode.BITRATE_4M,
+            baseUrl = "http://emby.example:8096",
+            playbackSession = session
+        ).orEmpty()
+
+        assertTrue(url.startsWith("http://emby.example:8096/Videos/40035/master.m3u8"))
+        assertTrue(url.contains("MediaSourceId=ms-1"))
+        assertTrue(url.contains("VideoCodec=h264"))
+        assertTrue(url.contains("AudioCodec=aac"))
+        assertTrue(url.contains("VideoBitrate=4000000"))
+    }
+
+    @Test
+    fun resolveVideoPlaybackStreamUrl_keepsDirectStreamForAutoOriginalOrMissingSession() {
+        val item = video(id = "v1", durationSeconds = 100)
+
+        assertEquals(
+            item.streamUrl,
+            resolveVideoPlaybackStreamUrl(item, VideoQualityMode.AUTO, "http://emby.example", null)
+        )
+        assertEquals(
+            item.streamUrl,
+            resolveVideoPlaybackStreamUrl(item, VideoQualityMode.ORIGINAL, "http://emby.example", null)
+        )
+        // Bitrate tier without a session (handshake failed) degrades to direct.
+        assertEquals(
+            item.streamUrl,
+            resolveVideoPlaybackStreamUrl(item, VideoQualityMode.BITRATE_8M, "http://emby.example", null)
+        )
+    }
+
+    @Test
+    fun videoQualityMode_fromNameFallsBackToAuto() {
+        assertEquals(VideoQualityMode.AUTO, VideoQualityMode.fromName(null))
+        assertEquals(VideoQualityMode.AUTO, VideoQualityMode.fromName(""))
+        assertEquals(VideoQualityMode.AUTO, VideoQualityMode.fromName("bogus"))
+        assertEquals(VideoQualityMode.BITRATE_2M, VideoQualityMode.fromName("bitrate_2m"))
+        assertEquals(VideoQualityMode.BITRATE_20M, VideoQualityMode.fromName("BITRATE_20M"))
+        assertEquals(VideoQualityMode.ORIGINAL, VideoQualityMode.fromName("Original"))
+    }
+
+    @Test
     fun resolveEmbyPlaybackPositionTicks_clampsKnownDurationAndKeepsUnknownDurationPositions() {
         assertEquals(
             0L,

@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
@@ -84,6 +85,7 @@ internal fun VideoPlayerPanelHost(
     isFullscreen: Boolean,
     pipEnabled: Boolean,
     autoSkipIntro: Boolean,
+    qualityMode: com.nordic.mediahub.data.VideoQualityMode,
     onPanelChange: (VideoPlayerPanel) -> Unit,
     onDismiss: () -> Unit,
     onSetPlaybackSpeed: (Float) -> Unit,
@@ -92,6 +94,7 @@ internal fun VideoPlayerPanelHost(
     onSetPreferredAudioTrack: (com.nordic.mediahub.data.VideoStreamInfo?) -> Unit,
     onTogglePip: (Boolean) -> Unit,
     onToggleAutoSkipIntro: (Boolean) -> Unit,
+    onSetQualityMode: (com.nordic.mediahub.data.VideoQualityMode) -> Unit,
     onSeekTo: (Int) -> Unit,
     onPlayEpisode: (VideoItem) -> Unit,
     onPlayNextEpisode: () -> Unit
@@ -184,6 +187,12 @@ internal fun VideoPlayerPanelHost(
                                 VideoPlayerSettingRow(Icons.Filled.AspectRatio, "画面比例",
                                     videoPlayerAspectRatioLabel(state.aspectRatioMode), colors,
                                     onClick = onCycleAspectRatio)
+                                if (!video.streamUrl.isNullOrBlank()) {
+                                    VideoPlayerSettingRow(Icons.Filled.HighQuality, "清晰度",
+                                        qualityMode.label, colors) {
+                                        onPanelChange(VideoPlayerPanel.Quality)
+                                    }
+                                }
                                 if (episodes.isNotEmpty()) {
                                     VideoPlayerSettingRow(Icons.AutoMirrored.Filled.PlaylistPlay, "选集",
                                         "已载入 ${episodes.size} 集", colors) {
@@ -236,6 +245,9 @@ internal fun VideoPlayerPanelHost(
                             )
                             VideoPlayerPanel.Chapters -> VideoPlayerChaptersContent(
                                 video, state.positionSeconds, colors, onSeekTo, Modifier.weight(1f)
+                            )
+                            VideoPlayerPanel.Quality -> VideoPlayerQualityContent(
+                                qualityMode, colors, onSetQualityMode, Modifier.weight(1f)
                             )
                         }
                     }
@@ -451,6 +463,38 @@ private fun VideoPlayerChaptersContent(
                     selected = index == currentIndex,
                     colors = colors,
                     onClick = { onSeekTo(chapter.startSeconds) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VideoPlayerQualityContent(
+    qualityMode: com.nordic.mediahub.data.VideoQualityMode,
+    colors: ColorScheme,
+    onSetQualityMode: (com.nordic.mediahub.data.VideoQualityMode) -> Unit,
+    modifier: Modifier
+) {
+    Column(modifier.verticalScroll(rememberScrollState())) {
+        Text(
+            "切换清晰度后重新播放生效，自动保留播放进度；限码率档位由服务器转码播放。",
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.onSurface.copy(alpha = NordicAlpha.medium),
+            modifier = Modifier.padding(vertical = NordicSpacing.sm)
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+            com.nordic.mediahub.data.VideoQualityMode.entries.forEach { mode ->
+                MediaPlayerChoiceRow(
+                    title = mode.label,
+                    subtitle = when (mode) {
+                        com.nordic.mediahub.data.VideoQualityMode.AUTO -> "直连优先，按服务器能力播放"
+                        com.nordic.mediahub.data.VideoQualityMode.ORIGINAL -> "始终播放原始码率"
+                        else -> "转码到 ${mode.label}（H.264 / AAC）"
+                    },
+                    selected = mode == qualityMode,
+                    colors = colors,
+                    onClick = { onSetQualityMode(mode) }
                 )
             }
         }
