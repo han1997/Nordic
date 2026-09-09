@@ -712,3 +712,79 @@ if (isInPipMode && showVideoPlayer && videoPlaybackState.hasEnded) {
     activity?.dismissVideoPip()
 }
 ```
+
+## Scenario: 视频章节与片头跳过
+
+### 1. 范围 / 触发条件
+
+修改视频章节列表、章节跳转、片头（intro）区间解析、自动跳过或「跳过片头」按钮时读取。数据源与 PiP/进度上报合同共同生效；音乐/有声书不受影响。
+
+### 2. 关键签名
+
+- `EmbyApi.getItems` 的 `Fields` 必须包含 `Chapters`；`EmbyChapterDto(name, startPositionTicks, markerType)`，`markerType` 可空（老服务器无此字段）。
+- `data class VideoChapterInfo(name, startSeconds, endSeconds: Int?)`、`data class VideoIntroRange(startSeconds, endSeconds)`（`EmbyRepository.kt`）。
+- `VideoItem.chapters: List<VideoChapterInfo>`、`VideoItem.introRange: VideoIntroRange?`；`VideoPlaybackState.introRange` 由引擎在 `play`/`playFromStart` 替换媒体项时发布。
+- `internal fun shouldSkipVideoIntro(positionSeconds, introRange, alreadySkipped): Boolean`（`VideoPlaybackEngine.kt`）。
+- `VideoPlaybackEngine.skipIntro()`、`applyAutoSkipIntro(enabled)`；`VideoPlaybackViewModel.autoSkipIntro: StateFlow<Boolean>`、`setAutoSkipIntro(Boolean)`、`skipIntro()`。
+- `VideoPlayerPanel.Chapters`；`internal fun videoChapterIndexForPosition(chapters, positionSeconds): Int?`、`resolveVideoChaptersSummary(video, positionSeconds)`、`shouldShowVideoSkipIntroButton(introRange, positionSeconds, panelOpen, gesturesLocked, hasPlaybackStatus)`（`VideoPlayerLayout.kt` / `VideoPlayerPanels.kt`）。
+- 存储合同：`EncryptedConfigKeys.VIDEO_AUTO_SKIP_INTRO`，Flow/save 先例与 PiP 相同（见 [Persistence Guidelines](./database-guidelines.md)）。
+
+### 3. 可执行合同
+
+- **数据源**：Emby 4.9 的 intro 检测结果直接内嵌在 item 的 `Chapters` 数组中，以 `MarkerType=IntroStart/IntroEnd`（及 `CreditsStart`）marker 形式出现；不存在 `/MediaSegments/{id}` 端点（Jellyfin 专属），`/Items/Intros` 是管理员 debug 端点不可用。intro 区间 = 第一个 `IntroStart` 与其后第一个 `IntroEnd` 的 tick→秒；不成对或 end <= start 时无 intro。
+- **章节映射**：仅 `markerType == null || "Chapter"` 的条目进入章节列表；`Name` 空白或 `StartPositionTicks` 缺失/负数的行丢弃；`endSeconds` 由下一章 start 推导，最后一章为 null。丢弃行不参与 endSeconds 推导。
+- **自动跳过**：引擎在 `publishPlayerState`（播放时 1s 节奏）判定 `shouldSkipVideoIntro`；命中即 seek 到 `endSeconds` 并置 `introSkippedForCurrentItem = true`。该标志在每次媒体项替换（`play`/`playFromStart` 且 `shouldReplaceCurrentVideoItem`）时重置，同一集重播可再次跳过。手动 seek 出区间后 position >= end，判定自然为 false，不回跳。
+- **手动跳过**：`skipIntro()` 与自动跳过共享同一 once 标志，互不重复触发；不受 `autoSkipIntroEnabled` 限制。
+- **UI**：Settings 面板仅当 `state.introRange != null` 显示「自动跳过片头」开关行（`VideoPlayerSettingToggleRow`），仅当 `video.chapters.isNotEmpty()` 显示「章节」入口行；章节面板复用 `MediaPlayerChoiceRow`（当前章节高亮，点击 `seekTo(startSeconds)` 并关闭面板）；「跳过片头」浮动按钮仅在区间内且无面板/手势锁/错误状态时显示，PiP 小窗不组合任何面板与按钮。
+- **降级**：请求失败、字段缺失、老服务器无 MarkerType 时静默降级为无章节/无 intro，不影响播放主链路。
+
+### 4. 验证与错误矩阵
+
+| 条件 | 行为 |
+|---|---|
+| `MarkerType` 缺失（老服务器） | 全部按普通章节处理，无 intro |
+| `IntroStart` 无配对 `IntroEnd` | `introRange = null` |
+| `IntroEnd` ticks <= `IntroStart` ticks | `introRange = null` |
+| 章节行 `Name` 空白 / ticks 缺失或负数 | 丢弃该行，不参与 endSeconds 推导 |
+| 播放位置进入 intro 区间（自动跳过开启） | seek 到 endSeconds，每（item, 会话）一次 |
+| 恢复播放起点在区间内 | 同样触发跳过（position >= start 即命中） |
+| 用户手动 seek 越过区间 | 不回跳（position >= end 判定 false） |
+| 自动跳过关闭 | 无自动 seek；手动按钮仍可用 |
+| 无 intro 数据 | 无开关行、无按钮、无自动跳过 |
+| PiP 小窗 | 不显示按钮与面板 |
+
+### 5. 正常 / 基础 / 错误案例
+
+- 正常：播放带「片头/片尾」marker 的剧集 → 进入区间自动跳一次 → 片中手动 seek 回片头不再自动跳 → 手动按钮仍可点。
+- 基础：电影只有普通章节 → 章节面板可跳转，无 intro 开关与按钮。
+- 错误：把 `MarkerType` 缺失当作 intro；把 intro marker 混进章节列表；用章节名（「片头」）而非 MarkerType 判定区间；自动跳过在每次位置发布重复 seek。
+
+### 6. 必需测试
+
+- `EmbyRepositoryTest`：Chapters+marker 映射（过滤 intro marker、丢弃空名/缺 ticks 行、endSeconds 推导）、intro 无 end/逆序为 null、`Fields` 含 `Chapters`。
+- `VideoPlaybackEngineTest`：`shouldSkipVideoIntro` 区间边界、once 语义、null/逆序区间。
+- `VideoScreenTest`：`videoChapterIndexForPosition` 覆盖判定、`resolveVideoChaptersSummary` 当前章/计数、`shouldShowVideoSkipIntroButton` 状态矩阵。
+- `EncryptedConfigStoreTest`：`videoAutoSkipIntro` 默认 true、往返、新 store 恢复 false、非法值默认 true。
+- compile + 完整单测 + lint + assemble；真机验收需覆盖真实 Emby 4.9 服务器的章节跳转与 intro 自动跳过。
+
+### 7. 错误与正确示例
+
+```kotlin
+// 错误：按章节名判定 intro，服务器命名不可依赖。
+chapters.filter { it.name == "片头" }
+
+// 正确：按 MarkerType 配对判定，缺失/逆序一律降级。
+val start = chapters.indexOfFirst { it.markerType == "IntroStart" }
+val end = chapters.drop(start + 1).firstOrNull { it.markerType == "IntroEnd" }
+```
+
+```kotlin
+// 错误：每次位置发布都 seek，播放卡死在区间末尾。
+if (position in introRange) player.seekTo(intro.endSeconds)
+
+// 正确：once 标志 + 纯函数判定；seek 后下一次发布自然落在区间外。
+if (shouldSkipVideoIntro(position, introRange, alreadySkipped)) {
+    introSkippedForCurrentItem = true
+    player.seekTo(introRange.endSeconds * 1000L)
+}
+```
