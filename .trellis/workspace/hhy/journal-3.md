@@ -1858,3 +1858,36 @@ MediaPageHeader 根页从 displaySmall 大字改为单行 titleLarge 紧凑头�
 ### Next Steps
 
 - None - task complete
+
+
+## Session 171: 继续观看改为纯服务端数据并持久化
+
+**Date**: 2026-09-09
+**Task**: 继续观看改为纯服务端数据并持久化
+**Branch**: `main`
+
+### Summary
+
+EmbyVideoCache 增加 resumeVideos 字段（schema v1→v2），新增 saveResumeItems 持久化服务端 Items/Resume 响应；VideoScreen 冷启动从缓存恢复 Resume 列表（cache-then-network），删除 continueWatchingShelf 本地推导 fallback；Resume 拉取失败保留现有值不再置 null；写缓存使用 targetConfig 修复配置切换时写错 key 的问题；同步 emby-integration.md 合同。compile+test+lint 全部通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2e993a5` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
