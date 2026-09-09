@@ -689,6 +689,48 @@ class VideoScreenTest {
         assertNull(resolveNextVideoEpisode(current, listOf(otherSeriesEpisode)))
     }
 
+    @Test
+    fun videoChapterIndexForPosition_resolvesCoveringChapterAndNullBeforeFirst() {
+        val chapters = listOf(
+            com.nordic.mediahub.data.VideoChapterInfo(name = "C1", startSeconds = 0),
+            com.nordic.mediahub.data.VideoChapterInfo(name = "C2", startSeconds = 300),
+            com.nordic.mediahub.data.VideoChapterInfo(name = "C3", startSeconds = 600)
+        )
+
+        assertEquals(0, videoChapterIndexForPosition(chapters, 0) ?: -1)
+        assertEquals(0, videoChapterIndexForPosition(chapters, 299) ?: -1)
+        assertEquals(1, videoChapterIndexForPosition(chapters, 300) ?: -1)
+        assertEquals(2, videoChapterIndexForPosition(chapters, 1200) ?: -1)
+        assertNull(videoChapterIndexForPosition(emptyList(), 100))
+    }
+
+    @Test
+    fun resolveVideoChaptersSummary_showsCurrentChapterOrCount() {
+        val chapters = listOf(
+            com.nordic.mediahub.data.VideoChapterInfo(name = "开场", startSeconds = 0),
+            com.nordic.mediahub.data.VideoChapterInfo(name = "中段", startSeconds = 300)
+        )
+        val withChapters = video(id = "v1", title = "V").copy(chapters = chapters)
+
+        assertEquals("1/2 · 开场", resolveVideoChaptersSummary(withChapters, 120))
+        assertEquals("2/2 · 中段", resolveVideoChaptersSummary(withChapters, 900))
+        assertEquals("2 章", resolveVideoChaptersSummary(withChapters, -5))
+        assertEquals("无章节", resolveVideoChaptersSummary(video(id = "v2", title = "V"), 100))
+    }
+
+    @Test
+    fun shouldShowVideoSkipIntroButton_showsOnlyInsideRangeWithoutBlockingStates() {
+        val intro = com.nordic.mediahub.data.VideoIntroRange(startSeconds = 30, endSeconds = 90)
+
+        assertTrue(shouldShowVideoSkipIntroButton(intro, 45, panelOpen = false, gesturesLocked = false, hasPlaybackStatus = false))
+        assertFalse(shouldShowVideoSkipIntroButton(intro, 29, panelOpen = false, gesturesLocked = false, hasPlaybackStatus = false))
+        assertFalse(shouldShowVideoSkipIntroButton(intro, 90, panelOpen = false, gesturesLocked = false, hasPlaybackStatus = false))
+        assertFalse(shouldShowVideoSkipIntroButton(intro, 45, panelOpen = true, gesturesLocked = false, hasPlaybackStatus = false))
+        assertFalse(shouldShowVideoSkipIntroButton(intro, 45, panelOpen = false, gesturesLocked = true, hasPlaybackStatus = false))
+        assertFalse(shouldShowVideoSkipIntroButton(intro, 45, panelOpen = false, gesturesLocked = false, hasPlaybackStatus = true))
+        assertFalse(shouldShowVideoSkipIntroButton(null, 45, panelOpen = false, gesturesLocked = false, hasPlaybackStatus = false))
+    }
+
     private fun video(
         id: String,
         title: String,

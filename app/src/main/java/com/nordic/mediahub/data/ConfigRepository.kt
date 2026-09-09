@@ -23,6 +23,8 @@ class ConfigRepository(context: Context) {
 
     val videoPipEnabled: Flow<Boolean> = store.videoPipEnabled
 
+    val videoAutoSkipIntro: Flow<Boolean> = store.videoAutoSkipIntro
+
     suspend fun saveNavidromeConfig(config: NavidromeConfig) {
         store.saveNavidromeConfig(config)
     }
@@ -45,6 +47,10 @@ class ConfigRepository(context: Context) {
 
     suspend fun saveVideoPipEnabled(enabled: Boolean) {
         store.saveVideoPipEnabled(enabled)
+    }
+
+    suspend fun saveVideoAutoSkipIntro(enabled: Boolean) {
+        store.saveVideoAutoSkipIntro(enabled)
     }
 }
 

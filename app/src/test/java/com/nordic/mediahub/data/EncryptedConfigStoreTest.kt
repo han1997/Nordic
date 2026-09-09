@@ -325,6 +325,56 @@ class EncryptedConfigStoreTest {
         assertFalse(withTimeout(1_000) { store.videoPipEnabled.first { !it } })
     }
 
+    @Test
+    fun videoAutoSkipIntro_defaultsTrueWhenUnsetAndRoundTrips() = runBlocking {
+        val prefs = FakeSharedPreferences()
+        val store = EncryptedConfigStore(
+            context = null,
+            prefsProvider = { prefs },
+            legacyDataStoreSnapshot = { emptyMap() },
+            removeLegacyCredentialKeys = {}
+        )
+        assertTrue(store.videoAutoSkipIntro.first())
+
+        val disabled = async(start = CoroutineStart.UNDISPATCHED) {
+            store.videoAutoSkipIntro.first { !it }
+        }
+        store.saveVideoAutoSkipIntro(false)
+        assertFalse(disabled.await())
+
+        val reEnabled = async(start = CoroutineStart.UNDISPATCHED) {
+            store.videoAutoSkipIntro.first { it }
+        }
+        store.saveVideoAutoSkipIntro(true)
+        assertTrue(reEnabled.await())
+    }
+
+    @Test
+    fun videoAutoSkipIntro_restoresDisabledPreferenceInNewStore() = runBlocking {
+        val prefs = FakeSharedPreferences()
+        fun newStore() = EncryptedConfigStore(
+            context = null,
+            prefsProvider = { prefs },
+            legacyDataStoreSnapshot = { emptyMap() },
+            removeLegacyCredentialKeys = {}
+        )
+        newStore().saveVideoAutoSkipIntro(false)
+        assertFalse(newStore().videoAutoSkipIntro.first())
+    }
+
+    @Test
+    fun videoAutoSkipIntro_defaultsTrueForMalformedValue() = runBlocking {
+        val prefs = FakeSharedPreferences()
+        prefs.edit().putString(EncryptedConfigKeys.VIDEO_AUTO_SKIP_INTRO, "invalid").commit()
+        val store = EncryptedConfigStore(
+            context = null,
+            prefsProvider = { prefs },
+            legacyDataStoreSnapshot = { emptyMap() },
+            removeLegacyCredentialKeys = {}
+        )
+        assertTrue(store.videoAutoSkipIntro.first())
+    }
+
     private fun FakeSharedPreferences.writeNavidrome(url: String, user: String, pass: String) {
         edit()
             .putString(EncryptedConfigKeys.NAVIDROME_URL, url)

@@ -38,6 +38,7 @@ import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Subtitles
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -82,6 +83,7 @@ internal fun VideoPlayerPanelHost(
     nextEpisode: VideoItem?,
     isFullscreen: Boolean,
     pipEnabled: Boolean,
+    autoSkipIntro: Boolean,
     onPanelChange: (VideoPlayerPanel) -> Unit,
     onDismiss: () -> Unit,
     onSetPlaybackSpeed: (Float) -> Unit,
@@ -89,6 +91,8 @@ internal fun VideoPlayerPanelHost(
     onSetPreferredTextTrack: (com.nordic.mediahub.data.VideoStreamInfo?) -> Unit,
     onSetPreferredAudioTrack: (com.nordic.mediahub.data.VideoStreamInfo?) -> Unit,
     onTogglePip: (Boolean) -> Unit,
+    onToggleAutoSkipIntro: (Boolean) -> Unit,
+    onSeekTo: (Int) -> Unit,
     onPlayEpisode: (VideoItem) -> Unit,
     onPlayNextEpisode: () -> Unit
 ) {
@@ -153,6 +157,22 @@ internal fun VideoPlayerPanelHost(
                             VideoPlayerPanel.Settings -> Column(
                                 Modifier.weight(1f).verticalScroll(rememberScrollState())
                             ) {
+                                if (state.introRange != null) {
+                                    VideoPlayerSettingToggleRow(
+                                        icon = Icons.Filled.SkipNext,
+                                        title = "自动跳过片头",
+                                        description = "播放进入片头区间时自动跳过一次",
+                                        checked = autoSkipIntro,
+                                        colors = colors,
+                                        onCheckedChange = onToggleAutoSkipIntro
+                                    )
+                                }
+                                if (video.chapters.isNotEmpty()) {
+                                    VideoPlayerSettingRow(Icons.Filled.VideoLibrary, "章节",
+                                        resolveVideoChaptersSummary(video, state.positionSeconds), colors) {
+                                        onPanelChange(VideoPlayerPanel.Chapters)
+                                    }
+                                }
                                 VideoPlayerSettingRow(Icons.Filled.Speed, "播放速度",
                                     resolvePlaybackSpeedLabel(state.playbackSpeed), colors) {
                                     onPanelChange(VideoPlayerPanel.Speed)
@@ -213,6 +233,9 @@ internal fun VideoPlayerPanelHost(
                             )
                             VideoPlayerPanel.Episodes -> VideoPlayerEpisodesContent(
                                 video, episodes, colors, onPlayEpisode, Modifier.weight(1f)
+                            )
+                            VideoPlayerPanel.Chapters -> VideoPlayerChaptersContent(
+                                video, state.positionSeconds, colors, onSeekTo, Modifier.weight(1f)
                             )
                         }
                     }
@@ -365,6 +388,73 @@ internal fun resolveVideoTracksSummary(state: VideoPlaybackState): String {
         ?: state.availableAudioStreams.firstOrNull()?.let { it.displayTitle ?: it.language }
         ?: "默认"
     return "字幕 $subtitleLabel · 音轨 $audioLabel"
+}
+
+/** Settings entry-row summary: current chapter name, or the total count. */
+internal fun resolveVideoChaptersSummary(video: VideoItem, positionSeconds: Int): String {
+    val chapters = video.chapters
+    if (chapters.isEmpty()) return "无章节"
+    val currentIndex = videoChapterIndexForPosition(chapters, positionSeconds)
+    return currentIndex?.let { index ->
+        val chapter = chapters[index]
+        "${index + 1}/${chapters.size} · ${chapter.name}"
+    } ?: "${chapters.size} 章"
+}
+
+/** Index of the chapter covering [positionSeconds], or null before the first chapter. */
+internal fun videoChapterIndexForPosition(
+    chapters: List<com.nordic.mediahub.data.VideoChapterInfo>,
+    positionSeconds: Int
+): Int? {
+    if (chapters.isEmpty()) return null
+    var result: Int? = null
+    chapters.forEachIndexed { index, chapter ->
+        if (positionSeconds >= chapter.startSeconds) result = index
+    }
+    return result
+}
+
+@Composable
+private fun VideoPlayerChaptersContent(
+    video: VideoItem,
+    positionSeconds: Int,
+    colors: ColorScheme,
+    onSeekTo: (Int) -> Unit,
+    modifier: Modifier
+) {
+    val chapters = video.chapters
+    val listState = rememberLazyListState()
+    val currentIndex = videoChapterIndexForPosition(chapters, positionSeconds)
+    LaunchedEffect(video.id, currentIndex) {
+        val target = currentIndex ?: return@LaunchedEffect
+        // Bring the active chapter into view without forcing a jump when it is
+        // already visible (same contract as the horizontal segment lists).
+        val visible = listState.layoutInfo.visibleItemsInfo.any { it.index == target }
+        if (!visible) listState.scrollToItem(target)
+    }
+    Column(modifier) {
+        Text(
+            "点击章节跳转到起点",
+            style = MaterialTheme.typography.bodySmall,
+            color = colors.onSurface.copy(alpha = NordicAlpha.medium),
+            modifier = Modifier.padding(vertical = NordicSpacing.sm)
+        )
+        LazyColumn(
+            state = listState,
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
+        ) {
+            items(chapters, key = { "chapter-${it.startSeconds}-${it.name}" }, contentType = { "player-chapter" }) { chapter ->
+                val index = chapters.indexOf(chapter)
+                MediaPlayerChoiceRow(
+                    title = chapter.name,
+                    subtitle = formatDuration(chapter.startSeconds),
+                    selected = index == currentIndex,
+                    colors = colors,
+                    onClick = { onSeekTo(chapter.startSeconds) }
+                )
+            }
+        }
+    }
 }
 
 @Composable

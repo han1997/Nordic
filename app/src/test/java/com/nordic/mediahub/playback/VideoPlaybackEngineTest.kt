@@ -204,6 +204,40 @@ class VideoPlaybackEngineTest {
         )
     }
 
+    @Test
+    fun shouldSkipVideoIntro_triggersOnlyInsideRangeAndOnce() {
+        val intro = com.nordic.mediahub.data.VideoIntroRange(startSeconds = 30, endSeconds = 90)
+
+        assertFalse(shouldSkipVideoIntro(0, intro, alreadySkipped = false))
+        assertFalse(shouldSkipVideoIntro(29, intro, alreadySkipped = false))
+        assertTrue(shouldSkipVideoIntro(30, intro, alreadySkipped = false))
+        assertTrue(shouldSkipVideoIntro(89, intro, alreadySkipped = false))
+        // At or past the intro end the window is gone.
+        assertFalse(shouldSkipVideoIntro(90, intro, alreadySkipped = false))
+        assertFalse(shouldSkipVideoIntro(120, intro, alreadySkipped = false))
+        // Once per (item, session): never triggers again even inside the range.
+        assertFalse(shouldSkipVideoIntro(45, intro, alreadySkipped = true))
+    }
+
+    @Test
+    fun shouldSkipVideoIntro_ignoresMissingOrInvalidRange() {
+        assertFalse(shouldSkipVideoIntro(45, null, alreadySkipped = false))
+        assertFalse(
+            shouldSkipVideoIntro(
+                45,
+                com.nordic.mediahub.data.VideoIntroRange(startSeconds = 60, endSeconds = 60),
+                alreadySkipped = false
+            )
+        )
+        assertFalse(
+            shouldSkipVideoIntro(
+                45,
+                com.nordic.mediahub.data.VideoIntroRange(startSeconds = 60, endSeconds = 30),
+                alreadySkipped = false
+            )
+        )
+    }
+
     private fun video(
         id: String = "video-1",
         streamUrl: String? = "https://example.test/video.mp4",

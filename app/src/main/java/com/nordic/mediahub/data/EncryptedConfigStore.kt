@@ -38,6 +38,7 @@ internal object EncryptedConfigKeys {
         const val VIDEO_API_KEY = "video_api_key"
         const val VIDEO_PLAYBACK_SPEED = "video_playback_speed"
         const val VIDEO_PIP_ENABLED = "video_pip_enabled"
+        const val VIDEO_AUTO_SKIP_INTRO = "video_auto_skip_intro"
 
     val ALL = listOf(
         NAVIDROME_URL, NAVIDROME_USER, NAVIDROME_PASS,
@@ -176,6 +177,15 @@ class EncryptedConfigStore(
                 ?.toBooleanStrictOrNull() ?: true
         }
 
+    /** Auto intro-skip preference; enabled by default when unset. */
+    val videoAutoSkipIntro: Flow<Boolean> =
+        configFlow(
+            watchedKeys = setOf(EncryptedConfigKeys.VIDEO_AUTO_SKIP_INTRO)
+        ) { p ->
+            p.getString(EncryptedConfigKeys.VIDEO_AUTO_SKIP_INTRO, null)
+                ?.toBooleanStrictOrNull() ?: true
+        }
+
     val videoConfig: Flow<VideoServerConfig> =
         configFlow(
             watchedKeys = setOf(
@@ -235,6 +245,14 @@ class EncryptedConfigStore(
         withContext(Dispatchers.IO) {
             prefs.edit()
                 .putString(EncryptedConfigKeys.VIDEO_PIP_ENABLED, enabled.toString())
+                .commit()
+        }
+    }
+
+    suspend fun saveVideoAutoSkipIntro(enabled: Boolean) {
+        withContext(Dispatchers.IO) {
+            prefs.edit()
+                .putString(EncryptedConfigKeys.VIDEO_AUTO_SKIP_INTRO, enabled.toString())
                 .commit()
         }
     }

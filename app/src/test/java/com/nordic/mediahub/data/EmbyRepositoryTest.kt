@@ -1064,6 +1064,158 @@ class EmbyRepositoryTest {
     }
 
     @Test
+    fun getCatalog_mapsChaptersAndFiltersIntroMarkers() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {
+                      "Id":"ep-1",
+                      "Name":"Episode 1",
+                      "Type":"Episode",
+                      "RunTimeTicks":60000000000,
+                      "Chapters":[
+                        {"StartPositionTicks":0,"Name":"Chapter 1","MarkerType":"Chapter"},
+                        {"StartPositionTicks":0,"Name":"片头","MarkerType":"IntroStart"},
+                        {"StartPositionTicks":883084577,"Name":"片尾","MarkerType":"IntroEnd"},
+                        {"StartPositionTicks":3000000000,"Name":"Chapter 2","MarkerType":"Chapter"},
+                        {"Name":"Missing Ticks","MarkerType":"Chapter"},
+                        {"StartPositionTicks":9000000000,"Name":"","MarkerType":"Chapter"}
+                      ]
+                    }
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+
+        val catalog = repository(apiKey = "api-key").getCatalog()
+        val item = catalog.items.single()
+
+        // Intro markers are not chapters; rows with missing ticks or blank names drop out.
+        // The 900s row has a blank name, so it does not become a chapter nor an end bound.
+        assertEquals(
+            listOf(
+                VideoChapterInfo(name = "Chapter 1", startSeconds = 0, endSeconds = 300),
+                VideoChapterInfo(name = "Chapter 2", startSeconds = 300, endSeconds = null)
+            ),
+            item.chapters
+        )
+        // 883084577 ticks = 88s; the intro range comes from the marker pair.
+        assertEquals(VideoIntroRange(startSeconds = 0, endSeconds = 88), item.introRange)
+    }
+
+    @Test
+    fun getCatalog_introWithoutEndMarkerYieldsNullRange() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {
+                      "Id":"ep-2",
+                      "Name":"Episode 2",
+                      "Type":"Episode",
+                      "Chapters":[
+                        {"StartPositionTicks":0,"Name":"Chapter 1","MarkerType":"Chapter"},
+                        {"StartPositionTicks":0,"Name":"片头","MarkerType":"IntroStart"}
+                      ]
+                    }
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+
+        val catalog = repository(apiKey = "api-key").getCatalog()
+        val item = catalog.items.single()
+
+        assertNull(item.introRange)
+        assertEquals(1, item.chapters.size)
+    }
+
+    @Test
+    fun getCatalog_introEndBeforeStartYieldsNullRange() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {
+                      "Id":"ep-3",
+                      "Name":"Episode 3",
+                      "Type":"Episode",
+                      "Chapters":[
+                        {"StartPositionTicks":50000000,"Name":"片头","MarkerType":"IntroStart"},
+                        {"StartPositionTicks":0,"Name":"片尾","MarkerType":"IntroEnd"}
+                      ]
+                    }
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+
+        val catalog = repository(apiKey = "api-key").getCatalog()
+
+        assertNull(catalog.items.single().introRange)
+    }
+
+    @Test
+    fun getCatalog_itemsRequestFieldsIncludeChapters() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"lib-movie","Name":"Movies","Type":"CollectionFolder","CollectionType":"movies"}
+                  ],
+                  "TotalRecordCount": 1
+                }
+            """.trimIndent()
+        )
+        server.enqueueJson("""{"Items": [],"TotalRecordCount": 0}""")
+
+        repository(apiKey = "api-key").getCatalog()
+
+        server.takeRequest()
+        server.takeRequest()
+        val itemsRequest = server.takeRequest()
+        assertTrue(itemsRequest.path.orEmpty().contains("Chapters"))
+    }
+
+    @Test
     fun resolveEmbyPlaybackPositionTicks_clampsKnownDurationAndKeepsUnknownDurationPositions() {
         assertEquals(
             0L,

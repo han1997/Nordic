@@ -158,6 +158,9 @@ fun VideoPlayerScreen(
     onAttachSubtitleView: (androidx.media3.ui.SubtitleView?) -> Unit = {},
     pipEnabled: Boolean = true,
     onTogglePip: (Boolean) -> Unit = {},
+    autoSkipIntro: Boolean = true,
+    onToggleAutoSkipIntro: (Boolean) -> Unit = {},
+    onSkipIntro: () -> Unit = {},
     isInPipMode: Boolean = false,
     nextEpisode: VideoItem? = null,
     episodeContext: List<VideoItem> = emptyList(),
@@ -384,6 +387,21 @@ fun VideoPlayerScreen(
                             .windowInsetsPadding(WindowInsets.safeDrawing).padding(NordicSpacing.lg)
                     )
                 }
+                if (shouldShowVideoSkipIntroButton(
+                        state.introRange, state.positionSeconds, activePanel != null,
+                        gesturesLocked, statusTone != null
+                    )
+                ) {
+                    VideoPlayerSkipIntroButton(
+                        colorScheme = colorScheme,
+                        modifier = Modifier.align(Alignment.BottomEnd)
+                            .windowInsetsPadding(WindowInsets.safeDrawing)
+                            .padding(end = NordicSpacing.lg, bottom = 96.dp)
+                    ) {
+                        onSkipIntro()
+                        interactionVersion++
+                    }
+                }
             }
         }
         if (!isInPipMode) {
@@ -398,6 +416,7 @@ fun VideoPlayerScreen(
                 if (panel != null) VideoPlayerPanelHost(
                     panel = panel, state = state, episodes = episodes, nextEpisode = nextEpisode,
                     isFullscreen = isFullscreen, pipEnabled = pipEnabled,
+                    autoSkipIntro = autoSkipIntro,
                     onPanelChange = { activePanel = it }, onDismiss = ::closePanel,
                     onSetPlaybackSpeed = { speed -> onSetPlaybackSpeed(speed); closePanel() },
                     onCycleAspectRatio = onCycleAspectRatio,
@@ -410,6 +429,11 @@ fun VideoPlayerScreen(
                         closePanel()
                     },
                     onTogglePip = onTogglePip,
+                    onToggleAutoSkipIntro = onToggleAutoSkipIntro,
+                    onSeekTo = { position ->
+                        closePanel()
+                        onSeek(position)
+                    },
                     onPlayEpisode = { selected ->
                         closePanel()
                         if (shouldPlaySelectedVideoEpisode(video, selected)) onPlayEpisode(selected)
@@ -915,6 +939,34 @@ private fun VideoPlayerNextEpisodeOverlay(
                     color = Color.White.copy(alpha = 0.68f), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             VideoPlayerChromeButton(Icons.Filled.Close, description = "暂不播放下一集", onClick = onDismiss)
+        }
+    }
+}
+
+/** Floating manual "跳过片头" action; visible only inside the intro range. */
+@Composable
+private fun VideoPlayerSkipIntroButton(
+    colorScheme: ColorScheme,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Surface(
+        color = colorScheme.surface.copy(alpha = 0.94f),
+        contentColor = colorScheme.onSurface,
+        shape = NordicShapes.full,
+        border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.24f)),
+        modifier = modifier
+    ) {
+        Row(
+            Modifier.clickable(role = Role.Button, onClick = onClick)
+                .padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.sm),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "跳过片头",
+                style = MaterialTheme.typography.labelLarge,
+                color = colorScheme.primary
+            )
         }
     }
 }

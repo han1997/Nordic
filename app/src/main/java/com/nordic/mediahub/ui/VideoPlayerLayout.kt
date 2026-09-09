@@ -6,7 +6,8 @@ import com.nordic.mediahub.playback.AspectRatioMode
 import com.nordic.mediahub.ui.theme.NordicSpacing
 
 internal enum class VideoPlayerPanel(val title: String) {
-    Settings("播放设置"), Speed("播放速度"), Info("影片信息"), Episodes("选集"), Tracks("字幕与音轨")
+    Settings("播放设置"), Speed("播放速度"), Info("影片信息"), Episodes("选集"), Tracks("字幕与音轨"),
+    Chapters("章节")
 }
 
 internal data class VideoPlayerToolLayout(
@@ -59,3 +60,17 @@ internal fun shouldShowVideoNextEpisodePrompt(
 ): Boolean = hasNextEpisode && durationSeconds > 0 &&
     positionSeconds >= (durationSeconds - VIDEO_NEXT_EPISODE_OVERLAY_LEAD_SECONDS).coerceAtLeast(0) &&
     !controlsVisible && !panelOpen && !gesturesLocked && !hasPlaybackStatus && !dismissed
+
+/**
+ * Manual "跳过片头" button visibility: inside the intro range with no blocking
+ * UI state. Shown regardless of chrome visibility so it is reachable while the
+ * controls are hidden.
+ */
+internal fun shouldShowVideoSkipIntroButton(
+    introRange: com.nordic.mediahub.data.VideoIntroRange?,
+    positionSeconds: Int,
+    panelOpen: Boolean,
+    gesturesLocked: Boolean,
+    hasPlaybackStatus: Boolean
+): Boolean = introRange != null && !panelOpen && !gesturesLocked && !hasPlaybackStatus &&
+    positionSeconds >= introRange.startSeconds && positionSeconds < introRange.endSeconds

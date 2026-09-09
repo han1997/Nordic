@@ -52,6 +52,10 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     private val _pipEnabled = MutableStateFlow(true)
     val pipEnabled: StateFlow<Boolean> = _pipEnabled.asStateFlow()
 
+    /** Auto intro-skip preference; enabled by default, persisted. */
+    private val _autoSkipIntro = MutableStateFlow(true)
+    val autoSkipIntro: StateFlow<Boolean> = _autoSkipIntro.asStateFlow()
+
     fun setEpisodeContext(videos: List<VideoItem>) {
         _catalogVideos.value = videos
     }
@@ -102,6 +106,15 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         viewModelScope.launch {
             configRepository.videoPipEnabled.collect { enabled ->
                 _pipEnabled.value = enabled
+            }
+        }
+
+        // Restore the persisted auto intro-skip preference and push it to the
+        // engine so the skip decision follows the current setting.
+        viewModelScope.launch {
+            configRepository.videoAutoSkipIntro.collect { enabled ->
+                _autoSkipIntro.value = enabled
+                engine.applyAutoSkipIntro(enabled)
             }
         }
 
@@ -306,6 +319,14 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         _pipEnabled.value = enabled
         viewModelScope.launch { configRepository.saveVideoPipEnabled(enabled) }
     }
+
+    fun setAutoSkipIntro(enabled: Boolean) {
+        _autoSkipIntro.value = enabled
+        engine.applyAutoSkipIntro(enabled)
+        viewModelScope.launch { configRepository.saveVideoAutoSkipIntro(enabled) }
+    }
+
+    fun skipIntro() = engine.skipIntro()
 
     fun attachSurface(surfaceView: android.view.SurfaceView) = engine.attachSurface(surfaceView)
 

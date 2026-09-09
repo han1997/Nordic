@@ -18,6 +18,7 @@ import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.nordic.mediahub.data.MediaAuthHeaderInterceptor
+import com.nordic.mediahub.data.VideoIntroRange
 import com.nordic.mediahub.data.VideoItem
 import com.nordic.mediahub.data.VideoStreamInfo
 import com.nordic.mediahub.data.VideoStreamKind
@@ -71,8 +72,25 @@ data class VideoPlaybackState(
     val availableAudioStreams: List<VideoStreamInfo> = emptyList(),
     val availableSubtitleStreams: List<VideoStreamInfo> = emptyList(),
     val selectedSubtitleStream: VideoStreamInfo? = null,
-    val selectedAudioStream: VideoStreamInfo? = null
+    val selectedAudioStream: VideoStreamInfo? = null,
+    val introRange: VideoIntroRange? = null
 )
+
+/**
+ * Pure intro-skip decision: whether the current playback position qualifies for
+ * an intro skip. A seek into the range (position above the start with no prior
+ * forward passage) still triggers so resuming inside an intro also skips; a
+ * manual seek past the range never pulls the user back.
+ */
+internal fun shouldSkipVideoIntro(
+    positionSeconds: Int,
+    introRange: VideoIntroRange?,
+    alreadySkipped: Boolean
+): Boolean {
+    if (alreadySkipped || introRange == null) return false
+    if (introRange.endSeconds <= introRange.startSeconds) return false
+    return positionSeconds >= introRange.startSeconds && positionSeconds < introRange.endSeconds
+}
 
 /**
  * Resolves the Emby external-subtitle delivery URL for a stream index. The
@@ -160,6 +178,7 @@ interface VideoPlaybackBackend {
     fun cycleAspectRatio()
     fun setPreferredTextTrack(stream: VideoStreamInfo?)
     fun setPreferredAudioTrack(stream: VideoStreamInfo?)
+    fun skipIntro()
     fun stop()
     fun release()
 }
@@ -191,6 +210,21 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
     /** Playback speed restored from persisted preferences; applied on each new media item. */
     @Volatile
     private var persistedPlaybackSpeed: Float = 1f
+
+    /**
+     * Whether the intro of the current media item has already been skipped in
+     * this playback session. Reset on every media-item replacement so a replay
+     * of the same episode can auto-skip again.
+     */
+    @Volatile
+    private var introSkippedForCurrentItem: Boolean = false
+
+    /**
+     * Whether auto-skip is currently enabled (mirrors the persisted preference).
+     * Manual [skipIntro] works regardless of this flag.
+     */
+    @Volatile
+    private var autoSkipIntroEnabled: Boolean = true
 
     private val _state = MutableStateFlow(VideoPlaybackState())
     override val state: StateFlow<VideoPlaybackState> = _state.asStateFlow()
@@ -298,8 +332,10 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
                 video = video,
                 durationSeconds = video.durationSeconds,
                 isBuffering = true,
-                playbackSpeed = persistedPlaybackSpeed
+                playbackSpeed = persistedPlaybackSpeed,
+                introRange = video.introRange
             )
+            introSkippedForCurrentItem = false
             player.setMediaItem(video.toMediaItem())
             player.setPlaybackSpeed(persistedPlaybackSpeed)
             player.prepare()
@@ -336,8 +372,10 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
                 video = video,
                 durationSeconds = video.durationSeconds,
                 isBuffering = true,
-                playbackSpeed = persistedPlaybackSpeed
+                playbackSpeed = persistedPlaybackSpeed,
+                introRange = video.introRange
             )
+            introSkippedForCurrentItem = false
             player.setMediaItem(video.toMediaItem())
             player.setPlaybackSpeed(persistedPlaybackSpeed)
             player.prepare()
@@ -435,6 +473,17 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
         publishPlayerState()
     }
 
+    fun applyAutoSkipIntro(enabled: Boolean) {
+        autoSkipIntroEnabled = enabled
+    }
+
+    override fun skipIntro() {
+        val intro = _state.value.introRange ?: return
+        if (introSkippedForCurrentItem) return
+        introSkippedForCurrentItem = true
+        seekTo(intro.endSeconds)
+    }
+
     override fun stop() {
         stopPositionUpdates()
         player.pause()
@@ -471,6 +520,23 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
             .takeIf { duration -> duration != C.TIME_UNSET }
             ?.coerceAtLeast(0L)
 
+        val positionSeconds = (player.currentPosition.coerceAtLeast(0L) / 1000L).toInt()
+
+        // Auto intro-skip: evaluated on every position publish (1s cadence while
+        // playing). The skip itself is a seek, so the next publish sees the
+        // position past the intro and the once-per-item flag prevents repeats.
+        val introRange = _state.value.introRange
+        if (introRange != null && autoSkipIntroEnabled &&
+            shouldSkipVideoIntro(
+                positionSeconds = positionSeconds,
+                introRange = introRange,
+                alreadySkipped = introSkippedForCurrentItem
+            )
+        ) {
+            introSkippedForCurrentItem = true
+            player.seekTo(introRange.endSeconds * 1000L)
+        }
+
         _state.update {
             it.copy(
                 video = video,
@@ -478,7 +544,7 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
                 isBuffering = player.playbackState == Player.STATE_BUFFERING,
                 playWhenReady = player.playWhenReady,
                 hasEnded = player.playbackState == Player.STATE_ENDED,
-                positionSeconds = (player.currentPosition.coerceAtLeast(0L) / 1000L).toInt(),
+                positionSeconds = positionSeconds,
                 bufferedPositionSeconds = player.bufferedPosition
                     .takeIf { buffered -> buffered != C.TIME_UNSET }
                     ?.coerceAtLeast(0L)

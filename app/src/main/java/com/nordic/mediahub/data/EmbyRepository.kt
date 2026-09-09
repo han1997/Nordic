@@ -2,6 +2,7 @@ package com.nordic.mediahub.data
 
 import android.util.Log
 import com.nordic.mediahub.api.EmbyApi
+import com.nordic.mediahub.api.EmbyChapterDto
 import com.nordic.mediahub.api.EmbyMediaStreamDto
 import com.nordic.mediahub.api.EmbyAuthenticateRequest
 import com.nordic.mediahub.api.EmbyItemDto
@@ -44,8 +45,30 @@ data class VideoItem(
     val imageUrl: String? = null,
     val backdropImageUrl: String? = null,
     val streamUrl: String? = null,
-    val mediaStreams: List<VideoStreamInfo> = emptyList()
+    val mediaStreams: List<VideoStreamInfo> = emptyList(),
+    val chapters: List<VideoChapterInfo> = emptyList(),
+    val introRange: VideoIntroRange? = null
 )
+
+/** A single chapter marker exposed by the server for in-player navigation. */
+data class VideoChapterInfo(
+    val name: String,
+    val startSeconds: Int,
+    /** Derived from the next chapter start; null for the last chapter. */
+    val endSeconds: Int? = null
+)
+
+/**
+ * The detected intro range of a video (Emby 4.9 IntroStart/IntroEnd chapter
+ * markers). Null start/end means the server has no usable intro data.
+ */
+data class VideoIntroRange(
+    val startSeconds: Int,
+    val endSeconds: Int
+)
+
+internal const val EMBY_MARKER_INTRO_START = "IntroStart"
+internal const val EMBY_MARKER_INTRO_END = "IntroEnd"
 
 /** A single audio/subtitle stream exposed by the server for track selection. */
 data class VideoStreamInfo(
@@ -312,7 +335,9 @@ class EmbyRepository(private val config: VideoServerConfig) {
             imageUrl = primaryImageUrl(itemId, token, imageTags.orEmpty()["Primary"]),
             backdropImageUrl = resolvedBackdrop,
             streamUrl = if (isDirectlyPlayableVideoType(type)) streamUrl(itemId, token) else null,
-            mediaStreams = mediaStreams.orEmpty().mapNotNull { it.toVideoStreamInfo() }
+            mediaStreams = mediaStreams.orEmpty().mapNotNull { it.toVideoStreamInfo() },
+            chapters = chapters.toVideoChapterInfos(),
+            introRange = chapters.toVideoIntroRange()
         )
     }
 
@@ -332,6 +357,42 @@ class EmbyRepository(private val config: VideoServerConfig) {
             isExternal = isExternal == true
         )
     }
+
+    private fun List<EmbyChapterDto>?.toVideoChapterInfos(): List<VideoChapterInfo> {
+        val raw = orEmpty()
+            .asSequence()
+            .filter { it.isRegularChapter() }
+            .mapNotNull { dto ->
+                val name = dto.name?.trim()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                // A chapter without a usable start position cannot be navigated to.
+                val ticks = dto.startPositionTicks?.takeIf { it >= 0 } ?: return@mapNotNull null
+                VideoChapterInfo(name = name, startSeconds = ticks.toDurationSeconds())
+            }
+            .sortedBy { it.startSeconds }
+            .toList()
+        return raw.mapIndexed { index, chapter ->
+            val nextStart = raw.getOrNull(index + 1)?.startSeconds
+            val endSeconds = nextStart?.takeIf { it > chapter.startSeconds }
+            chapter.copy(endSeconds = endSeconds)
+        }
+    }
+
+    private fun List<EmbyChapterDto>?.toVideoIntroRange(): VideoIntroRange? {
+        val chapters = orEmpty()
+        val startIndex = chapters.indexOfFirst { it.markerType == EMBY_MARKER_INTRO_START }
+        if (startIndex < 0) return null
+        val end = chapters.asSequence()
+            .drop(startIndex + 1)
+            .firstOrNull { it.markerType == EMBY_MARKER_INTRO_END }
+            ?: return null
+        val startSeconds = chapters[startIndex].startPositionTicks.toDurationSeconds()
+        val endSeconds = end.startPositionTicks.toDurationSeconds()
+        if (endSeconds <= startSeconds) return null
+        return VideoIntroRange(startSeconds = startSeconds, endSeconds = endSeconds)
+    }
+
+    private fun EmbyChapterDto.isRegularChapter(): Boolean =
+        markerType == null || markerType.equals("Chapter", ignoreCase = true)
 
     private fun EmbyItemDto.isVideoLibrary(): Boolean {
         return videoCollectionTypes.any { collectionType ->

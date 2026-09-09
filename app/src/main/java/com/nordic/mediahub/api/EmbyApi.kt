@@ -75,7 +75,18 @@ data class EmbyItemDto(
     @SerializedName("UserData")
     val userData: EmbyUserDataDto? = null,
     @SerializedName("MediaStreams")
-    val mediaStreams: List<EmbyMediaStreamDto>? = null
+    val mediaStreams: List<EmbyMediaStreamDto>? = null,
+    @SerializedName("Chapters")
+    val chapters: List<EmbyChapterDto>? = null
+)
+
+data class EmbyChapterDto(
+    @SerializedName("Name")
+    val name: String? = null,
+    @SerializedName("StartPositionTicks")
+    val startPositionTicks: Long? = null,
+    @SerializedName("MarkerType")
+    val markerType: String? = null
 )
 
 data class EmbyMediaStreamDto(
@@ -140,7 +151,7 @@ interface EmbyApi {
         @Query("ParentId") parentId: String,
         @Query("Recursive") recursive: Boolean = true,
         @Query("IncludeItemTypes") includeItemTypes: String = "Movie,Series,Episode,Video",
-        @Query("Fields") fields: String = "Overview,ProductionYear,SeriesId,SeriesName,ParentIndexNumber,IndexNumber,RunTimeTicks,ChildCount,ImageTags,BackdropImageTags,ParentBackdropImageTags,CommunityRating,UserData,MediaStreams",
+        @Query("Fields") fields: String = "Overview,ProductionYear,SeriesId,SeriesName,ParentIndexNumber,IndexNumber,RunTimeTicks,ChildCount,ImageTags,BackdropImageTags,ParentBackdropImageTags,CommunityRating,UserData,MediaStreams,Chapters",
         @Query("SortBy") sortBy: String = "DateCreated",
         @Query("SortOrder") sortOrder: String = "Descending",
         @Query("StartIndex") startIndex: Int = 0,
