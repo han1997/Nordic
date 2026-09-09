@@ -8,14 +8,15 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.first
 
-private const val VIDEO_CACHE_SCHEMA_VERSION = 1
+private const val VIDEO_CACHE_SCHEMA_VERSION = 2
 
 data class EmbyVideoCache(
     val configKey: String = "",
     val updatedAtMillis: Long = 0L,
     val libraries: List<VideoLibrary> = emptyList(),
     val videos: List<VideoItem> = emptyList(),
-    val selectedLibraryId: String? = null
+    val selectedLibraryId: String? = null,
+    val resumeVideos: List<VideoItem> = emptyList()
 )
 
 class EmbyVideoCacheRepository(
@@ -30,7 +31,9 @@ class EmbyVideoCacheRepository(
 
     suspend fun load(config: VideoServerConfig): EmbyVideoCache? {
         val cached = loadRaw(config) ?: return null
-        return cached.takeIf { it.libraries.isNotEmpty() || it.videos.isNotEmpty() }
+        return cached.takeIf {
+            it.libraries.isNotEmpty() || it.videos.isNotEmpty() || it.resumeVideos.isNotEmpty()
+        }
     }
 
     suspend fun save(config: VideoServerConfig, cache: EmbyVideoCache) {
@@ -41,6 +44,21 @@ class EmbyVideoCacheRepository(
         // This matches the Music/Audiobook browse-cache save contract.
         dataStore.edit { prefs ->
             prefs[videoCacheKey] = gson.toJson(cache.copy(configKey = config.cacheKey()))
+        }
+    }
+
+    /**
+     * Persists the server's continue-watching response (`Items/Resume`). The
+     * list is cached as-is so the next cold start can render the last known
+     * server data (cache-then-network) instead of deriving a shelf from the
+     * local catalog cache, which may carry stale progress.
+     */
+    suspend fun saveResumeItems(config: VideoServerConfig, items: List<VideoItem>) {
+        val current = loadRaw(config) ?: return
+        dataStore.edit { prefs ->
+            prefs[videoCacheKey] = gson.toJson(
+                current.copy(resumeVideos = items, configKey = config.cacheKey())
+            )
         }
     }
 

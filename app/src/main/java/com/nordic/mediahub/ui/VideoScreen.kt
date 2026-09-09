@@ -68,9 +68,11 @@ fun VideoScreen(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var cacheUpdatedAtMillis by remember { mutableStateOf<Long?>(null) }
-    // Server-side continue-watching list (Items/Resume). Null = not fetched or
-    // failed; empty list = server says nothing to resume. UI falls back to the
-    // local derivation only while this is null.
+    // Server-side continue-watching list (Items/Resume). Null = not fetched
+    // yet; empty list = server says nothing to resume. The list is persisted
+    // in the video cache as raw server data, so cold starts restore the last
+    // known server rows (cache-then-network). There is no local-derivation
+    // fallback: the shelf only ever shows server data.
     var resumeVideos by remember { mutableStateOf<List<VideoItem>?>(null) }
     var videoConfigStateVersion by remember { mutableStateOf(0) }
     var previousVideoConfig by remember { mutableStateOf<VideoServerConfig?>(null) }
@@ -89,13 +91,14 @@ fun VideoScreen(
     }
     val hasActiveBrowserFilter = searchQuery.isNotBlank() || selectedTypeFilter != VideoTypeFilter.All
     val continueWatchingVideos = remember(resumeVideos, videos) {
-        // Server Resume list is authoritative when available; the local
-        // derivation is the offline/failure fallback.
+        // Server Resume list is the only source: fresh from the network, or
+        // the persisted server rows restored from the cache. No local
+        // derivation — a locally derived shelf would show stale progress.
         val serverList = resumeVideos
         if (serverList != null) {
             mergeResumeItemsWithCatalog(serverList, videos)
         } else {
-            continueWatchingShelf(videos)
+            emptyList()
         }
     }
     val topRatedVideos = remember(videos) {
@@ -153,6 +156,9 @@ fun VideoScreen(
         selectedLibraryId = cached.selectedLibraryId
         videos = cached.videos
         selectedVideo = null
+        // Restore the persisted server Resume rows so the continue-watching
+        // shelf renders the last known server data before the silent refresh.
+        resumeVideos = cached.resumeVideos.ifEmpty { null }
         cacheUpdatedAtMillis = cached.updatedAtMillis
         errorMessage = null
         return true
@@ -160,19 +166,20 @@ fun VideoScreen(
 
     /**
      * Pulls the server continue-watching list after a successful catalog
-     * refresh. Failures are silent: the shelf falls back to the local
-     * derivation whenever [resumeVideos] is null.
+     * refresh. Success updates the UI state and persists the raw server rows
+     * to the cache. Failures keep the current value: the shelf continues to
+     * show the last known server data instead of collapsing to null.
      */
-    suspend fun refreshResumeItems(repo: EmbyRepository, requestVersion: Int?) {
+    suspend fun refreshResumeItems(repo: EmbyRepository, targetConfig: VideoServerConfig, requestVersion: Int?) {
         try {
             val items = repo.getResumeItems()
             if (isCurrentVideoConfigRequest(requestVersion)) {
                 resumeVideos = items
+                cacheRepository.saveResumeItems(config = targetConfig, items = items)
             }
         } catch (e: Exception) {
-            if (isCurrentVideoConfigRequest(requestVersion)) {
-                resumeVideos = null
-            }
+            // Keep the existing resume list (cache-restored or previously
+            // fetched); do not null it out on a transient failure.
         }
     }
 
@@ -231,7 +238,7 @@ fun VideoScreen(
                 cacheUpdatedAtMillis = freshCache.updatedAtMillis
                 cacheRepository.save(targetConfig, freshCache)
             }
-            refreshResumeItems(repo, requestVersion)
+            refreshResumeItems(repo, targetConfig, requestVersion)
         } catch (e: Exception) {
             if (isCurrentVideoConfigRequest(requestVersion)) {
                 val hasCachedContent = libraries.isNotEmpty() || videos.isNotEmpty()

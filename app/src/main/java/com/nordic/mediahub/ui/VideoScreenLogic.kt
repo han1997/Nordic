@@ -66,17 +66,6 @@ internal fun VideoItem.detailChips(): List<String> {
     }.ifEmpty { listOf("视频") }
 }
 
-internal fun continueWatchingShelf(videos: List<VideoItem>, limit: Int = 12): List<VideoItem> {
-    return videos
-        .filter { video -> video.isContinueWatchingCandidate() }
-        .sortedWith(
-            compareByDescending<VideoItem> { it.lastPlayedDate.orEmpty() }
-                .thenByDescending { it.playbackPositionSeconds }
-                .thenBy { it.title }
-        )
-        .take(limit)
-}
-
 /**
  * Aligns the server Resume list with the loaded catalog: server rows win
  * (authoritative progress/order), but any field the Resume response omitted
@@ -209,13 +198,6 @@ internal fun shouldHandleVideoBrowserBack(
     selectedTypeFilter: VideoTypeFilter
 ): Boolean {
     return searchExpanded || searchQuery.isNotBlank() || selectedTypeFilter != VideoTypeFilter.All
-}
-
-private fun VideoItem.isContinueWatchingCandidate(): Boolean {
-    if (playbackPositionSeconds <= 0 || isPlayed) return false
-
-    val knownDuration = durationSeconds.coerceAtLeast(0)
-    return knownDuration == 0 || playbackPositionSeconds < knownDuration
 }
 
 private fun VideoItem.isEpisode(): Boolean {

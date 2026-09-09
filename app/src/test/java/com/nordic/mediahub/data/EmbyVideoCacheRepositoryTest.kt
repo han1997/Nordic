@@ -88,6 +88,61 @@ class EmbyVideoCacheRepositoryTest {
     }
 
     @Test
+    fun saveResumeItems_thenLoad_returnsPersistedServerResumeRows() = runCacheTest {
+        val repo = newRepo()
+        val cfg = config(apiKey = "key-1")
+        repo.save(
+            cfg,
+            repo.buildCache(
+                config = cfg,
+                libraries = listOf(library("lib-1")),
+                videos = listOf(video("v1")),
+                selectedLibraryId = "lib-1"
+            )
+        )
+
+        val resumeRow = video("ep-1").copy(playbackPositionSeconds = 300)
+        repo.saveResumeItems(cfg, listOf(resumeRow))
+
+        val loaded = repo.load(cfg)
+        assertNotNull(loaded)
+        assertEquals(listOf("ep-1"), loaded!!.resumeVideos.map { it.id })
+        assertEquals(300, loaded.resumeVideos.first().playbackPositionSeconds)
+        // Resume persistence must not disturb the browse fields.
+        assertEquals(listOf("lib-1"), loaded.libraries.map { it.id })
+        assertEquals(listOf("v1"), loaded.videos.map { it.id })
+    }
+
+    @Test
+    fun saveResumeItems_withoutExistingCache_isNoOp() = runCacheTest {
+        val repo = newRepo()
+        val cfg = config(apiKey = "key-1")
+
+        repo.saveResumeItems(cfg, listOf(video("ep-1")))
+
+        assertNull(repo.load(cfg))
+    }
+
+    @Test
+    fun load_returnsCacheWithOnlyResumeRows() = runCacheTest {
+        val repo = newRepo()
+        val cfg = config(apiKey = "key-1")
+        repo.save(
+            cfg,
+            repo.buildCache(
+                config = cfg,
+                libraries = emptyList(),
+                videos = emptyList(),
+                selectedLibraryId = null
+            ).copy(resumeVideos = listOf(video("ep-1")))
+        )
+
+        val loaded = repo.load(cfg)
+        assertNotNull(loaded)
+        assertEquals(listOf("ep-1"), loaded!!.resumeVideos.map { it.id })
+    }
+
+    @Test
     fun load_returnsNullForMalformedStoredJson() = runCacheTest {
         val dataStore = fakeDataStore()
         val repo = EmbyVideoCacheRepository(context = null, dataStoreProvider = { dataStore })

@@ -100,10 +100,10 @@ data class EmbyItemDto(
   - The browse catalog is a UI projection of the loaded Emby item list that excludes `Episode` items. Movies, `Series`, and standalone `Video` items may appear in the browse grid and search results.
   - Keep the full loaded item list available for exceptions that need episode identity: continue-watching can show resumable episodes, and `Series` detail pages derive their episode rows from the full list.
   - Yamby-style spotlight shelves may be derived from the already-loaded Emby item list:
-    - **Continue watching (server-authoritative)**: prefer the server `GET /Users/{UserId}/Items/Resume` list (`EmbyRepository.getResumeItems()`), fetched after each successful catalog refresh. `mergeResumeItemsWithCatalog(resume, catalog)` aligns server rows with the loaded catalog — server rows win for progress/order; catalog rows fill omitted playback-critical fields (streamUrl, artwork, chapters, introRange, owning libraryId). Server rows absent from the catalog pass through; the server list is the source of truth for shelf membership. Fallback to local derivation (`continueWatchingShelf`: `playbackPositionSeconds > 0 && !isPlayed`, position < duration, `lastPlayedDate` descending) only when the Resume request fails or the state is null. Resume failures are silent; the Resume list is UI state, never persisted to the browse cache.
+    - **Continue watching (server-only)**: the shelf shows ONLY server data — the `GET /Users/{UserId}/Items/Resume` list (`EmbyRepository.getResumeItems()`), fetched after each successful catalog refresh. `mergeResumeItemsWithCatalog(resume, catalog)` aligns server rows with the loaded catalog — server rows win for progress/order; catalog rows fill omitted playback-critical fields (streamUrl, artwork, chapters, introRange, owning libraryId). Server rows absent from the catalog pass through; the server list is the source of truth for shelf membership. There is NO local-derivation fallback: `continueWatchingShelf` was removed — when the server list is unavailable (never fetched, or fetch failed with no cached rows), the shelf renders empty. Successful Resume fetches persist the raw server rows into the video cache via `EmbyVideoCacheRepository.saveResumeItems(...)`; cold starts restore them (cache-then-network) so the shelf shows the last known server data instead of a locally derived stale list. Resume fetch failures keep the current value (cache-restored or previously fetched) instead of nulling it.
     - Top rated: browse-catalog items only, non-null positive `communityRating`, sorted descending
     - Unplayed: browse-catalog items only, `!isPlayed && playbackPositionSeconds <= 0`
-  - These shelves are view state only. Do not persist local video history unless the PRD explicitly adds that scope.
+  - These shelves are view state only. The continue-watching list is additionally persisted as raw server data inside the video cache (`EmbyVideoCache.resumeVideos`, schema v2); do not derive it from the local catalog cache. Do not persist other local video history unless the PRD explicitly adds that scope.
   - After a catalog refresh, selected video detail state must resolve against the refreshed item list. Keep the selection only when the same item id still exists in the selected library, and replace it with the refreshed `VideoItem`; otherwise clear the detail state.
   - After a catalog refresh, selected type filter state must resolve against the refreshed browse catalog. Keep `All`, keep a specific browse-visible type only when at least one refreshed browse item still matches it, and reset unavailable or episode-specific filters to `All`.
   - Saved video config changes are catalog boundaries. Clear libraries, selected library id, catalog items, selected detail video, local search text, stale loading state, and stale errors before loading the new account.
@@ -175,8 +175,7 @@ data class EmbyItemDto(
 - Library/item row sends `Id` or `Name` with surrounding whitespace -> trim the value before building domain models, image URLs, stream URLs, or follow-up requests
 - Library item response fetched row count reaches `TotalRecordCount` while mapped videos are fewer because rows were skipped -> stop pagination without requesting another page
 - Missing item `UserData` -> map resume position to `0` and played state to `false`
-- Missing `UserData.LastPlayedDate` -> continue-watching shelf keeps the item eligible by resume position but sorts it behind dated resume items
-- Resume position at or beyond known duration while `Played == false` -> exclude from continue-watching shelf as effectively complete
+- Resume position at or beyond known duration while `Played == false` -> server Resume list is authoritative; the detail play-action resolver still treats such items as complete (no resume action)
 - Catalog refresh omits the currently selected video id -> clear selected video detail state
 - Catalog refresh still contains the selected video id -> keep detail state using the refreshed `VideoItem`
 - Catalog refresh still contains at least one item for the selected type filter -> keep that filter
@@ -217,7 +216,7 @@ data class EmbyItemDto(
 - Good: An Emby-compatible server includes partial view or item rows, and the repository skips unusable rows while preserving valid libraries and videos from the same response.
 - Good: Emby sends valid `Id` or `Name` values with surrounding whitespace, and Nordic trims them before storing domain ids/titles or building URLs.
 - Good: Emby returns `UserData.PlaybackPositionTicks` and `CommunityRating`; repository maps resume/rating metadata and UI can show continue-watching/top-rated/unplayed shelves.
-- Good: Emby returns `UserData.LastPlayedDate`; continue watching prioritizes recently watched items over older items with larger resume positions.
+- Good: Emby returns `UserData.LastPlayedDate`; the server Resume list orders continue-watching by recency, and the app persists those server rows so cold starts show the same server data.
 - Good: User starts an unfinished continue-watching item; playback seeks to the Emby resume position before playing.
 - Good: User replays a refreshed Emby item with the same id but a changed stream URL; playback replaces ExoPlayer so the fresh URL is used.
 - Good: User refreshes a video library while viewing details; if the item still exists, detail metadata updates from the refreshed catalog, and if it disappeared the app returns to the catalog instead of showing stale detail.
@@ -272,8 +271,8 @@ data class EmbyItemDto(
   - asserts `UserData.PlaybackPositionTicks`, `UserData.Played`, and `CommunityRating` map to `VideoItem`
   - asserts `UserData.LastPlayedDate` maps to `VideoItem.lastPlayedDate`
   - asserts browse catalog filtering excludes `Episode` from grid/search/type filters/top-rated/unplayed while keeping episodes in continue-watching and series detail
-  - asserts continue-watching shelf sorting uses last-played recency before resume-position fallback
-  - asserts continue-watching shelf excludes resume positions at or beyond known duration, while keeping unknown-duration resume items eligible
+  - asserts `mergeResumeItemsWithCatalog` prefers server rows and fills omitted playback-critical fields from the catalog
+  - asserts the video cache round-trips persisted Resume rows (`saveResumeItems` / `load`), keeps them isolated per config, and is a no-op without an existing cache
   - asserts selected video detail resolution keeps a refreshed matching item and clears selection when the library changes or the item disappears
   - asserts selected video type filter resolution keeps still-present filters, resets unavailable filters to `All`, and keeps `All` for empty catalogs
   - asserts saved config changes clear selected video detail state and reset every type filter to `All`
