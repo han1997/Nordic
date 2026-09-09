@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verification gates: compile/test/lint/assemble expectations"}
+{"file": ".trellis/spec/backend/navidrome-integration.md", "reason": "Check scrobble usage against Subsonic contract"}
+{"file": ".trellis/spec/backend/audiobookshelf-integration.md", "reason": "Check ON_STOP sync against ABS progress contract"}
