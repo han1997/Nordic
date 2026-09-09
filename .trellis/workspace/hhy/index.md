@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-3.md`
-- **Total Sessions**: 164
-- **Last Active**: 2026-09-08
+- **Total Sessions**: 165
+- **Last Active**: 2026-09-09
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-3.md` | ~1656 | Active |
+| `journal-3.md` | ~1690 | Active |
 | `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
@@ -31,6 +31,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 165 | 2026-09-09 | 视频章节跳转与片头跳过 | `ae851c8`, `7185a39` | `main` |
 | 164 | 2026-09-08 | 视频画中画任务收尾归档 | `ba039b2` | `main` |
 | 163 | 2026-09-08 | 视频字幕音轨选择与播放偏好持久化 | `f0da5a4`, `1b0e78f` | `main` |
 | 162 | 2026-09-08 | 配置域与公共状态组件精修（UI 统一收官批） | `609f57c`, `8c4c47b` | `main` |

@@ -1654,3 +1654,37 @@ Verified Kotlin compilation, unit tests, and lint; committed the app-wide UI com
 ### Next Steps
 
 - None - task complete
+
+
+## Session 165: 视频章节跳转与片头跳过
+
+**Date**: 2026-09-09
+**Task**: 视频章节跳转与片头跳过
+**Branch**: `main`
+
+### Summary
+
+视频功能补全第二批 A：getItems Fields 加 Chapters，EmbyChapterDto 映射 VideoChapterInfo（过滤 IntroStart/IntroEnd marker、丢弃空名/缺 ticks 行、endSeconds 由下一章推导）；真机验证 Emby 4.9.5 intro 数据内嵌 Chapters 数组（MarkerType 配对），无独立 MediaSegments 端点；引擎 shouldSkipVideoIntro 纯函数 + once 标志实现自动跳过一次、手动 skipIntro 共享标志；新增 Chapters 面板（MediaPlayerChoiceRow 高亮当前章）与片头区间内浮动跳过按钮；videoAutoSkipIntro 持久化（默认开）。新增 12 个单测，558 用例全绿，lint 0 错误，assembleDebug 通过。工作提交 ae851c8 + 7185a39；spec 沉淀章节/intro 场景合同；真机验收清单见 manual-checklist.md。另：gradle.properties 加 kotlin.compiler.execution.strategy=in-process 消除 Kotlin daemon 连接故障（用户本地配置未提交）。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ae851c8` | (see git log) |
+| `7185a39` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
