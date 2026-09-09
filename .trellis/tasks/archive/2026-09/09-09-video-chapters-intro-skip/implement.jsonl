@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Spec index with pre-development checklist and verification commands"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Performance-first chrome rules, persistence conventions, verification gates"}
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "Settings panel row language and choice-row contract for chapters panel and skip button"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Config store subscription contract for auto-skip preference; DataStore cache serialization"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Emby DTO mapping conventions, playback state contracts, seek semantics"}
+{"file": ".trellis/tasks/09-09-video-chapters-intro-skip/research/emby-chapters-intro-api.md", "reason": "Chapters field mapping and MediaSegments endpoint verification plan"}

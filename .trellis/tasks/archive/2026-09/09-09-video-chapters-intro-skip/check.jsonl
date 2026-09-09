@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verification gates: compile/test/lint/assemble expectations"}
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "Check panel rows, choice rows, touch targets against shared contract"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Check DTO mapping and playback state handling against Emby contracts"}
+{"file": ".trellis/tasks/09-09-video-chapters-intro-skip/research/emby-chapters-intro-api.md", "reason": "Verify chapters mapping and intro endpoint handling match research findings"}
