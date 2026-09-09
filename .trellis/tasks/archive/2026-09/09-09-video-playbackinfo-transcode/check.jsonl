@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verification gates: compile/test/lint/assemble expectations"}
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "Check panel rows and choice rows against shared contract"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Check DTO mapping, stream URL ownership, and progress reporting against Emby contracts"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Check typed exception usage on new repository methods"}
+{"file": ".trellis/tasks/09-09-video-playbackinfo-transcode/research/playbackinfo-transcode-api.md", "reason": "Verify implementation matches verified endpoint shapes and client-side decision model"}
