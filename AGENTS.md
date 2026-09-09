@@ -19,3 +19,13 @@ If you're using Codex or another agent-capable tool, additional project-scoped h
 Managed by Trellis. Edits outside this block are preserved; edits inside may be overwritten by a future `trellis update`.
 
 <!-- TRELLIS:END -->
+
+# Long-Running Command Etiquette
+
+Commands that can run longer than ~30s (Gradle builds, test suites, lint, installs) must follow this pattern so the UI never looks "stuck":
+
+1. **Announce before running**: in the same message as the tool call, state what is being run and roughly how long it may take (e.g. "running full Gradle verification, may take 1-3 min").
+2. **Report immediately after**: as soon as the result returns, output a one-line verdict (e.g. `BUILD SUCCESSFUL — compile/test/lint all green`) BEFORE doing anything else, then continue with next steps.
+3. **Never go silent**: if a command needs to be retried or followed by analysis, say so explicitly instead of pausing output.
+
+Note: the Gradle daemon intentionally stays resident in the background to reuse a warm JVM; a lingering daemon process is normal and does not block anything.
