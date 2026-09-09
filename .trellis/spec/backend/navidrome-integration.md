@@ -218,3 +218,59 @@ CacheDataSource.Factory()
     .setCache(cache)
     .setCacheKeyFactory { dataSpec -> stripAuthQuery(dataSpec.uri) }
 ```
+
+## Scenario: 播放 Scrobble（两段式）
+
+### 1. 范围 / 触发条件
+
+修改音乐播放上报（scrobble/now-playing）、播放计数或「最近播放」同步时读取。Subsonic 协议无进度（position）上报概念，只有 `scrobble.view?id=&submission=`。
+
+### 2. 关键签名
+
+- `NavidromeRepository.scrobble(songId: String, submission: Boolean)`（`GET rest/scrobble.view`，`submission=false` 为 now-playing，`true` 为提交播放记录）。
+- `internal fun shouldScrobbleMusicSubmission(positionSeconds, durationSeconds, alreadySubmitted): Boolean`（`MusicPlaybackViewModel.kt`）。
+- `MusicPlaybackViewModel` 状态机字段：`nowPlayingSongId: String?`、`submittedSongId: String?`。
+
+### 3. 可执行合同
+
+- **两段式**：开始播放一首歌（`currentSong.id` 变化）→ `submission=false`；过半（`position >= duration/2`，`duration > 0`）或切歌/停止离开该歌 → `submission=true`。每首歌只提交一次。
+- 状态机：切歌时若 `previousSongId != submittedSongId` 先提交前一首（置 `submittedSongId`），再对新车发 now-playing（`songId != submittedSongId` 时）。过半路径由播放状态流驱动，`submittedSongId == songId` 即跳过。
+- duration ≤ 0（未知）时过半规则不触发，提交只能由切歌路径完成。
+- **失败静默**：`runCatching` + `Log.w`，不重试、不弹 UI（与收藏失败 UX 分离——scrobble 失败用户不可感知）。
+- repo 未就绪（null）或 songId 空白时直接跳过，不发请求。
+- 过半判定必须保持纯函数以便单测；ViewModel 只做状态机与 IO。
+
+### 4. 验证与错误矩阵
+
+| 条件 | 行为 |
+|---|---|
+| 播放至 duration/2 | 提交一次 submission=true |
+| 过半前切歌 | 切歌路径提交前一首 |
+| 同一首歌再次过半/切回 | 不重复提交 |
+| duration 未知（≤0） | 过半规则不触发；切歌时提交 |
+| scrobble 网络失败 | Log.w 静默；播放与 UI 不受影响 |
+| repo 未配置 | 跳过请求 |
+
+### 5. 正常 / 基础 / 错误案例
+
+- 正常：完整听一首歌 → 服务器「最近播放」+1、播放计数 +1、正在播放可见。
+- 基础：快速切歌（<半首）→ 前一首仍计一次播放。
+- 错误：重复提交同一首；scrobble 失败弹出 UI 错误；把 position 进度上报当 scrobble 发。
+
+### 6. 必需测试
+
+- `MusicPlaybackEngineTest`：`shouldScrobbleMusicSubmission` 过半边界、once 语义、duration 未知行为。
+- compile + 完整单测 + lint + assemble；真机验收确认 Navidrome 最近播放/计数更新。
+
+### 7. 错误与正确示例
+
+```kotlin
+// 错误：每次位置更新都发 submission=true，播放计数爆炸。
+if (positionSeconds >= durationSeconds / 2) repo.scrobble(songId, true)
+
+// 正确：once 标志 + 纯函数判定。
+if (shouldScrobbleMusicSubmission(positionSeconds, durationSeconds, alreadySubmitted)) {
+    submittedSongId = songId
+    submitScrobble(repo, songId, submission = true)
+}
+```
