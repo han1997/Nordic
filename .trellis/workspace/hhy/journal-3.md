@@ -1824,3 +1824,37 @@ Verified Kotlin compilation, unit tests, and lint; committed the app-wide UI com
 ### Next Steps
 
 - None - task complete
+
+
+## Session 170: 紧凑化媒体首页头部并清理教学式文案
+
+**Date**: 2026-09-09
+**Task**: 紧凑化媒体首页头部并清理教学式文案
+**Branch**: `main`
+
+### Summary
+
+MediaPageHeader 根页从 displaySmall 大字改为单行 titleLarge 紧凑头部，副标题降为 bodySmall 单行状态文本；MusicSectionHeader subtitle 改可选；删除音乐首页 4 个 section 与搜索建议的教学式副标题；音乐/有声书/视频首页副标题只保留状态语义（共 X 本/首/个条目）；同步更新 ui-consistency.md 根页头部约定。编译+单测通过。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `6fadb8b` | (see git log) |
+| `0d2304c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
