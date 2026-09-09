@@ -1722,3 +1722,37 @@ Verified Kotlin compilation, unit tests, and lint; committed the app-wide UI com
 ### Next Steps
 
 - None - task complete
+
+
+## Session 167: 媒体进度与播放状态同步补全
+
+**Date**: 2026-09-09
+**Task**: 媒体进度与播放状态同步补全
+**Branch**: `main`
+
+### Summary
+
+三域同步缺口补全：音乐域接通 scrobble（NavidromeApi.scrobble 已存在但无调用方）——MusicPlaybackViewModel 两段式状态机（currentSong 变化发 now-playing submission=false，shouldScrobbleMusicSubmission 纯函数判定过半 submission=true，切歌路径兜底提交前一首，每歌一次），失败 Log.w 静默不弹 UI；有声书域加 ON_STOP 安全网——AudiobookPlayerLayer 内 LifecycleEventEffect(ON_STOP) 调新增的 AudiobookPlaybackViewModel.syncNow()（复用 resume-aware baseline，只 sync 不关播放器，与视频关窗即停语义区分）；视频域验证无改动（Emby 播完已看由服务器按 position 处理）。新增 2 个单测，567 用例全绿，lint 0 错误，assembleDebug 通过。工作提交 e536b38 + 867d525；spec 沉淀 scrobble 两段式合同与 ABS ON_STOP 安全网合同；真机验收清单见 manual-checklist.md。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e536b38` | (see git log) |
+| `867d525` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
