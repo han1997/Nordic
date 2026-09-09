@@ -1,4 +1,4 @@
-package com.nordic.mediahub
+﻿package com.nordic.mediahub
 
 import android.content.pm.ActivityInfo
 import com.nordic.mediahub.data.AudiobookPlaybackSession
@@ -8,6 +8,59 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MainActivityTest {
+    @Test
+    fun resolveBottomDockScrollIntent_hidesOnlyAfterSustainedScrollWhileVisible() {
+        // Below threshold: light touches never dismiss the dock.
+        assertEquals(
+            com.nordic.mediahub.ui.BottomDockScrollIntent.None,
+            com.nordic.mediahub.ui.resolveBottomDockScrollIntent(-100f, 200f, dockVisible = true)
+        )
+        // At exactly the threshold: hide fires.
+        assertEquals(
+            com.nordic.mediahub.ui.BottomDockScrollIntent.Hide,
+            com.nordic.mediahub.ui.resolveBottomDockScrollIntent(-200f, 200f, dockVisible = true)
+        )
+        // Deeper scroll keeps signaling hide (caller resets after firing).
+        assertEquals(
+            com.nordic.mediahub.ui.BottomDockScrollIntent.Hide,
+            com.nordic.mediahub.ui.resolveBottomDockScrollIntent(-800f, 200f, dockVisible = true)
+        )
+    }
+
+    @Test
+    fun resolveBottomDockScrollIntent_showsOnlyAfterScrollBackUpWhileHidden() {
+        assertEquals(
+            com.nordic.mediahub.ui.BottomDockScrollIntent.None,
+            com.nordic.mediahub.ui.resolveBottomDockScrollIntent(100f, 200f, dockVisible = false)
+        )
+        assertEquals(
+            com.nordic.mediahub.ui.BottomDockScrollIntent.Show,
+            com.nordic.mediahub.ui.resolveBottomDockScrollIntent(200f, 200f, dockVisible = false)
+        )
+        // While visible, upward scroll must not re-show or hide.
+        assertEquals(
+            com.nordic.mediahub.ui.BottomDockScrollIntent.None,
+            com.nordic.mediahub.ui.resolveBottomDockScrollIntent(800f, 200f, dockVisible = true)
+        )
+        // While hidden, downward scroll must not hide (already hidden).
+        assertEquals(
+            com.nordic.mediahub.ui.BottomDockScrollIntent.None,
+            com.nordic.mediahub.ui.resolveBottomDockScrollIntent(-800f, 200f, dockVisible = false)
+        )
+    }
+
+    @Test
+    fun resolveBottomDockScrollIntent_zeroThresholdDisablesGestures() {
+        assertEquals(
+            com.nordic.mediahub.ui.BottomDockScrollIntent.None,
+            com.nordic.mediahub.ui.resolveBottomDockScrollIntent(-9999f, 0f, dockVisible = true)
+        )
+        assertEquals(
+            com.nordic.mediahub.ui.BottomDockScrollIntent.None,
+            com.nordic.mediahub.ui.resolveBottomDockScrollIntent(9999f, 0f, dockVisible = false)
+        )
+    }
+
     @Test
     fun resolveBottomDockPresentation_hidesEverythingForPlayerLayers() {
         assertEquals(

@@ -660,19 +660,46 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         fullDockVisible = bottomDockVisible
     )
 
-    fun hideBottomDockForScroll() {
+    // Gesture-driven dock visibility: a sustained scroll in one direction
+    // crosses a dp threshold before hiding/re-showing the dock, so light
+    // touches never dismiss it. Reversing direction resets the accumulator.
+    // No timer reveal — restoring the dock is always an explicit gesture
+    // (scroll back up, reach the bottom, or tap the handle).
+    val dockScrollAccumulatedPx = remember { mutableStateOf(0f) }
+    val dockScrollThresholdPx = with(LocalDensity.current) {
+        BottomDockScrollThreshold.toPx()
+    }
+
+    fun applyDockScrollDelta(deltaPx: Float) {
         if (showPlayer || showAudiobookPlayer || showVideoPlayer) return
-        if (bottomDockVisible) {
-            bottomDockVisible = false
+        val dockVisible = bottomDockPresentation == BottomDockPresentation.Dock
+        val accumulator = dockScrollAccumulatedPx
+        // Direction reversal resets the accumulated distance so a short
+        // down-then-up wiggle never crosses the threshold.
+        val sameDirection = accumulator.value == 0f ||
+            (accumulator.value > 0f) == (deltaPx > 0f)
+        accumulator.value = if (sameDirection) accumulator.value + deltaPx else deltaPx
+        when (resolveBottomDockScrollIntent(
+            accumulatedDeltaPx = accumulator.value,
+            thresholdPx = dockScrollThresholdPx,
+            dockVisible = dockVisible
+        )) {
+            BottomDockScrollIntent.Hide -> {
+                bottomDockVisible = false
+                accumulator.value = 0f
+            }
+            BottomDockScrollIntent.Show -> {
+                bottomDockVisible = true
+                accumulator.value = 0f
+            }
+            BottomDockScrollIntent.None -> Unit
         }
     }
 
     val bottomDockScrollConnection = remember(showPlayer, showAudiobookPlayer, showVideoPlayer) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (available.y != 0f) {
-                    hideBottomDockForScroll()
-                }
+                if (available.y != 0f) applyDockScrollDelta(available.y)
                 return Offset.Zero
             }
 
@@ -682,21 +709,27 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                 source: NestedScrollSource
             ): Offset {
                 if (consumed.y != 0f || available.y != 0f) {
-                    hideBottomDockForScroll()
+                    applyDockScrollDelta(consumed.y + available.y)
+                }
+                // Unconsumed upward scroll means the list hit its bottom edge:
+                // a strong signal that the user may want navigation again.
+                if (available.y > 0f &&
+                    bottomDockPresentation == BottomDockPresentation.Handle
+                ) {
+                    bottomDockVisible = true
+                    dockScrollAccumulatedPx.value = 0f
                 }
                 return Offset.Zero
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
-                if (available.y != 0f) {
-                    hideBottomDockForScroll()
-                }
+                if (available.y != 0f) applyDockScrollDelta(available.y)
                 return Velocity.Zero
             }
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
                 if (consumed.y != 0f || available.y != 0f) {
-                    hideBottomDockForScroll()
+                    applyDockScrollDelta(consumed.y + available.y)
                 }
                 return Velocity.Zero
             }

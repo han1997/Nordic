@@ -48,6 +48,37 @@ private const val DOCK_BORDER_ALPHA = 0.08f
 private const val DOCK_DIVIDER_ALPHA = 0.07f
 private const val DOCK_SELECTED_CONTAINER_ALPHA = 0.13f
 
+/** Default scroll distance (in dp) required to hide or re-show the dock. */
+internal val BottomDockScrollThreshold = 24.dp
+
+/** What the dock should do after a scroll gesture segment. */
+internal enum class BottomDockScrollIntent { None, Hide, Show }
+
+/**
+ * Pure gesture-to-intent mapping for the bottom dock.
+ *
+ * Sign convention (Compose nested scroll): positive `accumulatedDeltaPx`
+ * means the finger moved down (scrolling back toward the top of the content),
+ * negative means the finger moved up (scrolling deeper into the content).
+ *
+ * - Dock visible + enough downward-into-content scroll → [BottomDockScrollIntent.Hide]
+ * - Dock hidden (handle) + enough scroll-back-up → [BottomDockScrollIntent.Show]
+ * - Everything else stays [BottomDockScrollIntent.None]; callers reset the
+ *   accumulator whenever the direction reverses or an intent fires.
+ */
+internal fun resolveBottomDockScrollIntent(
+    accumulatedDeltaPx: Float,
+    thresholdPx: Float,
+    dockVisible: Boolean
+): BottomDockScrollIntent {
+    if (thresholdPx <= 0f) return BottomDockScrollIntent.None
+    return when {
+        dockVisible && accumulatedDeltaPx <= -thresholdPx -> BottomDockScrollIntent.Hide
+        !dockVisible && accumulatedDeltaPx >= thresholdPx -> BottomDockScrollIntent.Show
+        else -> BottomDockScrollIntent.None
+    }
+}
+
 @Composable
 private fun DockPlayPauseButton(
     isPlaying: Boolean,
@@ -172,6 +203,8 @@ internal fun BottomDockHandle(
                 .semantics { contentDescription = "显示底部导航" }
                 .clickable(onClick = onClick)
         ) {
+            // Visual pill stays compact; the clickable Surface is padded to the
+            // 48dp touch-target standard so the small handle is easy to hit.
             Box(
                 modifier = Modifier
                     .background(
@@ -183,7 +216,7 @@ internal fun BottomDockHandle(
                         )
                     )
                     .width(64.dp)
-                    .height(18.dp)
+                    .heightIn(min = NordicControlSizes.touchTarget)
                     .padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.xs),
                 contentAlignment = Alignment.Center
             ) {
