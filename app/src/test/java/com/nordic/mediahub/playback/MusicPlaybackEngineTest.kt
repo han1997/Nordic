@@ -9,6 +9,24 @@ import org.junit.Test
 
 class MusicPlaybackEngineTest {
     @Test
+    fun shouldScrobbleMusicSubmission_triggersAtHalfwayOnlyOnce() {
+        assertFalse(shouldScrobbleMusicSubmission(0, 200, alreadySubmitted = false))
+        assertFalse(shouldScrobbleMusicSubmission(99, 200, alreadySubmitted = false))
+        assertTrue(shouldScrobbleMusicSubmission(100, 200, alreadySubmitted = false))
+        assertTrue(shouldScrobbleMusicSubmission(150, 200, alreadySubmitted = false))
+        // Once per song: never again even past halfway.
+        assertFalse(shouldScrobbleMusicSubmission(150, 200, alreadySubmitted = true))
+    }
+
+    @Test
+    fun shouldScrobbleMusicSubmission_defersWhenDurationUnknown() {
+        // Unknown duration: the halfway rule cannot fire; the song-change path
+        // submits instead.
+        assertFalse(shouldScrobbleMusicSubmission(120, 0, alreadySubmitted = false))
+        assertFalse(shouldScrobbleMusicSubmission(120, -5, alreadySubmitted = false))
+    }
+
+    @Test
     fun resolveMusicSeekByPosition_clampsBackwardToZero() {
         assertEquals(0, resolveMusicSeekByPosition(currentPositionSeconds = 6, deltaSeconds = -10, durationSeconds = 200))
     }

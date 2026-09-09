@@ -117,6 +117,23 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
         _isPlayerVisible.value = visible
     }
 
+    /**
+     * Immediate one-shot progress sync from the current engine state. Used as
+     * a lifecycle safety net (app backgrounded mid-playback) so the last
+     * position is not lost to process death before the 30s periodic loop
+     * fires. Playback continues in the background; failures are silent.
+     */
+    fun syncNow() {
+        val currentState = engine.state.value
+        val session = currentState.session ?: return
+        val repo = _repository.value ?: return
+        if (currentState.errorMessage != null) return
+        val position = resolveAudiobookProgressSyncBaselineSeconds(currentState.positionSeconds, session)
+        viewModelScope.launch {
+            runCatching { repo.syncProgress(session, position, 0) }
+        }
+    }
+
     fun setError(message: String) {
         _error.value = message
     }

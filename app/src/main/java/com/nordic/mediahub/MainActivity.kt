@@ -1145,6 +1145,15 @@ private fun AudiobookPlayerLayer(
     val audiobookPlaybackError by audiobookVM.error.collectAsStateWithLifecycle()
     val audiobookBookmarks by audiobookVM.bookmarks.collectAsStateWithLifecycle()
 
+    // Audiobook keeps playing in the background; on ON_STOP only push an
+    // immediate progress snapshot so a process death cannot lose the last
+    // <30s before the periodic sync fires.
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        if (audiobookVM.state.value.session != null) {
+            audiobookVM.syncNow()
+        }
+    }
+
     BackHandler(enabled = showAudiobookPlayer || audiobookPlaybackError != null) {
         closeAudiobookPlayback()
     }

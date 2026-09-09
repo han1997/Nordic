@@ -1,6 +1,7 @@
 package com.nordic.mediahub.playback
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.nordic.mediahub.data.ConfigRepository
@@ -72,6 +73,15 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
     )
     val favoriteError: SharedFlow<Unit> = _favoriteError.asSharedFlow()
 
+    /**
+     * Scrobble state machine (Subsonic two-phase semantics): now-playing on
+     * song start, one submission per song once it has played past half (or on
+     * leaving the song). Failures are silent — a missed scrobble must never
+     * surface as a player error.
+     */
+    private var nowPlayingSongId: String? = null
+    private var submittedSongId: String? = null
+
     init {
         configRepository.navidromeConfig
             .map { if (it.isReadyForMusicSync()) it else null }
@@ -79,6 +89,40 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
             .map { config -> config?.let { NavidromeRepository(it) } }
             .onEach { _repository.value = it }
             .launchIn(viewModelScope)
+
+        // Scrobble: on song change, submit the previous song (if not already
+        // submitted) and fire now-playing for the new one. Both fire-and-forget
+        // and silent on failure.
+        state.map { it.currentSong?.id }.distinctUntilChanged().onEach { songId ->
+            val previousSongId = nowPlayingSongId
+            val repo = _repository.value
+            if (previousSongId != null && previousSongId != songId && previousSongId != submittedSongId) {
+                submittedSongId = previousSongId
+                submitScrobble(repo, previousSongId, submission = true)
+            }
+            nowPlayingSongId = songId
+            if (songId != null && songId != submittedSongId) {
+                submitScrobble(repo, songId, submission = false)
+            }
+        }.launchIn(viewModelScope)
+
+        // Scrobble: submit at the halfway point without waiting for a song
+        // change. Evaluated on the coarse playback state cadence (position
+        // updates each second while playing).
+        state.onEach { playbackState ->
+            val song = playbackState.currentSong ?: return@onEach
+            val songId = song.id
+            if (submittedSongId == songId) return@onEach
+            if (shouldScrobbleMusicSubmission(
+                    positionSeconds = playbackState.positionSeconds,
+                    durationSeconds = playbackState.durationSeconds,
+                    alreadySubmitted = submittedSongId == songId
+                )
+            ) {
+                submittedSongId = songId
+                submitScrobble(_repository.value, songId, submission = true)
+            }
+        }.launchIn(viewModelScope)
 
         combine(state.map { it.currentSong }, _repository) { song, repo ->
             song to repo
@@ -167,6 +211,20 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    /**
+     * Fire-and-forget scrobble; failures are logged and dropped. A missed
+     * scrobble is retried naturally by the next play of the same song.
+     */
+    private fun submitScrobble(repo: NavidromeRepository?, songId: String, submission: Boolean) {
+        if (repo == null || songId.isBlank()) return
+        viewModelScope.launch {
+            runCatching { repo.scrobble(songId, submission) }
+                .onFailure { error ->
+                    Log.w("MusicPlayback", "scrobble(submission=$submission) failed", error)
+                }
+        }
+    }
+
     override fun onCleared() {
         engine.release()
     }
@@ -175,4 +233,19 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
         private const val POSITION_MILLIS_SAMPLE_INTERVAL_MS = 100L
         private const val POSITION_MILLIS_SUBSCRIPTION_TIMEOUT_MS = 5_000L
     }
+}
+
+/**
+ * Whether the current song has played far enough to submit a scrobble
+ * (Subsonic "submission"). Half the track is the standard threshold; an
+ * unknown duration defers the decision to the song-change path.
+ */
+internal fun shouldScrobbleMusicSubmission(
+    positionSeconds: Int,
+    durationSeconds: Int,
+    alreadySubmitted: Boolean
+): Boolean {
+    if (alreadySubmitted) return false
+    if (durationSeconds <= 0) return false
+    return positionSeconds >= durationSeconds / 2
 }
