@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-3.md`
-- **Total Sessions**: 167
+- **Total Sessions**: 168
 - **Last Active**: 2026-09-09
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-3.md` | ~1758 | Active |
+| `journal-3.md` | ~1792 | Active |
 | `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
@@ -31,6 +31,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 168 | 2026-09-09 | 继续观看对齐服务器 Resume 列表 | `ffd9ea6`, `f50dcfb` | `main` |
 | 167 | 2026-09-09 | 媒体进度与播放状态同步补全 | `e536b38`, `867d525` | `main` |
 | 166 | 2026-09-09 | 视频 PlaybackInfo 转码与清晰度选择 | `d2e66c8`, `bddfe31` | `main` |
 | 165 | 2026-09-09 | 视频章节跳转与片头跳过 | `ae851c8`, `7185a39` | `main` |

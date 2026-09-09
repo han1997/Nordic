@@ -1756,3 +1756,37 @@ Verified Kotlin compilation, unit tests, and lint; committed the app-wide UI com
 ### Next Steps
 
 - None - task complete
+
+
+## Session 168: 继续观看对齐服务器 Resume 列表
+
+**Date**: 2026-09-09
+**Task**: 继续观看对齐服务器 Resume 列表
+**Branch**: `main`
+
+### Summary
+
+修复视频首页继续观看与 Emby 服务器不一致：改为优先请求 GET /Users/{UserId}/Items/Resume（getResumeItems，映射复用 toVideoItem + dedup），每次目录刷新成功后拉取；mergeResumeItemsWithCatalog 纯函数对齐（服务器行优先，catalog 补 streamUrl/封面/章节/introRange/libraryId），失败或 null 时回退本地 continueWatchingShelf 推导，静默降级；Resume 列表为 UI 状态不进缓存，config 变更时清空。修复过程中发现并统一 lazy-list key 的 libraryId 兜底。新增 4 个单测，571 用例全绿，lint 0 错误，assembleDebug 通过。工作提交 ffd9ea6 + f50dcfb；spec 更新 continue-watching 为服务器权威合同。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ffd9ea6` | (see git log) |
+| `f50dcfb` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
