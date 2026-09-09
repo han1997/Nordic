@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Spec index with pre-development checklist and verification commands"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verification gates and cache semantics review rules"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Cross-domain media cache refresh contract: TTL gates, config-state version guards"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Emby item mapping, continue-watching contract being downgraded to fallback, error handling"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Catch-rethrow pattern for new getResumeItems repository method"}

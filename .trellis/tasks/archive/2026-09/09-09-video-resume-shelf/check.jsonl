@@ -1,0 +1,3 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verification gates"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Check request-identity guards for the new async Resume request"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Check mapping reuse and fallback semantics against Emby contracts"}
