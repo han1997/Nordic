@@ -19,7 +19,7 @@ This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. 
 | [文档规范](./documentation-guidelines.md) | 编写中文优先沟通、用户可见文案、CHANGELOG 条目、README 更新或任务文档 |
 | [Logging Guidelines](./logging-guidelines.md) | Adding or changing `Log.*` calls or OkHttp logging interceptors |
 | [AudiobookShelf Integration Contract](./audiobookshelf-integration.md) | Changing audiobook auth, library browsing, playback sessions, progress sync, or Media3 audiobook state |
-| [Emby Integration Contract](./emby-integration.md) | 修改 Emby 认证、媒体库映射、视频播放/画中画、章节与片头跳过、进度上报或分季选集 |
+| [Emby Integration Contract](./emby-integration.md) | 修改 Emby 认证、媒体库映射、视频播放/画中画、章节与片头跳过、转码与清晰度、进度上报或分季选集 |
 | [Navidrome Integration Contract](./navidrome-integration.md) | Changing star/favorite toggles, playlist CRUD, or Subsonic API star/unstar/getStarled2 endpoints |
 
 ## Pre-Development Checklist

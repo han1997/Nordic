@@ -788,3 +788,62 @@ if (shouldSkipVideoIntro(position, introRange, alreadySkipped)) {
     player.seekTo(introRange.endSeconds * 1000L)
 }
 ```
+
+## Scenario: 视频 PlaybackInfo 转码与清晰度选择
+
+### 1. 范围 / 触发条件
+
+修改视频清晰度档位、PlaybackInfo 握手、转码 URL 构造、转码失败回退或转码会话上报时读取。与直连播放、进度上报、章节/intro 合同共同生效。
+
+### 2. 关键签名
+
+- `enum class VideoQualityMode(val label: String, val bitrateBps: Long?) { AUTO, ORIGINAL, BITRATE_2M, BITRATE_4M, BITRATE_8M, BITRATE_20M }` + `fromName(raw): VideoQualityMode`（非法值回退 AUTO）。
+- `data class VideoPlaybackSession(playSessionId, mediaSourceId)`；`internal fun resolveVideoPlaybackStreamUrl(video, mode, baseUrl, playbackSession): String?`（`EmbyRepository.kt`）。
+- `EmbyRepository.getPlaybackInfo(video, maxBitrateBps): VideoPlaybackSession?`（POST `/Items/{Id}/PlaybackInfo`，带最小 DeviceProfile + UserId；失败抛 `EmbyApiException`，响应缺 PlaySessionId/MediaSourceId 返回 null）。
+- `EmbyRepository.baseUrlForStreamUrls(): String`；`syncPlaybackProgress`/`stopPlaybackProgress` 增加可空 `playSessionId` 参数。
+- `VideoPlaybackEngine.playTranscoded(video, transcodeUrl, directUrl)`；`VideoPlaybackViewModel.qualityMode: StateFlow<VideoQualityMode>`、`setQualityMode(mode)`。
+- 存储合同：`EncryptedConfigKeys.VIDEO_QUALITY_MODE`，默认 AUTO（见 [Persistence Guidelines](./database-guidelines.md)）。
+
+### 3. 可执行合同
+
+- **转码决策在客户端**：Emby 4.9 对 DirectPlay 判定宽松（mkv/H.265 也返回 true）且不返回 `TranscodingUrl`；不得依赖 `SupportsDirectPlay` 做档位判定。档位 bitrateBps 非空时走转码，null（AUTO/ORIGINAL）走直连。
+- **转码 URL**：`/Videos/{itemId}/master.m3u8?MediaSourceId=<id>&VideoCodec=h264&AudioCodec=aac&VideoBitrate=<bps>`，认证走 `MediaAuthHeaderRegistry`（X-Emby-Token header）。ExoPlayer 直接消费 master playlist。
+- **握手降级**：PlaybackInfo 失败（异常/响应缺字段）→ `activePlaySessionId = null` 并回退直连播放，不阻塞、不报错。
+- **播放失败回退**：转码流触发 `onPlayerError` 时，若 `directPlayFallbackUrl` 非空，清空标记并以直连流重建媒体项、seek 到当前进度重试一次；再次失败才走正常错误链路。`play`/`playFromStart`（直连路径）与 `stop()` 必须清空该标记，防止跨项残留。
+- **上报**：转码会话的 Progress/Stopped 附服务器返回的 `PlaySessionId`；直连会话为 null（DTO 字段可空，向后兼容）。关闭路径在 `engine.stop()` 后快照 sessionId 再清空。
+- **UI**：Settings 面板「清晰度」行仅当 `streamUrl` 非空显示；Quality 面板 6 档 `MediaPlayerChoiceRow`；切换即时持久化，重新播放生效（档位在 `startPlaybackWithQuality` 读取）。
+
+### 4. 验证与错误矩阵
+
+| 条件 | 行为 |
+|---|---|
+| AUTO / ORIGINAL | 直连 Static 流，行为与历史版本一致 |
+| 限码率档 + 握手成功 | master.m3u8 转码流 + PlaySessionId 上报 |
+| 限码率档 + 握手失败/响应缺字段 | 回退直连播放，sessionId 为 null |
+| 转码流播放错误 | 自动回退直连重试一次（保留进度） |
+| 回退后再次错误 | 正常错误链路（「视频播放失败」） |
+| `fromName` 非法/缺失 | AUTO |
+| 切换档位 | 持久化；下次 play 生效；当前播放不中断 |
+
+### 5. 正常 / 基础 / 错误案例
+
+- 正常：选 4M 档播放 4K H.265 → 握手取得 sessionId → 转码播放 → 关闭时 Stopped 带 PlaySessionId。
+- 基础：AUTO 档全程直连，无握手请求，上报无 sessionId。
+- 错误：依赖 `SupportsDirectPlay` 判定转码（服务器恒 true）；转码错误直接报错不回退；回退标记跨媒体项残留导致直连视频错误时错误地「重试」。
+
+### 6. 必需测试
+
+- `EmbyRepositoryTest`：握手请求体（MaxStreamingBitrate/UserId/hls profile）、响应映射、缺 PlaySessionId/MediaSourceId 返回 null、`resolveVideoPlaybackStreamUrl` URL 构造与降级、`fromName` 回退。
+- `EncryptedConfigStoreTest`：`videoQualityMode` 默认 AUTO、往返、新 store 恢复、非法值回退。
+- compile + 完整单测 + lint + assemble；真机验收需覆盖真实转码播放、回退与上报。
+
+### 7. 错误与正确示例
+
+```kotlin
+// 错误：依赖服务器 SupportsDirectPlay 判定（4.9 恒 true，永远直连）。
+if (mediaSource.supportsDirectPlay == true) playDirect()
+
+// 正确：档位驱动；bitrate 非空即构造转码 URL，握手失败降级直连。
+val url = resolveVideoPlaybackStreamUrl(video, mode, baseUrl, session)
+engine.playTranscoded(video, transcodeUrl = url ?: video.streamUrl, directUrl = video.streamUrl)
+```
