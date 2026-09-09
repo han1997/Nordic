@@ -1790,3 +1790,37 @@ Verified Kotlin compilation, unit tests, and lint; committed the app-wide UI com
 ### Next Steps
 
 - None - task complete
+
+
+## Session 169: 底部导航 Dock 滚动交互优化
+
+**Date**: 2026-09-09
+**Task**: 底部导航 Dock 滚动交互优化
+**Branch**: `main`
+
+### Summary
+
+底部导航 Dock 出现/隐藏体验优化（A+B+C+D 全套，24dp 阈值）：resolveBottomDockScrollIntent 纯函数（PlaybackDock.kt，BottomDockScrollIntent None/Hide/Show，带符号累计位移 + 阈值 + dock 态判定）；MainActivity 重写 bottomDockScrollConnection——累计滚动位移超阈值才隐藏（轻碰不误触）、方向反转复位累计器、Handle 态向上滚超阈值恢复、onPostScroll 未消费向上滚动（列表到底）直接恢复，全部手势驱动无定时器（spec 禁令遵守）；BottomDockHandle 视觉不变但点击区扩到 NordicControlSizes.touchTarget 48dp。新增 3 个单测，574 用例全绿，lint 0 错误，assembleDebug 通过。工作提交 52762eb + 5bd6da4；spec quality-guidelines dock 合同补充阈值门控与手势恢复条款；真机验收清单见 manual-checklist.md。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `52762eb` | (see git log) |
+| `5bd6da4` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
