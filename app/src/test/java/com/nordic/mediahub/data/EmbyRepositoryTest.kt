@@ -1311,6 +1311,66 @@ class EmbyRepositoryTest {
     }
 
     @Test
+    fun getResumeItems_requestsResumeEndpointAndMapsItems() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {
+                      "Id":"ep-1",
+                      "Name":"Episode 1",
+                      "Type":"Episode",
+                      "RunTimeTicks":60000000000,
+                      "UserData":{"PlaybackPositionTicks":300000000,"Played":false},
+                      "MediaStreams":[]
+                    },
+                    {"Name":"Missing Id","Type":"Movie"}
+                  ],
+                  "TotalRecordCount": 2
+                }
+            """.trimIndent()
+        )
+
+        val items = repository(apiKey = "api-key").getResumeItems()
+
+        assertEquals(1, items.size)
+        assertEquals("ep-1", items.first().id)
+        assertEquals(30, items.first().playbackPositionSeconds)
+        // Resume rows carry no owning library id.
+        assertEquals("", items.first().libraryId)
+
+        server.takeRequest()
+        val resumeRequest = server.takeRequest()
+        assertTrue(resumeRequest.path.orEmpty().startsWith("/Users/u1/Items/Resume"))
+        assertTrue(resumeRequest.path.orEmpty().contains("MediaTypes=Video"))
+        assertTrue(resumeRequest.path.orEmpty().contains("Limit=12"))
+        assertTrue(resumeRequest.path.orEmpty().contains("Fields="))
+        assertEquals("api-key", resumeRequest.getHeader("X-Emby-Token"))
+    }
+
+    @Test
+    fun getResumeItems_deduplicatesRowsWithTheSameId() = runTest {
+        server.enqueueJson("""[{"Id":"u1","Name":"demo"}]""")
+        server.enqueueJson(
+            """
+                {
+                  "Items": [
+                    {"Id":"ep-1","Name":"Episode 1","Type":"Episode"},
+                    {"Id":"ep-1","Name":"Episode 1 Duplicate","Type":"Episode"}
+                  ],
+                  "TotalRecordCount": 2
+                }
+            """.trimIndent()
+        )
+
+        val items = repository(apiKey = "api-key").getResumeItems()
+
+        assertEquals(1, items.size)
+        assertEquals("Episode 1", items.first().title)
+    }
+
+    @Test
     fun resolveEmbyPlaybackPositionTicks_clampsKnownDurationAndKeepsUnknownDurationPositions() {
         assertEquals(
             0L,

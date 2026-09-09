@@ -68,6 +68,10 @@ fun VideoScreen(
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var cacheUpdatedAtMillis by remember { mutableStateOf<Long?>(null) }
+    // Server-side continue-watching list (Items/Resume). Null = not fetched or
+    // failed; empty list = server says nothing to resume. UI falls back to the
+    // local derivation only while this is null.
+    var resumeVideos by remember { mutableStateOf<List<VideoItem>?>(null) }
     var videoConfigStateVersion by remember { mutableStateOf(0) }
     var previousVideoConfig by remember { mutableStateOf<VideoServerConfig?>(null) }
     var videoResetNotice by remember { mutableStateOf<String?>(null) }
@@ -84,8 +88,15 @@ fun VideoScreen(
         browseCatalogVideos(videos)
     }
     val hasActiveBrowserFilter = searchQuery.isNotBlank() || selectedTypeFilter != VideoTypeFilter.All
-    val continueWatchingVideos = remember(videos) {
-        continueWatchingShelf(videos)
+    val continueWatchingVideos = remember(resumeVideos, videos) {
+        // Server Resume list is authoritative when available; the local
+        // derivation is the offline/failure fallback.
+        val serverList = resumeVideos
+        if (serverList != null) {
+            mergeResumeItemsWithCatalog(serverList, videos)
+        } else {
+            continueWatchingShelf(videos)
+        }
     }
     val topRatedVideos = remember(videos) {
         topRatedVideoShelf(videos)
@@ -110,6 +121,7 @@ fun VideoScreen(
         libraries = emptyList()
         selectedLibraryId = null
         videos = emptyList()
+        resumeVideos = null
         selectedVideo = resolveVideoSelectionAfterConfigChange(selectedVideo)
         searchQuery = ""
         searchExpanded = false
@@ -144,6 +156,24 @@ fun VideoScreen(
         cacheUpdatedAtMillis = cached.updatedAtMillis
         errorMessage = null
         return true
+    }
+
+    /**
+     * Pulls the server continue-watching list after a successful catalog
+     * refresh. Failures are silent: the shelf falls back to the local
+     * derivation whenever [resumeVideos] is null.
+     */
+    suspend fun refreshResumeItems(repo: EmbyRepository, requestVersion: Int?) {
+        try {
+            val items = repo.getResumeItems()
+            if (isCurrentVideoConfigRequest(requestVersion)) {
+                resumeVideos = items
+            }
+        } catch (e: Exception) {
+            if (isCurrentVideoConfigRequest(requestVersion)) {
+                resumeVideos = null
+            }
+        }
     }
 
     suspend fun refreshVideo(
@@ -201,6 +231,7 @@ fun VideoScreen(
                 cacheUpdatedAtMillis = freshCache.updatedAtMillis
                 cacheRepository.save(targetConfig, freshCache)
             }
+            refreshResumeItems(repo, requestVersion)
         } catch (e: Exception) {
             if (isCurrentVideoConfigRequest(requestVersion)) {
                 val hasCachedContent = libraries.isNotEmpty() || videos.isNotEmpty()

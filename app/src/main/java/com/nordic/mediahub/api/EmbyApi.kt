@@ -224,6 +224,16 @@ interface EmbyApi {
         @Query("Limit") limit: Int = 50
     ): Response<EmbyItemsResponse>
 
+    @GET("Users/{userId}/Items/Resume")
+    suspend fun getResumeItems(
+        @Path("userId") userId: String,
+        @Header("X-Emby-Token") token: String,
+        @Query("MediaTypes") mediaTypes: String = "Video",
+        @Query("Recursive") recursive: Boolean = true,
+        @Query("Fields") fields: String = "Overview,ProductionYear,SeriesId,SeriesName,ParentIndexNumber,IndexNumber,RunTimeTicks,ChildCount,ImageTags,BackdropImageTags,ParentBackdropImageTags,CommunityRating,UserData,MediaStreams,Chapters",
+        @Query("Limit") limit: Int = 12
+    ): Response<EmbyItemsResponse>
+
     @POST("Sessions/Playing/Progress")
     suspend fun reportPlaybackProgress(
         @Header("X-Emby-Token") token: String,

@@ -690,6 +690,52 @@ class VideoScreenTest {
     }
 
     @Test
+    fun mergeResumeItemsWithCatalog_prefersServerRowsAndFillsMissingFields() {
+        val catalogRow = video(
+            id = "ep-1", title = "Episode 1", type = "Episode"
+        ).copy(
+            libraryId = "lib-1",
+            streamUrl = "http://emby.example/Videos/ep-1/stream",
+            imageUrl = "http://emby.example/ep-1.jpg",
+            chapters = listOf(com.nordic.mediahub.data.VideoChapterInfo("C1", 0))
+        )
+        val serverRow = video(
+            id = "ep-1", title = "Episode 1", type = "Episode"
+        ).copy(
+            playbackPositionSeconds = 300,
+            streamUrl = null,
+            imageUrl = null,
+            chapters = emptyList()
+        )
+        val serverOnlyRow = video(id = "ep-2", title = "Episode 2", type = "Episode")
+            .copy(playbackPositionSeconds = 120)
+
+        val merged = mergeResumeItemsWithCatalog(
+            resumeItems = listOf(serverRow, serverOnlyRow),
+            catalog = listOf(catalogRow)
+        )
+
+        assertEquals(2, merged.size)
+        // Server row wins for progress; catalog fills playback-critical gaps.
+        assertEquals(300, merged[0].playbackPositionSeconds)
+        assertEquals(catalogRow.streamUrl, merged[0].streamUrl)
+        assertEquals(catalogRow.imageUrl, merged[0].imageUrl)
+        assertEquals(catalogRow.chapters, merged[0].chapters)
+        // Owning library id falls back to the catalog row so lazy-list keys and
+        // episode-context matching stay consistent with the browse grid.
+        assertEquals("library-1", merged[0].libraryId)
+        // Server-only rows pass through untouched.
+        assertEquals(serverOnlyRow, merged[1])
+    }
+
+    @Test
+    fun mergeResumeItemsWithCatalog_emptyResumeStaysEmpty() {
+        val catalog = listOf(video(id = "ep-1", title = "Episode 1", type = "Episode"))
+
+        assertTrue(mergeResumeItemsWithCatalog(emptyList(), catalog).isEmpty())
+    }
+
+    @Test
     fun videoChapterIndexForPosition_resolvesCoveringChapterAndNullBeforeFirst() {
         val chapters = listOf(
             com.nordic.mediahub.data.VideoChapterInfo(name = "C1", startSeconds = 0),

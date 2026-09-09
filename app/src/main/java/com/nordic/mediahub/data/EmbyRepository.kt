@@ -237,6 +237,25 @@ class EmbyRepository(private val config: VideoServerConfig) {
         throw Exception("加载视频列表失败: ${e.message}")
     }
 
+    /**
+     * Server-side continue-watching list (`Items/Resume`). The response rows
+     * carry no single owning library id, so items map with an empty libraryId
+     * and callers align them against the loaded catalog when needed.
+     */
+    suspend fun getResumeItems(limit: Int = 12): List<VideoItem> = try {
+        val session = session()
+        val response = requireResponseBody("获取继续观看列表失败") {
+            api.getResumeItems(userId = session.userId, token = session.token, limit = limit)
+        }
+        response.items.orEmpty()
+            .mapNotNull { item -> item.toVideoItem(libraryId = "", token = session.token) }
+            .deduplicatedById()
+    } catch (e: EmbyApiException) {
+        throw e
+    } catch (e: Exception) {
+        throw Exception("获取继续观看列表失败: ${e.message}")
+    }
+
     suspend fun syncPlaybackProgress(
         video: VideoItem,
         positionSeconds: Int,

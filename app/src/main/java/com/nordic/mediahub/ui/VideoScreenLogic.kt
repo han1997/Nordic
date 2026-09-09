@@ -77,6 +77,34 @@ internal fun continueWatchingShelf(videos: List<VideoItem>, limit: Int = 12): Li
         .take(limit)
 }
 
+/**
+ * Aligns the server Resume list with the loaded catalog: server rows win
+ * (authoritative progress/order), but any field the Resume response omitted
+ * (stream URL, artwork, chapters, owning library id) falls back to the
+ * catalog row with the same id. Catalog rows absent from the server list are
+ * dropped — the server list is the source of truth for what "continue
+ * watching" contains.
+ */
+internal fun mergeResumeItemsWithCatalog(
+    resumeItems: List<VideoItem>,
+    catalog: List<VideoItem>
+): List<VideoItem> {
+    if (resumeItems.isEmpty()) return emptyList()
+    val catalogById = catalog.associateBy { it.id }
+    return resumeItems.map { resume ->
+        val local = catalogById[resume.id] ?: return@map resume
+        resume.copy(
+            libraryId = resume.libraryId.ifBlank { local.libraryId },
+            streamUrl = resume.streamUrl ?: local.streamUrl,
+            imageUrl = resume.imageUrl ?: local.imageUrl,
+            backdropImageUrl = resume.backdropImageUrl ?: local.backdropImageUrl,
+            chapters = resume.chapters.ifEmpty { local.chapters },
+            introRange = resume.introRange ?: local.introRange,
+            mediaStreams = resume.mediaStreams.ifEmpty { local.mediaStreams }
+        )
+    }
+}
+
 internal fun browseCatalogVideos(videos: List<VideoItem>): List<VideoItem> {
     return videos.filterNot { video -> video.isEpisode() }
 }
