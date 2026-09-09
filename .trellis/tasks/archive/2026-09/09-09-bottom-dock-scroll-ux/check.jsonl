@@ -1,0 +1,2 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verify dock contract compliance (no timer reveal, measured-height spacing) and animation token usage"}
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "Verify 48dp touch target compliance"}
