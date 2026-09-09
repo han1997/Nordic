@@ -76,9 +76,9 @@ fun MusicHeroBanner(
 @Composable
 fun MusicSectionHeader(
     title: String,
-    subtitle: String,
     colorScheme: ColorScheme,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null
 ) {
@@ -100,14 +100,16 @@ fun MusicSectionHeader(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Normal,
-                color = colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            if (subtitle != null) {
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Normal,
+                    color = colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
 
         if (actionLabel != null && onAction != null) {

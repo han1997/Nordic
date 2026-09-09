@@ -406,7 +406,7 @@ fun AudiobookScreen(
                         refreshErrorSubtitle != null -> refreshErrorSubtitle
                         isLoading && items.isNotEmpty() -> "正在刷新，先显示本地缓存"
                         cacheAgeLabel != null -> "本地缓存，$cacheAgeLabel"
-                        selectedLibraryId != null -> "共 ${items.size} 本，点开查看章节和续播进度"
+                        selectedLibraryId != null -> "共 ${items.size} 本"
                         else -> "连接 AudiobookShelf 后自动加载书库"
                     }
                     AudiobookLibraryPage.Detail -> refreshErrorSubtitle

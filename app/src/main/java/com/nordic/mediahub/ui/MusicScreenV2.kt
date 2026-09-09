@@ -817,7 +817,7 @@ fun MusicScreenV2(
             refreshErrorSubtitle != null -> refreshErrorSubtitle
             isLoading && hasContent -> "正在刷新，先显示本地缓存"
             cacheAgeLabel != null -> "本地缓存，$cacheAgeLabel"
-            hasContent -> "最近添加按曲目展示，点一下直接播放"
+            hasContent -> ""
             else -> "连接 Navidrome 后，这里会自动同步你的内容"
         }
         MusicLibraryPage.Albums -> when {
@@ -826,7 +826,7 @@ fun MusicScreenV2(
             sortedAlbums.isNotEmpty() -> "${sortedAlbums.size} 张专辑 · ${albumSort.displayLabel()}"
             else -> "按${albumSort.displayLabel()}浏览 Navidrome 专辑"
         }
-        MusicLibraryPage.Songs -> refreshErrorSubtitle ?: "共 ${songs.size} 首，点一下直接播放"
+        MusicLibraryPage.Songs -> refreshErrorSubtitle ?: "共 ${songs.size} 首"
         MusicLibraryPage.Artists -> refreshErrorSubtitle ?: "共 ${artists.size} 位歌手"
         MusicLibraryPage.ArtistDetail -> refreshErrorSubtitle.orEmpty()
         MusicLibraryPage.AlbumDetail -> refreshErrorSubtitle.orEmpty()

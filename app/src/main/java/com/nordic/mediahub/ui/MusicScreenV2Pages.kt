@@ -102,7 +102,6 @@ internal fun MusicHomePage(
             item {
                 MusicSectionHeader(
                     title = "刚刚同步",
-                    subtitle = "最新进入曲库的专辑，先从这里开始",
                     colorScheme = colorScheme
                 )
             }
@@ -119,7 +118,6 @@ internal fun MusicHomePage(
             item {
                 MusicSectionHeader(
                     title = "最近添加",
-                    subtitle = "新同步到曲库的曲目，点一下直接播放",
                     colorScheme = colorScheme,
                     actionLabel = "全部",
                     onAction = onNavigateToSongs
@@ -152,7 +150,6 @@ internal fun MusicHomePage(
             item {
                 MusicSectionHeader(
                     title = "最近专辑",
-                    subtitle = "按最近添加展示，进入全部后可切换排序",
                     colorScheme = colorScheme,
                     actionLabel = "全部",
                     onAction = onOpenAlbumLibrary
@@ -179,7 +176,6 @@ internal fun MusicHomePage(
             item {
                 MusicSectionHeader(
                     title = "曲库歌手",
-                    subtitle = "从熟悉的声音继续展开",
                     colorScheme = colorScheme,
                     actionLabel = "全部",
                     onAction = onNavigateToArtists

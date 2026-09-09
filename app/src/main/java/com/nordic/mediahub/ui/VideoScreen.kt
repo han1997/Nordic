@@ -369,8 +369,8 @@ fun VideoScreen(
                     isLoading && videos.isNotEmpty() -> "正在刷新，先显示本地缓存"
                     hasActiveBrowserFilter -> "${visibleVideos.size} / ${browseVideos.size} 个匹配条目"
                     cacheAgeLabel != null -> "本地缓存，$cacheAgeLabel"
-                    selectedLibraryId != null -> "共 ${browseVideos.size} 个条目，点击海报播放"
-                    savedConfig.isReadyForVideoSync() -> "已连接 Emby，选择媒体库浏览内容"
+                    selectedLibraryId != null -> "共 ${browseVideos.size} 个条目"
+                    savedConfig.isReadyForVideoSync() -> "已连接 Emby"
                     else -> "连接 Emby 后显示真实媒体库、海报和视频信息"
                 },
                 actions = buildList {

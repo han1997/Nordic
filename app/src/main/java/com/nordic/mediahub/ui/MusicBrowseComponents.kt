@@ -80,7 +80,6 @@ internal fun MusicSearchLanding(
 
         MusicSectionHeader(
             title = "搜索建议",
-            subtitle = "先从最近同步的内容开始",
             colorScheme = colorScheme
         )
 

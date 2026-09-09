@@ -72,18 +72,18 @@ internal fun MediaPageHeader(
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
-            verticalAlignment = Alignment.Top
+            verticalAlignment = if (showBack) Alignment.Top else Alignment.CenterVertically
         ) {
             if (showBack) {
                 ScreenBackButton(colorScheme, Modifier.padding(top = NordicSpacing.xs), onBack)
             }
             Column(
-                modifier = Modifier.weight(1f).padding(top = if (showBack) NordicSpacing.md else NordicSpacing.sm),
+                modifier = Modifier.weight(1f).padding(top = if (showBack) NordicSpacing.md else 0.dp),
                 verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
             ) {
                 Text(
                     title,
-                    style = if (showBack) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.displaySmall,
+                    style = if (showBack) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge,
                     color = colorScheme.onBackground,
                     maxLines = if (showBack) 2 else 1,
                     overflow = TextOverflow.Ellipsis,
@@ -92,9 +92,9 @@ internal fun MediaPageHeader(
                 if (subtitle.isNotBlank()) {
                     Text(
                         subtitle,
-                        style = if (showBack) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = colorScheme.onSurfaceVariant,
-                        maxLines = 2,
+                        maxLines = if (showBack) 2 else 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
