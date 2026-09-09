@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-3.md`
-- **Total Sessions**: 171
-- **Last Active**: 2026-09-09
+- **Total Sessions**: 172
+- **Last Active**: 2026-09-10
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-3.md` | ~1893 | Active |
+| `journal-3.md` | ~1927 | Active |
 | `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
@@ -31,6 +31,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 172 | 2026-09-10 | 媒体库按库缓存与切库免同步 | `9ed7ac4`, `a3bf17a` | `main` |
 | 171 | 2026-09-09 | 继续观看改为纯服务端数据并持久化 | `2e993a5` | `main` |
 | 170 | 2026-09-09 | 紧凑化媒体首页头部并清理教学式文案 | `6fadb8b`, `0d2304c` | `main` |
 | 169 | 2026-09-09 | 底部导航 Dock 滚动交互优化 | `52762eb`, `5bd6da4` | `main` |

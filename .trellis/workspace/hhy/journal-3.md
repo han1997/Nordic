@@ -1891,3 +1891,37 @@ EmbyVideoCache 增加 resumeVideos 字段（schema v1→v2），新增 saveResum
 ### Next Steps
 
 - None - task complete
+
+
+## Session 172: 媒体库按库缓存与切库免同步
+
+**Date**: 2026-09-10
+**Task**: 媒体库按库缓存与切库免同步
+**Branch**: `main`
+
+### Summary
+
+视频/有声书缓存改为按库存储（itemsByLibrary + libraryFetchedAt，LRU 上限 4，schema v3/v2），切库命中缓存立即渲染并后台静默刷新；ON_RESUME 全量 catalog 加 5 分钟 TTL 门控，Resume 列表每次刷；新增 isCacheFresh 共享重载；补齐按库 round-trip/LRU/跨库隔离测试；spec 同步按库缓存契约；AGENTS.md 增加长命令执行礼仪避免构建期间看似卡住。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9ed7ac4` | (see git log) |
+| `a3bf17a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
