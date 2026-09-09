@@ -1688,3 +1688,37 @@ Verified Kotlin compilation, unit tests, and lint; committed the app-wide UI com
 ### Next Steps
 
 - None - task complete
+
+
+## Session 166: 视频 PlaybackInfo 转码与清晰度选择
+
+**Date**: 2026-09-09
+**Task**: 视频 PlaybackInfo 转码与清晰度选择
+**Branch**: `main`
+
+### Summary
+
+视频功能补全第二批 B：真机验证 Emby 4.9.5 PlaybackInfo/master.m3u8 端点（转码决策在客户端做，服务器 DirectPlay 判定宽松且不返回 TranscodingUrl）；EmbyApi 加 POST PlaybackInfo + 最小 DeviceProfile DTO；EmbyRepository 加 getPlaybackInfo（握手失败返回 null 降级）与 resolveVideoPlaybackStreamUrl 纯函数（6 档清晰度：自动/原始/2M/4M/8M/20M，限码率档构造 master.m3u8 转码 URL）；引擎 playTranscoded + directPlayFallbackUrl 一次性回退（转码错误自动回退直连重试并保留进度）；videoQualityMode 持久化默认 AUTO；上报链 5 处贯通 PlaySessionId（DTO 可空向后兼容）。新增 7 个单测，565 用例全绿，lint 0 错误，assembleDebug 通过。工作提交 d2e66c8 + bddfe31；spec 沉淀转码场景合同；真机验收清单见 manual-checklist.md。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `d2e66c8` | (see git log) |
+| `bddfe31` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
