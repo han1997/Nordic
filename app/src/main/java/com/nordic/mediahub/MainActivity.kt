@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.TransformOrigin
@@ -57,10 +58,41 @@ import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import android.graphics.Color as AndroidColor
+import android.view.Display
 
 private const val BOTTOM_DOCK_ENTER_ANIMATION_MS = 260
 private const val BOTTOM_DOCK_EXIT_ANIMATION_MS = 150
 private const val BOTTOM_DOCK_ENTER_FADE_DELAY_MS = 40
+
+/**
+ * Picks the display mode to request via `preferredDisplayModeId`. OEM "smart
+ * refresh rate" policies (ColorOS/OriginOS etc.) cap third-party apps at 60Hz
+ * unless the app explicitly requests a high-refresh mode. Selecting the
+ * highest-refresh mode at the current resolution bypasses that cap.
+ *
+ * Among modes sharing the current mode's resolution, the highest refresh rate
+ * wins; ties resolve to the smaller mode id (stable). Falls back to the
+ * current mode id when nothing is faster.
+ *
+ * Takes plain mode tuples (id, width, height, refreshRate) instead of
+ * `Display.Mode` so the selection logic stays unit-testable on the JVM.
+ */
+internal fun resolvePreferredDisplayModeId(
+    modes: List<DisplayModeSpec>,
+    currentModeId: Int
+): Int {
+    val current = modes.firstOrNull { it.id == currentModeId } ?: return currentModeId
+    val best = modes.asSequence()
+        .filter { it.width == current.width && it.height == current.height }
+        .maxWithOrNull(
+            compareBy<DisplayModeSpec> { it.refreshRate }
+                .thenBy { -it.id }
+        )
+        ?: return currentModeId
+    return if (best.refreshRate > current.refreshRate + 0.01f) best.id else currentModeId
+}
+
+internal data class DisplayModeSpec(val id: Int, val width: Int, val height: Int, val refreshRate: Float)
 
 internal enum class BottomDockPresentation {
     Hidden,
@@ -358,6 +390,21 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         isInVideoPipMode = isInPictureInPictureMode
+        // Request the highest refresh rate available at the current resolution.
+        // Without this, ColorOS/OriginOS "smart refresh rate" pins the app to 60Hz.
+        val display = display ?: windowManager.defaultDisplay
+        if (display != null) {
+            val currentModeId = display.mode.modeId
+            val preferredModeId = resolvePreferredDisplayModeId(
+                modes = display.supportedModes.map {
+                    DisplayModeSpec(it.modeId, it.physicalWidth, it.physicalHeight, it.refreshRate)
+                },
+                currentModeId = currentModeId
+            )
+            if (preferredModeId != currentModeId) {
+                window.attributes = window.attributes.apply { preferredDisplayModeId = preferredModeId }
+            }
+        }
         Coil.setImageLoader(
             ImageLoader.Builder(this)
                 .crossfade(160)
@@ -836,31 +883,37 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                             ),
                             label = "main-tab-crossfade"
                         ) { tab ->
-                            when (tab) {
-                                0 -> MusicScreenV2(
-                                    isDark = isDark,
-                                    onThemeToggle = onThemeToggle,
-                                    onSongSelected = onSongSelected
-                                )
-                                1 -> AudiobookScreen(
-                                    colorScheme = colorScheme,
-                                    isDark = isDark,
-                                    onThemeToggle = onThemeToggle,
-                                    onPlayAudiobook = onPlayAudiobook
-                                )
-                                2 -> VideoScreen(
-                                    colorScheme = colorScheme,
-                                    isDark = isDark,
-                                    onThemeToggle = onThemeToggle,
-                                    onPlayVideo = onPlayVideo,
-                                    onPlayVideoFromStart = onPlayVideoFromStart,
-                                    onCatalogChanged = videoVM::setEpisodeContext
-                                )
-                                3 -> ServerConfigScreen(
-                                    colorScheme = colorScheme,
-                                    isDark = isDark,
-                                    onThemeToggle = onThemeToggle
-                                )
+                            // SaveableStateProvider keeps each tab's list scroll
+                            // position and rememberSaveable state alive across
+                            // switches instead of tearing down the whole screen.
+                            val tabStateHolder = rememberSaveableStateHolder()
+                            tabStateHolder.SaveableStateProvider(key = tab) {
+                                when (tab) {
+                                    0 -> MusicScreenV2(
+                                        isDark = isDark,
+                                        onThemeToggle = onThemeToggle,
+                                        onSongSelected = onSongSelected
+                                    )
+                                    1 -> AudiobookScreen(
+                                        colorScheme = colorScheme,
+                                        isDark = isDark,
+                                        onThemeToggle = onThemeToggle,
+                                        onPlayAudiobook = onPlayAudiobook
+                                    )
+                                    2 -> VideoScreen(
+                                        colorScheme = colorScheme,
+                                        isDark = isDark,
+                                        onThemeToggle = onThemeToggle,
+                                        onPlayVideo = onPlayVideo,
+                                        onPlayVideoFromStart = onPlayVideoFromStart,
+                                        onCatalogChanged = videoVM::setEpisodeContext
+                                    )
+                                    3 -> ServerConfigScreen(
+                                        colorScheme = colorScheme,
+                                        isDark = isDark,
+                                        onThemeToggle = onThemeToggle
+                                    )
+                                }
                             }
                         }
                     }

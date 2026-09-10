@@ -9,6 +9,42 @@ import org.junit.Test
 
 class MainActivityTest {
     @Test
+    fun resolvePreferredDisplayModeId_prefersHighestRefreshAtCurrentResolution() {
+        val modes = listOf(
+            DisplayModeSpec(id = 1, width = 1080, height = 2400, refreshRate = 60f),
+            DisplayModeSpec(id = 2, width = 1080, height = 2400, refreshRate = 90f),
+            DisplayModeSpec(id = 3, width = 1080, height = 2400, refreshRate = 120f),
+            DisplayModeSpec(id = 4, width = 720, height = 1600, refreshRate = 120f)
+        )
+        // Currently at 60Hz: switch to the 120Hz mode at the same resolution.
+        assertEquals(3, resolvePreferredDisplayModeId(modes, currentModeId = 1))
+        // Already at the top rate: keep the current mode.
+        assertEquals(3, resolvePreferredDisplayModeId(modes, currentModeId = 3))
+    }
+
+    @Test
+    fun resolvePreferredDisplayModeId_ignoresOtherResolutions() {
+        val modes = listOf(
+            DisplayModeSpec(id = 1, width = 1080, height = 2400, refreshRate = 60f),
+            DisplayModeSpec(id = 2, width = 720, height = 1600, refreshRate = 144f)
+        )
+        // The 144Hz mode is a different resolution; never downgrade resolution for rate.
+        assertEquals(1, resolvePreferredDisplayModeId(modes, currentModeId = 1))
+    }
+
+    @Test
+    fun resolvePreferredDisplayModeId_fallsBackWhenCurrentModeMissing() {
+        val modes = listOf(DisplayModeSpec(id = 1, width = 1080, height = 2400, refreshRate = 60f))
+        assertEquals(99, resolvePreferredDisplayModeId(modes, currentModeId = 99))
+    }
+
+    @Test
+    fun resolvePreferredDisplayModeId_singleModeReturnsItself() {
+        val modes = listOf(DisplayModeSpec(id = 7, width = 1080, height = 2400, refreshRate = 60f))
+        assertEquals(7, resolvePreferredDisplayModeId(modes, currentModeId = 7))
+    }
+
+    @Test
     fun resolveBottomDockScrollIntent_hidesOnlyAfterSustainedScrollWhileVisible() {
         // Below threshold: light touches never dismiss the dock.
         assertEquals(
