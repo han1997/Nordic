@@ -170,3 +170,36 @@ OPPO 真机复测 0.1.3 歌词交互：显示/切歌/手动滚动 2 秒恢复/�
 ### Next Steps
 
 - None - task complete
+
+
+## Session 178: WebDAV、多服务器与设置中心实现及收尾
+
+**Date**: 2026-09-11
+**Task**: WebDAV、多服务器与设置中心实现及收尾
+**Branch**: `main`
+
+### Summary
+
+完成 WebDAV 文件夹点播、字幕与本机续播，三类媒体多服务器和数据隔离，以及八分类设置中心与搜索。646 项单测通过，Lint 无错误，debug/release 0.1.4 构建、签名、manifest 和 Retrofit 泛型签名核验通过。工作提交已获用户确认，本次按用户 finish-work 请求归档。因无 ADB 设备或可用 AVD，真实 NAS/AList/OpenList、真机 UI、解码播放和画中画验收仍未执行，需后续实测；未 push。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1d62e1a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
