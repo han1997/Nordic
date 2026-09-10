@@ -93,3 +93,49 @@
 ### Next Steps
 
 - 开发与自动验收已完成并归档；等待用户覆盖安装 0.1.2 后反馈真机连接结果。
+
+
+## Session 176: 音乐歌词完整显示与2秒跟随优化
+
+**Date**: 2026-09-10
+**Task**: 音乐歌词完整显示与2秒跟随优化
+**Branch**: `main`
+
+### Summary
+
+落实已确认的歌词方案：完整文本与同时间句组、播放中停止手动滚动 2 秒后跟随、暂停保留浏览、会话内记住歌词/封面选择。加载原子状态、取消及迟到隔离、错误重试均接入；609 项测试通过，0.1.3/3 两种构建及签名/R8 泛型核验通过。用户已确认提交并完成任务归档，真机交互仍待验收。
+
+### Main Changes
+
+- 工作提交 `2faadbc`，包含 21 个已确认文件；提交前逐一核验工作文件与验收时的 SHA-256 一致。
+- 领域层统一规范化、稳定排序、定时去重、同时间句组及毫秒/offset 处理；普通歌词和长句完整显示，取消旧的窗口裁剪逻辑。
+- MusicLyricsController 以仓库/歌曲/查询元数据为键，取消旧任务并用请求序号防迟到覆盖；MusicLyricsUiState 区分 Loading/Content/Empty/Error，支持受控重试。
+- 跟随状态机分离自动与手动滚动，覆盖 1999/2000ms、拖动与惯性、暂停/继续、立即返回、销毁；同步进度保留叶子订阅，按实测视口/行高定位。
+- 视图选择留在 ViewModel 会话内；长句、按钮大字体空间及歌词区域防误关闭已接入；README、CHANGELOG 与相关规范同步。
+- 任务归档：`.trellis/tasks/archive/2026-09/09-10-music-lyrics-display/`，详细证据见 `info.md` 与 `research/verification.json`。
+- 交付：`app/build/distributions/Nordic-0.1.3-release.apk`；包名、签名、R8 配置不变，未推送远端、未覆盖安装或操作手机。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2faadbc` | (see git log) |
+
+### Testing
+
+- [OK] 首轮定向与既有解析测试通过（1 分 35 秒）；恢复提取时误删的委托导入后完整 compile/test/lint 通过（1 分 53 秒）。
+- [OK] 最终 compileDebugKotlin、testDebugUnitTest、lintDebug、assembleDebug、assembleRelease 全部通过（3 分 25 秒），实际执行 R8。
+- [OK] 609 项测试、41 个 suite，0 失败、0 错误、0 跳过；Lint 0 error、22 项既有 Warning、18 项 Information。
+- [OK] 两个 APK 的包名/版本为 fun.han1997.nordic / 0.1.3 / 3，v2 签名有效且证书不变；release 未包含 debug 入口、未开启 debuggable。
+- [OK] release 的 36 个 Retrofit suspend 方法及 Continuation/Response/Call 泛型定义保留正常。
+- [OK] APK SHA-256：`49288341706c56c4ad5106c2b30a185763afb3cec49d878193806e62c14d824d`；UTF-8、文档链接、任务上下文及 diff 检查通过。
+- [未验证] 真机滚动/手势、主题与大字体排版；虽检测到已连接设备，本轮未操作手机。
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 开发与自动验收已完成并归档；后续覆盖安装 0.1.3，按任务记录检查真机交互与排版。

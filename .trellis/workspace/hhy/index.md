@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-4.md`
-- **Total Sessions**: 175
+- **Total Sessions**: 176
 - **Last Active**: 2026-09-10
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-4.md` | ~95 | Active |
+| `journal-4.md` | ~141 | Active |
 | `journal-3.md` | ~1965 | Archived |
 | `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
@@ -32,6 +32,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 176 | 2026-09-10 | 音乐歌词完整显示与2秒跟随优化 | `2faadbc` | `main` |
 | 175 | 2026-09-10 | 修复 release Retrofit 泛型崩溃并交付 0.1.2 | `49bf0d2` | `main` |
 | 174 | 2026-09-10 | 包名、release 签名与版本规则收尾 | `f62cafa`, `6430d62` | `main` |
 | 173 | 2026-09-10 | 滑动流畅度优化：120Hz强制、重组修复、Compose升级、R8 | `06b43fe`, `4a852c3`, `dde23a8`, `415265f`, `1e32601`, `1b1ad4f` | `main` |
