@@ -79,7 +79,7 @@ val NordicTypography = Typography(
 
 **Contracts**:
 - Screen-transition durations / easings MUST reference `NordicMotion.durationShort/Medium/Long` and `NordicMotion.easingStandard/Decelerate/Accelerate`. Do NOT inline `tween(<num>, easing = FastOutSlowInEasing)` in screen-transition code.
-- Tab-level switch (`MainActivity` 0/1/2/3, incl. `ServerConfigScreen`) MUST use `Crossfade(targetState = selectedTab, animationSpec = tween(NordicMotion.durationMedium, easing = NordicMotion.easingStandard), label = "...")`. The `Crossfade` lambda MUST take a `tab` parameter and branch on it; do NOT read outer `selectedTab` inside the lambda.
+- Tab-level switch (`MainActivity` 0/1/2/3, incl. `ServerConfigScreen`) MUST use `Crossfade(targetState = selectedTab, animationSpec = tween(NordicMotion.durationMedium, easing = NordicMotion.easingStandard), label = "...")`. The `Crossfade` lambda MUST take a `tab` parameter and branch on it; do NOT read outer `selectedTab` inside the lambda. Each tab branch MUST be wrapped in `rememberSaveableStateHolder().SaveableStateProvider(key = tab)` so list scroll positions and `rememberSaveable` state survive tab switches instead of tearing down the whole screen.
 - Full-screen player overlay enter/exit (Music / Audiobook / Video) MUST use `AnimatedVisibility(enter = NordicMotion.enterSlideUp, exit = NordicMotion.exitSlideDown)` (slide from bottom + fade). Do not use `fadeIn()/fadeOut()` defaults for full-screen player overlays — the slide gives the user a directional cue that the overlay came from the playback affordance.
 - `MusicScreenV2.libraryPage` rendering MUST be wrapped in `AnimatedContent(targetState = libraryPage, transitionSpec = { NordicMotion.slideDirectionSpec(resolveMusicLibraryPageForward(initialState, targetState)) }, label = "...")`. Direction (forward = slide-left, back = slide-right) is resolved by nav-stack depth via `resolveMusicLibraryPageForward`. Each `libraryPage` branch renders its own inner `LazyColumn` with stable `key`/`contentType` per the "Compose media list stability" rule.
 - `ModalBottomSheet` (e.g. `MusicQueueSheet`) MAY keep Material3 default animation. Do NOT override the sheet's drag-to-dismiss animation spec with a custom `tween` — forcing a duration regresses drag-to-dismiss feel. Only calibrate a sheet spec if there was an explicit hardcoded duration to begin with.
@@ -155,6 +155,7 @@ AnimatedVisibility(visible = showPlayer, enter = NordicMotion.enterSlideUp, exit
 - When the original HAD `easing = FastOutSlowInEasing`, replace with `easing = NordicMotion.easingStandard`. Do NOT drop the easing arg.
 - Enter/exit combinations (`+ expandVertically()`, `+ shrinkVertically()`, `togetherWith`, `+ fadeIn()`) MUST be preserved structurally — only the duration/easing source changes.
 - `VideoPlayerScreen.VIDEO_PLAYER_CHROME_FADE_MS` is a named constant that references `NordicMotion.durationShort` (the 6 chrome-fade sites use the constant, not a direct token ref, so the fade duration can be tuned in one place).
+- **Press-scale must be draw-phase (recomposition-free)**: new press-scale sites MUST use `Modifier.pressScale(interactionSource, ...)` (`AnimatedComponents.kt`), which reads the animated value inside a `graphicsLayer { }` lambda so the animation only re-renders the layer. Do NOT reintroduce `val scale = rememberPressScale(...)` + `Modifier.scale(scale)` — reading the animated float during composition recomposes the whole card every animation frame. `rememberPressScale` remains only for sites that need the raw value for non-scale purposes; `PlaybackDock.PolishedNavItem` keeps its own inline `graphicsLayer` variant (0.97f pressed scale).
 
 **Validation & Error Matrix**:
 | Condition | Behavior |
@@ -872,6 +873,31 @@ if (shouldShowNotice) videoResetNotice = "视频配置已更新，已回到视�
 ### Config readiness checks centralized
 
 `NavidromeConfig.isReadyForMusicSync()` is defined once in `ServerConfig.kt` and imported where needed. Do not inline `serverUrl.isNotBlank() && username.isNotBlank()` or create duplicate extension functions.
+
+### High-refresh display mode (OEM smart refresh rate bypass)
+
+**Scope / Trigger**: Any change to `MainActivity.onCreate` display-mode handling, or diagnosing "120Hz phone feels janky" reports.
+
+**Contract**:
+- `MainActivity.onCreate` MUST request the highest refresh rate available at the current resolution via `window.attributes.preferredDisplayModeId`. OEM "smart refresh rate" policies (ColorOS/OriginOS etc.) cap third-party apps at 60Hz unless the app explicitly requests a high-refresh mode — without this the app never runs at 120Hz regardless of the panel.
+- Selection logic lives in the pure function `resolvePreferredDisplayModeId(modes: List<DisplayModeSpec>, currentModeId: Int)` (`MainActivity.kt`): among modes sharing the current mode's resolution, highest refresh rate wins (ties → smaller mode id); never downgrade resolution for rate; fall back to the current mode when nothing is faster or the current mode is missing from the list.
+- `DisplayModeSpec(id, width, height, refreshRate)` is a plain data class — do NOT pass `android.view.Display.Mode` directly, because JVM unit tests cannot construct framework classes (stub android.jar reflection fails with `NoSuchMethodException`).
+- `Context.getDisplay()` is API 30+; the call site must branch on `Build.VERSION.SDK_INT >= Build.VERSION_CODES.R` and fall back to `@Suppress("DEPRECATION") windowManager.defaultDisplay` below R (lint `NewApi` gate).
+- There is intentionally NO user-facing toggle for this (user decision, 2026-09-10).
+
+**Tests Required**: `MainActivityTest.resolvePreferredDisplayModeId_*` covering multi-mode selection, other-resolution exclusion, missing-current-mode fallback, and single-mode identity.
+
+### Coil crossfade must be explicit at every call site
+
+`AuthedAsyncImage(crossfadeEnabled = false)` MUST still call `crossfade(false)` on the `ImageRequest`. Omitting the call silently falls back to the global image loader's crossfade (160ms in `MainActivity`), stacking crossfade animations on the RenderThread during fast list scrolling — the exact jank the parameter exists to prevent. The correct pattern is `crossfade(crossfadeEnabled)` followed by the duration override when enabled.
+
+### CoverArt gradient backdrop is conditional
+
+`CoverArt` (`SharedComponents.kt`) skips its gradient `background` brush when a real image is rendering (`showImage == true`). Grid pages stack dozens of cards; an always-on backdrop under an opaque image is pure overdraw. Keep the brush for fallback states (initials / icon / text) — those need a visible surface.
+
+### R8 keep rules for this app
+
+Release builds run R8 with `proguard-rules.pro`. The non-obvious entries: Retrofit needs `Signature`/annotation `keepattributes` + interface keep rules; Gson DTOs (`api.**`, `data.**`) are kept because response bodies convert reflectively; Tink (via security-crypto) needs `-dontwarn org.joda.time.Instant` (optional `KeysDownloader` dependency) and its own keep block. If a new reflective dependency is added, expect R8 `Missing class` errors and consult `app/build/outputs/mapping/release/missing_rules.txt` rather than guessing.
 
 ### Media repository instance reuse
 
