@@ -9,15 +9,21 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.nordic.mediahub"
+        // Device-facing package identity. The Kotlin/资源 namespace stays
+        // com.nordic.mediahub — applicationId and namespace are intentionally
+        // decoupled (official Android practice).
+        applicationId = "fun.han1997.nordic"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
-        versionName = "1.0.0"
+        versionName = "0.1.1"
     }
 
     buildTypes {
         release {
+            // Sideload distribution reuses the debug keystore so
+            // assembleRelease emits an installable signed APK directly.
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
