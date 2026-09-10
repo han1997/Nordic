@@ -1,3 +1,6 @@
+import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.testing.Test
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -15,8 +18,8 @@ android {
         applicationId = "fun.han1997.nordic"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.1"
+        versionCode = 2
+        versionName = "0.1.2"
     }
 
     buildTypes {
@@ -79,4 +82,11 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
+}
+
+tasks.withType<Test>().configureEach {
+    // The release regression tests read these rules; changes must invalidate test caches.
+    inputs.file(layout.projectDirectory.file("proguard-rules.pro"))
+        .withPropertyName("retrofitReleaseRules")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
 }

@@ -899,6 +899,8 @@ if (shouldShowNotice) videoResetNotice = "视频配置已更新，已回到视�
 
 Release builds run R8 with `proguard-rules.pro`. The non-obvious entries: Retrofit needs `Signature`/annotation `keepattributes` + interface keep rules; Gson DTOs (`api.**`, `data.**`) are kept because response bodies convert reflectively; Tink (via security-crypto) needs `-dontwarn org.joda.time.Instant` (optional `KeysDownloader` dependency) and its own keep block. If a new reflective dependency is added, expect R8 `Missing class` errors and consult `app/build/outputs/mapping/release/missing_rules.txt` rather than guessing.
 
+**Retrofit suspend 的 full-mode 陷阱（2026-09-10）**：`-keepattributes Signature` 加 API/DTO keep 仍不够；必须保留 `kotlin.coroutines.Continuation`、`retrofit2.Response`、`retrofit2.Call` 的泛型定义。否则方法末参会被擦为原始 Continuation，Retrofit 2.9 的反射解析抛出 `Class cannot be cast to ParameterizedType`。使用精确的 `-keep,allowoptimization,allowshrinking,allowobfuscation` 类型规则，不关闭 R8，不扩大为保留整个依赖库。`RetrofitReleaseContractTest` 防止规则回退，但 debug/JVM 单测和签名检查无法发现 R8 的实际泛型擦除；必须额外检查打包后的三个 API 的嵌套泛型签名，执行命令与断言见 [构建身份、版本与签名](./build-release.md)。
+
 ### Media repository instance reuse
 
 When a composable or screen needs a media repository such as `NavidromeRepository`, `AudiobookShelfRepository`, or `EmbyRepository`, use `remember(config) { Repository(config) }` keyed on config changes. Do not construct repositories inline in every refresh/list-detail suspend call when the saved config already has a remembered repository. Each construction creates a new Retrofit + OkHttpClient.
