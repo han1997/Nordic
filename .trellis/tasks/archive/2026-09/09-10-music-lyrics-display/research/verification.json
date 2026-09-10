@@ -1,0 +1,58 @@
+{
+  "versionName": "0.1.3",
+  "versionCode": 3,
+  "tests": {
+    "tests": 609,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "test_suites": 41,
+  "lint": {
+    "Warning": 22,
+    "Information": 18
+  },
+  "artifacts": {
+    "debug": {
+      "sha256": "d5ad2a9a5042cc8b7721ecf6c673209d4b903549c9430209d40c86fc59b0f1c7",
+      "bytes": 23313881
+    },
+    "release": {
+      "sha256": "49288341706c56c4ad5106c2b30a185763afb3cec49d878193806e62c14d824d",
+      "bytes": 4359432
+    }
+  },
+  "certificate_sha256": "16a2350bb63cc53f446ec3aeadbd08ccd9d9475db867c4564ea6b6c3372a545d",
+  "release_api_counts": {
+    "NavidromeApi": 19,
+    "AudiobookShelfApi": 9,
+    "EmbyApi": 8
+  },
+  "delivery": "app/build/distributions/Nordic-0.1.3-release.apk",
+  "worktree_sha256": {
+    ".trellis/spec/backend/error-handling.md": "0e8d84655620b4c33f4f38a3d71651abde34bca9b9a69b01a2c90fbfbe9f0a97",
+    ".trellis/spec/backend/index.md": "8ff1fe4955aea75c13d6bc68bb90cd52d9bf8becfd966c13da9f6a5e87498c45",
+    ".trellis/spec/backend/music-lyrics.md": "3bdee485c45634e1c4e1522d546900ad652aa7335a3c0811de9094839dd6df90",
+    ".trellis/spec/backend/quality-guidelines.md": "fa93ff3c2c1d2709c218ab7901f9f8133435cc11a72c8a0bce9f7a393a39df01",
+    ".trellis/spec/backend/ui-consistency.md": "4a9ded7823d19dc7c19a8c36606a63ea6522eef24b87df00f954703101c818c3",
+    "CHANGELOG.md": "3e9914d10b0b89624c33e1522d8cf5827dd15f9f18afe0b5b7aff94626951d05",
+    "README.md": "ea32a4d48c97dad8114cfd4e3123586dfaf2be43976dde8cbc8e76e39fe7ffd9",
+    "app/build.gradle.kts": "95f966a9ea9e21952abdb6c0e60c42e8b59528826c5508ab0ecc1633359e5ccc",
+    "app/src/main/java/com/nordic/mediahub/MainActivity.kt": "a4c872d43f17c74b01c803bf686aa98855f53c07258b4a5f952aa57c2845b6f4",
+    "app/src/main/java/com/nordic/mediahub/data/MusicLyrics.kt": "7906c4f4dee11d6932599fa48f85cd8044d72004d4135fa316820c02757efe42",
+    "app/src/main/java/com/nordic/mediahub/data/NavidromeRepository.kt": "6712c63eb8701e9fec776b33b1d524e2ab1c1eb16e8074c7db5a388fb28ecf98",
+    "app/src/main/java/com/nordic/mediahub/playback/MusicLyricsController.kt": "b146ee0c5b52c83f83604c545c37bf67737252019ce0685ab5dcaf8c0bce7aca",
+    "app/src/main/java/com/nordic/mediahub/playback/MusicPlaybackViewModel.kt": "e6d94255286288bb9fb5eb5cead198d3ad89b337fd577b03f046c10d10e1c744",
+    "app/src/main/java/com/nordic/mediahub/ui/MusicLyricsDisplay.kt": "7b693550d7ebfe92859ef125f900619b5f05eb0946a6ed72c628261b34716913",
+    "app/src/main/java/com/nordic/mediahub/ui/MusicLyricsFollowController.kt": "a41b3ed7cdf694a4eebbbaa022487aa431607084f9f3d724771a2ce13119aad5",
+    "app/src/main/java/com/nordic/mediahub/ui/MusicPlayerScreen.kt": "4fb3519211e333b1df500d4b3b54872b42ed9945945cd21c46405d0919efa2de",
+    "app/src/test/java/com/nordic/mediahub/data/MusicLyricsTest.kt": "4f0228b8c835581f7d9f54ce159409b70d0990f7d282dc6525118d9a0042a553",
+    "app/src/test/java/com/nordic/mediahub/data/NavidromeRepositoryTest.kt": "c907e4d5f0a03e14af497fb3a55f39e73768674c4460b22e97e3bf7e70315cf5",
+    "app/src/test/java/com/nordic/mediahub/playback/MusicLyricsControllerTest.kt": "c950c929bf50d81f51fdd8c9a8b8c898b1b0f8ec164a45462305749751c45772",
+    "app/src/test/java/com/nordic/mediahub/ui/MusicLyricsFollowControllerTest.kt": "55a34be27a1a03f839ac9d3e05d608089e0d983b126fa902c72abb777f034de3",
+    "app/src/test/java/com/nordic/mediahub/ui/MusicPlayerScreenTest.kt": "dad09b29f1d54c4502fbeb65d3dabe743bf1c38deb2fcc914f6dbb748bdef2fd"
+  },
+  "build_result": "BUILD SUCCESSFUL in 3m 25s",
+  "device_validation": "OPPO connected; no install, app interaction, uninstall or data clear performed",
+  "work_commit": "2faadbc898bfb37f71393febbc9a5e931ee74fe8"
+}
