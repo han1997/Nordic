@@ -1,0 +1,51 @@
+# Journal - hhy (Part 4)
+
+> Continuation from `journal-3.md` (archived at ~2000 lines)
+> Started: 2026-09-10
+
+---
+
+
+
+## Session 174: 包名、release 签名与版本规则收尾
+
+**Date**: 2026-09-10
+**Task**: 包名、release 签名与版本规则收尾
+**Branch**: `main`
+
+### Summary
+
+完成 fun.han1997.nordic 包名、release 复用 debug 签名及 0.1.1 起版本规则任务；补齐发布文档、修正 ADB 组件名并归档。584 项单元测试实际重跑通过，Lint 0 error/22 warning，debug/release 打包与签名校验通过；真机安装与覆盖升级未验证。
+
+### Main Changes
+
+- 应用实现提交 `f62cafa`：applicationId 改为 `fun.han1997.nordic`，namespace 保持 `com.nordic.mediahub`，release 复用本机 debug keystore，版本从 `0.1.1 / 1` 开始。
+- 文档提交 `6430d62`：新增构建身份/版本/签名规范，清理重复段落，补齐 README/CHANGELOG，并将 debug 预览 ADB 命令改为新 applicationId 与完整 Activity 类名。
+- 记录证书连续性、旧包数据隔离、纯文档不递增版本和真机验收边界；本轮没有修改应用代码或构建配置。
+- 任务归档至 `.trellis/tasks/archive/2026-09/09-10-package-id-signing-version/`，完整验收证据见其中 `info.md`。
+- 未推送远端，未更换 keystore，未卸载应用或清除设备数据。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f62cafa` | (see git log) |
+| `6430d62` | (see git log) |
+
+### Testing
+
+- [OK] `compileDebugKotlin`、`lintDebug`、`assembleDebug`、`assembleRelease` 通过；最终 Gradle 验证耗时 1 分 9 秒。
+- [OK] `testDebugUnitTest --rerun` 实际执行：584 项测试、37 个 suite，0 失败、0 错误、0 跳过。
+- [OK] Lint：0 error、22 项既有 Warning、18 项 Information；没有新增警告抑制。
+- [OK] 两个 APK 的 v2 签名有效且证书一致，包名/版本为 `fun.han1997.nordic / 0.1.1 / 1`；预览 Activity 只进入 debug，release 未开启 debuggable。
+- [OK] 文档 UTF-8、相对链接、ADB 组件、spec 合同、`git diff --check` 及任务 JSONL 校验通过。
+- [未验证] 真机安装、覆盖升级及 OPPO/ColorOS 体验；自动检查不替代真机验收。
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 本任务已归档，无待完成开发事项；后续如进行真机安装或覆盖升级测试，应另行记录结果。
