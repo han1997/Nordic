@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-3.md`
-- **Total Sessions**: 172
+- **Total Sessions**: 173
 - **Last Active**: 2026-09-10
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-3.md` | ~1927 | Active |
+| `journal-3.md` | ~1965 | Active |
 | `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
 <!-- @@@/auto:active-documents -->
@@ -31,6 +31,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 173 | 2026-09-10 | 滑动流畅度优化：120Hz强制、重组修复、Compose升级、R8 | `06b43fe`, `4a852c3`, `dde23a8`, `415265f`, `1e32601`, `1b1ad4f` | `main` |
 | 172 | 2026-09-10 | 媒体库按库缓存与切库免同步 | `9ed7ac4`, `a3bf17a` | `main` |
 | 171 | 2026-09-09 | 继续观看改为纯服务端数据并持久化 | `2e993a5` | `main` |
 | 170 | 2026-09-09 | 紧凑化媒体首页头部并清理教学式文案 | `6fadb8b`, `0d2304c` | `main` |

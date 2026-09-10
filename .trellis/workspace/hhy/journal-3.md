@@ -1925,3 +1925,41 @@ EmbyVideoCache 增加 resumeVideos 字段（schema v1→v2），新增 saveResum
 ### Next Steps
 
 - None - task complete
+
+
+## Session 173: 滑动流畅度优化：120Hz强制、重组修复、Compose升级、R8
+
+**Date**: 2026-09-10
+**Task**: 滑动流畅度优化：120Hz强制、重组修复、Compose升级、R8
+**Branch**: `main`
+
+### Summary
+
+诊断 120Hz 手机滑动卡顿：Debug 构建 + ColorOS 智能刷新率锁 60Hz + 代码掉帧点三因叠加。实施：①preferredDisplayModeId 强制当前分辨率最高刷新率（纯函数+单测，绕过 OEM 白名单）；②修复列表 crossfade 禁用失效、15 处按压动画迁移 Modifier.pressScale()（graphicsLayer 绘制阶段读值零重组）、CoverArt 渐变 overdraw、Tab 切换 SaveableStateProvider 状态保持；③工具链升级 Gradle 8.9/AGP 8.5.2/Kotlin 2.0.21/Compose BOM 2024.09（strong skipping 默认启用）+ profileinstaller；④release 启用 R8+资源收缩+keep 规则（APK 4.1MB）。AGENTS.md 补构建结果后必须继续推进规则。spec 沉淀 5 条契约。584+ 单测全过、lint 0 error、assembleRelease 成功。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `06b43fe` | (see git log) |
+| `4a852c3` | (see git log) |
+| `dde23a8` | (see git log) |
+| `415265f` | (see git log) |
+| `1e32601` | (see git log) |
+| `1b1ad4f` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
