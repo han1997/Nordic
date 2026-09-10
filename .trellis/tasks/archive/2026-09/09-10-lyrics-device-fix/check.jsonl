@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/music-lyrics.md", "reason": "已确认歌词行为"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "相关质量与回归约束"}
+{"file": ".trellis/spec/backend/build-release.md", "reason": "版本和签名不变约束"}
+{"file": ".trellis/spec/backend/documentation-guidelines.md", "reason": "中文与变更记录"}
