@@ -392,7 +392,13 @@ class MainActivity : ComponentActivity() {
         isInVideoPipMode = isInPictureInPictureMode
         // Request the highest refresh rate available at the current resolution.
         // Without this, ColorOS/OriginOS "smart refresh rate" pins the app to 60Hz.
-        val display = display ?: windowManager.defaultDisplay
+        // Context.getDisplay() is API 30+; older devices fall back to the
+        // deprecated WindowManager.defaultDisplay.
+        val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            display
+        } else {
+            @Suppress("DEPRECATION") windowManager.defaultDisplay
+        }
         if (display != null) {
             val currentModeId = display.mode.modeId
             val preferredModeId = resolvePreferredDisplayModeId(

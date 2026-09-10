@@ -163,6 +163,7 @@ internal fun externalSubtitleDescriptors(video: VideoItem): List<ExternalSubtitl
         }
 }
 
+@androidx.annotation.OptIn(UnstableApi::class)
 interface VideoPlaybackBackend {
     val state: StateFlow<VideoPlaybackState>
 

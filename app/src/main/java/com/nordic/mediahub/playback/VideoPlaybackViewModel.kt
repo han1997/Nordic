@@ -401,6 +401,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     fun setPreferredAudioTrack(stream: com.nordic.mediahub.data.VideoStreamInfo?) =
         engine.setPreferredAudioTrack(stream)
 
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     fun attachSubtitleView(view: androidx.media3.ui.SubtitleView?) = engine.setSubtitleView(view)
 
     fun setPipEnabled(enabled: Boolean) {

@@ -2,6 +2,7 @@
 .gradle/
 build/
 */build/
+.kotlin/
 gradle-app.setting
 !gradle-wrapper.jar
 
