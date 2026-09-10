@@ -27,5 +27,6 @@ Commands that can run longer than ~30s (Gradle builds, test suites, lint, instal
 1. **Announce before running**: in the same message as the tool call, state what is being run and roughly how long it may take (e.g. "running full Gradle verification, may take 1-3 min").
 2. **Report immediately after**: as soon as the result returns, output a one-line verdict (e.g. `BUILD SUCCESSFUL — compile/test/lint all green`) BEFORE doing anything else, then continue with next steps.
 3. **Never go silent**: if a command needs to be retried or followed by analysis, say so explicitly instead of pausing output.
+4. **Never end the turn on a build result**: after a long command returns, KEEP EXECUTING the next workflow steps in the same turn (fix, commit, next phase). Ending the turn right after reporting the result forces the user to prompt again — that is the "stuck after build" failure mode. The turn ends only when the current workflow step chain reaches a natural user-decision point (e.g. a commit plan needing confirmation).
 
 Note: the Gradle daemon intentionally stays resident in the background to reuse a warm JVM; a lingering daemon process is normal and does not block anything.
