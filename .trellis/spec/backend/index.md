@@ -11,6 +11,7 @@ This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. 
 | Guide | Use When |
 |-------|----------|
 | [Directory Structure](./directory-structure.md) | Placing new source files, tests, DTOs, repositories, playback code, or Compose components |
+| [构建身份、版本与签名](./build-release.md) | 修改 applicationId、namespace、版本号、签名、打包或 ADB 启动文档；代码提交前检查版本递增 |
 | [Persistence Guidelines](./database-guidelines.md) | 修改加密配置、DataStore 迁移、播放偏好/订阅、缓存字段或就绪条件 |
 | [Error Handling](./error-handling.md) | Adding repository calls, typed exceptions, `Response<T>` validation, or UI error propagation |
 | [音乐页面 UI](./music-ui.md) | 修改音乐发现、列表、专辑/歌手/歌单详情、集合操作与文案 |
@@ -24,6 +25,7 @@ This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. 
 
 ## Pre-Development Checklist
 
+- 修改构建身份、版本号、签名或发布/安装文档前，阅读[构建身份、版本与签名](./build-release.md)；每个代码工作提交同步递增 patch 与 versionCode。
 - Read [Directory Structure](./directory-structure.md) before adding files or moving code between layers.
 - Read [Persistence Guidelines](./database-guidelines.md) before changing `ConfigRepository`, server config models, or cache models.
 - Read the "Cross-Domain Media Cache Refresh" scenario in [Persistence Guidelines](./database-guidelines.md) before changing any cache repository, TTL helpers, launch/manual refresh flow, or config-switch cache cleanup.
@@ -56,6 +58,8 @@ Run before committing — adds `lintDebug` for the full quality gate:
 ```
 
 ### Final Packaging Verification
+
+涉及包名、版本或签名时，还需按[构建身份、版本与签名](./build-release.md)检查 release APK 的实际签名和 manifest，不能仅凭文件名判定成功。
 
 Use `:app:assembleDebug` when playback, manifest, resources, or dependency wiring changes:
 

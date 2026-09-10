@@ -65,6 +65,23 @@
 
 在 Android Studio 中打开项目，点击运行按钮即可。
 
+命令行构建使用 JDK 17，并在本机 `local.properties` 中配置 Android SDK 的 `sdk.dir`：
+
+```powershell
+.\gradlew.bat :app:compileDebugKotlin :app:testDebugUnitTest :app:lintDebug :app:assembleRelease
+```
+
+Release 产物位于 `app/build/outputs/apk/release/app-release.apk`，已签名并启用 R8 混淆与资源收缩，可用于侧载；不要安装旧的 `app-release-unsigned.apk`。
+
+### 应用标识、版本与侧载签名
+
+- 设备上的应用包名为 `fun.han1997.nordic`；Kotlin/资源 namespace 仍为 `com.nordic.mediahub`，两者有意分离。
+- 包名变更后会作为新应用安装，不会覆盖旧 `com.nordic.mediahub` 应用，也不会自动迁移旧应用的数据；卸载旧应用会删除其本地数据。
+- 版本从 `0.1.1`（versionCode `1`）开始；每个修改代码的工作提交将 patch 位和 versionCode 各加 1。minor/major 仅按用户明确要求增加；纯文档、任务归档和会话日志不触发版本递增。当前值以 `app/build.gradle.kts` 为准。
+- 按当前侧载决策，release 复用本机 `~/.android/debug.keystore`。覆盖安装必须沿用相同证书，请妥善备份该文件；不要提交到仓库，也不要在换电脑后直接用新生成的证书替换。此方案不适用于应用商店发布，正式发布需另行规划签名和已有安装的升级方式。
+
+构建产物的签名、包名和版本验证命令见[构建身份、版本与签名规范](.trellis/spec/backend/build-release.md)。签名校验成功不代表已完成真机安装测试，设备仍需允许对应来源的安装权限。
+
 ## 要求
 
 - Android 8.0 (API 26) 或更高版本
@@ -75,8 +92,8 @@
 Debug 构建包含 `VideoPlayerPreviewActivity`，使用合成画面与剧集，不连接服务器或更改观看记录：
 
 ```powershell
-adb shell am start -n com.nordic.mediahub/.VideoPlayerPreviewActivity
-adb shell am start -n com.nordic.mediahub/.VideoPlayerPreviewActivity --ez fullscreen true
+adb shell am start -n fun.han1997.nordic/com.nordic.mediahub.VideoPlayerPreviewActivity
+adb shell am start -n fun.han1997.nordic/com.nordic.mediahub.VideoPlayerPreviewActivity --ez fullscreen true
 ```
 
 可传 `--es scenario movie|unknown|buffering|error|end|empty`（选择一个值）验证状态。该入口不进入 release 构建；预览验证不能替代真实 Emby 播放/上报测试。

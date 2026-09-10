@@ -4,17 +4,11 @@
 
 ## Overview
 
-## Overview
-
 This repository is a single Android application module (`app`) written in Kotlin and Jetpack Compose. The package root is `com.nordic.mediahub`; there are no separate backend services, shared packages, or Room database modules.
 
-**applicationId vs namespace**: the device-facing package identity (`applicationId`) is `fun.han1997.nordic`, while the Kotlin/资源 namespace stays `com.nordic.mediahub`. They are intentionally decoupled (official Android practice) — do NOT "fix" one to match the other. Renaming the applicationId does not touch source files; renaming the namespace would require rewriting every Kotlin file and is out of scope unless the user explicitly asks.
+**applicationId 与 namespace**：设备侧应用标识为 `fun.han1997.nordic`，Kotlin/资源 namespace 保持 `com.nordic.mediahub`。两者有意分离，不能为了匹配 applicationId 重命名源码包；ADB 显式组件应使用 `<applicationId>/<完整类名>`。
 
-**Versioning rule (user decision, 2026-09-10)**: `versionName` starts at `0.1.1`; every code change bumps the patch digit by 1 (0.1.2, 0.1.3, …). The minor (second) and major (first) digits increase ONLY when the user explicitly says so. `versionCode` is a simple monotonic counter (1, 2, 3, …) incremented together with versionName. Keep both in sync in `app/build.gradle.kts` on every work commit that changes code.
-
-**Release signing**: release builds sign with the debug keystore (`signingConfig = signingConfigs.getByName("debug")`) for sideload distribution — `assembleRelease` emits an installable `app-release.apk` directly. An unsigned APK fails to install on ColorOS/Android 16 with "安装包异常" (verified 2026-09-10: `apksigner verify` reported `Missing META-INF/MANIFEST.MF` on the unsigned artifact). If the user later wants store distribution, generate a dedicated release keystore then.
-
-**applicationId vs namespace**: the device-facing package identity (`applicationId`) is `fun.han1997.nordic` (changed 2026-09-10), while the Kotlin/resource `namespace` stays `com.nordic.mediahub`. These are intentionally decoupled per official Android practice — do NOT rename the 119-file Kotlin package root just to chase an applicationId change; edit `applicationId` in `app/build.gradle.kts` instead.
+版本递增、release 侧载签名及产物验证的完整合同见[构建身份、版本与签名](./build-release.md)。
 
 Core source lives under `app/src/main/java/com/nordic/mediahub/`:
 
