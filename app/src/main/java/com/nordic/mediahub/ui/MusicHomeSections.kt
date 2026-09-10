@@ -31,7 +31,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalDensity
@@ -55,11 +54,10 @@ fun MusicHeroBanner(
     onClick: (() -> Unit)? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(interactionSource, enabled = onClick != null)
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
         shape = NordicShapes.xl,
-        modifier = modifier.fillMaxWidth().scale(scale)
+        modifier = modifier.fillMaxWidth().pressScale(interactionSource, enabled = onClick != null)
             .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClickLabel = "查看专辑",
                 interactionSource = interactionSource, indication = null, onClick = onClick) else Modifier)
     ) {

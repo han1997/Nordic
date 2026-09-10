@@ -35,7 +35,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -220,11 +219,16 @@ internal fun CoverArt(
     Box(
         modifier = modifier
             .clip(shape)
-            .background(
-                Brush.linearGradient(
-                    listOf(
-                        colorScheme.primary.copy(alpha = 0.20f),
-                        colorScheme.surfaceVariant.copy(alpha = 0.82f)
+            .then(
+                // Skip the gradient backdrop once a real image covers the box:
+                // grid pages stack dozens of these cards and the hidden brush
+                // would still cost a full-surface draw every frame.
+                if (showImage) Modifier else Modifier.background(
+                    Brush.linearGradient(
+                        listOf(
+                            colorScheme.primary.copy(alpha = 0.20f),
+                            colorScheme.surfaceVariant.copy(alpha = 0.82f)
+                        )
                     )
                 )
             ),
@@ -279,11 +283,6 @@ internal fun PrimaryActionButton(
     icon: ImageVector? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(
-        interactionSource = interactionSource,
-        pressedScale = 0.985f,
-        enabled = enabled
-    )
 
     Surface(
         color = if (enabled) colorScheme.primary else colorScheme.primary.copy(alpha = 0.32f),
@@ -292,7 +291,11 @@ internal fun PrimaryActionButton(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 52.dp)
-            .scale(scale)
+            .pressScale(
+                interactionSource,
+                pressedScale = 0.985f,
+                enabled = enabled
+            )
             .clickable(
                 enabled = enabled,
                 role = Role.Button,
@@ -341,11 +344,6 @@ internal fun SecondaryActionButton(
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(
-        interactionSource = interactionSource,
-        pressedScale = 0.985f,
-        enabled = enabled
-    )
     Surface(
         color = if (enabled) colorScheme.primaryContainer else colorScheme.surfaceVariant.copy(alpha = 0.4f),
         contentColor = colorScheme.onPrimaryContainer,
@@ -354,7 +352,11 @@ internal fun SecondaryActionButton(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = NordicControlSizes.touchTarget)
-            .scale(scale)
+            .pressScale(
+                interactionSource,
+                pressedScale = 0.985f,
+                enabled = enabled
+            )
             .clickable(
                 enabled = enabled,
                 role = Role.Button,

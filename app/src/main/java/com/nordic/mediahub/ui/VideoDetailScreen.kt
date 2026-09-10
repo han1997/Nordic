@@ -39,7 +39,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -297,11 +296,6 @@ internal fun VideoEpisodeRow(
     compact: Boolean = false
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(
-        interactionSource = interactionSource,
-        pressedScale = 0.985f,
-        enabled = !episode.streamUrl.isNullOrBlank()
-    )
     val progressFraction = remember(episode) {
         if (episode.durationSeconds > 0 && episode.playbackPositionSeconds > 0 && !episode.isPlayed) {
             (episode.playbackPositionSeconds.toFloat() / episode.durationSeconds).coerceIn(0f, 1f)
@@ -319,7 +313,11 @@ internal fun VideoEpisodeRow(
             .clip(NordicShapes.sm)
             .background(if (isCurrent) colorScheme.primaryContainer else Color.Transparent)
             .semantics { selected = isCurrent }
-            .scale(scale)
+            .pressScale(
+                interactionSource,
+                pressedScale = 0.985f,
+                enabled = !episode.streamUrl.isNullOrBlank()
+            )
             .clickable(
                 enabled = !episode.streamUrl.isNullOrBlank(),
                 interactionSource = interactionSource,

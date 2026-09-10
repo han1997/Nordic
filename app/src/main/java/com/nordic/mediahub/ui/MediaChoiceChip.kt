@@ -18,7 +18,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -40,7 +39,6 @@ internal fun MediaChoiceChip(
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val pressScale = rememberPressScale(interactionSource, enabled = enabled)
     val container by animateColorAsState(
         targetValue = if (selected) colorScheme.primaryContainer else colorScheme.surfaceVariant.copy(alpha = 0.56f),
         animationSpec = tween(NordicMotion.durationMicro, easing = NordicMotion.easingStandard),
@@ -63,7 +61,7 @@ internal fun MediaChoiceChip(
         modifier = modifier
             .heightIn(min = NordicControlSizes.touchTarget)
             .widthIn(max = NordicControlSizes.choiceMaxWidth)
-            .scale(pressScale)
+            .pressScale(interactionSource, enabled = enabled)
             .selectable(
                 selected = selected,
                 enabled = enabled,

@@ -35,6 +35,9 @@ internal fun AuthedAsyncImage(
             .apply {
                 // Fast list scrolling stacks many simultaneous crossfade
                 // animations on the RenderThread; list rows disable it.
+                // crossfade(false) must be explicit: omitting the call would
+                // fall back to the global image loader's 160ms crossfade.
+                crossfade(crossfadeEnabled)
                 if (crossfadeEnabled) crossfade(200)
             }
             .placeholder(placeholder)

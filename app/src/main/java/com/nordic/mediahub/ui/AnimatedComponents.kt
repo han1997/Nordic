@@ -31,7 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
@@ -65,6 +65,30 @@ internal fun rememberPressScale(
     return scale
 }
 
+/**
+ * Press-scale as a draw-phase modifier: the animated value is read inside the
+ * `graphicsLayer` lambda, so a press animation only re-renders the layer
+ * instead of recomposing the whole card every frame. Pair it with the same
+ * [interactionSource] passed to the row's `clickable`/`selectable`.
+ */
+@Composable
+internal fun Modifier.pressScale(
+    interactionSource: InteractionSource,
+    pressedScale: Float = 0.985f,
+    enabled: Boolean = true
+): Modifier {
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (enabled && isPressed) pressedScale else 1f,
+        animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard),
+        label = "press-scale"
+    )
+    return this.graphicsLayer {
+        scaleX = scale
+        scaleY = scale
+    }
+}
+
 @Composable
 internal fun AnimatedIconButton(
     icon: ImageVector,
@@ -77,12 +101,13 @@ internal fun AnimatedIconButton(
     iconSize: Dp = NordicControlSizes.icon
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(interactionSource, pressedScale = 0.94f, enabled = enabled)
     IconButton(
         onClick = onClick,
         enabled = enabled,
         interactionSource = interactionSource,
-        modifier = modifier.size(NordicControlSizes.touchTarget).scale(scale)
+        modifier = modifier.size(NordicControlSizes.touchTarget).pressScale(
+            interactionSource, pressedScale = 0.94f, enabled = enabled
+        )
             .clip(NordicShapes.md).background(containerColor)
             .then(if (containerColor.alpha > 0f) {
                 Modifier.border(1.dp, colorScheme.onSurface.copy(alpha = 0.06f), NordicShapes.md)

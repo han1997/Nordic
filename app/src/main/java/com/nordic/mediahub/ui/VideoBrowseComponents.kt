@@ -34,7 +34,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
@@ -79,12 +78,11 @@ internal fun VideoCard(
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(interactionSource)
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .scale(scale)
+            .pressScale(interactionSource)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -247,7 +245,6 @@ internal fun ContinueWatchingCard(
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(interactionSource)
     val progressFraction = remember(video) {
         if (video.durationSeconds > 0) {
             (video.playbackPositionSeconds.toFloat() / video.durationSeconds).coerceIn(0f, 1f)
@@ -262,7 +259,7 @@ internal fun ContinueWatchingCard(
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
         modifier = Modifier
             .width(240.dp)
-            .scale(scale)
+            .pressScale(interactionSource)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,

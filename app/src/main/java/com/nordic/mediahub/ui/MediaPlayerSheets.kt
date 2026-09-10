@@ -30,7 +30,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
@@ -127,7 +126,6 @@ internal fun MediaPlayerChoiceRow(
     subtitle: String? = null
 ) {
     val source = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(source)
     val interaction = if (selected == null) Modifier.clickable(role = Role.Button, interactionSource = source,
         indication = null, onClick = onClick) else Modifier.selectable(selected = selected, role = Role.RadioButton,
         interactionSource = source, indication = null, onClick = onClick)
@@ -138,7 +136,7 @@ internal fun MediaPlayerChoiceRow(
         modifier = modifier.fillMaxWidth()
     ) {
     Row(
-        modifier.fillMaxWidth().heightIn(min = 56.dp).scale(scale)
+        modifier.fillMaxWidth().heightIn(min = 56.dp).pressScale(source)
             .then(interaction)
             .padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),
         horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md), verticalAlignment = Alignment.CenterVertically

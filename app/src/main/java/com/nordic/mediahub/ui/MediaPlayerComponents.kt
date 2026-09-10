@@ -31,7 +31,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
@@ -63,7 +62,6 @@ internal fun MediaPlayerIconAction(
     destructive: Boolean = false
 ) {
     val source = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(source, pressedScale = 0.94f, enabled = action.enabled)
     val foreground = when {
         !action.enabled -> colors.onSurface.copy(alpha = NordicAlpha.faint)
         primary -> colors.onPrimary
@@ -79,7 +77,8 @@ internal fun MediaPlayerIconAction(
             else -> colors.surfaceVariant.copy(alpha = 0.5f)
         },
         contentColor = foreground, shape = NordicShapes.full,
-        modifier = modifier.size(if (primary) 72.dp else NordicControlSizes.touchTarget).scale(scale)
+        modifier = modifier.size(if (primary) 72.dp else NordicControlSizes.touchTarget)
+            .pressScale(source, pressedScale = 0.94f, enabled = action.enabled)
             .semantics { if (action.active != null) selected = action.active }
             .clickable(enabled = action.enabled, role = Role.Button, interactionSource = source,
                 indication = null, onClick = action.onClick)
@@ -104,7 +103,6 @@ internal fun MediaPlayerTool(
     destructive: Boolean = false
 ) {
     val source = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(source, enabled = enabled)
     Surface(
         color = if (destructive) colors.errorContainer else if (active == true) colors.primaryContainer else colors.surfaceVariant.copy(alpha = 0.5f),
         contentColor = when {
@@ -114,7 +112,7 @@ internal fun MediaPlayerTool(
             else -> colors.onSurfaceVariant
         },
         shape = NordicShapes.md,
-        modifier = modifier.heightIn(min = NordicControlSizes.touchTarget).scale(scale)
+        modifier = modifier.heightIn(min = NordicControlSizes.touchTarget).pressScale(source, enabled = enabled)
             .semantics { contentDescription = description; if (active != null) selected = active }
             .clickable(enabled = enabled, role = Role.Button, interactionSource = source, indication = null, onClick = onClick)
     ) {

@@ -27,7 +27,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
@@ -126,7 +125,6 @@ private fun MediaSegmentItem(
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(interactionSource)
     val container by animateColorAsState(
         if (selected) colorScheme.surface.copy(alpha = 0.96f) else Color.Transparent,
         tween(NordicMotion.durationMicro, easing = NordicMotion.easingStandard), label = "segment-container"
@@ -138,7 +136,8 @@ private fun MediaSegmentItem(
     Surface(
         color = container, contentColor = content, shape = NordicShapes.sm,
         tonalElevation = if (selected) 2.dp else 0.dp,
-        modifier = modifier.heightIn(min = NordicControlSizes.touchTarget).scale(scale)
+        modifier = modifier.heightIn(min = NordicControlSizes.touchTarget)
+            .pressScale(interactionSource)
             .selectable(selected = selected, role = Role.Tab, interactionSource = interactionSource,
                 indication = null, onClick = onClick)
     ) {

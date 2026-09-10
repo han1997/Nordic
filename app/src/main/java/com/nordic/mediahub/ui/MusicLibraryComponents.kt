@@ -32,7 +32,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
@@ -63,7 +62,6 @@ internal fun MusicLibraryRow(
     clickLabel: String? = null
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(interactionSource)
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
     val trailingStyle = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum")
@@ -77,7 +75,7 @@ internal fun MusicLibraryRow(
         contentColor = colorScheme.onSurface,
         shape = NordicShapes.md,
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
-        modifier = modifier.fillMaxWidth().scale(scale)
+        modifier = modifier.fillMaxWidth().pressScale(interactionSource)
             .clickable(role = Role.Button, onClickLabel = clickLabel,
                 interactionSource = interactionSource, indication = null, onClick = onClick)
     ) {
@@ -177,14 +175,14 @@ internal fun MusicCollectionDescription(itemId: String, text: String, colors: Co
     var expanded by rememberSaveable(itemId, text) { mutableStateOf(false) }
     var canExpand by remember(itemId, text) { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(interactionSource)
     Column(Modifier.fillMaxWidth()) {
         Text(text, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
             maxLines = if (expanded) Int.MAX_VALUE else 3, overflow = TextOverflow.Ellipsis,
             onTextLayout = { if (!expanded) canExpand = it.hasVisualOverflow })
         if (canExpand || expanded) TextButton(
             onClick = { expanded = !expanded },
-            modifier = Modifier.heightIn(min = NordicControlSizes.touchTarget).scale(scale),
+            modifier = Modifier.heightIn(min = NordicControlSizes.touchTarget)
+                .pressScale(interactionSource),
             interactionSource = interactionSource,
             colors = ButtonDefaults.textButtonColors(contentColor = colors.onPrimaryContainer)
         ) {
@@ -203,12 +201,11 @@ internal fun MusicCollectionAction(
     destructive: Boolean = false
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val scale = rememberPressScale(interactionSource)
     Surface(
         color = if (destructive) colors.errorContainer else colors.surfaceVariant.copy(alpha = 0.56f),
         contentColor = if (destructive) colors.onErrorContainer else colors.onSurface,
         shape = NordicShapes.full,
-        modifier = modifier.heightIn(min = NordicControlSizes.touchTarget).scale(scale)
+        modifier = modifier.heightIn(min = NordicControlSizes.touchTarget).pressScale(interactionSource)
             .clickable(role = Role.Button, interactionSource = interactionSource, indication = null, onClick = onClick)
     ) {
         Row(Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.sm),

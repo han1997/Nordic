@@ -23,9 +23,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
@@ -261,7 +261,8 @@ internal fun PolishedNavItem(
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
+        animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard),
+        label = "dock-item-press-scale"
     )
     val itemColor by animateColorAsState(
         targetValue = if (selected) colorScheme.primary.copy(alpha = DOCK_SELECTED_CONTAINER_ALPHA) else Color.Transparent,
@@ -275,7 +276,10 @@ internal fun PolishedNavItem(
     Box(
         modifier = modifier
             .fillMaxHeight()
-            .scale(scale)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
             .clip(NordicShapes.md)
             .background(color = itemColor)
             .selectable(

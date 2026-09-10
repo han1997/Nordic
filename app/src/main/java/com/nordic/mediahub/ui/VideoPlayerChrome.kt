@@ -39,7 +39,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
@@ -208,12 +207,12 @@ internal fun VideoPlayerChromeButton(
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
-    val pressScale = rememberPressScale(interactionSource, pressedScale = 0.94f, enabled = enabled)
     val contentColor = if (primary) Color.Black else Color.White
     Surface(
         color = if (primary) Color.White.copy(alpha = if (enabled) 0.92f else 0.3f) else Color.Transparent,
         shape = NordicShapes.full,
-        modifier = Modifier.width(width).heightIn(min = size).scale(pressScale)
+        modifier = Modifier.width(width).heightIn(min = size)
+            .pressScale(interactionSource, pressedScale = 0.94f, enabled = enabled)
             .semantics { contentDescription = description }
             .clickable(enabled = enabled, role = Role.Button,
                 interactionSource = interactionSource, indication = null, onClick = onClick)
