@@ -1,8 +1,16 @@
 package com.nordic.mediahub.data
 
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.SocketPolicy
+import java.util.concurrent.TimeUnit
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -1485,6 +1493,76 @@ class NavidromeRepositoryTest {
             }
             """.trimIndent()
         )
+    }
+
+    @Test
+    fun getLyrics_prefersActuallyTimedCandidateAndSortsItsTimeline() = runTest {
+        server.enqueueJson(structuredLyricsResponse("""
+            {"synced":true,"line":[{"value":"No timestamp"}]},
+            {"synced":true,"line":[{"start":2000,"value":"Later"},{"start":1000,"value":"Earlier"}]}
+        """.trimIndent()))
+        val result = requireNotNull(repository().getLyrics(NavidromeSong(id = "song", title = "Title", artist = "Artist")))
+        assertTrue(result.synced)
+        assertEquals(listOf(1000, 2000), result.lines.map { it.startMillis })
+        assertEquals(listOf("Earlier", "Later"), result.lines.map { it.text })
+    }
+
+    @Test
+    fun getLyrics_keepsFallbackAvailableAfterSongIdFailure() = runTest {
+        server.enqueue(MockResponse().setResponseCode(500))
+        server.enqueueJson(subsonicResponse(""""lyrics":{"value":"Recovered lyrics"}"""))
+        val result = requireNotNull(repository().getLyrics(NavidromeSong(id = "song", title = "Title", artist = "Artist")))
+        assertEquals("Recovered lyrics", result.lines.single().text)
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
+    fun getLyrics_doesNotTurnFinalHttpFailureIntoNoLyrics() = runTest {
+        server.enqueueJson(subsonicOkResponse())
+        server.enqueue(MockResponse().setResponseCode(503))
+        val error = runCatching { repository().getLyrics(NavidromeSong(id = "song", title = "Title", artist = "Artist")) }.exceptionOrNull()
+        assertEquals(NavidromeApiException.Kind.HTTP, (error as? NavidromeApiException)?.kind)
+        assertEquals(2, server.requestCount)
+    }
+
+    @Test
+    fun getLyrics_withoutFallbackMetadataPreservesLookupFailure() = runTest {
+        server.enqueue(MockResponse().setResponseCode(503))
+        val error = runCatching { repository().getLyrics(NavidromeSong(id = "song", title = "Title")) }.exceptionOrNull()
+        assertEquals(NavidromeApiException.Kind.HTTP, (error as? NavidromeApiException)?.kind)
+        assertEquals(1, server.requestCount)
+    }
+
+    @Test
+    fun getLyrics_offsetArithmeticCannotOverflowIntoAnEarlyTimestamp() = runTest {
+        server.enqueueJson(structuredLyricsResponse("""
+            {"synced":true,"offset":-2147483648,"line":[{"start":100,"value":"Very late"}]}
+        """.trimIndent()))
+        val result = requireNotNull(repository().getLyrics(NavidromeSong(id = "song", title = "Title")))
+        assertEquals(Int.MAX_VALUE, result.lines.single().startMillis)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun getLyrics_cancellationPropagatesWithoutASecondLookup() = runTest {
+        server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
+        val cancellationReachedCaller = CompletableDeferred<Boolean>()
+        val repo = repository()
+        val request = backgroundScope.launch {
+            try {
+                repo.getLyrics(NavidromeSong(id = "song", title = "Title", artist = "Artist"))
+                cancellationReachedCaller.complete(false)
+            } catch (cancelled: CancellationException) {
+                cancellationReachedCaller.complete(true)
+                throw cancelled
+            }
+        }
+        runCurrent()
+        assertTrue(server.takeRequest(3, TimeUnit.SECONDS) != null)
+        request.cancelAndJoin()
+        assertTrue(cancellationReachedCaller.isCompleted)
+        assertTrue(cancellationReachedCaller.await())
+        assertEquals(1, server.requestCount)
     }
 
     private fun structuredLyricsResponse(structuredLyrics: String): String {

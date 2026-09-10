@@ -602,10 +602,11 @@ MusicPlayerScreen(positionMillis = currentPositionMillis, ...)
 MusicPlayerScreen(positionMillisFlow = musicVM.positionMillis, ...)
 
 @Composable
-private fun PlayerLyricsDisplay(positionMillisFlow: StateFlow<Long>, ...) {
+private fun SyncedLyricsList(positionMillisFlow: StateFlow<Long>, ...) {
     val positionMillis by positionMillisFlow.collectAsStateWithLifecycle()
-    val activeIndex by remember(filteredLines, isSynced) {
-        derivedStateOf { resolveActiveLyricIndex(filteredLines, positionMillis) }
+    val cues = remember(lyrics) { lyrics.displayCues() }
+    val activeIndex by remember(cues) {
+        derivedStateOf { resolveActiveMusicLyricIndex(cues, positionMillis) }
     }
     ...
 }
@@ -1468,6 +1469,8 @@ fun navigateBackFromMusicPage() {
 
 **Scope / Trigger**: Any change to `NavidromeRepository.getLyrics(...)`, lyric DTOs, plain LRC parsing, or `MusicPlayerScreen` lyric rendering.
 
+完整的加载状态、句组规范化、2 秒跟随、暂停浏览、会话视图记忆及测试合同见 [音乐歌词](./music-lyrics.md)。
+
 **Signatures**:
 - `suspend fun NavidromeRepository.getLyrics(song: NavidromeSong): MusicLyrics?`
 - `NavidromeLyricsList.structuredLyrics: List<NavidromeStructuredLyrics>?`
@@ -1478,7 +1481,7 @@ fun navigateBackFromMusicPage() {
 
 **Contract**:
 - Try `getLyricsBySongId.view` first; fall back to `getLyrics.view` only when song-id lookup yields no lyrics and the song has a non-blank artist.
-- Structured lyrics take priority over plain `lyrics.value` when they contain non-blank lines.
+- Structured lyrics take priority over plain `lyrics.value` when they contain non-blank lines. Parse candidates before selecting: prefer actually timed lyrics, not merely the wire `synced` flag. Normalize timestamp order and timed duplicates before presentation; preserve untimed text after the timed prefix.
 - OpenSubsonic `structuredLyrics` and nested `line` arrays are optional wire fields. DTOs must model both as nullable, and repository mapping must normalize each level with `orEmpty()`.
 - Missing or null `lyricsList.structuredLyrics` means no usable structured lyrics. Missing or null nested structured `line` means that structured entry has no usable lines. In both cases, keep plain lyric fallback available.
 - OpenSubsonic structured lyric `line.value` is optional text. DTOs must model it as nullable, and repository mapping must treat missing, null, empty, or whitespace-only values as absent lyric lines.
@@ -1493,7 +1496,7 @@ fun navigateBackFromMusicPage() {
 
 **Validation & Error Matrix**:
 - Song-id lyric lookup throws or returns no usable lyrics -> fallback to artist/title lookup when possible.
-- Both lyric lookups fail or return no usable lyrics -> return `null`; do not surface a playback error.
+- Final applicable lyric lookup fails -> propagate the typed/contextual error to the lyric-only error/retry state, never the playback error state. A successful empty lookup returns `null`; cancellation is rethrown immediately without starting a fallback lookup.
 - Missing or null `lyricsList.structuredLyrics` -> no structured lyrics; fall back to plain lyrics when present.
 - Missing or null structured `line` -> structured entry is ignored as unusable; fall back to another usable structured entry or plain lyrics.
 - Missing, null, empty, or blank structured `line.value` -> skip that line and keep other usable lines from the same structured entry.

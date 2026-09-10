@@ -15,6 +15,7 @@ This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. 
 | [Persistence Guidelines](./database-guidelines.md) | 修改加密配置、DataStore 迁移、播放偏好/订阅、缓存字段或就绪条件 |
 | [Error Handling](./error-handling.md) | Adding repository calls, typed exceptions, `Response<T>` validation, or UI error propagation |
 | [音乐页面 UI](./music-ui.md) | 修改音乐发现、列表、专辑/歌手/歌单详情、集合操作与文案 |
+| [音乐歌词](./music-lyrics.md) | 修改歌词解析/加载状态、完整显示、同步跟随、手动浏览和播放器视图记忆 |
 | [共享 UI 一致性](./ui-consistency.md) | 修改主题/字体、标题导航、分段选择、搜索输入或详情动作；执行跨页面一致性检查 |
 | [Quality Guidelines](./quality-guidelines.md) | Reviewing shared components, cache semantics, test coverage, and known anti-patterns |
 | [文档规范](./documentation-guidelines.md) | 编写中文优先沟通、用户可见文案、CHANGELOG 条目、README 更新或任务文档 |
@@ -31,6 +32,7 @@ This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. 
 - Read the "Cross-Domain Media Cache Refresh" scenario in [Persistence Guidelines](./database-guidelines.md) before changing any cache repository, TTL helpers, launch/manual refresh flow, or config-switch cache cleanup.
 - Read [Error Handling](./error-handling.md) before adding repository methods or changing exception behavior.
 - 修改音乐浏览/集合详情/歌单弹窗前，阅读 [音乐页面 UI](./music-ui.md)。
+- 修改歌词获取、播放页歌词或相关手势前，阅读[音乐歌词](./music-lyrics.md)。
 - 修改共享视觉/交互组件前，先阅读 [共享 UI 一致性](./ui-consistency.md)，并保留逐页真机验收与自动检查的区别。
 - Read [Quality Guidelines](./quality-guidelines.md) before modifying shared UI state components, music library navigation, or cache contracts.
 - 修改用户可见文案、项目文档、任务文档、发布记录或开发规范前，先阅读 [文档规范](./documentation-guidelines.md)。

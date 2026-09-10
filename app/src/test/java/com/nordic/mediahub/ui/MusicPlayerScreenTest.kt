@@ -6,8 +6,20 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.nordic.mediahub.playback.MusicLyricsUiState
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 
 class MusicPlayerScreenTest {
+    @Test
+    fun lyricSurfaceDrag_doesNotDismissEvenWithShortOrEmptyContent() {
+        val bounds = Rect(10f, 100f, 300f, 400f)
+        assertFalse(shouldDismissMusicPlayerFromDrag(true, Offset(50f, 200f), bounds))
+        assertFalse(shouldDismissMusicPlayerFromDrag(true, Offset.Zero, null))
+        assertTrue(shouldDismissMusicPlayerFromDrag(true, Offset(50f, 50f), bounds))
+        assertTrue(shouldDismissMusicPlayerFromDrag(false, Offset(50f, 200f), bounds))
+    }
+
     @Test
     fun resolvePlayerThinSliderPosition_usesAbsolutePointerX() {
         assertEquals(75f, resolvePlayerThinSliderPosition(pointerX = 150f, trackWidth = 200, durationSeconds = 100), 0.001f)
@@ -73,216 +85,16 @@ class MusicPlayerScreenTest {
     }
 
     @Test
-    fun syncedLyricsBeforeFirstTimestamp_haveNoActiveLine() {
-        val result = selectVisibleLyricLines(
-            lyrics = MusicLyrics(
-                synced = true,
-                lines = listOf(
-                    MusicLyricsLine(startMillis = 10_000, text = "First timed line"),
-                    MusicLyricsLine(startMillis = 20_000, text = "Second timed line")
-                )
-            ),
-            positionMillis = 5_000L,
-            maxLineCount = 3
-        )
-
-        assertEquals(listOf("First timed line", "Second timed line"), result.map { it.text })
-        assertEquals(listOf(false, false), result.map { it.active })
+    fun lyricsStateForSong_neverDisplaysThePreviousSong() {
+        val previous = MusicLyricsUiState.Content("previous", 1L, MusicLyrics(listOf(MusicLyricsLine(text = "Old"))))
+        assertEquals(MusicLyricsUiState.Loading("current"), lyricsStateForSong("current", previous))
+        assertEquals(MusicLyricsUiState.Idle, lyricsStateForSong(null, previous))
     }
 
     @Test
-    fun syncedLyricsActivateFirstTimedLineAtStartTime() {
-        val result = selectVisibleLyricLines(
-            lyrics = MusicLyrics(
-                synced = true,
-                lines = listOf(
-                    MusicLyricsLine(startMillis = 10_000, text = "First timed line"),
-                    MusicLyricsLine(startMillis = 20_000, text = "Second timed line")
-                )
-            ),
-            positionMillis = 10_000L,
-            maxLineCount = 3
-        )
-
-        assertEquals("First timed line", result.single { it.active }.text)
-    }
-
-    @Test
-    fun leadingUntimedSyncedLinesStayVisibleButInactive() {
-        val result = selectVisibleLyricLines(
-            lyrics = MusicLyrics(
-                synced = true,
-                lines = listOf(
-                    MusicLyricsLine(text = "Untimed intro"),
-                    MusicLyricsLine(startMillis = 12_000, text = "First timed line"),
-                    MusicLyricsLine(startMillis = 24_000, text = "Second timed line")
-                )
-            ),
-            positionMillis = 5_000L,
-            maxLineCount = 3
-        )
-
-        assertEquals("Untimed intro", result.first().text)
-        assertFalse(result.first().active)
-        assertTrue(result.none { it.active })
-    }
-
-    @Test
-    fun unsyncedLyricsHaveNoActiveLine() {
-        val result = selectVisibleLyricLines(
-            lyrics = MusicLyrics(
-                synced = false,
-                lines = listOf(
-                    MusicLyricsLine(text = "Plain first line"),
-                    MusicLyricsLine(text = "Plain second line")
-                )
-            ),
-            positionMillis = 30_000L,
-            maxLineCount = 2
-        )
-
-        assertEquals(listOf("Plain first line", "Plain second line"), result.map { it.text })
-        assertEquals(listOf(false, false), result.map { it.active })
-    }
-
-    @Test
-    fun selectVisibleLyricLines_subSecondStartMillis_activatesExactlyAtTimestamp() {
-        val lyrics = MusicLyrics(
-            synced = true,
-            lines = listOf(
-                MusicLyricsLine(startMillis = 0, text = "Intro"),
-                MusicLyricsLine(startMillis = 10_500, text = "Line A"),
-                MusicLyricsLine(startMillis = 11_500, text = "Line B")
-            )
-        )
-
-        // 10499ms — still before Line A timestamp → Intro (first line) active.
-        val justBefore = selectVisibleLyricLines(
-            lyrics = lyrics,
-            positionMillis = 10_499L,
-            maxLineCount = 3
-        )
-        assertEquals("Intro", justBefore.single { it.active }.text)
-
-        // 10500ms — exactly at Line A → Line A active, not the prior tick-1s of 11s.
-        val atTimestamp = selectVisibleLyricLines(
-            lyrics = lyrics,
-            positionMillis = 10_500L,
-            maxLineCount = 3
-        )
-        assertEquals("Line A", atTimestamp.single { it.active }.text)
-
-        // 11500ms — at Line B → Line B active.
-        val atLineB = selectVisibleLyricLines(
-            lyrics = lyrics,
-            positionMillis = 11_500L,
-            maxLineCount = 3
-        )
-        assertEquals("Line B", atLineB.single { it.active }.text)
-    }
-
-    @Test
-    fun selectVisibleLyricLines_zeroPosition_activatesFirstTimestamp() {
-        val lyrics = MusicLyrics(
-            synced = true,
-            lines = listOf(
-                MusicLyricsLine(startMillis = 0, text = "First line"),
-                MusicLyricsLine(startMillis = 5_000, text = "Second line")
-            )
-        )
-
-        val result = selectVisibleLyricLines(
-            lyrics = lyrics,
-            positionMillis = 0L,
-            maxLineCount = 2
-        )
-
-        assertEquals("First line", result.single { it.active }.text)
-    }
-
-    @Test
-    fun selectVisibleLyricLines_negativePosition_clampsToZero() {
-        val lyrics = MusicLyrics(
-            synced = true,
-            lines = listOf(
-                MusicLyricsLine(startMillis = 0, text = "First line"),
-                MusicLyricsLine(startMillis = 5_000, text = "Second line")
-            )
-        )
-
-        // Defensive: a negative position should never select a line behind 0.
-        val result = selectVisibleLyricLines(
-            lyrics = lyrics,
-            positionMillis = -300L,
-            maxLineCount = 2
-        )
-
-        assertEquals("First line", result.single { it.active }.text)
-    }
-
-    @Test
-    fun resolveActiveLyricIndex_returnsNullForEmptyLines() {
-        assertEquals(null, resolveActiveLyricIndex(emptyList(), positionMillis = 1_000L))
-    }
-
-    @Test
-    fun resolveActiveLyricIndex_returnsNullBeforeFirstTimestamp() {
-        val lines = listOf(
-            MusicLyricsLine(startMillis = 10_000, text = "First timed line"),
-            MusicLyricsLine(startMillis = 20_000, text = "Second timed line")
-        )
-        assertEquals(null, resolveActiveLyricIndex(lines, positionMillis = 5_000L))
-    }
-
-    @Test
-    fun resolveActiveLyricIndex_activatesFirstTimedLineAtStartTime() {
-        val lines = listOf(
-            MusicLyricsLine(startMillis = 10_000, text = "First timed line"),
-            MusicLyricsLine(startMillis = 20_000, text = "Second timed line")
-        )
-        assertEquals(0, resolveActiveLyricIndex(lines, positionMillis = 10_000L))
-        assertEquals(1, resolveActiveLyricIndex(lines, positionMillis = 20_000L))
-    }
-
-    @Test
-    fun resolveActiveLyricIndex_subSecondStartMillis_activatesExactlyAtTimestamp() {
-        val lines = listOf(
-            MusicLyricsLine(startMillis = 0, text = "Intro"),
-            MusicLyricsLine(startMillis = 10_500, text = "Line A"),
-            MusicLyricsLine(startMillis = 11_500, text = "Line B")
-        )
-        assertEquals(0, resolveActiveLyricIndex(lines, positionMillis = 10_499L))
-        assertEquals(1, resolveActiveLyricIndex(lines, positionMillis = 10_500L))
-        assertEquals(2, resolveActiveLyricIndex(lines, positionMillis = 11_500L))
-    }
-
-    @Test
-    fun resolveActiveLyricIndex_zeroPosition_activatesFirstTimestamp() {
-        val lines = listOf(
-            MusicLyricsLine(startMillis = 0, text = "First line"),
-            MusicLyricsLine(startMillis = 5_000, text = "Second line")
-        )
-        assertEquals(0, resolveActiveLyricIndex(lines, positionMillis = 0L))
-    }
-
-    @Test
-    fun resolveActiveLyricIndex_negativePosition_clampsToZero() {
-        val lines = listOf(
-            MusicLyricsLine(startMillis = 0, text = "First line"),
-            MusicLyricsLine(startMillis = 5_000, text = "Second line")
-        )
-        assertEquals(0, resolveActiveLyricIndex(lines, positionMillis = -300L))
-    }
-
-    @Test
-    fun resolveActiveLyricIndex_skipsUntimedLinesUntilFirstTimestampReached() {
-        val lines = listOf(
-            MusicLyricsLine(text = "Untimed intro"),
-            MusicLyricsLine(startMillis = 12_000, text = "First timed line"),
-            MusicLyricsLine(startMillis = 24_000, text = "Second timed line")
-        )
-        assertEquals(null, resolveActiveLyricIndex(lines, positionMillis = 5_000L))
-        assertEquals(1, resolveActiveLyricIndex(lines, positionMillis = 12_000L))
-        assertEquals(2, resolveActiveLyricIndex(lines, positionMillis = 24_000L))
+    fun lyricsStateForSong_preservesCurrentLoadingAndErrorStates() {
+        val error = MusicLyricsUiState.Error("current", "加载歌词失败", canRetry = true)
+        assertEquals(error, lyricsStateForSong("current", error))
+        assertEquals(MusicLyricsUiState.Loading("current"), lyricsStateForSong("current", MusicLyricsUiState.Idle))
     }
 }

@@ -45,7 +45,7 @@ internal fun shouldScrollMediaSegments(availableWidth: Dp, minimumWidths: List<D
 - 播放器弹层选择行必须复用 `MediaPlayerChoiceRow`，不得在单个弹层里另写近似实现。选中态使用 `primaryContainer` 完整背景 + `onPrimaryContainer` 文字 + 勾选图标；未选中态使用 `surfaceVariant` 0.42 alpha 容器 + `onSurface` 文字；选中副标题用 `onPrimaryContainer` 0.78 alpha，未选中副标题用 `onSurfaceVariant`。行最小高度 56dp，容器圆角 md。
 - 弹层内的互斥选择 chip（如均衡器预设）同样使用 `selectable(selected, role = Role.RadioButton)` + 选中语义，选中样式对齐 `primaryContainer`/`onPrimaryContainer` 语言，最小高度 48dp；不得用裸 `clickable` + 仅颜色区分。
 - 新弹层接入统一容器时，删除本地 `ModalBottomSheet` + 手写标题 Row 的重复实现（参考 `MusicEqualizerSheet`、`MusicQueueSheet` 的迁移），保持原有 `skipPartiallyExpanded` 与内容逻辑不变。
-- 歌词展示面字号例外：`MusicPlayerScreen` 歌词行使用 18sp/24sp（紧凑 16sp/20sp），位于 headlineMedium 与 titleMedium 之间，是专用展示面而非标准文本槽；以命名常量 `LYRIC_LINE_*` 显式声明，不强行塞进 15 槽 Typography。其他新文本不得引用此例外。
+- 歌词展示面字号例外：`MusicLyricsDisplay` 歌词行使用 18sp/24sp（紧凑 16sp/20sp），位于 headlineMedium 与 titleMedium 之间，是专用展示面而非标准文本槽；以命名常量 `LYRIC_LINE_*` 显式声明。歌词长句自然换行，不用 maxLines/省略号截正文；跟随按钮按实际字体测量预留空间，不因出现/消失改变视口。其他新文本不得引用此字号例外。行为合同见 [音乐歌词](./music-lyrics.md)。
 - 分段容器 outer md(16dp)、inner sm(12dp)，保留 4dp 内边距/间距；每个选项至少 48dp 高，容器至少 56dp，字体增大时自然增高。
 - `rememberTextMeasurer` 测量真实 label，加入两侧 12dp padding 得到最小项宽；不能用字符数量或固定字宽代替。
 - ≤4 项且等分宽度能完整容纳最宽标签时用等宽 Row；否则使用同一表面中的 LazyRow。>4 项始终使用 LazyRow。

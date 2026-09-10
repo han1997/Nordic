@@ -5,7 +5,6 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.nordic.mediahub.data.ConfigRepository
-import com.nordic.mediahub.data.MusicLyrics
 import com.nordic.mediahub.data.NavidromeRepository
 import com.nordic.mediahub.data.NavidromeSong
 import com.nordic.mediahub.data.isReadyForMusicSync
@@ -23,6 +22,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -45,14 +45,13 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
         initialValue = 0L
     )
 
-    private val _lyrics = MutableStateFlow<MusicLyrics?>(null)
-    val lyrics: StateFlow<MusicLyrics?> = _lyrics.asStateFlow()
-
-    private val _isLyricsLoading = MutableStateFlow(false)
-    val isLyricsLoading: StateFlow<Boolean> = _isLyricsLoading.asStateFlow()
-
-    private val _lyricsError = MutableStateFlow<String?>(null)
-    val lyricsError: StateFlow<String?> = _lyricsError.asStateFlow()
+    private val lyricsController = MusicLyricsController<NavidromeRepository>(viewModelScope) { repo, song ->
+        repo.getLyrics(song)
+    }
+    val lyricsState: StateFlow<MusicLyricsUiState> = lyricsController.state
+    val showLyrics: StateFlow<Boolean> = lyricsController.showLyrics
+    private val _lyricsSeekRevision = MutableStateFlow(0L)
+    val lyricsSeekRevision: StateFlow<Long> = _lyricsSeekRevision.asStateFlow()
 
     private val _repository = MutableStateFlow<NavidromeRepository?>(null)
     val repository: StateFlow<NavidromeRepository?> = _repository.asStateFlow()
@@ -127,25 +126,7 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
         combine(state.map { it.currentSong }, _repository) { song, repo ->
             song to repo
         }.distinctUntilChanged().onEach { (song, repo) ->
-            _lyrics.value = null
-            _lyricsError.value = null
-            if (song == null) {
-                _isLyricsLoading.value = false
-                return@onEach
-            }
-            if (repo == null) {
-                _isLyricsLoading.value = false
-                _lyricsError.value = "未配置 Navidrome"
-                return@onEach
-            }
-            _isLyricsLoading.value = true
-            runCatching { repo.getLyrics(song) }
-                .onSuccess { lyrics ->
-                    _lyrics.value = lyrics
-                    _lyricsError.value = if (lyrics == null) "暂无歌词" else null
-                }
-                .onFailure { _lyricsError.value = "加载歌词失败" }
-            _isLyricsLoading.value = false
+            lyricsController.select(song, repo)
         }.launchIn(viewModelScope)
     }
 
@@ -159,15 +140,30 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
 
     fun stop() = engine.stop()
 
-    fun seekTo(positionSeconds: Int) = engine.seekTo(positionSeconds)
+    fun seekTo(positionSeconds: Int) {
+        engine.seekTo(positionSeconds)
+        _lyricsSeekRevision.update { it + 1 }
+    }
 
-    fun seekBackBy(intervalSeconds: Int = MUSIC_SKIP_BACK_SECONDS) = engine.seekBackBy(intervalSeconds)
+    fun seekBackBy(intervalSeconds: Int = MUSIC_SKIP_BACK_SECONDS) {
+        engine.seekBackBy(intervalSeconds)
+        _lyricsSeekRevision.update { it + 1 }
+    }
 
-    fun seekForwardBy(intervalSeconds: Int = MUSIC_SKIP_FORWARD_SECONDS) = engine.seekForwardBy(intervalSeconds)
+    fun seekForwardBy(intervalSeconds: Int = MUSIC_SKIP_FORWARD_SECONDS) {
+        engine.seekForwardBy(intervalSeconds)
+        _lyricsSeekRevision.update { it + 1 }
+    }
 
-    fun seekToNext() = engine.seekToNext()
+    fun seekToNext() {
+        engine.seekToNext()
+        _lyricsSeekRevision.update { it + 1 }
+    }
 
-    fun seekToPrevious() = engine.seekToPrevious()
+    fun seekToPrevious() {
+        engine.seekToPrevious()
+        _lyricsSeekRevision.update { it + 1 }
+    }
 
     fun togglePlayPause() = engine.togglePlayPause()
 
@@ -225,7 +221,12 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    fun toggleLyricsDisplay() = lyricsController.toggleDisplay()
+
+    fun retryLyrics() = lyricsController.retry()
+
     override fun onCleared() {
+        lyricsController.close()
         engine.release()
     }
 

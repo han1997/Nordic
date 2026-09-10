@@ -46,6 +46,8 @@ suspend fun getRecentAlbums() = try {
 
 **Rule**: Every public `NavidromeRepository` method must include both catch blocks. Leaving out the `NavidromeApiException` catch causes API errors to lose their typed classification when wrapped a second time.
 
+可取消的读取（如 `getLyrics`）必须先捕获并原样重抛 `CancellationException`，再处理 typed API/其他异常；取消不能启动兜底请求，也不能被 `runCatching().getOrNull()` 吞成“无内容”。歌词的最终请求失败只进入歌词错误状态，不写入播放器错误状态；成功空结果才是“暂无歌词”。完整合同见 [音乐歌词](./music-lyrics.md)。
+
 ### requestSubsonic() / requireResponse() Contract
 
 ```kotlin

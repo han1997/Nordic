@@ -1,20 +1,15 @@
 package com.nordic.mediahub.ui
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -22,28 +17,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -53,59 +40,46 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.StateFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.media3.common.Player
-import com.nordic.mediahub.data.MusicLyrics
-import com.nordic.mediahub.data.MusicLyricsLine
+import com.nordic.mediahub.playback.MusicLyricsUiState
 import com.nordic.mediahub.data.NavidromeSong
 import com.nordic.mediahub.playback.resolveMusicSeekByPosition
 import com.nordic.mediahub.playback.PLAYBACK_SPEED_OPTIONS
 import com.nordic.mediahub.playback.resolvePlaybackSpeedLabel
-import com.nordic.mediahub.ui.theme.NordicAlpha
 import com.nordic.mediahub.ui.theme.NordicMotion
-import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 /**
  * Fraction of screen height the swipe-to-dismiss gesture must travel before
@@ -141,21 +115,13 @@ private const val SWIPE_DISMISS_MAX_SCALE_DOWN = 0.04f
  */
 internal const val MUSIC_DOUBLE_TAP_SEEK_SECONDS = 10
 
-/**
- * Lyric display-surface type sizes. The lyrics view is a dedicated display
- * surface, not a standard text slot: 18sp/24sp (16sp/20sp compact) sit
- * between headlineMedium and titleMedium and are intentionally outside the
- * 15-slot NordicTypography scale. Named constants keep the exception explicit.
- */
-private val LYRIC_LINE_FONT_SIZE = 18.sp
-private val LYRIC_LINE_FONT_SIZE_COMPACT = 16.sp
-private val LYRIC_LINE_LINE_HEIGHT = 24.sp
-private val LYRIC_LINE_LINE_HEIGHT_COMPACT = 20.sp
-
 internal data class MusicSeekFeedback(
     val deltaSeconds: Int,
     val targetPositionSeconds: Int
 )
+
+internal fun shouldDismissMusicPlayerFromDrag(showLyrics: Boolean, positionInRoot: Offset, lyricsBounds: Rect?): Boolean =
+    !showLyrics || (lyricsBounds != null && !lyricsBounds.contains(positionInRoot))
 
 @Composable
 fun MusicPlayerScreen(
@@ -167,9 +133,11 @@ fun MusicPlayerScreen(
     positionSeconds: Int,
     positionMillisFlow: StateFlow<Long>,
     durationSeconds: Int,
-    lyrics: MusicLyrics?,
-    isLyricsLoading: Boolean,
-    lyricsError: String?,
+    lyricsState: MusicLyricsUiState,
+    showLyrics: Boolean,
+    lyricsSeekRevision: Long,
+    onToggleLyrics: () -> Unit,
+    onRetryLyrics: () -> Unit,
     repeatMode: Int = Player.REPEAT_MODE_OFF,
     shuffleModeEnabled: Boolean = false,
     playbackSpeed: Float = 1f,
@@ -190,7 +158,6 @@ fun MusicPlayerScreen(
     val timeline = resolvePlayerTimeline(positionSeconds, resolvedDurationSeconds)
     val currentOnClose by rememberUpdatedState(onClose)
     var scrubPosition by remember(song?.id) { mutableStateOf<Float?>(null) }
-    var showLyrics by rememberSaveable(song?.id) { mutableStateOf(false) }
     var showSpeedSheet by remember(song?.id) { mutableStateOf(false) }
     var seekFeedback by remember(song?.id) { mutableStateOf<MusicSeekFeedback?>(null) }
     val hasSong = song?.streamUrl?.isNotBlank() == true
@@ -279,6 +246,9 @@ fun MusicPlayerScreen(
         val animatedDismiss = remember { Animatable(0f) }
         var isDismissing by remember { mutableStateOf(false) }
         var favoriteNoticeVisible by remember { mutableStateOf(false) }
+        var primaryBounds by remember { mutableStateOf<Rect?>(null) }
+        var gestureOrigin by remember { mutableStateOf(Offset.Zero) }
+        val lyricsVisible by rememberUpdatedState(showLyrics)
 
         // Collect the one-shot favorite-error event from the playback VM; show
         // the pill for 2s then auto-hide. Subsequent emits while visible reset
@@ -295,12 +265,14 @@ fun MusicPlayerScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .onGloballyPositioned { gestureOrigin = it.positionInRoot() }
                 .pointerInput(screenHeightPx, swipeThresholdPx) {
+                    var allowDismiss = true
                     detectVerticalDragGestures(
-                        onDragStart = {
-                            // Whole-screen start region (no top-half restriction);
-                            // the lyrics display below consumes its own taps so
-                            // vertical drags that start there will not reach here.
+                        onDragStart = { position ->
+                            // Short/empty lyrics may not consume a drag; do not
+                            // let a gesture in their surface dismiss the player.
+                            allowDismiss = shouldDismissMusicPlayerFromDrag(lyricsVisible, gestureOrigin + position, primaryBounds)
                             dragYState.floatValue = 0f
                             isDismissing = false
                             dismissScope.launch { animatedDismiss.snapTo(0f) }
@@ -345,12 +317,11 @@ fun MusicPlayerScreen(
                             dismissScope.launch { animatedDismiss.snapTo(0f) }
                         }
                     ) { change, dragAmountY ->
-                        change.consume()
-                        // Only accumulate downward drags for the dismiss gesture;
-                        // upward drags are ignored so they don't fight any
-                        // future vertical content scrolling on the surface.
-                        val next = (dragYState.floatValue + dragAmountY).coerceAtLeast(0f)
-                        dragYState.floatValue = next
+                        if (allowDismiss) {
+                            change.consume()
+                            val next = (dragYState.floatValue + dragAmountY).coerceAtLeast(0f)
+                            dragYState.floatValue = next
+                        }
                     }
                 }
                 .graphicsLayer {
@@ -385,11 +356,13 @@ fun MusicPlayerScreen(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     artwork = { displayModifier ->
                         PlayerPrimaryDisplay(
-                            song = song, lyrics = lyrics, isLyricsLoading = isLyricsLoading,
-                            lyricsError = lyricsError, positionMillisFlow = positionMillisFlow,
+                            song = song, lyricsState = lyricsState, isPlaying = isPlaying,
+                            seekRevision = lyricsSeekRevision, onRetryLyrics = onRetryLyrics,
+                            positionMillisFlow = positionMillisFlow,
                             showLyrics = showLyrics, colorScheme = colorScheme, compact = compact,
-                            enabled = hasSong, onToggleDisplay = { showLyrics = !showLyrics },
-                            onSeekRelative = { delta -> showSeekFeedback(delta) }, modifier = displayModifier
+                            enabled = hasSong, onToggleDisplay = onToggleLyrics,
+                            onSeekRelative = { delta -> showSeekFeedback(delta) },
+                            modifier = displayModifier.onGloballyPositioned { primaryBounds = it.boundsInRoot() }
                         )
                     },
                     controls = {
@@ -457,9 +430,10 @@ fun MusicPlayerScreen(
 @Composable
 private fun PlayerPrimaryDisplay(
     song: NavidromeSong?,
-    lyrics: MusicLyrics?,
-    isLyricsLoading: Boolean,
-    lyricsError: String?,
+    lyricsState: MusicLyricsUiState,
+    isPlaying: Boolean,
+    seekRevision: Long,
+    onRetryLyrics: () -> Unit,
     positionMillisFlow: StateFlow<Long>,
     showLyrics: Boolean,
     colorScheme: ColorScheme,
@@ -471,7 +445,7 @@ private fun PlayerPrimaryDisplay(
 ) {
     val currentToggle by rememberUpdatedState(onToggleDisplay)
     val currentSeekRelative by rememberUpdatedState(onSeekRelative)
-    val seekEnabled = enabled
+    val seekEnabled by rememberUpdatedState(enabled)
     Box(
         modifier = modifier.pointerInput(Unit) {
             detectTapGestures(
@@ -491,10 +465,11 @@ private fun PlayerPrimaryDisplay(
         }
     ) {
         if (showLyrics) {
-            PlayerLyricsDisplay(
-                lyrics = lyrics,
-                isLoading = isLyricsLoading,
-                error = lyricsError,
+            MusicLyricsDisplay(
+                state = lyricsStateForSong(song?.id, lyricsState),
+                isPlaying = isPlaying,
+                seekRevision = seekRevision,
+                onRetry = onRetryLyrics,
                 positionMillisFlow = positionMillisFlow,
                 colorScheme = colorScheme,
                 compact = compact,
@@ -513,206 +488,6 @@ private fun PlayerPrimaryDisplay(
 @Composable
 private fun PlayerArtwork(song: NavidromeSong?, colorScheme: ColorScheme, modifier: Modifier = Modifier) {
     MediaPlayerArtwork(song?.title ?: "专辑封面", song?.coverArt, Icons.Filled.MusicNote, colorScheme, modifier)
-}
-
-@Composable
-private fun PlayerLyricsDisplay(
-    lyrics: MusicLyrics?,
-    isLoading: Boolean,
-    error: String?,
-    positionMillisFlow: StateFlow<Long>,
-    colorScheme: ColorScheme,
-    compact: Boolean,
-    modifier: Modifier = Modifier
-) {
-    val lineCount = if (compact) 5 else 7
-    val filteredLines = remember(lyrics) {
-        lyrics?.lines?.filter { it.text.isNotBlank() }.orEmpty()
-    }
-    val isSynced = lyrics?.synced == true && filteredLines.any { it.startMillis != null }
-    // Collect the 100ms position tick here, at the leaf that actually needs it,
-    // so ancestors (MusicPlayerScreen / MainActivity) never recompose on every tick.
-    val positionMillis by positionMillisFlow.collectAsStateWithLifecycle()
-    // `activeIndex` changes far less often than `positionMillis`. `derivedStateOf`
-    // only emits when the resolved line index crosses a boundary, so the lyric
-    // list re-composes only when the highlighted line actually changes.
-    val activeIndex by remember(filteredLines, isSynced) {
-        derivedStateOf {
-            if (isSynced) resolveActiveLyricIndex(filteredLines, positionMillis) else null
-        }
-    }
-    val staticVisibleLines = remember(filteredLines, isSynced, lineCount) {
-        if (!isSynced) filteredLines.take(lineCount).map { VisibleLyricLine(it.text, active = false) }
-        else emptyList()
-    }
-
-    Box(
-        modifier = modifier
-            .clip(NordicShapes.xl)
-            .background(
-                Brush.linearGradient(
-                    listOf(
-                        colorScheme.surfaceVariant.copy(alpha = 0.50f),
-                        colorScheme.primary.copy(alpha = 0.10f),
-                        colorScheme.secondary.copy(alpha = 0.06f),
-                        colorScheme.surfaceVariant.copy(alpha = 0.42f)
-                    )
-                )
-            )
-            .padding(
-                horizontal = NordicSpacing.xl,
-                vertical = if (compact) NordicSpacing.lg else NordicSpacing.xl
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        when {
-            isLoading -> PlayerLyricsStatus("正在加载歌词", colorScheme)
-            filteredLines.isEmpty() -> PlayerLyricsStatus(error ?: "暂无歌词", colorScheme)
-            isSynced -> {
-                val listState = rememberLazyListState()
-                var hasInitialScrolled by remember(filteredLines) { mutableStateOf(false) }
-                LaunchedEffect(activeIndex, filteredLines.size) {
-                    val target = activeIndex ?: return@LaunchedEffect
-                    if (target < 0 || target >= filteredLines.size) return@LaunchedEffect
-                    if (!hasInitialScrolled) {
-                        listState.scrollToItem(target)
-                        hasInitialScrolled = true
-                    } else {
-                        val viewportStart = listState.layoutInfo.viewportStartOffset
-                        val viewportEnd = listState.layoutInfo.viewportEndOffset
-                        val itemInfo = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == target }
-                        val needsAnimatedAlign = itemInfo == null ||
-                            itemInfo.offset < viewportStart ||
-                            itemInfo.offset + itemInfo.size > viewportEnd
-                        if (needsAnimatedAlign) {
-                            listState.animateScrollToItem(target)
-                        }
-                    }
-                }
-                Box(modifier = Modifier.fillMaxSize()) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        resolveLyricsModeLabel(lyrics)?.let { label ->
-                            Text(
-                                label,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = colorScheme.primary.copy(alpha = NordicAlpha.medium),
-                                fontWeight = FontWeight.SemiBold,
-                                textAlign = TextAlign.Center,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(
-                                if (compact) NordicSpacing.sm else NordicSpacing.md
-                            )
-                        ) {
-                            itemsIndexed(
-                                items = filteredLines,
-                                key = { index, _ -> "lyric-$index" },
-                                contentType = { _, _ -> "lyric-line" }
-                            ) { index, line ->
-                                LyricLineText(
-                                    text = line.text,
-                                    active = index == activeIndex,
-                                    compact = compact,
-                                    colorScheme = colorScheme
-                                )
-                            }
-                        }
-                    }
-                    MusicScrollbar(
-                        state = listState,
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .padding(end = NordicSpacing.xs)
-                    )
-                }
-            }
-            else -> {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(
-                        if (compact) NordicSpacing.sm else NordicSpacing.md
-                    )
-                ) {
-                    resolveLyricsModeLabel(lyrics)?.let { label ->
-                        Text(
-                            label,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colorScheme.primary.copy(alpha = NordicAlpha.medium),
-                            fontWeight = FontWeight.SemiBold,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                    staticVisibleLines.forEach { line ->
-                        LyricLineText(
-                            text = line.text,
-                            active = false,
-                            compact = compact,
-                            colorScheme = colorScheme
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun LyricLineText(
-    text: String,
-    active: Boolean,
-    compact: Boolean,
-    colorScheme: ColorScheme
-) {
-    val activeColor = colorScheme.onSurface
-    val inactiveColor = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
-    val animatedColor by animateColorAsState(
-        targetValue = if (active) activeColor else inactiveColor,
-        animationSpec = tween(NordicMotion.durationShort, easing = NordicMotion.easingStandard),
-        label = "lyric-color"
-    )
-    val animatedWeight by animateFloatAsState(
-        targetValue = if (active) FontWeight.Bold.weight.toFloat() else FontWeight.Medium.weight.toFloat(),
-        animationSpec = tween(NordicMotion.durationShort, easing = NordicMotion.easingStandard),
-        label = "lyric-weight"
-    )
-    Text(
-        text = text,
-        fontSize = if (compact) LYRIC_LINE_FONT_SIZE_COMPACT else LYRIC_LINE_FONT_SIZE,
-        lineHeight = if (compact) LYRIC_LINE_LINE_HEIGHT_COMPACT else LYRIC_LINE_LINE_HEIGHT,
-        color = animatedColor,
-        fontWeight = FontWeight(weight = animatedWeight.toInt()),
-        textAlign = TextAlign.Center,
-        maxLines = 2,
-        overflow = TextOverflow.Ellipsis
-    )
-}
-
-@Composable
-private fun PlayerLyricsStatus(
-    text: String,
-    colorScheme: ColorScheme
-) {
-    Text(
-        text,
-        style = MaterialTheme.typography.titleMedium,
-        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-        fontWeight = FontWeight.Medium,
-        textAlign = TextAlign.Center,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis
-    )
 }
 
 @Composable
@@ -783,66 +558,6 @@ private fun PlayerConsole(
             colors = colorScheme
         )
     }
-}
-
-internal data class VisibleLyricLine(
-    val text: String,
-    val active: Boolean
-)
-
-internal fun resolveLyricsModeLabel(lyrics: MusicLyrics?): String? {
-    val lines = lyrics?.lines?.filter { it.text.isNotBlank() }.orEmpty()
-    if (lines.isEmpty()) return null
-    return if (lyrics?.synced == true && lines.any { it.startMillis != null }) {
-        "同步歌词"
-    } else {
-        "普通歌词"
-    }
-}
-
-internal fun selectVisibleLyricLines(
-    lyrics: MusicLyrics?,
-    positionMillis: Long,
-    maxLineCount: Int
-): List<VisibleLyricLine> {
-    val lines = lyrics?.lines?.filter { it.text.isNotBlank() }.orEmpty()
-    if (lines.isEmpty()) return emptyList()
-
-    if (lyrics?.synced != true) {
-        return lines.take(maxLineCount).map { VisibleLyricLine(it.text, active = false) }
-    }
-
-    val normalizedPositionMillis = positionMillis.coerceAtLeast(0L)
-    val activeIndex = lines.indexOfLast { line ->
-        line.startMillis != null && line.startMillis <= normalizedPositionMillis
-    }.takeIf { it >= 0 }
-    val halfWindow = maxLineCount / 2
-    val startIndex = when {
-        activeIndex == null -> 0
-        activeIndex + halfWindow >= lines.size -> (lines.size - maxLineCount).coerceAtLeast(0)
-        else -> (activeIndex - halfWindow).coerceAtLeast(0)
-    }
-
-    return lines
-        .drop(startIndex)
-        .take(maxLineCount)
-        .mapIndexed { index, line ->
-            VisibleLyricLine(
-                text = line.text,
-                active = activeIndex != null && startIndex + index == activeIndex
-            )
-        }
-}
-
-internal fun resolveActiveLyricIndex(
-    lines: List<MusicLyricsLine>,
-    positionMillis: Long
-): Int? {
-    if (lines.isEmpty()) return null
-    val normalizedPositionMillis = positionMillis.coerceAtLeast(0L)
-    return lines.indexOfLast { line ->
-        line.startMillis != null && line.startMillis <= normalizedPositionMillis
-    }.takeIf { it >= 0 }
 }
 
 /**

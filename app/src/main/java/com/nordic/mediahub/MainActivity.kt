@@ -1082,9 +1082,9 @@ private fun MusicPlayerLayer(
     modifier: Modifier = Modifier
 ) {
     val playbackState by musicVM.state.collectAsStateWithLifecycle()
-    val lyrics by musicVM.lyrics.collectAsStateWithLifecycle()
-    val isLyricsLoading by musicVM.isLyricsLoading.collectAsStateWithLifecycle()
-    val lyricsError by musicVM.lyricsError.collectAsStateWithLifecycle()
+    val lyricsState by musicVM.lyricsState.collectAsStateWithLifecycle()
+    val showLyrics by musicVM.showLyrics.collectAsStateWithLifecycle()
+    val lyricsSeekRevision by musicVM.lyricsSeekRevision.collectAsStateWithLifecycle()
     MusicPlayerScreen(
         song = playbackState.currentSong,
         colorScheme = colorScheme,
@@ -1094,9 +1094,11 @@ private fun MusicPlayerLayer(
         positionSeconds = playbackState.positionSeconds,
         positionMillisFlow = musicVM.positionMillis,
         durationSeconds = playbackState.durationSeconds,
-        lyrics = lyrics,
-        isLyricsLoading = isLyricsLoading,
-        lyricsError = lyricsError,
+        lyricsState = lyricsState,
+        showLyrics = showLyrics,
+        lyricsSeekRevision = lyricsSeekRevision,
+        onToggleLyrics = musicVM::toggleLyricsDisplay,
+        onRetryLyrics = musicVM::retryLyrics,
         repeatMode = playbackState.repeatMode,
         shuffleModeEnabled = playbackState.shuffleModeEnabled,
         playbackSpeed = playbackState.playbackSpeed,

@@ -5,6 +5,7 @@ import com.nordic.mediahub.api.NavidromeApi
 import com.nordic.mediahub.api.SubsonicData
 import com.nordic.mediahub.api.SubsonicResponse
 import kotlinx.coroutines.async
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
@@ -383,34 +384,47 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
         throw Exception("获取歌手失败: ${e.message}")
     }
 
-    suspend fun getLyrics(song: NavidromeSong): MusicLyrics? {
-        val bySongId = runCatching {
+    suspend fun getLyrics(song: NavidromeSong): MusicLyrics? = try {
+        var bySongIdFailure: Exception? = null
+        val bySongId = try {
             val auth = config.authParams()
             requestSubsonic {
                 api.getLyricsBySongId(config.username, auth.token, auth.salt, songId = song.id)
             }
                 .toMusicLyrics()
-        }.getOrNull()
-
-        if (bySongId != null) return bySongId
-
-        val artist = song.artist?.takeIf { it.isNotBlank() } ?: return null
-        return runCatching {
-            val auth = config.authParams()
-            requestSubsonic {
-                api.getLyrics(config.username, auth.token, auth.salt, artist = artist, title = song.title)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            bySongIdFailure = error
+            null
+        }
+        val artist = song.artist?.takeIf { it.isNotBlank() }
+        when {
+            bySongId != null -> bySongId
+            artist == null -> {
+                bySongIdFailure?.let { throw it }
+                null
             }
-                .toMusicLyrics()
-        }.getOrNull()
+            else -> {
+                val auth = config.authParams()
+                requestSubsonic {
+                    api.getLyrics(config.username, auth.token, auth.salt, artist = artist, title = song.title)
+                }.toMusicLyrics()
+            }
+        }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: NavidromeApiException) {
+        throw error
+    } catch (error: Exception) {
+        throw Exception("获取歌词失败: ${error.message}", error)
     }
 
     private fun SubsonicData.toMusicLyrics(): MusicLyrics? {
-        val structured = lyricsList?.structuredLyrics
+        val candidates = lyricsList?.structuredLyrics
             .orEmpty()
-            .filter { lyrics -> lyrics.line.orEmpty().any { it.value.orEmpty().isNotBlank() } }
-            .sortedByDescending { it.synced }
-            .firstOrNull()
-            ?.toMusicLyrics()
+            .mapNotNull { it.toMusicLyrics() }
+        val structured = candidates.firstOrNull { it.synced } ?: candidates.firstOrNull()
 
         if (structured != null) return structured
 
@@ -420,13 +434,14 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
     }
 
     private fun NavidromeStructuredLyrics.toMusicLyrics(): MusicLyrics? {
-        val offsetMillis = offset?.toInt() ?: 0
+        val offsetMillis = offset?.takeIf { it.isFinite() }?.toInt() ?: 0
         val parsedLines = line.orEmpty().mapNotNull { lyricLine ->
             val text = lyricLine.value.orEmpty().trim()
             if (text.isBlank()) return@mapNotNull null
 
             MusicLyricsLine(
                 startMillis = lyricLine.start
+                    ?.takeIf { it.isFinite() }
                     ?.toInt()
                     ?.coerceAtLeast(0)
                     ?.let { startMillis -> resolveLyricStartMillisWithOffset(startMillis, offsetMillis) },
@@ -436,7 +451,7 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
 
         if (parsedLines.isEmpty()) return null
 
-        return MusicLyrics(
+        return normalizeMusicLyrics(
             lines = parsedLines,
             synced = synced && parsedLines.any { it.startMillis != null }
         )
@@ -480,8 +495,8 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
         if (parsedLines.isEmpty()) return null
 
         val synced = parsedLines.any { it.startMillis != null }
-        return MusicLyrics(
-            lines = if (synced) parsedLines.sortedBy { it.startMillis ?: Int.MAX_VALUE } else parsedLines,
+        return normalizeMusicLyrics(
+            lines = parsedLines,
             synced = synced
         )
     }
@@ -508,7 +523,7 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
     }
 
     private fun resolveLyricStartMillisWithOffset(startMillis: Int, offsetMillis: Int): Int {
-        return (startMillis - offsetMillis).coerceAtLeast(0)
+        return (startMillis.toLong() - offsetMillis.toLong()).coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
     }
 
     suspend fun search(query: String): SearchMusicResult {
