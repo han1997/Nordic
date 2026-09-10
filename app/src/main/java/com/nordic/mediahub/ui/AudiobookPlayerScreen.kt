@@ -41,11 +41,11 @@ import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Bedtime
-import androidx.compose.material.icons.filled.Forward30
+import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Replay30
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -283,10 +283,10 @@ fun AudiobookPlayerScreen(
                         MediaTransportRow(
                             leading = MediaPlayerAction(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "上一章节",
                                 onSeekToPreviousChapter, chapterNavigationEnabled),
-                            previous = MediaPlayerAction(Icons.Filled.Replay30, "后退 30 秒", onSeekBack, playbackControlsEnabled),
+                            previous = MediaPlayerAction(Icons.Filled.Replay, "后退 ${LocalAppPreferences.current.audiobookSkipBack} 秒", onSeekBack, playbackControlsEnabled),
                             play = MediaPlayerAction(if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                                 if (state.isPlaying) "暂停" else "播放", onPlayPause, playbackControlsEnabled),
-                            next = MediaPlayerAction(Icons.Filled.Forward30, "前进 30 秒", onSeekForward, playbackControlsEnabled),
+                            next = MediaPlayerAction(Icons.Filled.FastForward, "前进 ${LocalAppPreferences.current.audiobookSkipForward} 秒", onSeekForward, playbackControlsEnabled),
                             trailing = MediaPlayerAction(Icons.AutoMirrored.Filled.KeyboardArrowRight, "下一章节",
                                 onSeekToNextChapter, chapterNavigationEnabled),
                             colors = colorScheme
@@ -408,10 +408,13 @@ private fun AudiobookSleepTimerSheet(
     onCancel: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val preselectedMinutes = LocalAppPreferences.current.audiobookSleepMinutes
     val active = isAudiobookSleepTimerActive(sleepTimerRemainingSeconds, sleepTimerAtChapterEnd)
     MediaPlayerSheet("睡眠定时器", colorScheme, onDismiss,
         sleepTimerRemainingLabel(sleepTimerRemainingSeconds, sleepTimerAtChapterEnd), skipPartiallyExpanded = false) {
         LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false)) {
+            item { MediaPlayerChoiceRow("使用预选：" + LocalAppPreferences.current.audiobookSleepMinutes + " 分钟", null, colorScheme,
+                onClick = { onSet(preselectedMinutes, false) }) }
             item { MediaPlayerChoiceRow("关闭", !active, colorScheme, onCancel) }
             items(listOf(10, 20, 30, 45, 60), key = { it }) { minutes ->
                 // Remaining time cannot tell us which preset was originally chosen.

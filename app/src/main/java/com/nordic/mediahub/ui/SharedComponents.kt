@@ -80,14 +80,13 @@ internal fun MediaPageHeader(
                 modifier = Modifier.weight(1f).padding(top = if (showBack) NordicSpacing.md else 0.dp),
                 verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
             ) {
-                Text(
-                    title,
-                    style = if (showBack) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge,
-                    color = colorScheme.onBackground,
-                    maxLines = if (showBack) 2 else 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.semantics { heading() }
-                )
+                if (!showBack && LocalSourceDomain.current != null) {
+                    MediaSourceTitle(title)
+                } else {
+                    Text(title, style = if (showBack) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.titleLarge,
+                        color = colorScheme.onBackground, maxLines = if (showBack) 2 else 1,
+                        overflow = TextOverflow.Ellipsis, modifier = Modifier.semantics { heading() })
+                }
                 if (subtitle.isNotBlank()) {
                     Text(
                         subtitle,

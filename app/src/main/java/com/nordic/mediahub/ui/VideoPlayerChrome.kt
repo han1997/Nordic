@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Forward30
+import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Lock
@@ -28,7 +28,7 @@ import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
-import androidx.compose.material.icons.filled.Replay10
+import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
@@ -79,6 +79,8 @@ internal fun VideoPlayerChrome(
     onScrubFinished: () -> Unit,
     onScrubCanceled: () -> Unit
 ) {
+    val skipBackSeconds = LocalAppPreferences.current.videoSkipBack
+    val skipForwardSeconds = LocalAppPreferences.current.videoSkipForward
     val hasVideo = state.video != null
     BoxWithConstraints(
         Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
@@ -115,17 +117,17 @@ internal fun VideoPlayerChrome(
                         horizontalArrangement = Arrangement.spacedBy(NordicSpacing.lg),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        VideoPlayerChromeButton(Icons.Filled.Replay10, description = "后退 10 秒",
+                        VideoPlayerChromeButton(Icons.Filled.Replay, description = "后退 ${LocalAppPreferences.current.videoSkipBack} 秒",
                             enabled = hasVideo,
-                            onClick = { onSeekRelative(-VIDEO_GESTURE_SKIP_BACK_SECONDS) })
+                            onClick = { onSeekRelative(-skipBackSeconds) })
                         VideoPlayerChromeButton(
                             if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                             description = if (state.isPlaying) "暂停" else "播放",
                             primary = true, enabled = hasVideo, size = 72.dp, onClick = onPlayPause
                         )
-                        VideoPlayerChromeButton(Icons.Filled.Forward30, description = "前进 30 秒",
+                        VideoPlayerChromeButton(Icons.Filled.FastForward, description = "前进 ${LocalAppPreferences.current.videoSkipForward} 秒",
                             enabled = hasVideo,
-                            onClick = { onSeekRelative(VIDEO_GESTURE_SKIP_FORWARD_SECONDS) })
+                            onClick = { onSeekRelative(skipForwardSeconds) })
                     }
                 }
             }

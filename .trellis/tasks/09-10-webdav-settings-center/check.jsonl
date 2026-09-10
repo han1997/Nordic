@@ -1,0 +1,13 @@
+{"file":".trellis/spec/backend/index.md","reason":"实现与回归合同"}
+{"file":".trellis/spec/backend/directory-structure.md","reason":"实现与回归合同"}
+{"file":".trellis/spec/backend/database-guidelines.md","reason":"实现与回归合同"}
+{"file":".trellis/spec/backend/error-handling.md","reason":"实现与回归合同"}
+{"file":".trellis/spec/backend/logging-guidelines.md","reason":"实现与回归合同"}
+{"file":".trellis/spec/backend/ui-consistency.md","reason":"实现与回归合同"}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"实现与回归合同"}
+{"file":".trellis/spec/backend/emby-integration.md","reason":"实现与回归合同"}
+{"file":".trellis/spec/backend/audiobookshelf-integration.md","reason":"实现与回归合同"}
+{"file":".trellis/spec/backend/navidrome-integration.md","reason":"实现与回归合同"}
+{"file":".trellis/spec/backend/build-release.md","reason":"实现与回归合同"}
+{"file":".trellis/spec/backend/documentation-guidelines.md","reason":"实现与回归合同"}
+{"file":".trellis/spec/backend/media-sources-webdav-settings.md","reason":"多来源、WebDAV 与设置实现合同"}

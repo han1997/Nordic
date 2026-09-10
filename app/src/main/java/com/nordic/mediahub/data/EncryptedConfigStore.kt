@@ -5,15 +5,16 @@ import android.content.SharedPreferences
 import androidx.datastore.preferences.core.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flowOn
+import java.io.IOException
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
@@ -98,7 +99,10 @@ internal fun runEncryptedConfigMigration(
         if (value != null) editor.putString(key, value)
     }
     editor.putBoolean(ENCRYPTED_PREFS_MIGRATED_KEY, true)
-    editor.commit()
+    if (!editor.commit()) {
+        prefs.edit().putBoolean(ENCRYPTED_PREFS_MIGRATED_KEY, false).commit()
+        throw IOException("保存加密配置失败，原配置已保留")
+    }
     removeLegacyCredentialKeys()
 }
 
@@ -115,10 +119,61 @@ class EncryptedConfigStore(
     private val removeLegacyCredentialKeys: () -> Unit = { removeLegacyCredentialKeysFromDataStore(context!!) }
 ) {
     private val prefs: SharedPreferences by lazy { prefsProvider() }
-    private val migrationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // Migration is awaited by sources/preferences on IO, so failures reach the caller instead of an unowned coroutine.
 
-    init {
-        migrationScope.launch { runMigrationIfNeeded() }
+    val sources: Flow<MediaSourceState> = flow {
+        synchronized(ENCRYPTED_CONFIG_LOCK) {
+            runMigrationIfNeeded()
+            migrateMediaSources(prefs)
+        }
+        emitAll(configFlow(setOf(MEDIA_SOURCES_KEY)) { p ->
+            MediaSourceCodec.decode(p.getString(MEDIA_SOURCES_KEY, null)
+                ?: throw IOException("服务器配置缺失"))
+        })
+    }.flowOn(Dispatchers.IO)
+
+    val preferences: Flow<AppPreferences> = flow {
+        synchronized(ENCRYPTED_CONFIG_LOCK) { runMigrationIfNeeded() }
+        emitAll(configFlow(setOf(APP_PREFERENCES_KEY,
+            EncryptedConfigKeys.VIDEO_PLAYBACK_SPEED, EncryptedConfigKeys.VIDEO_PIP_ENABLED,
+            EncryptedConfigKeys.VIDEO_AUTO_SKIP_INTRO, EncryptedConfigKeys.VIDEO_QUALITY_MODE), ::readAppPreferences))
+    }.flowOn(Dispatchers.IO)
+
+    suspend fun updateSources(transform: (MediaSourceState) -> MediaSourceState) = withContext(Dispatchers.IO) {
+        synchronized(ENCRYPTED_CONFIG_LOCK) {
+            runMigrationIfNeeded()
+            val previous = migrateMediaSources(prefs)
+            val next = transform(previous)
+            if (!prefs.edit().putString(MEDIA_SOURCES_KEY, MediaSourceCodec.encode(next)).commit()) {
+                prefs.edit().putString(MEDIA_SOURCES_KEY, MediaSourceCodec.encode(previous)).commit()
+                throw IOException("保存服务器失败，请重试")
+            }
+        }
+    }
+
+    suspend fun updatePreferences(transform: (AppPreferences) -> AppPreferences) = withContext(Dispatchers.IO) {
+        synchronized(ENCRYPTED_CONFIG_LOCK) {
+            runMigrationIfNeeded()
+            val previous = readAppPreferences(prefs)
+            if (!prefs.edit().putAppPreferences(transform(previous).validated()).commit()) {
+                prefs.edit().putAppPreferences(previous).commit()
+                throw IOException("保存设置失败，请重试")
+            }
+        }
+    }
+
+    suspend fun resetPreferences() = withContext(Dispatchers.IO) {
+        synchronized(ENCRYPTED_CONFIG_LOCK) {
+            if (!prefs.edit().putAppPreferences(AppPreferences()).commit()) throw IOException("恢复设置失败")
+        }
+    }
+
+    fun lastAudiobookItem(sourceId: String): Flow<String?> = configFlow(setOf("last_book_$sourceId")) {
+        it.getString("last_book_$sourceId", null)
+    }
+
+    suspend fun saveLastAudiobookItem(sourceId: String, itemId: String) = withContext(Dispatchers.IO) {
+        if (!prefs.edit().putString("last_book_$sourceId", itemId).commit()) throw IOException("保存有声书位置失败")
     }
 
     val navidromeConfig: Flow<NavidromeConfig> =
@@ -286,19 +341,20 @@ class EncryptedConfigStore(
         }
     }
 
-    internal fun runMigrationIfNeeded() {
-        runEncryptedConfigMigration(
-            prefs = prefs,
-            legacySnapshot = legacyDataStoreSnapshot(),
-            removeLegacyCredentialKeys = removeLegacyCredentialKeys
-        )
+    internal fun runMigrationIfNeeded() = synchronized(ENCRYPTED_CONFIG_LOCK) {
+        if (!prefs.getBoolean(ENCRYPTED_PREFS_MIGRATED_KEY, false)) {
+            runEncryptedConfigMigration(prefs, legacyDataStoreSnapshot(), removeLegacyCredentialKeys)
+        }
     }
 
     private fun <T> configFlow(
         watchedKeys: Set<String>,
         read: (SharedPreferences) -> T
     ): Flow<T> = callbackFlow {
-        val emitCurrent = { trySend(read(prefs)) }
+        val emitCurrent = {
+            try { trySend(read(prefs)) }
+            catch (error: Exception) { close(error) }
+        }
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, changedKey ->
             if (changedKey == null || changedKey in watchedKeys) emitCurrent()
         }

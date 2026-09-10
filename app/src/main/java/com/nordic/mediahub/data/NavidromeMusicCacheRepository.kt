@@ -29,7 +29,7 @@ class NavidromeMusicCacheRepository(
     }
 ) {
     private val gson = Gson()
-    private val musicCacheKey = stringPreferencesKey("navidrome_music_cache")
+    private fun musicCacheKey(config: NavidromeConfig) = sourcePreferenceKey("navidrome_music_cache", config.sourceId)
     private val dataStore: DataStore<Preferences> by lazy { dataStoreProvider() }
 
     suspend fun load(config: NavidromeConfig): NavidromeMusicCache? {
@@ -109,15 +109,16 @@ class NavidromeMusicCacheRepository(
      */
     suspend fun clear(config: NavidromeConfig) {
         dataStore.edit { prefs ->
-            val current = prefs[musicCacheKey]?.let { parseOrNull(it) }
+            val current = prefs[musicCacheKey(config)]?.let { parseOrNull(it) }
             if (current?.configKey == config.cacheKey()) {
-                prefs.remove(musicCacheKey)
+                prefs.remove(musicCacheKey(config))
             }
         }
     }
 
     private suspend fun loadRaw(config: NavidromeConfig): NavidromeMusicCache? {
-        val json = dataStore.data.first()[musicCacheKey] ?: return null
+        val json = readSourceCacheJson(dataStore, "navidrome_music_cache", config.sourceId,
+            config.copy(sourceId = "").cacheKey(), config.cacheKey()) ?: return null
         return parseOrNull(json)?.takeIf { it.configKey == config.cacheKey() }
     }
 
@@ -126,11 +127,11 @@ class NavidromeMusicCacheRepository(
         transform: (NavidromeMusicCache) -> NavidromeMusicCache
     ) {
         dataStore.edit { prefs ->
-            val current = prefs[musicCacheKey]
+            val current = prefs[musicCacheKey(config)]
                 ?.let { parseOrNull(it) }
                 ?.takeIf { it.configKey == config.cacheKey() }
                 ?: NavidromeMusicCache(configKey = config.cacheKey())
-            prefs[musicCacheKey] = gson.toJson(transform(current))
+            prefs[musicCacheKey(config)] = gson.toJson(transform(current))
         }
     }
 
@@ -140,6 +141,7 @@ class NavidromeMusicCacheRepository(
 }
 
 fun NavidromeConfig.cacheKey(): String {
+    if (sourceId.isNotBlank()) return "$sourceId|v$MUSIC_CACHE_SCHEMA_VERSION"
     val normalizedUrl = normalizedBaseUrl().lowercase()
     val normalizedUser = username.trim().lowercase()
     return "$normalizedUrl|$normalizedUser|v$MUSIC_CACHE_SCHEMA_VERSION"

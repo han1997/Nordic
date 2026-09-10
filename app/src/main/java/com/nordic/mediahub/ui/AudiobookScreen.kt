@@ -380,7 +380,7 @@ fun AudiobookScreen(
         // Clear the previous config's persisted cache so switching AudiobookShelf
         // accounts/servers does not leave dead cache JSON in DataStore.
         if (previousConfigChanged) {
-            previousConfig?.let { cacheRepository.clear(it) }
+            previousConfig?.takeIf { it.sourceId.isBlank() }?.let { cacheRepository.clear(it) }
         }
         if (savedConfig.isReadyForAudiobookSync()) {
             applyCachedAudiobooks(savedConfig, requestVersion)

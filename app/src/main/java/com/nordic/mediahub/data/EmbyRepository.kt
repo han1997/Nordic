@@ -53,7 +53,11 @@ data class VideoItem(
     val streamUrl: String? = null,
     val mediaStreams: List<VideoStreamInfo> = emptyList(),
     val chapters: List<VideoChapterInfo> = emptyList(),
-    val introRange: VideoIntroRange? = null
+    val introRange: VideoIntroRange? = null,
+    val sourceId: String = "",
+    val sourceType: VideoServerType = VideoServerType.EMBY,
+    val externalSubtitles: List<ExternalVideoSubtitle> = emptyList(),
+    val contentVersion: String? = null
 )
 
 /** A single chapter marker exposed by the server for in-player navigation. */
@@ -123,7 +127,7 @@ internal fun resolveVideoPlaybackStreamUrl(
         .addQueryParameter("AudioCodec", "aac")
         .addQueryParameter("VideoBitrate", bitrate.toString())
         .build()
-        .toString()
+        .toString().forMediaSource(video.sourceId)
 }
 
 /** A single audio/subtitle stream exposed by the server for track selection. */
@@ -133,7 +137,9 @@ data class VideoStreamInfo(
     val codec: String?,
     val language: String?,
     val displayTitle: String?,
-    val isExternal: Boolean
+    val isExternal: Boolean,
+    val trackGroupId: String? = null,
+    val trackIndex: Int = 0
 )
 
 enum class VideoStreamKind { Audio, Subtitle }
@@ -338,6 +344,8 @@ class EmbyRepository(private val config: VideoServerConfig) {
         return VideoPlaybackSession(playSessionId = playSessionId, mediaSourceId = mediaSourceId)
     }
 
+    suspend fun prepareMediaAuthentication() { session() }
+
     private suspend fun session(): EmbySession {
         cachedSession?.let { return it }
 
@@ -373,9 +381,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
 
         cachedSession = session
         if (EMBY_HEADER_AUTH_ENABLED) {
-            runCatching { baseUrl.toHttpUrl().originKey() }
-                .getOrNull()
-                ?.let { origin -> MediaAuthHeaderRegistry.register(origin, "X-Emby-Token", session.token) }
+            ScopedMediaRegistry.registerHeader(config.sourceId, baseUrl, "X-Emby-Token", session.token)
         }
         return session
     }
@@ -454,6 +460,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
 
         return VideoItem(
             id = itemId,
+            sourceId = config.sourceId,
             libraryId = libraryId,
             title = title,
             type = type.orEmpty(),
@@ -558,7 +565,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
                 if (!EMBY_HEADER_AUTH_ENABLED) addQueryParameter("api_key", token)
             }
             .build()
-            .toString()
+            .toString().forMediaSource(config.sourceId)
     }
 
     private fun backdropImageUrl(itemId: String, token: String, backdropTag: String?): String {
@@ -575,7 +582,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
                 if (!EMBY_HEADER_AUTH_ENABLED) addQueryParameter("api_key", token)
             }
             .build()
-            .toString()
+            .toString().forMediaSource(config.sourceId)
     }
 
     private fun streamUrl(itemId: String, token: String): String {
@@ -589,7 +596,7 @@ class EmbyRepository(private val config: VideoServerConfig) {
                 if (!EMBY_HEADER_AUTH_ENABLED) addQueryParameter("api_key", token)
             }
             .build()
-            .toString()
+            .toString().forMediaSource(config.sourceId)
     }
 
     private fun Long?.toDurationSeconds(): Int {

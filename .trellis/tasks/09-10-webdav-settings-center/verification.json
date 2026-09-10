@@ -1,0 +1,43 @@
+{
+    "verifiedAt":  "2026-09-11T04:53:47.6299398+08:00",
+    "tasks":  [
+                  "compileDebugKotlin",
+                  "testDebugUnitTest",
+                  "lintDebug",
+                  "assembleDebug",
+                  "assembleRelease"
+              ],
+    "result":  "passed",
+    "tests":  646,
+    "failures":  0,
+    "errors":  0,
+    "skipped":  0,
+    "lintErrors":  0,
+    "lintWarnings":  25,
+    "lintInformation":  18,
+    "applicationId":  "fun.han1997.nordic",
+    "versionName":  "0.1.4",
+    "versionCode":  4,
+    "signatureScheme":  "v2",
+    "certificateSha256":  "16a2350bb63cc53f446ec3aeadbd08ccd9d9475db867c4564ea6b6c3372a545d",
+    "apiGenericSignatures":  {
+                                 "EmbyApi":  8,
+                                 "NavidromeApi":  19,
+                                 "AudiobookShelfApi":  9
+                             },
+    "artifacts":  [
+                      {
+                          "variant":  "debug",
+                          "path":  "app/build/outputs/apk/debug/app-debug.apk",
+                          "bytes":  24857291,
+                          "sha256":  "DF962CEEE2738C1FB460D57A5237E1392E70B307BDF732D9BB36DDCBFE807A20"
+                      },
+                      {
+                          "variant":  "release",
+                          "path":  "app/build/outputs/apk/release/app-release.apk",
+                          "bytes":  4506888,
+                          "sha256":  "C7E3D350034A328DF3686BB1B15FFD3074BAC70DC9D435151A2B674F10CF967B"
+                      }
+                  ],
+    "manualVerification":  "not_run_no_adb_device_or_avd"
+}

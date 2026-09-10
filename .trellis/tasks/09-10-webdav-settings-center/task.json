@@ -1,0 +1,37 @@
+{
+    "id":  "webdav-settings-center",
+    "name":  "webdav-settings-center",
+    "title":  "WebDAV 点播、全媒体多服务器与完整设置中心",
+    "description":  "实现 WebDAV 点播、全媒体多服务器及分类设置中心；自动检查通过，工作提交已获确认，设备验收待执行。",
+    "status":  "in_progress",
+    "dev_type":  null,
+    "scope":  null,
+    "package":  null,
+    "priority":  "P2",
+    "creator":  "hhy",
+    "assignee":  "hhy",
+    "createdAt":  "2026-09-10",
+    "completedAt":  null,
+    "branch":  null,
+    "base_branch":  "main",
+    "worktree_path":  null,
+    "commit":  null,
+    "pr_url":  null,
+    "subtasks":  [
+
+                 ],
+    "children":  [
+
+                 ],
+    "parent":  null,
+    "relatedFiles":  [
+
+                     ],
+    "notes":  "用户已确认按 commit-plan.md 提交。646 单测通过，Lint 0 errors；debug/release 0.1.4 签名、manifest 和泛型签名核验通过。无 ADB 设备或 AVD，真实服务及设备验收未执行，任务不自动归档。",
+    "meta":  {
+                 "quality_gate":  "passed",
+                 "manual_verification":  "pending_device",
+                 "commit_status":  "approved",
+                 "unit_tests":  646
+             }
+}

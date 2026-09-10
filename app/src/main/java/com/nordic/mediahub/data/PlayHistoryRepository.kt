@@ -15,9 +15,9 @@ data class PlayHistoryEntry(
     val playCount: Int = 1
 )
 
-class PlayHistoryRepository(private val context: Context) {
+class PlayHistoryRepository(private val context: Context, sourceId: String = "") {
     private val gson = Gson()
-    private val historyKey = stringPreferencesKey("navidrome_play_history")
+    private val historyKey = sourcePreferenceKey("navidrome_play_history", sourceId)
 
     suspend fun load(): List<PlayHistoryEntry> {
         val json = context.dataStore.data.first()[historyKey] ?: return emptyList()

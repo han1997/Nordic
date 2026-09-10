@@ -11,6 +11,10 @@ Reference files:
 - `app/src/main/java/com/nordic/mediahub/data/NavidromeMusicCacheRepository.kt`
 - `app/src/main/java/com/nordic/mediahub/data/ServerConfig.kt`
 
+## 多来源更新（0.1.4）
+
+当前配置已升级为来源集合和独立 active ID；旧单配置 Flow 是当前来源投影。迁移、缓存命名空间、凭证范围和失败回滚以 [多服务器、WebDAV 与设置中心](./media-sources-webdav-settings.md) 为准。新来源切换保留其他来源缓存；下文单配置旧场景仅适用于空 sourceId 的兼容路径。
+
 ## Config Storage
 
 `ConfigRepository` is the only owner of saved server configuration. It exposes `Flow` values for:

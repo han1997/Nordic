@@ -76,6 +76,9 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
         .build()
         .create(NavidromeApi::class.java)
 
+    val sourceId: String get() = config.sourceId
+    init { ScopedMediaRegistry.registerNavidrome(config) }
+
     private fun buildAuthedMediaUrl(
         endpoint: String,
         id: String,
@@ -86,11 +89,11 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
             .addPathSegment("rest")
             .addPathSegment("$endpoint.view")
             .addQueryParameter("id", id)
-            .addNavidromeAuth(config)
+            .apply { if (config.sourceId.isBlank()) addNavidromeAuth(config) }
         extraParams.forEach { (key, value) ->
             builder.addQueryParameter(key, value)
         }
-        return builder.build().toString()
+        return builder.build().toString().forMediaSource(config.sourceId)
     }
 
     private fun buildCoverArtUrl(
@@ -156,7 +159,8 @@ class NavidromeRepository(private val config: NavidromeConfig) : NavidromeMusicD
     private fun NavidromeSong.withCoverArtUrl(fallbackCoverArt: String? = null): NavidromeSong {
         return copy(
             coverArt = coverArt.toCoverArtUrlOrNull() ?: fallbackCoverArt.toCoverArtUrlOrNull(),
-            streamUrl = buildStreamUrl(id)
+            streamUrl = buildStreamUrl(id),
+            sourceId = config.sourceId
         )
     }
 

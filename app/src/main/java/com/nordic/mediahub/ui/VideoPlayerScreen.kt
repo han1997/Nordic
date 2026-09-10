@@ -153,6 +153,7 @@ fun VideoPlayerScreen(
     onPlayPause: () -> Unit,
     onCycleAspectRatio: () -> Unit = {},
     onSetPlaybackSpeed: (Float) -> Unit = {},
+    onSetTemporaryPlaybackSpeed: (Float) -> Unit = onSetPlaybackSpeed,
     onSetPreferredTextTrack: (com.nordic.mediahub.data.VideoStreamInfo?) -> Unit = {},
     onSetPreferredAudioTrack: (com.nordic.mediahub.data.VideoStreamInfo?) -> Unit = {},
     onAttachSubtitleView: (androidx.media3.ui.SubtitleView?) -> Unit = {},
@@ -171,7 +172,9 @@ fun VideoPlayerScreen(
     onToggleFullscreen: () -> Unit = {},
     isFullscreen: Boolean = false,
     onClose: () -> Unit,
-    onCloseAnyway: () -> Unit = {}
+    onCloseAnyway: () -> Unit = {},
+    onRetryPlayback: () -> Unit = {},
+    onRestartFromBeginning: () -> Unit = {}
 ) {
     val video = state.video
     val durationSeconds = state.durationSeconds.coerceAtLeast(video?.durationSeconds ?: 0)
@@ -228,13 +231,13 @@ fun VideoPlayerScreen(
         if (isTempSpeeding || video == null) return
         isTempSpeeding = true
         prePressSpeed.set(state.playbackSpeed)
-        onSetPlaybackSpeed(VIDEO_TEMP_SPEED)
+        onSetTemporaryPlaybackSpeed(VIDEO_TEMP_SPEED)
     }
 
     fun endTempSpeed() {
         if (!isTempSpeeding) return
         isTempSpeeding = false
-        onSetPlaybackSpeed(prePressSpeed.get())
+        onSetTemporaryPlaybackSpeed(prePressSpeed.get())
     }
 
     fun playNextEpisode() {
@@ -311,7 +314,7 @@ fun VideoPlayerScreen(
                     onSurfaceDisposed = surfaceDisposedCallback,
                     modifier = Modifier.fillMaxSize()
                 )
-                if (state.selectedSubtitleStream != null) {
+                if (state.subtitlesEnabled || state.selectedSubtitleStream != null) {
                     AndroidView(
                         factory = { context ->
                             androidx.media3.ui.SubtitleView(context, null).apply {
@@ -330,10 +333,11 @@ fun VideoPlayerScreen(
                     exit = fadeOut(tween(VIDEO_PLAYER_CHROME_FADE_MS, easing = NordicMotion.easingStandard))) {
                     VideoPlayerScrim()
                 }
-                if (video == null) {
+                if (errorMessage != null) {
+                    VideoPlayerCenterMessage("播放异常", errorMessage, onCloseAnyway, onRetryPlayback,
+                        if (state.canRestartFromBeginning) onRestartFromBeginning else null)
+                } else if (video == null) {
                     VideoPlayerCenterMessage("暂无视频", "从媒体库选择一个视频开始播放")
-                } else if (errorMessage != null) {
-                    VideoPlayerCenterMessage("播放异常", errorMessage, onCloseAnyway)
                 } else if (state.isBuffering) {
                     VideoPlayerCenterMessage("缓冲中", "正在准备视频流")
                 }
@@ -520,7 +524,9 @@ private fun VideoPlayerScrim() {
 private fun BoxScope.VideoPlayerCenterMessage(
     title: String,
     subtitle: String?,
-    onCloseAnyway: (() -> Unit)? = null
+    onCloseAnyway: (() -> Unit)? = null,
+    onRetry: (() -> Unit)? = null,
+    onRestart: (() -> Unit)? = null
 ) {
     Column(
         modifier = Modifier
@@ -548,6 +554,8 @@ private fun BoxScope.VideoPlayerCenterMessage(
                 overflow = TextOverflow.Ellipsis
             )
         }
+        if (onRetry != null) androidx.compose.material3.TextButton(onClick = onRetry) { Text("重试播放", color = Color.White) }
+        if (onRestart != null) androidx.compose.material3.TextButton(onClick = onRestart) { Text("从头播放", color = Color.White) }
         if (onCloseAnyway != null) {
             Surface(
                 color = Color.White.copy(alpha = 0.16f),

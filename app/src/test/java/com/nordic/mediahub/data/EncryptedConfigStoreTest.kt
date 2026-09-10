@@ -434,7 +434,7 @@ class EncryptedConfigStoreTest {
     }
 }
 
-private class FakeSharedPreferences : SharedPreferences {
+internal class FakeSharedPreferences : SharedPreferences {
     private val data = mutableMapOf<String, Any?>()
     private val listeners = mutableListOf<SharedPreferences.OnSharedPreferenceChangeListener>()
 

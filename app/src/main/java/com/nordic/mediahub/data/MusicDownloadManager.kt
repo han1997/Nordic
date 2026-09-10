@@ -3,254 +3,188 @@ package com.nordic.mediahub.data
 import android.content.Context
 import android.os.Environment
 import com.google.gson.Gson
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import okhttp3.Call
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.logging.HttpLoggingInterceptor
 import java.io.File
+import java.io.IOException
+import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.coroutineContext
 
 private const val MUSIC_DOWNLOAD_METADATA_SUFFIX = ".metadata.json"
 private val musicDownloadMetadataGson = Gson()
 
-enum class DownloadState {
-    NOT_DOWNLOADED,
-    DOWNLOADING,
-    DOWNLOADED
-}
+enum class DownloadState { NOT_DOWNLOADED, DOWNLOADING, DOWNLOADED }
 
 data class DownloadStateEntry(
     val state: DownloadState = DownloadState.NOT_DOWNLOADED,
     val progress: Float = 0f,
-    val song: NavidromeSong? = null
+    val song: NavidromeSong? = null,
+    val errorMessage: String? = null
 )
+
+internal fun musicDownloadRoot(context: Context): File =
+    context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: File(context.filesDir, "music")
+
+internal fun musicDownloadDirectory(context: Context, sourceId: String): File {
+    require(sourceId.isBlank() || sourceId.matches(Regex("[A-Za-z0-9_-]{1,100}")))
+    val root = musicDownloadRoot(context)
+    return if (sourceId.isBlank()) root else File(root, sourceId)
+}
+
+internal object MusicDownloadManagers {
+    private val managers = ConcurrentHashMap<String, MusicDownloadManager>()
+    fun get(context: Context, sourceId: String): MusicDownloadManager = managers.computeIfAbsent(sourceId) {
+        MusicDownloadManager(context.applicationContext, sourceId)
+    }
+    fun cancel(sourceId: String) { managers[sourceId]?.cancelAll() }
+}
 
 class MusicDownloadManager internal constructor(
     private val scope: CoroutineScope,
     private val client: OkHttpClient,
-    private val downloadDir: File
+    private val downloadDir: File,
+    private val sourceId: String = ""
 ) {
-    constructor(context: Context) : this(
-        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
-        client = defaultMusicDownloadClient(),
-        downloadDir = defaultMusicDownloadDir(context)
+    constructor(context: Context, sourceId: String = "") : this(
+        CoroutineScope(SupervisorJob() + Dispatchers.IO),
+        OkHttpClient.Builder().addInterceptor(MediaAuthHeaderInterceptor())
+            .addNetworkInterceptor(ScopedMediaNetworkInterceptor())
+            .connectTimeout(15, TimeUnit.SECONDS).readTimeout(35, TimeUnit.SECONDS).build(),
+        musicDownloadDirectory(context, sourceId), sourceId
     )
 
-    companion object {
-        private fun defaultMusicDownloadClient(): OkHttpClient = OkHttpClient.Builder()
-            .addInterceptor(
-                HttpLoggingInterceptor().apply {
-                    level = HttpLoggingInterceptor.Level.NONE
-                }
-            )
-            .build()
-
-        private fun defaultMusicDownloadDir(context: Context): File =
-            File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), ".").also { it.mkdirs() }
-    }
-
     private val states = ConcurrentHashMap<String, DownloadStateEntry>()
-
+    private val calls = ConcurrentHashMap<String, Call>()
     private val _downloadStates = MutableStateFlow<Map<String, DownloadStateEntry>>(emptyMap())
     val downloadStates: StateFlow<Map<String, DownloadStateEntry>> = _downloadStates.asStateFlow()
-
-    private fun updateState(songId: String, entry: DownloadStateEntry) {
-        states[songId] = entry
-        _downloadStates.value = states.toMap()
-    }
-
-    private fun removeState(songId: String) {
-        states.remove(songId)
-        _downloadStates.value = states.toMap()
-    }
+    private fun updateState(id: String, entry: DownloadStateEntry) { states[id] = entry; _downloadStates.value = states.toMap() }
 
     fun downloadSong(song: NavidromeSong, config: NavidromeConfig) {
+        require(config.sourceId == sourceId && (song.sourceId.isBlank() || song.sourceId == sourceId))
         if (!beginDownloading(song)) return
-        scope.launch { performDownload(song, config) }
+        scope.launch { performDownload(song.copy(sourceId = sourceId), config) }
     }
-
     internal fun beginDownloading(song: NavidromeSong): Boolean {
-        var shouldLaunch = false
+        var launch = false
         states.compute(song.id) { _, existing ->
-            if (existing?.state == DownloadState.DOWNLOADING) {
-                existing
-            } else {
-                shouldLaunch = true
-                DownloadStateEntry(state = DownloadState.DOWNLOADING, progress = 0f, song = song)
+            if (existing?.state == DownloadState.DOWNLOADING) existing else {
+                launch = true
+                DownloadStateEntry(DownloadState.DOWNLOADING, 0f, song)
             }
         }
-        if (shouldLaunch) {
-            _downloadStates.value = states.toMap()
-        }
-        return shouldLaunch
+        if (launch) _downloadStates.value = states.toMap()
+        return launch
     }
-
     internal suspend fun performDownload(song: NavidromeSong, config: NavidromeConfig) {
-        var tempFile: File? = null
-        var targetFile: File?
+        var temp: File? = null
         try {
-            val auth = config.authParams()
-            val baseUrl = config.normalizedBaseUrl()
-            val url = baseUrl.toHttpUrl().newBuilder()
-                .addPathSegment("rest")
-                .addPathSegment("download.view")
-                .addQueryParameter("u", config.username)
-                .addQueryParameter("t", auth.token)
-                .addQueryParameter("s", auth.salt)
-                .addQueryParameter("v", NAVIDROME_API_VERSION)
-                .addQueryParameter("c", NAVIDROME_CLIENT_NAME)
-                .addQueryParameter("id", song.id)
-                .build()
-                .toString()
-
-            val request = Request.Builder().url(url).build()
-            val response = client.newCall(request).execute()
-            response.use {
-                if (!response.isSuccessful) {
-                    updateState(song.id, DownloadStateEntry(state = DownloadState.NOT_DOWNLOADED, progress = 0f))
-                    return@performDownload
-                }
-
-                val body = response.body
-                if (body == null) {
-                    updateState(song.id, DownloadStateEntry(state = DownloadState.NOT_DOWNLOADED, progress = 0f))
-                    return@performDownload
-                }
-
-                val contentLength = body.contentLength().coerceAtLeast(0L)
-                val contentType = response.header("Content-Type", "audio/mpeg") ?: "audio/mpeg"
-                val extension = extensionFromContentType(contentType)
-                val fileName = "${song.id}.${extension}"
-                targetFile = File(downloadDir, fileName)
-                tempFile = File(downloadDir, "$fileName.tmp")
-
-                withContext(Dispatchers.IO) {
-                    body.byteStream().use { input ->
-                        tempFile!!.outputStream().use { output ->
-                            val buffer = ByteArray(8192)
-                            var bytesRead: Long = 0
-                            while (true) {
-                                val read = input.read(buffer)
-                                if (read == -1) break
-                                output.write(buffer, 0, read)
-                                bytesRead += read
-                                if (contentLength > 0L) {
-                                    val progress = (bytesRead.toFloat() / contentLength.toFloat()).coerceIn(0f, 1f)
-                                    updateState(
-                                        song.id,
-                                        DownloadStateEntry(state = DownloadState.DOWNLOADING, progress = progress, song = song)
-                                    )
-                                }
-                            }
+            require(config.sourceId == sourceId)
+            if (!downloadDir.exists() && !downloadDir.mkdirs()) throw IOException("无法创建下载目录")
+            ScopedMediaRegistry.registerNavidrome(config)
+            val url = config.normalizedBaseUrl().toHttpUrl().newBuilder()
+                .addPathSegment("rest").addPathSegment("download.view").addQueryParameter("id", song.id)
+                .apply { if (sourceId.isBlank()) addNavidromeAuth(config) }.build().toString().forMediaSource(sourceId)
+            val call = client.newCall(Request.Builder().url(url).build())
+            calls[song.id] = call
+            var target: File? = null
+            call.execute().use { response ->
+                if (!response.isSuccessful) throw IOException("下载失败：HTTP ${response.code}")
+                val body = response.body ?: throw IOException("下载响应为空")
+                val stem = safeMusicFileId(song.id)
+                val extension = extensionFromContentType(response.header("Content-Type").orEmpty())
+                target = File(downloadDir, "$stem.$extension")
+                temp = File(downloadDir, "$stem.$extension.tmp")
+                val total = body.contentLength()
+                body.byteStream().use { input ->
+                    temp!!.outputStream().use { output ->
+                        val buffer = ByteArray(32768)
+                        var copied = 0L
+                        while (true) {
+                            coroutineContext.ensureActive()
+                            val count = input.read(buffer)
+                            if (count < 0) break
+                            output.write(buffer, 0, count)
+                            copied += count
+                            if (total > 0) updateState(song.id, DownloadStateEntry(DownloadState.DOWNLOADING,
+                                (copied.toFloat() / total).coerceIn(0f, 1f), song))
                         }
+                        if (total >= 0 && copied != total) throw IOException("下载未完成，请重试")
                     }
                 }
             }
-
-            val tf = tempFile
-            val tg = targetFile
-            if (tf == null || tg == null || !tf.exists()) {
-                updateState(song.id, DownloadStateEntry(state = DownloadState.NOT_DOWNLOADED, progress = 0f))
-                return
-            }
-            if (tg.exists()) tg.delete()
-            if (!tf.renameTo(tg)) {
-                tf.delete()
-                updateState(song.id, DownloadStateEntry(state = DownloadState.NOT_DOWNLOADED, progress = 0f))
-                return
-            }
-            saveDownloadedSongMetadata(metadataFile(song.id), song)
-
-            updateState(song.id, DownloadStateEntry(state = DownloadState.DOWNLOADED, progress = 1f, song = song))
-        } catch (_: Exception) {
-            tempFile?.takeIf { it.exists() }?.delete()
-            updateState(song.id, DownloadStateEntry(state = DownloadState.NOT_DOWNLOADED, progress = 0f))
+            coroutineContext.ensureActive()
+            val destination = requireNotNull(target)
+            if (destination.exists() && !destination.delete()) throw IOException("无法替换下载文件")
+            if (temp?.renameTo(destination) != true) throw IOException("保存下载失败")
+            saveDownloadedSongMetadata(metadataFile(song.id), song.copy(
+                sourceId = sourceId, streamUrl = song.streamUrl?.let(::stripAuthQuery), coverArt = song.coverArt?.let(::stripAuthQuery)))
+            updateState(song.id, DownloadStateEntry(DownloadState.DOWNLOADED, 1f, song.copy(sourceId = sourceId)))
+        } catch (error: Exception) {
+            temp?.delete()
+            updateState(song.id, DownloadStateEntry(song = song, errorMessage = "下载未完成，请检查连接后重试"))
+            if (error is CancellationException) throw error
+        } finally {
+            calls.remove(song.id)
         }
     }
-
+    fun cancelDownload(songId: String) { calls[songId]?.cancel() }
+    fun cancelAll() { calls.values.forEach { it.cancel() } }
     fun deleteDownload(songId: String) {
-        val entry = states[songId]
-        if (entry?.state == DownloadState.DOWNLOADING) return
-
-        downloadDir.listFiles()
-            ?.filter { file -> isDownloadedMusicFile(file.name) && file.name.substringBeforeLast(".") == songId }
-            ?.forEach { file -> file.delete() }
-        metadataFile(songId).delete()
-        removeState(songId)
+        if (states[songId]?.state == DownloadState.DOWNLOADING) return
+        val stem = safeMusicFileId(songId)
+        downloadDir.listFiles()?.filter { it.isFile && isDownloadedMusicFile(it.name) && it.name.substringBeforeLast('.') == stem }
+            ?.forEach { if (!it.delete()) throw IOException("删除下载失败") }
+        metadataFile(songId).takeIf { it.exists() }?.let { if (!it.delete()) throw IOException("删除下载信息失败") }
+        states.remove(songId)
+        _downloadStates.value = states.toMap()
     }
-
-    fun isDownloaded(songId: String): Boolean {
-        val entry = states[songId]
-        return entry?.state == DownloadState.DOWNLOADED
-    }
-
-    fun getLocalFilePath(songId: String): String? {
-        val entry = states[songId]
-        if (entry?.state != DownloadState.DOWNLOADED) return null
-        val file = downloadedAudioFile(songId)
-        return if (file.exists()) file.absolutePath else null
-    }
-
-    fun getDownloadedSongs(): List<NavidromeSong> {
-        return states.values.filter { it.state == DownloadState.DOWNLOADED && it.song != null }.map { it.song!! }
-    }
-
+    fun isDownloaded(songId: String): Boolean = states[songId]?.state == DownloadState.DOWNLOADED
+    fun getLocalFilePath(songId: String): String? = downloadedAudioFile(songId)?.absolutePath
+    fun getDownloadedSongs(): List<NavidromeSong> = states.values.filter { it.state == DownloadState.DOWNLOADED }.mapNotNull { it.song }
     fun restoreDownloadState() {
-        val dir = downloadDir
-        if (!dir.exists()) return
-
-        val existingFiles = dir.listFiles()?.filter { file -> isDownloadedMusicFile(file.name) } ?: emptyList()
-        for (file in existingFiles) {
-            val songId = file.name.substringBeforeLast(".")
-            if (states[songId]?.state == DownloadState.DOWNLOADED) continue
-            states[songId] = DownloadStateEntry(
-                state = DownloadState.DOWNLOADED,
-                progress = 1f,
-                song = loadDownloadedSongMetadata(metadataFile(songId))
-            )
+        val files = downloadDir.listFiles()?.filter { it.isFile && isDownloadedMusicFile(it.name) } ?: emptyList()
+        for (file in files) {
+            val stem = file.name.substringBeforeLast('.')
+            val metadata = loadDownloadedSongMetadata(File(downloadDir, "$stem$MUSIC_DOWNLOAD_METADATA_SUFFIX"))
+            val id = metadata?.id ?: stem
+            if (states[id]?.state == DownloadState.DOWNLOADING) continue
+            states[id] = DownloadStateEntry(DownloadState.DOWNLOADED, 1f, metadata?.copy(sourceId = sourceId))
         }
         _downloadStates.value = states.toMap()
     }
-
     fun updateSongMetadata(songs: List<NavidromeSong>) {
-        val songMap = songs.associateBy { it.id }
-        var changed = false
-        for ((id, entry) in states) {
-            val song = songMap[id]
-            if (song != null && entry.state == DownloadState.DOWNLOADED) {
-                if (entry.song == null) {
-                    states[id] = entry.copy(song = song)
-                    changed = true
-                }
-                saveDownloadedSongMetadata(metadataFile(id), song)
-            } else if (song != null && entry.song == null) {
-                states[id] = entry.copy(song = song)
-                changed = true
+        for (song in songs) {
+            if (song.sourceId.isNotBlank() && song.sourceId != sourceId) continue
+            val entry = states[song.id] ?: continue
+            if (entry.state == DownloadState.DOWNLOADED) {
+                states[song.id] = entry.copy(song = song)
+                saveDownloadedSongMetadata(metadataFile(song.id), song)
             }
         }
-        if (changed) {
-            _downloadStates.value = states.toMap()
-        }
+        _downloadStates.value = states.toMap()
     }
-
-    private fun downloadedAudioFile(songId: String): File {
-        return downloadDir.listFiles()?.firstOrNull { file ->
-            isDownloadedMusicFile(file.name) && file.name.substringBeforeLast(".") == songId
-        } ?: File(downloadDir, "$songId.mp3")
+    private fun downloadedAudioFile(id: String): File? = downloadDir.listFiles()?.firstOrNull {
+        it.isFile && isDownloadedMusicFile(it.name) && it.name.substringBeforeLast('.') == safeMusicFileId(id)
     }
-
-    private fun metadataFile(songId: String): File {
-        return File(downloadDir, musicDownloadMetadataFileName(songId))
-    }
+    private fun metadataFile(id: String) = File(downloadDir, musicDownloadMetadataFileName(safeMusicFileId(id)))
 }
+
+internal fun safeMusicFileId(id: String): String =
+    if (id.matches(Regex("[A-Za-z0-9_-]{1,120}"))) id else MessageDigest.getInstance("SHA-256")
+        .digest(id.toByteArray()).joinToString("") { "%02x".format(it) }
 
 internal fun extensionFromContentType(contentType: String): String {
     return when {
@@ -287,4 +221,15 @@ internal fun loadDownloadedSongMetadata(file: File): NavidromeSong? {
         if (!file.exists()) return null
         musicDownloadMetadataGson.fromJson(file.readText(Charsets.UTF_8), NavidromeSong::class.java)
     }.getOrNull()
+}
+
+/** One-time upgrade hygiene; old downloads remain unassigned and their media bytes are untouched. */
+internal fun sanitizeLegacyMusicMetadata(root: File) {
+    val canonical = root.canonicalFile
+    root.listFiles()?.filter { it.isFile && it.name.endsWith(MUSIC_DOWNLOAD_METADATA_SUFFIX) }?.forEach { file ->
+        if (file.canonicalFile.parentFile != canonical) return@forEach
+        val song = loadDownloadedSongMetadata(file) ?: return@forEach
+        val clean = song.copy(streamUrl = song.streamUrl?.let(::stripAuthQuery), coverArt = song.coverArt?.let(::stripAuthQuery))
+        if (song != clean) file.writeText(musicDownloadMetadataGson.toJson(clean), Charsets.UTF_8)
+    }
 }

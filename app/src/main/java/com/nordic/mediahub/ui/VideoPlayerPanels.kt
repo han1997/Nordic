@@ -187,7 +187,7 @@ internal fun VideoPlayerPanelHost(
                                 VideoPlayerSettingRow(Icons.Filled.AspectRatio, "画面比例",
                                     videoPlayerAspectRatioLabel(state.aspectRatioMode), colors,
                                     onClick = onCycleAspectRatio)
-                                if (!video.streamUrl.isNullOrBlank()) {
+                                if (video.sourceType == com.nordic.mediahub.data.VideoServerType.EMBY && !video.streamUrl.isNullOrBlank()) {
                                     VideoPlayerSettingRow(Icons.Filled.HighQuality, "清晰度",
                                         qualityMode.label, colors) {
                                         onPanelChange(VideoPlayerPanel.Quality)
@@ -215,7 +215,7 @@ internal fun VideoPlayerPanelHost(
                                     onCheckedChange = onTogglePip
                                 )
                                 Text(
-                                    "双击左侧后退 10 秒，右侧前进 30 秒；长按临时 2 倍速。左右侧滑动分别调整亮度和音量。",
+                                    "双击左侧后退 ${LocalAppPreferences.current.videoSkipBack} 秒，右侧前进 ${LocalAppPreferences.current.videoSkipForward} 秒；长按临时 2 倍速。左右侧滑动分别调整亮度和音量。",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = colors.onSurface.copy(alpha = NordicAlpha.medium),
                                     modifier = Modifier.padding(top = NordicSpacing.lg)

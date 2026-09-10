@@ -165,6 +165,21 @@ class MusicPlaybackEngine(context: Context) {
         ComponentName(appContext, MusicPlaybackService::class.java)
     )
     private var controller: MediaController? = null
+    private var preferences = com.nordic.mediahub.data.AppPreferences()
+
+    fun applyPreferences(value: com.nordic.mediahub.data.AppPreferences) {
+        val speedChanged = preferences.musicSpeed != value.musicSpeed
+        preferences = value
+        if (speedChanged && PlaybackDomain.activeDomain == MediaDomain.MUSIC && _state.value.currentSong != null) {
+            controller?.setPlaybackSpeed(value.musicSpeed)
+            publishPlayerState()
+        }
+    }
+    private fun applyMusicDefaults(active: MediaController) {
+        active.setPlaybackSpeed(preferences.musicSpeed)
+        active.repeatMode = if (preferences.rememberMusicModes) preferences.musicRepeatMode else Player.REPEAT_MODE_OFF
+        active.shuffleModeEnabled = preferences.rememberMusicModes && preferences.musicShuffle
+    }
     private var pendingSong: NavidromeSong? = null
     private var pendingQueue: List<NavidromeSong>? = null
     private var pendingQueueStartIndex: Int = 0
@@ -319,6 +334,7 @@ class MusicPlaybackEngine(context: Context) {
                 isBuffering = true
             )
             cachedTimelineGeneration = -1
+            applyMusicDefaults(activeController)
             activeController.setMediaItem(song.toMediaItem())
             activeController.prepare()
         } else {
@@ -384,6 +400,7 @@ class MusicPlaybackEngine(context: Context) {
         }
 
         cachedTimelineGeneration = -1
+        applyMusicDefaults(activeController)
         val mediaItems = playableQueue.songs.map { it.toMediaItem() }
         activeController.setMediaItems(mediaItems, playableQueue.startIndex, 0L)
         activeController.prepare()

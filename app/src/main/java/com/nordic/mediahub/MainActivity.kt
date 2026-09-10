@@ -38,6 +38,12 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.nordic.mediahub.data.AppPreferences
+import com.nordic.mediahub.data.ThemeMode
+import com.nordic.mediahub.data.MediaSourceState
+import com.nordic.mediahub.data.MediaSourceKind
+import com.nordic.mediahub.data.MediaDomain as SourceDomain
+import kotlinx.coroutines.launch
 import com.nordic.mediahub.data.ConfigRepository
 import com.nordic.mediahub.data.MediaAuthHeaderInterceptor
 import com.nordic.mediahub.data.AudiobookShelfConfig
@@ -422,6 +428,7 @@ class MainActivity : ComponentActivity() {
                 .okHttpClient {
                     OkHttpClient.Builder()
                         .addInterceptor(MediaAuthHeaderInterceptor())
+                        .addNetworkInterceptor(com.nordic.mediahub.data.ScopedMediaNetworkInterceptor())
                         .connectTimeout(15, TimeUnit.SECONDS)
                         .readTimeout(35, TimeUnit.SECONDS)
                         .callTimeout(45, TimeUnit.SECONDS)
@@ -432,7 +439,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val isSystemDark = isSystemInDarkTheme()
-            var isDark by remember { mutableStateOf(isSystemDark) }
+            val repository = remember { ConfigRepository(this@MainActivity) }
+            val savedPreferences: AppPreferences? by repository.preferences.collectAsStateWithLifecycle(initialValue = null)
+            val preferenceStorageError by repository.storageError.collectAsStateWithLifecycle()
+            val settings = savedPreferences ?: AppPreferences()
+            val scope = rememberCoroutineScope()
+            var preferenceError by remember { mutableStateOf<String?>(null) }
+            val isDark = when (settings.theme) { ThemeMode.SYSTEM -> isSystemDark; ThemeMode.DARK -> true; ThemeMode.LIGHT -> false }
             SideEffect {
                 val barStyle = if (isDark) {
                     SystemBarStyle.dark(AndroidColor.TRANSPARENT)
@@ -445,7 +458,17 @@ class MainActivity : ComponentActivity() {
                 )
             }
             NordicTheme(darkTheme = isDark) {
-                MainScreen(isDark) { isDark = it }
+                if (savedPreferences == null) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+                } else CompositionLocalProvider(LocalAppPreferences provides settings, LocalConfigurationError provides preferenceStorageError) {
+                    MainScreen(isDark) { dark -> scope.launch {
+                        runCatching { repository.updatePreferences { it.copy(theme = if (dark) ThemeMode.DARK else ThemeMode.LIGHT) } }
+                            .onFailure { preferenceError = "主题设置保存失败" }
+                    } }
+                }
+                preferenceError?.let { message -> AlertDialog(onDismissRequest = { preferenceError = null },
+                    title = { Text("设置未保存") }, text = { Text(message) },
+                    confirmButton = { TextButton(onClick = { preferenceError = null }) { Text("知道了") } }) }
             }
         }
     }
@@ -453,7 +476,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
-    var selectedTab by rememberSaveable { mutableStateOf(0) }
+    val preferences = LocalAppPreferences.current
+    var selectedTab by rememberSaveable { mutableStateOf(if (preferences.startupPage.tab < 0) preferences.lastMediaTab else preferences.startupPage.tab) }
+    var openServersRequest by rememberSaveable { mutableIntStateOf(0) }
+    val tabStateHolder = rememberSaveableStateHolder()
+    val navigationGuard = remember { SettingsNavigationGuard() }
     var showPlayer by rememberSaveable { mutableStateOf(false) }
     var showAudiobookPlayer by rememberSaveable { mutableStateOf(false) }
     var showVideoPlayer by rememberSaveable { mutableStateOf(false) }
@@ -470,6 +497,15 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     val audiobookVM: AudiobookPlaybackViewModel = viewModel()
     val videoVM: VideoPlaybackViewModel = viewModel()
     val configRepository = remember { ConfigRepository(context) }
+    val sourceState by configRepository.sourceState.collectAsStateWithLifecycle(MediaSourceState())
+    val configurationError by configRepository.storageError.collectAsStateWithLifecycle()
+    val inheritedConfigurationError = LocalConfigurationError.current
+    val musicSettingsError by musicVM.settingsError.collectAsStateWithLifecycle()
+    LaunchedEffect(selectedTab) {
+        if (selectedTab in 0..2 && selectedTab != preferences.lastMediaTab) {
+            runCatching { configRepository.updatePreferences { it.copy(lastMediaTab = selectedTab) } }
+        }
+    }
     val audiobookConfig by configRepository.audiobookConfig.collectAsStateWithLifecycle(AudiobookShelfConfig())
     val colorScheme = MaterialTheme.colorScheme
     var bottomDockVisible by remember { mutableStateOf(true) }
@@ -838,6 +874,21 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
 
     var measuredDockHeight by remember { mutableStateOf(0.dp) }
 
+    CompositionLocalProvider(LocalSettingsNavigationGuard provides navigationGuard, LocalConfigurationError provides (configurationError ?: inheritedConfigurationError)) {
+    MediaSourceManagementHost(
+        state = sourceState, repository = configRepository, gate = mediaSwitchInProgress,
+        isPlaying = { domain -> when (domain) {
+            SourceDomain.MUSIC -> musicVM.state.value.currentSong != null
+            SourceDomain.AUDIOBOOK -> audiobookVM.state.value.session != null
+            SourceDomain.VIDEO -> videoVM.hasPlayback
+        } },
+        closePlayback = { domain, closed, failed -> when (domain) {
+            SourceDomain.MUSIC -> { musicVM.stop(); showPlayer = false; closed() }
+            SourceDomain.AUDIOBOOK -> audiobookVM.closeAudiobookPlayback(onClosed = { showAudiobookPlayer = false; closed() }, onFailed = failed)
+            SourceDomain.VIDEO -> videoVM.closeVideoPlayback(onClosed = { showVideoPlayer = false; isFullscreen = false; closed() }, onFailed = failed)
+        } },
+        onManage = { navigationGuard.navigate { openServersRequest++; selectedTab = 3 } }
+    ) {
     Scaffold(
         containerColor = colorScheme.background
     ) { padding ->
@@ -892,33 +943,21 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                             // SaveableStateProvider keeps each tab's list scroll
                             // position and rememberSaveable state alive across
                             // switches instead of tearing down the whole screen.
-                            val tabStateHolder = rememberSaveableStateHolder()
                             tabStateHolder.SaveableStateProvider(key = tab) {
-                                when (tab) {
-                                    0 -> MusicScreenV2(
-                                        isDark = isDark,
-                                        onThemeToggle = onThemeToggle,
-                                        onSongSelected = onSongSelected
-                                    )
-                                    1 -> AudiobookScreen(
-                                        colorScheme = colorScheme,
-                                        isDark = isDark,
-                                        onThemeToggle = onThemeToggle,
-                                        onPlayAudiobook = onPlayAudiobook
-                                    )
-                                    2 -> VideoScreen(
-                                        colorScheme = colorScheme,
-                                        isDark = isDark,
-                                        onThemeToggle = onThemeToggle,
-                                        onPlayVideo = onPlayVideo,
-                                        onPlayVideoFromStart = onPlayVideoFromStart,
-                                        onCatalogChanged = videoVM::setEpisodeContext
-                                    )
-                                    3 -> ServerConfigScreen(
-                                        colorScheme = colorScheme,
-                                        isDark = isDark,
-                                        onThemeToggle = onThemeToggle
-                                    )
+                                val domain = when (tab) { 0 -> SourceDomain.MUSIC; 1 -> SourceDomain.AUDIOBOOK; 2 -> SourceDomain.VIDEO; else -> null }
+                                CompositionLocalProvider(LocalSourceDomain provides domain) {
+                                    when (tab) {
+                                        0 -> MusicScreenV2(isDark, onThemeToggle, onSongSelected)
+                                        1 -> AudiobookScreen(colorScheme, isDark, onThemeToggle, onPlayAudiobook)
+                                        2 -> {
+                                            val source = sourceState.active(SourceDomain.VIDEO)
+                                            if (source?.kind == MediaSourceKind.WEBDAV) {
+                                                WebDavScreen(source.videoConfig(), onPlayVideo, onPlayVideoFromStart)
+                                            } else VideoScreen(colorScheme, isDark, onThemeToggle, onPlayVideo,
+                                                onPlayVideoFromStart, videoVM::setEpisodeContext)
+                                        }
+                                        3 -> SettingsScreen(openServersRequest) { song -> onSongSelected(listOf(song), 0, false) }
+                                    }
                                 }
                             }
                         }
@@ -946,7 +985,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                             selectedTab = selectedTab,
                             colorScheme = colorScheme,
                             onOpenPlayer = openNowPlayingPlayer,
-                            onSelect = { selectedTab = it }
+                            onSelect = { tab -> navigationGuard.navigate { selectedTab = tab } }
                         )
                     }
                 }
@@ -962,6 +1001,13 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         }
     }
 
+    }
+    }
+
+    musicSettingsError?.let { message -> AlertDialog(onDismissRequest = musicVM::clearSettingsError,
+        title = { Text("设置未保存") }, text = { Text(message) },
+        confirmButton = { TextButton(onClick = musicVM::clearSettingsError) { Text("知道了") } }) }
+
     VideoPlayerLayer(
         videoVM = videoVM,
         showVideoPlayer = showVideoPlayer,
@@ -970,6 +1016,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         closeVideoPlayback = closeCurrentVideoPlayback,
         closeVideoPlaybackAnyway = closeCurrentVideoPlaybackAnyway,
         onPlayEpisode = onPlayVideo,
+        onPlayFromStart = onPlayVideoFromStart,
         onToggleFullscreen = {
             // Fullscreen locks landscape; leaving fullscreen restores the
             // portrait lock. No manual rotation button exists.
@@ -1113,6 +1160,7 @@ private fun MusicPlayerLayer(
         onToggleFavorite = musicVM::toggleFavorite,
         onSetPlaybackSpeed = musicVM::setPlaybackSpeed,
         favoriteError = musicVM.favoriteError,
+        onDownloadSong = musicVM::downloadCurrentSong,
         modifier = modifier
     )
 }
@@ -1126,6 +1174,7 @@ private fun VideoPlayerLayer(
     closeVideoPlayback: () -> Unit,
     closeVideoPlaybackAnyway: () -> Unit,
     onPlayEpisode: (VideoItem) -> Unit,
+    onPlayFromStart: (VideoItem) -> Unit,
     onToggleFullscreen: () -> Unit
 ) {
     val videoPlaybackState by videoVM.state.collectAsStateWithLifecycle()
@@ -1200,6 +1249,7 @@ private fun VideoPlayerLayer(
             onPlayPause = videoVM::togglePlayPause,
             onCycleAspectRatio = videoVM::cycleAspectRatio,
             onSetPlaybackSpeed = videoVM::setPlaybackSpeed,
+            onSetTemporaryPlaybackSpeed = videoVM::setTemporaryPlaybackSpeed,
             onSetPreferredTextTrack = videoVM::setPreferredTextTrack,
             onSetPreferredAudioTrack = videoVM::setPreferredAudioTrack,
             onAttachSubtitleView = videoVM::attachSubtitleView,
@@ -1222,6 +1272,8 @@ private fun VideoPlayerLayer(
             isFullscreen = isFullscreen,
             onClose = { closeVideoPlayback() },
             onCloseAnyway = closeVideoPlaybackAnyway,
+            onRetryPlayback = videoVM::retryPlayback,
+            onRestartFromBeginning = { videoPlaybackState.video?.let(onPlayFromStart) },
             modifier = Modifier.fillMaxSize()
         )
     }

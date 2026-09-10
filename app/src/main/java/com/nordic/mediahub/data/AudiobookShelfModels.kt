@@ -68,7 +68,8 @@ data class AudiobookPlaybackSession(
     val currentTimeSeconds: Int,
     val startTimeSeconds: Int,
     val chapters: List<AudiobookChapter>,
-    val audioTracks: List<AudiobookAudioTrack>
+    val audioTracks: List<AudiobookAudioTrack>,
+    val sourceId: String = ""
 )
 
 @Stable

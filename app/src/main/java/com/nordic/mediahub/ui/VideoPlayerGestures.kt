@@ -93,6 +93,7 @@ internal fun Modifier.videoPlayerGestures(
     onLongPressEnd: (() -> Unit)? = null
 ): Modifier = composed {
     if (!enabled) return@composed this
+    val preferences by rememberUpdatedState(LocalAppPreferences.current)
 
     val currentOnToggleControls by rememberUpdatedState(onToggleControls)
     val currentOnSeekRelative by rememberUpdatedState(onSeekRelative)
@@ -144,9 +145,9 @@ internal fun Modifier.videoPlayerGestures(
                 onDoubleTap = { offset ->
                     if (widthPx > 0f) {
                         val delta = if (offset.x < widthPx / 2f) {
-                            -VIDEO_GESTURE_SKIP_BACK_SECONDS
+                            -preferences.videoSkipBack
                         } else {
-                            VIDEO_GESTURE_SKIP_FORWARD_SECONDS
+                            preferences.videoSkipForward
                         }
                         currentOnSeekRelative(delta)
                     }

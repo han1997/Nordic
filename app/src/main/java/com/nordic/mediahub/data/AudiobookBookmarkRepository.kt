@@ -18,9 +18,9 @@ data class AudiobookBookmark(
     val createdAtMillis: Long = 0L
 )
 
-class AudiobookBookmarkRepository(private val context: Context) {
+class AudiobookBookmarkRepository(private val context: Context, sourceId: String = "") {
     private val gson = Gson()
-    private val bookmarkKey = stringPreferencesKey("audiobook_bookmarks")
+    private val bookmarkKey = sourcePreferenceKey("audiobook_bookmarks", sourceId)
 
     suspend fun load(): List<AudiobookBookmark> {
         val json = context.dataStore.data.first()[bookmarkKey]

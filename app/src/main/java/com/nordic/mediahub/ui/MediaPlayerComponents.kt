@@ -132,7 +132,8 @@ internal fun MediaPlayerTopBar(
     onClose: () -> Unit,
     speedLabel: String,
     onSpeed: () -> Unit,
-    speedEnabled: Boolean
+    speedEnabled: Boolean,
+    extraAction: MediaPlayerAction? = null
 ) {
     val edge = (64.dp * LocalDensity.current.fontScale.coerceIn(1f, 1.375f)).coerceAtMost(88.dp)
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -142,6 +143,7 @@ internal fun MediaPlayerTopBar(
         Text(title, style = MaterialTheme.typography.titleSmall, color = colors.onSurfaceVariant,
             maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
             modifier = Modifier.weight(1f))
+        extraAction?.let { MediaPlayerIconAction(it, colors) }
         Box(Modifier.width(edge), contentAlignment = Alignment.CenterEnd) {
             MediaPlayerTool(speedLabel, "播放速度 $speedLabel", colors, onSpeed, enabled = speedEnabled)
         }

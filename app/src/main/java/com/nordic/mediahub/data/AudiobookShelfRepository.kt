@@ -139,9 +139,7 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
         if (token.isNullOrBlank()) {
             throw AudiobookShelfApiException("登录失败: 未返回 token", AudiobookShelfApiException.Kind.AUTH)
         }
-        runCatching { baseUrl.toHttpUrl().originKey() }
-            .getOrNull()
-            ?.let { origin -> MediaAuthHeaderRegistry.register(origin, "Authorization", "Bearer $token") }
+        ScopedMediaRegistry.registerHeader(config.sourceId, baseUrl, "Authorization", "Bearer $token")
         return "Bearer $token".also { cachedBearerToken = it }
     }
 
@@ -232,6 +230,7 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
         }
 
         return AudiobookPlaybackSession(
+            sourceId = config.sourceId,
             sessionId = session.id.orEmpty(),
             libraryItemId = session.libraryItemId.orEmpty(),
             displayTitle = session.displayTitle.orEmpty(),
@@ -399,11 +398,12 @@ class AudiobookShelfRepository(private val config: AudiobookShelfConfig) {
     }
 
     private fun String.toAbsoluteCoverUrl(): String {
-        return if (startsWith("http://") || startsWith("https://")) this else "$baseUrl$this"
+        val absolute = if (startsWith("http://") || startsWith("https://")) this else "$baseUrl$this"
+        return stripAuthQuery(absolute).forMediaSource(config.sourceId)
     }
 
     private fun String.toAbsoluteAudioUrl(): String {
         val absolute = if (startsWith("http://") || startsWith("https://")) this else "$baseUrl$this"
-        return stripAuthQuery(absolute)
+        return stripAuthQuery(absolute).forMediaSource(config.sourceId)
     }
 }

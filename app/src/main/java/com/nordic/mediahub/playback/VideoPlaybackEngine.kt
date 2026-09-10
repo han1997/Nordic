@@ -17,6 +17,12 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import com.nordic.mediahub.data.AppPreferences
+import com.nordic.mediahub.data.TrackLanguage
+import com.nordic.mediahub.data.VideoServerType
+import com.nordic.mediahub.data.ScopedMediaRegistry
+import com.nordic.mediahub.data.WebDavRangeException
+import com.nordic.mediahub.data.forMediaSource
 import com.nordic.mediahub.data.MediaAuthHeaderInterceptor
 import com.nordic.mediahub.data.VideoIntroRange
 import com.nordic.mediahub.data.VideoItem
@@ -73,7 +79,9 @@ data class VideoPlaybackState(
     val availableSubtitleStreams: List<VideoStreamInfo> = emptyList(),
     val selectedSubtitleStream: VideoStreamInfo? = null,
     val selectedAudioStream: VideoStreamInfo? = null,
-    val introRange: VideoIntroRange? = null
+    val introRange: VideoIntroRange? = null,
+    val subtitlesEnabled: Boolean = false,
+    val canRestartFromBeginning: Boolean = false
 )
 
 /**
@@ -123,7 +131,7 @@ internal fun externalSubtitleConfigurations(video: VideoItem): List<MediaItem.Su
             .setId(descriptor.id)
             .setLabel(descriptor.label)
             .setLanguage(descriptor.language)
-            .setMimeType(androidx.media3.common.MimeTypes.TEXT_VTT)
+            .setMimeType(descriptor.mimeType)
             .build()
     }
 }
@@ -132,16 +140,20 @@ internal data class ExternalSubtitleDescriptor(
     val url: String,
     val id: String,
     val label: String,
-    val language: String?
+    val language: String?,
+    val mimeType: String = androidx.media3.common.MimeTypes.TEXT_VTT
 )
 
 /** Pure (Uri-free) descriptor builder so the mapping stays unit-testable. */
 internal fun externalSubtitleDescriptors(video: VideoItem): List<ExternalSubtitleDescriptor> {
+    if (video.sourceType == VideoServerType.WEBDAV) return video.externalSubtitles.mapIndexed { index, subtitle ->
+        ExternalSubtitleDescriptor(subtitle.url, "webdav-subtitle-$index", subtitle.label, subtitle.language, subtitle.mimeType)
+    }
     val baseUrl = video.streamUrl ?: return emptyList()
     val streamBase = baseUrl.toHttpUrlOrNull() ?: return emptyList()
     // Rebuild from the server origin so leftover stream path segments do not
     // leak into the subtitle delivery path.
-    val originBase = streamBase.newBuilder()
+    val originBase = ScopedMediaRegistry.get(video.sourceId)?.root ?: streamBase.newBuilder()
         .encodedPath("/")
         .query(null)
         .fragment(null)
@@ -155,7 +167,7 @@ internal fun externalSubtitleDescriptors(video: VideoItem): List<ExternalSubtitl
                 streamIndex = stream.index
             ) ?: return@mapNotNull null
             ExternalSubtitleDescriptor(
-                url = url,
+                url = url.forMediaSource(video.sourceId),
                 id = "emby-subtitle-${stream.index}",
                 label = stream.displayTitle ?: stream.language ?: "字幕 ${stream.index}",
                 language = stream.language
@@ -188,8 +200,31 @@ interface VideoPlaybackBackend {
 class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var preferences = AppPreferences()
+    private var webDavRetryUsed = false
+
+    fun applyPreferences(value: AppPreferences) {
+        preferences = value
+        _state.update { it.copy(aspectRatioMode = AspectRatioMode.valueOf(value.videoAspect)) }
+    }
+
+    private fun applyTrackDefaults() {
+        _state.update { it.copy(subtitlesEnabled = preferences.subtitleLanguage != TrackLanguage.OFF) }
+        fun language(value: TrackLanguage): String? = when (value) {
+            TrackLanguage.SYSTEM -> java.util.Locale.getDefault().language
+            else -> value.language
+        }
+        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+            .clearOverridesOfType(C.TRACK_TYPE_TEXT).clearOverridesOfType(C.TRACK_TYPE_AUDIO)
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, preferences.subtitleLanguage == TrackLanguage.OFF)
+            .setPreferredTextLanguage(language(preferences.subtitleLanguage))
+            .setPreferredAudioLanguage(language(preferences.audioLanguage))
+            .setSelectUndeterminedTextLanguage(preferences.subtitleLanguage != TrackLanguage.OFF)
+            .build()
+    }
     private val okHttpClient = OkHttpClient.Builder()
         .addInterceptor(MediaAuthHeaderInterceptor())
+                        .addNetworkInterceptor(com.nordic.mediahub.data.ScopedMediaNetworkInterceptor())
         .build()
     private val httpDataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
         .setUserAgent("Nordic")
@@ -256,6 +291,19 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            val currentVideo = _state.value.video
+            val causes = generateSequence(error as Throwable) { it.cause }.take(12).toList()
+            val http = causes.filterIsInstance<androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException>().firstOrNull()
+            if (currentVideo?.sourceType == VideoServerType.WEBDAV && !webDavRetryUsed && http?.responseCode in listOf(401, 403, 410)) {
+                webDavRetryUsed = true
+                val position = player.currentPosition.coerceAtLeast(0L)
+                _state.update { it.copy(isBuffering = true, errorMessage = null) }
+                player.setMediaItem(currentVideo.toMediaItem())
+                player.prepare()
+                if (position > 0L) player.seekTo(position)
+                player.play()
+                return
+            }
             val fallbackUrl = directPlayFallbackUrl
             if (fallbackUrl != null) {
                 // Transcoded stream failed: retry once with the direct stream,
@@ -275,13 +323,20 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
                     return
                 }
             }
-            Log.e("VideoPlayback", "Playback error", error)
+            Log.e("VideoPlayback", "Playback error: ${error.errorCodeName}")
             stopPositionUpdates()
             _state.update {
                 it.copy(
                     isPlaying = false,
                     isBuffering = false,
-                    errorMessage = "视频播放失败: ${error.localizedMessage ?: error.errorCodeName}"
+                    canRestartFromBeginning = causes.any { cause -> cause is WebDavRangeException },
+                    errorMessage = when {
+                        causes.any { cause -> cause is WebDavRangeException } -> "服务器不支持此位置的拖动或续播，请从头播放"
+                        http?.responseCode == 401 || http?.responseCode == 403 -> "视频访问被拒绝，请检查账号权限或重新测试连接"
+                        http?.responseCode == 404 -> "视频文件不存在或已被移动"
+                        error.errorCode == PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED -> if (currentVideo?.sourceType == VideoServerType.WEBDAV) "设备不支持此视频编码，WebDAV 不提供转码" else "设备不支持当前编码，可尝试 Emby 转码清晰度"
+                        else -> "视频播放失败，请检查网络或文件格式后重试"
+                    }
                 )
             }
         }
@@ -300,20 +355,12 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
 
         override fun onTracksChanged(tracks: Tracks) {
             val video = _state.value.video ?: return
-            _state.update {
-                it.copy(
-                    availableAudioStreams = video.availableStreamsFor(VideoStreamKind.Audio, tracks),
-                    availableSubtitleStreams = video.availableStreamsFor(VideoStreamKind.Subtitle, tracks),
-                    selectedSubtitleStream = it.selectedSubtitleStream?.takeIf { selected ->
-                        video.availableStreamsFor(VideoStreamKind.Subtitle, tracks).any { s -> s.index == selected.index }
-                    },
-                    selectedAudioStream = it.selectedAudioStream?.takeIf { selected ->
-                        video.availableStreamsFor(VideoStreamKind.Audio, tracks).any { s -> s.index == selected.index }
-                    }
-                )
-            }
+            val audio = video.availableStreamsFor(VideoStreamKind.Audio, tracks)
+            val text = video.availableStreamsFor(VideoStreamKind.Subtitle, tracks)
+            _state.update { it.copy(availableAudioStreams = audio, availableSubtitleStreams = text,
+                selectedAudioStream = selectedVideoStream(audio, tracks),
+                selectedSubtitleStream = if (it.subtitlesEnabled) selectedVideoStream(text, tracks) else null) }
         }
-
         override fun onCues(cues: MutableList<androidx.media3.common.text.Cue>) {
             currentCues = cues.toList()
             subtitleView?.setCues(currentCues)
@@ -361,10 +408,13 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
                 durationSeconds = video.durationSeconds,
                 isBuffering = true,
                 playbackSpeed = persistedPlaybackSpeed,
-                introRange = video.introRange
+                introRange = video.introRange,
+                aspectRatioMode = AspectRatioMode.valueOf(preferences.videoAspect)
             )
             introSkippedForCurrentItem = false
+            webDavRetryUsed = false
             directPlayFallbackUrl = null
+            applyTrackDefaults()
             player.setMediaItem(video.toMediaItem())
             player.setPlaybackSpeed(persistedPlaybackSpeed)
             player.prepare()
@@ -402,10 +452,13 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
                 durationSeconds = video.durationSeconds,
                 isBuffering = true,
                 playbackSpeed = persistedPlaybackSpeed,
-                introRange = video.introRange
+                introRange = video.introRange,
+                aspectRatioMode = AspectRatioMode.valueOf(preferences.videoAspect)
             )
             introSkippedForCurrentItem = false
+            webDavRetryUsed = false
             directPlayFallbackUrl = null
+            applyTrackDefaults()
             player.setMediaItem(video.toMediaItem())
             player.setPlaybackSpeed(persistedPlaybackSpeed)
             player.prepare()
@@ -444,7 +497,8 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
                 player.seekTo(0L)
             }
             if (player.playbackState == Player.STATE_IDLE) {
-                player.setMediaItem(video.toMediaItem())
+                applyTrackDefaults()
+            player.setMediaItem(video.toMediaItem())
                 player.prepare()
             }
             player.play()
@@ -476,7 +530,7 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
     }
 
     override fun setPreferredTextTrack(stream: VideoStreamInfo?) {
-        _state.update { it.copy(selectedSubtitleStream = stream) }
+        _state.update { it.copy(selectedSubtitleStream = stream, subtitlesEnabled = stream != null) }
         if (stream == null) {
             player.trackSelectionParameters = player.trackSelectionParameters
                 .buildUpon()
@@ -487,8 +541,8 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
         }
         val override = player.currentTracks.groups
             .filter { it.type == C.TRACK_TYPE_TEXT }
-            .firstOrNull { it.mediaTrackGroup.id == stream.index.toString() }
-            ?.let { TrackSelectionOverride(it.mediaTrackGroup, 0) }
+            .firstOrNull { it.mediaTrackGroup.id == (stream.trackGroupId ?: stream.index.toString()) || it.mediaTrackGroup.id.contains("emby-subtitle-${stream.index}") }
+            ?.let { TrackSelectionOverride(it.mediaTrackGroup, stream.trackIndex) }
         player.trackSelectionParameters = player.trackSelectionParameters
             .buildUpon()
             .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
@@ -502,8 +556,8 @@ class VideoPlaybackEngine(context: Context) : VideoPlaybackBackend {
         if (stream == null) return
         val override = player.currentTracks.groups
             .filter { it.type == C.TRACK_TYPE_AUDIO }
-            .firstOrNull { it.mediaTrackGroup.id == stream.index.toString() }
-            ?.let { TrackSelectionOverride(it.mediaTrackGroup, 0) }
+            .firstOrNull { it.mediaTrackGroup.id == (stream.trackGroupId ?: stream.index.toString()) || it.mediaTrackGroup.id.contains("emby-subtitle-${stream.index}") }
+            ?.let { TrackSelectionOverride(it.mediaTrackGroup, stream.trackIndex) }
         player.trackSelectionParameters = player.trackSelectionParameters
             .buildUpon()
             .clearOverridesOfType(C.TRACK_TYPE_AUDIO)
@@ -671,21 +725,12 @@ internal fun resolveVideoAspectRatio(
  * subtitle tracks are always offered since Media3 loads them lazily).
  */
 @androidx.annotation.OptIn(UnstableApi::class)
-private fun VideoItem.availableStreamsFor(kind: VideoStreamKind, tracks: Tracks): List<VideoStreamInfo> {
-    val declared = mediaStreams.filter { it.kind == kind }
-    val externalSubtitle = kind == VideoStreamKind.Subtitle
-    return declared.filter { stream ->
-        externalSubtitle || tracks.groups.any { group ->
-            group.type == trackTypeFor(kind) && stream.index.toString() == group.mediaTrackGroup.id
-        }
-    }
-}
+private fun VideoItem.availableStreamsFor(kind: VideoStreamKind, tracks: Tracks): List<VideoStreamInfo> =
+    availableVideoStreams(this, kind, videoTrackCandidates(tracks))
 
-private fun trackTypeFor(kind: VideoStreamKind): Int = when (kind) {
-    VideoStreamKind.Audio -> C.TRACK_TYPE_AUDIO
-    VideoStreamKind.Subtitle -> C.TRACK_TYPE_TEXT
-}
-
+@androidx.annotation.OptIn(UnstableApi::class)
+private fun selectedVideoStream(streams: List<VideoStreamInfo>, tracks: Tracks): VideoStreamInfo? =
+    selectedVideoStream(streams, videoTrackCandidates(tracks))
 private fun VideoItem.toMediaItem(): MediaItem {
     val builder = MediaItem.Builder()
         .setUri(streamUrl)

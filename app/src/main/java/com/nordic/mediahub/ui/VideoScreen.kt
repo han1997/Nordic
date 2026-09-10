@@ -314,7 +314,7 @@ fun VideoScreen(
         // Clear the previous config's persisted cache so switching Emby accounts/servers
         // does not leave dead cache JSON in DataStore.
         if (previousConfigChanged) {
-            previousConfig?.let { cacheRepository.clear(it) }
+            previousConfig?.takeIf { it.sourceId.isBlank() }?.let { cacheRepository.clear(it) }
         }
         if (savedConfig.isReadyForVideoSync()) {
             applyCachedVideo(savedConfig, requestVersion)

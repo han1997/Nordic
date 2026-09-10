@@ -28,7 +28,7 @@ class AudiobookCacheRepository(
     }
 ) {
     private val gson = Gson()
-    private val audiobookCacheKey = stringPreferencesKey("audiobook_library_cache")
+    private fun audiobookCacheKey(config: AudiobookShelfConfig) = sourcePreferenceKey("audiobook_library_cache", config.sourceId)
     private val dataStore: DataStore<Preferences> by lazy { dataStoreProvider() }
 
     suspend fun load(config: AudiobookShelfConfig): AudiobookShelfCache? {
@@ -109,15 +109,16 @@ class AudiobookCacheRepository(
      */
     suspend fun clear(config: AudiobookShelfConfig) {
         dataStore.edit { prefs ->
-            val current = prefs[audiobookCacheKey]?.let { parseOrNull(it) }
+            val current = prefs[audiobookCacheKey(config)]?.let { parseOrNull(it) }
             if (current?.configKey == config.cacheKey()) {
-                prefs.remove(audiobookCacheKey)
+                prefs.remove(audiobookCacheKey(config))
             }
         }
     }
 
     private suspend fun loadRaw(config: AudiobookShelfConfig): AudiobookShelfCache? {
-        val json = dataStore.data.first()[audiobookCacheKey] ?: return null
+        val json = readSourceCacheJson(dataStore, "audiobook_library_cache", config.sourceId,
+            config.copy(sourceId = "").cacheKey(), config.cacheKey()) ?: return null
         return parseOrNull(json)?.takeIf { it.configKey == config.cacheKey() }
     }
 
@@ -126,11 +127,11 @@ class AudiobookCacheRepository(
         transform: (AudiobookShelfCache) -> AudiobookShelfCache
     ) {
         dataStore.edit { prefs ->
-            val current = prefs[audiobookCacheKey]
+            val current = prefs[audiobookCacheKey(config)]
                 ?.let { parseOrNull(it) }
                 ?.takeIf { it.configKey == config.cacheKey() }
                 ?: AudiobookShelfCache(configKey = config.cacheKey())
-            prefs[audiobookCacheKey] = gson.toJson(transform(current))
+            prefs[audiobookCacheKey(config)] = gson.toJson(transform(current))
         }
     }
 
@@ -140,6 +141,7 @@ class AudiobookCacheRepository(
 }
 
 fun AudiobookShelfConfig.cacheKey(): String {
+    if (sourceId.isNotBlank()) return "$sourceId|v$AUDIOBOOK_CACHE_SCHEMA_VERSION"
     val normalizedUrl = normalizedBaseUrl().lowercase()
     val normalizedUser = username.trim().lowercase()
     return "$normalizedUrl|$normalizedUser|v$AUDIOBOOK_CACHE_SCHEMA_VERSION"

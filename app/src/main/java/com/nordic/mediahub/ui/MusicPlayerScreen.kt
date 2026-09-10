@@ -31,7 +31,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
@@ -152,8 +157,15 @@ fun MusicPlayerScreen(
     onToggleFavorite: (songId: String, starred: Boolean) -> Unit = { _, _ -> },
     onSetPlaybackSpeed: (Float) -> Unit = {},
     favoriteError: SharedFlow<Unit>? = null,
+    onDownloadSong: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val downloadManager = remember(song?.sourceId) { com.nordic.mediahub.data.MusicDownloadManagers.get(context, song?.sourceId.orEmpty()) }
+    val downloadStates by downloadManager.downloadStates.collectAsStateWithLifecycle()
+    val download = downloadStates[song?.id]
+    var showActions by remember { mutableStateOf(false) }
+    LaunchedEffect(downloadManager) { withContext(Dispatchers.IO) { downloadManager.restoreDownloadState() } }
     val resolvedDurationSeconds = maxOf(durationSeconds, song?.duration ?: 0, 0)
     val timeline = resolvePlayerTimeline(positionSeconds, resolvedDurationSeconds)
     val currentOnClose by rememberUpdatedState(onClose)
@@ -351,7 +363,8 @@ fun MusicPlayerScreen(
                 verticalArrangement = Arrangement.spacedBy(sectionGap)
             ) {
                 MediaPlayerTopBar("音乐播放", colorScheme, onClose, resolvePlaybackSpeedLabel(playbackSpeed),
-                    onSpeed = { showSpeedSheet = true }, speedEnabled = hasSong)
+                    onSpeed = { showSpeedSheet = true }, speedEnabled = hasSong,
+                    extraAction = MediaPlayerAction(Icons.Filled.MoreVert, "音乐操作", { showActions = true }, hasSong))
                 MediaAudioPlayerBody(
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     artwork = { displayModifier ->
@@ -414,6 +427,20 @@ fun MusicPlayerScreen(
         }
     }
 
+    if (showActions) {
+        MediaPlayerSheet("音乐操作", colorScheme, { showActions = false }) {
+            SettingsRow("下载当前歌曲", subtitle = when (download?.state) {
+                com.nordic.mediahub.data.DownloadState.DOWNLOADED -> "已下载，可在设置中的存储与下载页面管理"
+                com.nordic.mediahub.data.DownloadState.DOWNLOADING -> "正在下载 ${(download.progress * 100).toInt()}%"
+                else -> download?.errorMessage ?: "保存在此来源的本机下载目录"
+            }, enabled = download?.state != com.nordic.mediahub.data.DownloadState.DOWNLOADED &&
+                download?.state != com.nordic.mediahub.data.DownloadState.DOWNLOADING && song?.streamUrl?.startsWith("file:") != true,
+                onClick = { onDownloadSong(); showActions = false })
+            if (download?.state == com.nordic.mediahub.data.DownloadState.DOWNLOADING) {
+                SettingsRow("取消下载", onClick = { song?.id?.let(downloadManager::cancelDownload); showActions = false })
+            }
+        }
+    }
     if (showSpeedSheet) {
         MusicPlaybackSpeedSheet(
             currentSpeed = playbackSpeed,

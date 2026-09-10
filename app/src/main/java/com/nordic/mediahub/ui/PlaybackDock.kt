@@ -245,7 +245,7 @@ internal fun PolishedBottomNav(selected: Int, colorScheme: ColorScheme, onSelect
         PolishedNavItem(Icons.Filled.LibraryMusic, "音乐", selected == 0, colorScheme, Modifier.weight(1f)) { onSelect(0) }
         PolishedNavItem(Icons.AutoMirrored.Filled.MenuBook, "有声书", selected == 1, colorScheme, Modifier.weight(1f)) { onSelect(1) }
         PolishedNavItem(Icons.Filled.Movie, "视频", selected == 2, colorScheme, Modifier.weight(1f)) { onSelect(2) }
-        PolishedNavItem(Icons.Filled.Settings, "配置", selected == 3, colorScheme, Modifier.weight(1f)) { onSelect(3) }
+        PolishedNavItem(Icons.Filled.Settings, "设置", selected == 3, colorScheme, Modifier.weight(1f)) { onSelect(3) }
     }
 }
 @Composable

@@ -35,7 +35,7 @@ class EmbyVideoCacheRepository(
     }
 ) {
     private val gson = Gson()
-    private val videoCacheKey = stringPreferencesKey("emby_video_cache")
+    private fun videoCacheKey(config: VideoServerConfig) = sourcePreferenceKey("emby_video_cache", config.sourceId)
     private val dataStore: DataStore<Preferences> by lazy { dataStoreProvider() }
 
     suspend fun load(config: VideoServerConfig): EmbyVideoCache? {
@@ -53,7 +53,7 @@ class EmbyVideoCacheRepository(
         // library) is reflected in the cache instead of keeping stale content.
         // This matches the Music/Audiobook browse-cache save contract.
         dataStore.edit { prefs ->
-            prefs[videoCacheKey] = gson.toJson(cache.copy(configKey = config.cacheKey()))
+            prefs[videoCacheKey(config)] = gson.toJson(cache.copy(configKey = config.cacheKey()))
         }
     }
 
@@ -66,7 +66,7 @@ class EmbyVideoCacheRepository(
     suspend fun saveResumeItems(config: VideoServerConfig, items: List<VideoItem>) {
         val current = loadRaw(config) ?: return
         dataStore.edit { prefs ->
-            prefs[videoCacheKey] = gson.toJson(
+            prefs[videoCacheKey(config)] = gson.toJson(
                 current.copy(resumeVideos = items, configKey = config.cacheKey())
             )
         }
@@ -89,7 +89,7 @@ class EmbyVideoCacheRepository(
         val mergedStamps = current.libraryFetchedAt + (libraryId to fetchedAt)
         val evicted = evictBeyondLimit(mergedItems, mergedStamps)
         dataStore.edit { prefs ->
-            prefs[videoCacheKey] = gson.toJson(
+            prefs[videoCacheKey(config)] = gson.toJson(
                 current.copy(
                     itemsByLibrary = evicted.first,
                     libraryFetchedAt = evicted.second,
@@ -126,15 +126,16 @@ class EmbyVideoCacheRepository(
      */
     suspend fun clear(config: VideoServerConfig) {
         dataStore.edit { prefs ->
-            val current = prefs[videoCacheKey]?.let { parseOrNull(it) }
+            val current = prefs[videoCacheKey(config)]?.let { parseOrNull(it) }
             if (current?.configKey == config.cacheKey()) {
-                prefs.remove(videoCacheKey)
+                prefs.remove(videoCacheKey(config))
             }
         }
     }
 
     private suspend fun loadRaw(config: VideoServerConfig): EmbyVideoCache? {
-        val json = dataStore.data.first()[videoCacheKey] ?: return null
+        val json = readSourceCacheJson(dataStore, "emby_video_cache", config.sourceId,
+            config.copy(sourceId = "").cacheKey(), config.cacheKey()) ?: return null
         return parseOrNull(json)?.takeIf { it.configKey == config.cacheKey() }
     }
 
@@ -164,6 +165,7 @@ internal fun evictBeyondLimit(
 }
 
 fun VideoServerConfig.cacheKey(): String {
+    if (sourceId.isNotBlank()) return "$sourceId|v$VIDEO_CACHE_SCHEMA_VERSION"
     val normalizedUrl = normalizedBaseUrl().lowercase()
     // Emby auth is either an API key or a username/password pair. Two configs at
     // the same URL can map to different users (different api keys, or different

@@ -709,7 +709,7 @@ fun MusicScreenV2(
         // does not leave dead cache JSON in DataStore. Only clear when the cache key
         // actually changed; never touch the freshly-saved config's own cache.
         if (previousConfig != null && previousConfig.cacheKey() != savedConfig.cacheKey()) {
-            cacheRepository.clear(previousConfig)
+            if (previousConfig.sourceId.isBlank()) cacheRepository.clear(previousConfig)
         }
         if (savedConfig.isReadyForMusicSync()) {
             applyCachedMusicData(savedConfig, requestVersion)

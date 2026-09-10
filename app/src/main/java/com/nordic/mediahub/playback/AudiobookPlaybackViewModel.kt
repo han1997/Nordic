@@ -24,11 +24,13 @@ import kotlinx.coroutines.launch
 class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(application) {
     private val engine = AudiobookPlaybackEngine(application)
     private val configRepository = ConfigRepository(application)
-    private val bookmarkRepository = AudiobookBookmarkRepository(application)
+    private fun bookmarkRepository(sourceId: String) = AudiobookBookmarkRepository(getApplication(), sourceId)
 
     val state: StateFlow<AudiobookPlaybackState> = engine.state
 
     private val _repository = MutableStateFlow<AudiobookShelfRepository?>(null)
+    private val sessionRepository = MutableStateFlow<AudiobookShelfRepository?>(null)
+    private var preferences = com.nordic.mediahub.data.AppPreferences()
     val repository: StateFlow<AudiobookShelfRepository?> = _repository.asStateFlow()
 
     private val _error = MutableStateFlow<String?>(null)
@@ -42,6 +44,10 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
     private var syncJob: Job? = null
 
     init {
+        configRepository.preferences.onEach {
+            preferences = it
+            engine.applyPreferredSpeed(it.audiobookSpeed)
+        }.launchIn(viewModelScope)
         configRepository.audiobookConfig
             .map { if (it.isReadyForAudiobookSync()) it else null }
             .distinctUntilChanged()
@@ -49,7 +55,7 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
             .onEach { _repository.value = it }
             .launchIn(viewModelScope)
 
-        combine(state.map { it.session?.sessionId }, _repository) { sessionId, repo ->
+        combine(state.map { it.session?.sessionId }, sessionRepository) { sessionId, repo ->
             sessionId to repo
         }.distinctUntilChanged().onEach { (_, repo) ->
             syncJob?.cancel()
@@ -101,7 +107,7 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
                 val wasPlaying = lastIsPlaying
                 lastIsPlaying = nowPlaying
                 if (wasPlaying && !nowPlaying && currentSession != null && state.errorMessage == null) {
-                    val repoInstance = _repository.value
+                    val repoInstance = sessionRepository.value
                     if (repoInstance != null) {
                         val position = resolveAudiobookProgressSyncBaselineSeconds(state.positionSeconds, currentSession)
                         viewModelScope.launch {
@@ -126,7 +132,7 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
     fun syncNow() {
         val currentState = engine.state.value
         val session = currentState.session ?: return
-        val repo = _repository.value ?: return
+        val repo = sessionRepository.value ?: return
         if (currentState.errorMessage != null) return
         val position = resolveAudiobookProgressSyncBaselineSeconds(currentState.positionSeconds, session)
         viewModelScope.launch {
@@ -153,6 +159,7 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
         viewModelScope.launch {
             runCatching { repo.startPlayback(libraryItemId) }
                 .onSuccess { session ->
+                    sessionRepository.value = repo
                     engine.play(session)
                     refreshBookmarks()
                     onResult(Result.success(session))
@@ -208,7 +215,7 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
         } else {
             currentState.positionSeconds.coerceAtLeast(0)
         }
-        val repo = _repository.value
+        val repo = sessionRepository.value
 
         if (session == null || repo == null) {
             _bookmarks.value = emptyList()
@@ -247,6 +254,7 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
     }
 
     fun play(session: AudiobookPlaybackSession) {
+        sessionRepository.value = _repository.value
         engine.play(session)
         refreshBookmarks()
     }
@@ -255,17 +263,23 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
 
     fun seekTo(positionSeconds: Int) = engine.seekTo(positionSeconds)
 
-    fun seekBackBy(intervalSeconds: Int = 30) = engine.seekBackBy(intervalSeconds)
+    fun seekBackBy(intervalSeconds: Int = preferences.audiobookSkipBack) = engine.seekBackBy(intervalSeconds)
 
-    fun seekForwardBy(intervalSeconds: Int = 30) = engine.seekForwardBy(intervalSeconds)
+    fun seekForwardBy(intervalSeconds: Int = preferences.audiobookSkipForward) = engine.seekForwardBy(intervalSeconds)
 
     fun seekToPreviousChapter() = engine.seekToPreviousChapter()
 
     fun seekToNextChapter() = engine.seekToNextChapter()
 
-    fun cyclePlaybackSpeed() = engine.cyclePlaybackSpeed()
+    fun cyclePlaybackSpeed() { engine.cyclePlaybackSpeed(); setPlaybackSpeed(engine.state.value.playbackSpeed) }
 
-    fun setPlaybackSpeed(speed: Float) = engine.setPlaybackSpeed(speed)
+    fun setPlaybackSpeed(speed: Float) {
+        engine.setPlaybackSpeed(speed)
+        viewModelScope.launch {
+            runCatching { configRepository.updatePreferences { it.copy(audiobookSpeed = speed) } }
+                .onFailure { _error.value = "有声书速度设置保存失败" }
+        }
+    }
 
     fun setSleepTimer(minutes: Int, atChapterEnd: Boolean = false) =
         engine.setSleepTimer(minutes, atChapterEnd)
@@ -279,9 +293,10 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
      * No-ops when no session is active.
      */
     fun refreshBookmarks() {
-        val libraryItemId = engine.state.value.session?.libraryItemId ?: return
+        val session = engine.state.value.session ?: return
         viewModelScope.launch {
-            _bookmarks.value = bookmarkRepository.loadForItem(libraryItemId)
+            val rows = bookmarkRepository(session.sourceId).loadForItem(session.libraryItemId)
+            if (engine.state.value.session?.let { it.sessionId == session.sessionId && it.sourceId == session.sourceId } == true) _bookmarks.value = rows
         }
     }
 
@@ -300,9 +315,9 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
         }
         val position = engine.state.value.positionSeconds.coerceAtLeast(0)
         viewModelScope.launch {
-            runCatching { bookmarkRepository.addBookmark(session.libraryItemId, position, label) }
+            runCatching { bookmarkRepository(session.sourceId).addBookmark(session.libraryItemId, position, label) }
                 .onSuccess { bookmarks ->
-                    _bookmarks.value = bookmarks
+                    if (engine.state.value.session?.let { it.sessionId == session.sessionId && it.sourceId == session.sourceId } == true) _bookmarks.value = bookmarks
                     onResult(Result.success(bookmarks))
                 }
                 .onFailure { error ->
@@ -319,14 +334,13 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
         bookmarkId: String,
         onResult: (Result<List<AudiobookBookmark>>) -> Unit = {}
     ) {
-        val libraryItemId = engine.state.value.session?.libraryItemId
+        val session = engine.state.value.session ?: return
+        val libraryItemId = session.libraryItemId
         viewModelScope.launch {
-            runCatching { bookmarkRepository.deleteBookmark(bookmarkId) }
+            runCatching { bookmarkRepository(session.sourceId).deleteBookmark(bookmarkId) }
                 .onSuccess { bookmarks ->
-                    _bookmarks.value = if (libraryItemId != null) {
-                        bookmarks.filter { it.libraryItemId == libraryItemId }
-                    } else {
-                        bookmarks
+                    if (engine.state.value.session?.let { it.sessionId == session.sessionId && it.sourceId == session.sourceId } == true) {
+                        _bookmarks.value = bookmarks.filter { it.libraryItemId == libraryItemId }
                     }
                     onResult(Result.success(bookmarks))
                 }

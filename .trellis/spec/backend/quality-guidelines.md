@@ -1958,6 +1958,13 @@ Playback logic tests should isolate pure calculations where possible, as in `app
 
 **Do**: Prefer `apply_patch` for source edits. If a whole-file rewrite is unavoidable, write with an explicit UTF-8 encoding and verify the file still starts with ASCII bytes such as `70 61 63 6B` for `package`.
 
+### CRLF-sensitive scripted Kotlin edits
+
+- 用脚本做精确文本替换前，先在内存中把 CRLF 规范化为 LF；不能假定 checkout 文件与本轮新文件使用相同换行。
+- 每个结构性替换必须断言锚点存在且替换次数符合预期；写文件成功不代表接口声明已更新。
+- 增加参数时同步核对声明和所有调用方；`HeaderAction` 的第三项为 enabled，回调使用命名参数 `onClick = ...`，不要凭印象传位置参数。
+- 用 UTF-8 无 BOM 写回；保存后立即搜索新增符号的声明与调用，再运行编译，不能只重复修复报错调用点。
+
 ### Mistaking PowerShell display mojibake for source corruption
 
 **Don't**: Treat garbled Chinese shown by PowerShell `Get-Content` as proof that the source file is corrupted.
@@ -1990,3 +1997,9 @@ Playback logic tests should isolate pure calculations where possible, as in `app
 - Confirm with `javap -c` on the library's classes: the caller's `invokevirtual` descriptor must exist verbatim in the resolved dependency. Example evidence: m3 1.1.2 calls `at:(Ljava/lang/Object;I)Landroidx/compose/animation/core/KeyframesSpec$KeyframeEntity;` while animation-core 1.6.0 only declares `at:(Ljava/lang/Object;I)Landroidx/compose/animation/core/KeyframeBaseEntity;`.
 - When a runtime `NoSuchMethodError`/`NoClassDefFoundError` points at androidx.compose internals, check version pairing FIRST before suspecting app code.
 - Beware a corrupted local Gradle metadata cache constraining a BOM to a version the real BOM pom does not map (symptom: `dependencies` reports a pair known to be incompatible). Pin the needed version explicitly and move on; report the anomaly.
+
+### MockWebServer：带请求体的取消测试
+
+- `MockResponse.throttleBody` 会影响请求体接收和响应体发送。测试 PROPFIND 等带 body 的请求时，不能用每周期 1 字节节流再立即等待 takeRequest；服务器尚未收完请求，这并不证明客户端取消失效。
+- 验证“收到响应头后取消响应体读取”应使用 `setBodyDelay`，在 IO 调度器等待 RecordedRequest，再取消协程并断言及时结束。测试客户端显式不走代理，验证 root URL 等于 MockWebServer URL。
+- 纯 JVM 测试不直接构建依赖 Android TextUtils 的 Media3 Format；使用平台中立轨道快照覆盖映射和选择，Android 适配层留给设备验收。不要通过 returnDefaultValues 掩盖 Android stub。

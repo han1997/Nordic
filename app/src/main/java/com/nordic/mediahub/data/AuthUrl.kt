@@ -44,7 +44,17 @@ internal fun HttpUrl.originKey(): String = "$host:$port"
 
 internal class MediaAuthHeaderInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
-        val request = chain.request()
+        val original = chain.request()
+        val sourceId = original.url.mediaSourceId()
+        if (sourceId != null) {
+            val context = ScopedMediaRegistry.get(sourceId)
+                ?: throw java.io.IOException("媒体认证尚未就绪，请刷新来源后重试")
+            val request = original.newBuilder()
+                .url(original.url.newBuilder().fragment(null).build())
+                .tag(MediaRequestContext::class.java, context).build()
+            return chain.proceed(context.apply(request))
+        }
+        val request = original
         val originKey = request.url.originKey()
         val header = MediaAuthHeaderRegistry.headerFor(originKey)
         val newRequest = if (header != null && request.header(header.headerName) == null) {

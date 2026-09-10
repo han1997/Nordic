@@ -7,6 +7,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import com.nordic.mediahub.data.NavidromeSong
 
+private const val EXTRA_SOURCE_ID = "com.nordic.mediahub.extra.SOURCE_ID"
 private const val EXTRA_ID = "com.nordic.mediahub.extra.ID"
 private const val EXTRA_TITLE = "com.nordic.mediahub.extra.TITLE"
 private const val EXTRA_ARTIST = "com.nordic.mediahub.extra.ARTIST"
@@ -20,6 +21,7 @@ fun NavidromeSong.toMediaItem(localFilePath: String? = null): MediaItem {
     val resolvedStreamUrl = localFilePath?.let { "file://$it" } ?: streamUrl.orEmpty()
     val extras = bundleOf(
         EXTRA_ID to id,
+        EXTRA_SOURCE_ID to sourceId,
         EXTRA_TITLE to title,
         EXTRA_ARTIST to artist,
         EXTRA_ALBUM to album,
@@ -59,6 +61,7 @@ fun MediaItem.toNavidromeSong(): NavidromeSong? {
         duration = extras.getInt(EXTRA_DURATION, 0),
         coverArt = mediaMetadata.artworkUri?.toString() ?: extras.getString(EXTRA_COVER_ART),
         streamUrl = localConfiguration?.uri?.toString() ?: extras.getString(EXTRA_STREAM_URL),
-        created = extras.getString(EXTRA_CREATED)
+        created = extras.getString(EXTRA_CREATED),
+        sourceId = extras.getString(EXTRA_SOURCE_ID).orEmpty()
     )
 }

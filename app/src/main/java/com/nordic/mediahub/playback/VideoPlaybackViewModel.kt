@@ -4,7 +4,17 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.nordic.mediahub.data.AppPreferences
+import com.nordic.mediahub.data.VideoServerConfig
+import com.nordic.mediahub.data.VideoServerType
+import com.nordic.mediahub.data.WebDavLocalRepository
+import com.nordic.mediahub.data.ScopedMediaRegistry
 import com.nordic.mediahub.data.ConfigRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlin.coroutines.coroutineContext
 import com.nordic.mediahub.data.EmbyRepository
 import com.nordic.mediahub.data.VideoItem
 import com.nordic.mediahub.data.VideoQualityMode
@@ -29,6 +39,25 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     val state: StateFlow<VideoPlaybackState> = engine.state
 
     private val _repository = MutableStateFlow<EmbyRepository?>(null)
+    private val sessionRepository = MutableStateFlow<EmbyRepository?>(null)
+    private var selectedConfig = VideoServerConfig()
+    private var preferences = AppPreferences()
+    private val localProgressMutex = Mutex()
+
+    private fun saveLocalProgress(snapshot: VideoPlaybackState, onSaved: () -> Unit = {}) {
+        val video = snapshot.video
+        if (video == null || video.sourceType != VideoServerType.WEBDAV || video.sourceId.isBlank()) { onSaved(); return }
+        viewModelScope.launch {
+            try {
+                localProgressMutex.withLock {
+                    WebDavLocalRepository(getApplication(), video.sourceId).record(video, snapshot.positionSeconds,
+                        snapshot.durationSeconds.coerceAtLeast(video.durationSeconds), snapshot.hasEnded)
+                }
+            } catch (error: CancellationException) { throw error
+            } catch (_: Exception) { _syncError.value = "本机观看进度保存失败" }
+            finally { onSaved() }
+        }
+    }
     val repository: StateFlow<EmbyRepository?> = _repository.asStateFlow()
 
     private val _error = MutableStateFlow<String?>(null)
@@ -71,6 +100,14 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
 
     /** Prevents concurrent quality handshakes for the same play request. */
     private var qualityHandshakeJob: Job? = null
+    private var lastRequestedVideo: VideoItem? = null
+    val hasPlayback: Boolean get() = engine.state.value.video != null || qualityHandshakeJob?.isActive == true
+    fun retryPlayback() {
+        val snapshot = engine.state.value
+        val video = snapshot.video ?: lastRequestedVideo ?: return
+        engine.stop()
+        play(video.copy(playbackPositionSeconds = snapshot.positionSeconds.takeIf { it > 0 } ?: video.playbackPositionSeconds))
+    }
 
     fun setEpisodeContext(videos: List<VideoItem>) {
         _catalogVideos.value = videos
@@ -85,7 +122,8 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     fun syncNow() {
         val currentState = engine.state.value
         val video = currentState.video
-        val repo = _repository.value
+        if (video?.sourceType == VideoServerType.WEBDAV) { saveLocalProgress(currentState); return }
+        val repo = sessionRepository.value
         if (video == null || repo == null || video.streamUrl.isNullOrBlank() || currentState.errorMessage != null) {
             return
         }
@@ -107,7 +145,25 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     private var syncJob: Job? = null
 
     init {
+        configRepository.preferences.onEach {
+            preferences = it
+            engine.applyPreferences(it)
+        }.launchIn(viewModelScope)
+        var lastLocalSave = 0L
+        var wasPlaying = false
+        var wasEnded = false
+        state.onEach { snapshot ->
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (snapshot.video?.sourceType == VideoServerType.WEBDAV &&
+                (now - lastLocalSave >= 15000L || (wasPlaying && !snapshot.isPlaying) || (!wasEnded && snapshot.hasEnded))) {
+                lastLocalSave = now
+                saveLocalProgress(snapshot)
+            }
+            wasPlaying = snapshot.isPlaying
+            wasEnded = snapshot.hasEnded
+        }.launchIn(viewModelScope)
         configRepository.videoConfig
+            .onEach { if (selectedConfig != it) qualityHandshakeJob?.cancel(); selectedConfig = it }
             .map { if (it.isReadyForVideoSync()) it else null }
             .distinctUntilChanged()
             .map { config -> config?.let { EmbyRepository(it) } }
@@ -145,7 +201,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
             }
         }
 
-        combine(state.map { it.video?.id }, _repository) { videoId, repo ->
+        combine(state.map { it.video?.id }, sessionRepository) { videoId, repo ->
             videoId to repo
         }.distinctUntilChanged().onEach { (_, repo) ->
             syncJob?.cancel()
@@ -205,7 +261,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                 if (wasPlaying && !nowPlaying && video != null &&
                     !video.streamUrl.isNullOrBlank() && state.errorMessage == null
                 ) {
-                    val repoInstance = _repository.value
+                    val repoInstance = sessionRepository.value
                     if (repoInstance != null) {
                         val position = resolveVideoProgressSyncBaselineSeconds(state.positionSeconds, video)
                         viewModelScope.launch {
@@ -269,11 +325,18 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         onClosed: () -> Unit = {},
         onFailed: (message: String) -> Unit = {}
     ) {
+        qualityHandshakeJob?.cancel()
         _error.value = null
         _syncError.value = null
         val currentState = engine.state.value
         val video = currentState.video
-        val repo = _repository.value
+        if (video?.sourceType == VideoServerType.WEBDAV) {
+            engine.stop()
+            activePlaySessionId = null
+            saveLocalProgress(currentState, onClosed)
+            return
+        }
+        val repo = sessionRepository.value
         if (video != null) {
             _catalogVideos.value = updateVideoEpisodeProgress(
                 _catalogVideos.value, video, currentState.positionSeconds
@@ -329,49 +392,53 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
      * request itself; failures degrade to direct play.
      */
     private fun startPlaybackWithQuality(video: VideoItem, fromStart: Boolean) {
-        val mode = _qualityMode.value
-        val bitrate = mode.bitrateBps
-        val repo = _repository.value
-        if (bitrate == null || repo == null || video.streamUrl.isNullOrBlank()) {
-            activePlaySessionId = null
-            if (fromStart) engine.playFromStart(video) else engine.play(video)
+        qualityHandshakeJob?.cancel()
+        lastRequestedVideo = video
+        val config = selectedConfig
+        if (video.sourceId.isNotBlank() && video.sourceId != config.sourceId) {
+            _error.value = "视频来源已切换，请重新选择视频"
             return
         }
-
-        qualityHandshakeJob?.cancel()
+        val selected = video.copy(sourceId = config.sourceId)
         qualityHandshakeJob = viewModelScope.launch {
-            val session = runCatching { repo.getPlaybackInfo(video, bitrate) }
-                .onFailure { error ->
-                    Log.e("VideoPlayback", "PlaybackInfo 握手失败，回退直连播放", error)
+            try {
+                if (selected.sourceType == VideoServerType.WEBDAV) {
+                    require(config.type == VideoServerType.WEBDAV)
+                    ScopedMediaRegistry.registerWebDav(config)
+                    sessionRepository.value = null
+                    activePlaySessionId = null
+                    if (fromStart) engine.playFromStart(selected) else engine.play(selected)
+                    return@launch
                 }
-                .getOrNull()
-            val transcodeUrl = session?.let {
-                resolveVideoPlaybackStreamUrl(
-                    video = video,
-                    mode = mode,
-                    baseUrl = repoBaseUrl(repo),
-                    playbackSession = it
-                )
-            }
-            if (session != null && transcodeUrl != null && transcodeUrl != video.streamUrl) {
-                activePlaySessionId = session.playSessionId
-                engine.playTranscoded(
-                    video = video,
-                    transcodeUrl = transcodeUrl,
-                    directUrl = video.streamUrl.orEmpty()
-                )
-            } else {
-                activePlaySessionId = null
-                if (fromStart) engine.playFromStart(video) else engine.play(video)
-            }
+                val repo = _repository.value ?: throw IllegalStateException("请先配置 Emby 服务器")
+                repo.prepareMediaAuthentication()
+                coroutineContext.ensureActive()
+                if (selectedConfig != config) return@launch
+                sessionRepository.value = repo
+                val mode = _qualityMode.value
+                val bitrate = mode.bitrateBps
+                val session = if (bitrate != null) try { repo.getPlaybackInfo(selected, bitrate) }
+                    catch (error: CancellationException) { throw error }
+                    catch (_: Exception) { null } else null
+                coroutineContext.ensureActive()
+                val transcodeUrl = session?.let { resolveVideoPlaybackStreamUrl(selected, mode, repoBaseUrl(repo), it) }
+                if (session != null && transcodeUrl != null && transcodeUrl != selected.streamUrl) {
+                    activePlaySessionId = session.playSessionId
+                    engine.playTranscoded(if (fromStart) selected.copy(playbackPositionSeconds = 0) else selected,
+                        transcodeUrl, selected.streamUrl.orEmpty())
+                } else {
+                    activePlaySessionId = null
+                    if (fromStart) engine.playFromStart(selected) else engine.play(selected)
+                }
+            } catch (error: CancellationException) { throw error
+            } catch (error: Exception) { _error.value = error.message ?: "准备视频播放失败" }
         }
     }
-
     private fun repoBaseUrl(repo: EmbyRepository): String = repo.baseUrlForStreamUrls()
 
     fun setQualityMode(mode: VideoQualityMode) {
         _qualityMode.value = mode
-        viewModelScope.launch { configRepository.saveVideoQualityMode(mode) }
+        viewModelScope.launch { runCatching { configRepository.saveVideoQualityMode(mode) }.onFailure { _syncError.value = "清晰度设置保存失败" } }
     }
 
     fun stop() {
@@ -382,17 +449,25 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
 
     fun seekTo(positionSeconds: Int) = engine.seekTo(positionSeconds)
 
-    fun seekBackBy(intervalSeconds: Int = 10) = engine.seekBackBy(intervalSeconds)
+    fun seekBackBy(intervalSeconds: Int = preferences.videoSkipBack) = engine.seekBackBy(intervalSeconds)
 
-    fun seekForwardBy(intervalSeconds: Int = 30) = engine.seekForwardBy(intervalSeconds)
+    fun seekForwardBy(intervalSeconds: Int = preferences.videoSkipForward) = engine.seekForwardBy(intervalSeconds)
 
     fun togglePlayPause() = engine.togglePlayPause()
 
-    fun cycleAspectRatio() = engine.cycleAspectRatio()
+    fun cycleAspectRatio() {
+        engine.cycleAspectRatio()
+        viewModelScope.launch {
+            runCatching { configRepository.updatePreferences { it.copy(videoAspect = engine.state.value.aspectRatioMode.name) } }
+                .onFailure { _syncError.value = "画面设置保存失败" }
+        }
+    }
+
+    fun setTemporaryPlaybackSpeed(speed: Float) = engine.setPlaybackSpeed(speed)
 
     fun setPlaybackSpeed(speed: Float) {
         engine.setPlaybackSpeed(speed)
-        viewModelScope.launch { configRepository.saveVideoPlaybackSpeed(speed) }
+        viewModelScope.launch { runCatching { configRepository.saveVideoPlaybackSpeed(speed) }.onFailure { _syncError.value = "倍速设置保存失败" } }
     }
 
     fun setPreferredTextTrack(stream: com.nordic.mediahub.data.VideoStreamInfo?) =
@@ -406,13 +481,13 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
 
     fun setPipEnabled(enabled: Boolean) {
         _pipEnabled.value = enabled
-        viewModelScope.launch { configRepository.saveVideoPipEnabled(enabled) }
+        viewModelScope.launch { runCatching { configRepository.saveVideoPipEnabled(enabled) }.onFailure { _syncError.value = "画中画设置保存失败" } }
     }
 
     fun setAutoSkipIntro(enabled: Boolean) {
         _autoSkipIntro.value = enabled
         engine.applyAutoSkipIntro(enabled)
-        viewModelScope.launch { configRepository.saveVideoAutoSkipIntro(enabled) }
+        viewModelScope.launch { runCatching { configRepository.saveVideoAutoSkipIntro(enabled) }.onFailure { _syncError.value = "片头设置保存失败" } }
     }
 
     fun skipIntro() = engine.skipIntro()

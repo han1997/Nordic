@@ -11,6 +11,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.database.StandaloneDatabaseProvider
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
@@ -43,6 +44,7 @@ class MusicPlaybackService : MediaSessionService() {
 
         val okHttpClient = OkHttpClient.Builder()
             .addInterceptor(MediaAuthHeaderInterceptor())
+                        .addNetworkInterceptor(com.nordic.mediahub.data.ScopedMediaNetworkInterceptor())
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(35, TimeUnit.SECONDS)
             .build()
@@ -64,13 +66,14 @@ class MusicPlaybackService : MediaSessionService() {
             null
         }
 
+        val upstreamFactory = DefaultDataSource.Factory(this, okHttpDataSourceFactory)
         val cacheDataSourceFactory = cache?.let { c ->
             CacheDataSource.Factory()
                 .setCache(c)
-                .setUpstreamDataSourceFactory(okHttpDataSourceFactory)
+                .setUpstreamDataSourceFactory(upstreamFactory)
                 .setCacheKeyFactory { dataSpec -> stripAuthQuery(dataSpec.uri) }
                 .setFlags(CacheDataSource.FLAG_BLOCK_ON_CACHE)
-        } ?: okHttpDataSourceFactory
+        } ?: upstreamFactory
 
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(

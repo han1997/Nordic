@@ -6,7 +6,8 @@ import androidx.compose.runtime.Stable
 data class NavidromeConfig(
     val serverUrl: String = "",
     val username: String = "",
-    val password: String = ""
+    val password: String = "",
+    val sourceId: String = ""
 )
 
 fun NavidromeConfig.isReadyForMusicSync(): Boolean {
@@ -17,7 +18,8 @@ fun NavidromeConfig.isReadyForMusicSync(): Boolean {
 data class AudiobookShelfConfig(
     val serverUrl: String = "",
     val username: String = "",
-    val password: String = ""
+    val password: String = "",
+    val sourceId: String = ""
 )
 
 @Stable
@@ -26,7 +28,10 @@ data class VideoServerConfig(
     val serverUrl: String = "",
     val username: String = "",
     val password: String = "",
-    val apiKey: String = ""
+    val apiKey: String = "",
+    val sourceId: String = "",
+    val startDirectory: String = "/",
+    val allowInsecureHttp: Boolean = false
 )
 
 enum class VideoServerType {

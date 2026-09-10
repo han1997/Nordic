@@ -60,6 +60,14 @@ class AudiobookPlaybackEngine(context: Context) {
         ComponentName(appContext, MusicPlaybackService::class.java)
     )
     private var controller: MediaController? = null
+    private var preferredSpeed = 1f
+    fun applyPreferredSpeed(speed: Float) {
+        preferredSpeed = speed
+        if (PlaybackDomain.activeDomain == MediaDomain.AUDIOBOOK && _state.value.session != null) {
+            controller?.setPlaybackSpeed(speed)
+            publishPlayerState()
+        }
+    }
     private var pendingSession: AudiobookPlaybackSession? = null
     private var positionUpdateJob: Job? = null
     private var sleepTimerJob: Job? = null
@@ -174,6 +182,9 @@ class AudiobookPlaybackEngine(context: Context) {
 
         val mediaItems = tracks.map { it.toMediaItem(session) }
         activeController.setMediaItems(mediaItems)
+        activeController.setPlaybackSpeed(preferredSpeed)
+        activeController.repeatMode = Player.REPEAT_MODE_OFF
+        activeController.shuffleModeEnabled = false
         activeController.prepare()
         if (session.startTimeSeconds > 0) {
             seekToTrackPosition(activeController, tracks, session.startTimeSeconds)

@@ -71,7 +71,8 @@ data class NavidromeSong(
     val coverArt: String? = null,
     val streamUrl: String? = null,
     val created: String? = null,
-    val starred: String? = null
+    val starred: String? = null,
+    val sourceId: String = ""
 )
 
 @Stable

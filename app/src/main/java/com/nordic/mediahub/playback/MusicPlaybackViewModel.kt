@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -54,6 +55,26 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
     val lyricsSeekRevision: StateFlow<Long> = _lyricsSeekRevision.asStateFlow()
 
     private val _repository = MutableStateFlow<NavidromeRepository?>(null)
+    private var preferences = com.nordic.mediahub.data.AppPreferences()
+    private var playingRepository: NavidromeRepository? = null
+    private var previousPlayingRepository: NavidromeRepository? = null
+    private val _settingsError = MutableStateFlow<String?>(null)
+    val settingsError: StateFlow<String?> = _settingsError.asStateFlow()
+    fun clearSettingsError() { _settingsError.value = null }
+    fun downloadCurrentSong() {
+        val song = state.value.currentSong ?: return
+        viewModelScope.launch {
+            runCatching {
+                val config = configRepository.navidromeConfig.first()
+                require(song.sourceId == config.sourceId && config.sourceId.isNotBlank()) { "请先切换到这首歌所属的来源" }
+                com.nordic.mediahub.data.MusicDownloadManagers.get(getApplication(), config.sourceId).downloadSong(song, config)
+            }.onFailure { _settingsError.value = it.message ?: "无法开始下载" }
+        }
+    }
+    private fun savePreferences(transform: (com.nordic.mediahub.data.AppPreferences) -> com.nordic.mediahub.data.AppPreferences) {
+        viewModelScope.launch { runCatching { configRepository.updatePreferences(transform) }
+            .onFailure { _settingsError.value = "播放偏好保存失败，请重试" } }
+    }
     val repository: StateFlow<NavidromeRepository?> = _repository.asStateFlow()
 
     /**
@@ -82,6 +103,21 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
     private var submittedSongId: String? = null
 
     init {
+        var displayRestored = false
+        configRepository.preferences.onEach { value ->
+            val viewChanged = preferences.musicDefaultView != value.musicDefaultView
+            preferences = value
+            engine.applyPreferences(value)
+            if (!displayRestored || viewChanged) {
+                val show = when (value.musicDefaultView) {
+                    com.nordic.mediahub.data.MusicDefaultView.COVER -> false
+                    com.nordic.mediahub.data.MusicDefaultView.LYRICS -> true
+                    com.nordic.mediahub.data.MusicDefaultView.REMEMBER -> value.lastMusicLyrics
+                }
+                if (lyricsController.showLyrics.value != show) lyricsController.toggleDisplay()
+                displayRestored = true
+            }
+        }.launchIn(viewModelScope)
         configRepository.navidromeConfig
             .map { if (it.isReadyForMusicSync()) it else null }
             .distinctUntilChanged()
@@ -94,14 +130,20 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
         // and silent on failure.
         state.map { it.currentSong?.id }.distinctUntilChanged().onEach { songId ->
             val previousSongId = nowPlayingSongId
-            val repo = _repository.value
+            val repo = playingRepository
             if (previousSongId != null && previousSongId != songId && previousSongId != submittedSongId) {
                 submittedSongId = previousSongId
-                submitScrobble(repo, previousSongId, submission = true)
+                submitScrobble(previousPlayingRepository ?: repo, previousSongId, submission = true)
             }
+            previousPlayingRepository = repo
             nowPlayingSongId = songId
             if (songId != null && songId != submittedSongId) {
                 submitScrobble(repo, songId, submission = false)
+                state.value.currentSong?.let { song ->
+                    viewModelScope.launch { runCatching {
+                        com.nordic.mediahub.data.PlayHistoryRepository(getApplication(), song.sourceId).recordPlay(song.id)
+                    } }
+                }
             }
         }.launchIn(viewModelScope)
 
@@ -119,14 +161,14 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
                 )
             ) {
                 submittedSongId = songId
-                submitScrobble(_repository.value, songId, submission = true)
+                submitScrobble(playingRepository, songId, submission = true)
             }
         }.launchIn(viewModelScope)
 
         combine(state.map { it.currentSong }, _repository) { song, repo ->
             song to repo
         }.distinctUntilChanged().onEach { (song, repo) ->
-            lyricsController.select(song, repo)
+            lyricsController.select(song, repo?.takeIf { song?.sourceId == it.sourceId })
         }.launchIn(viewModelScope)
     }
 
@@ -134,9 +176,23 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
         songs: List<NavidromeSong>,
         startIndex: Int = 0,
         allowUnplayableStartFallback: Boolean = true
-    ) = engine.playQueue(songs, startIndex, allowUnplayableStartFallback)
+    ) {
+        if (songs.any { it.streamUrl?.startsWith("file:") != true && it.sourceId.isNotBlank() && it.sourceId != _repository.value?.sourceId }) {
+            _settingsError.value = "音乐来源已切换，请重新选择曲目"; return
+        }
+        previousPlayingRepository = playingRepository
+        playingRepository = if (songs.getOrNull(startIndex)?.streamUrl?.startsWith("file:") == true) null else _repository.value
+        engine.playQueue(songs, startIndex, allowUnplayableStartFallback)
+    }
 
-    fun play(song: NavidromeSong) = engine.play(song)
+    fun play(song: NavidromeSong) {
+        if (song.streamUrl?.startsWith("file:") != true && song.sourceId.isNotBlank() && song.sourceId != _repository.value?.sourceId) {
+            _settingsError.value = "音乐来源已切换，请重新选择曲目"; return
+        }
+        previousPlayingRepository = playingRepository
+        playingRepository = if (song.streamUrl?.startsWith("file:") == true) null else _repository.value
+        engine.play(song)
+    }
 
     fun stop() = engine.stop()
 
@@ -167,11 +223,20 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
 
     fun togglePlayPause() = engine.togglePlayPause()
 
-    fun toggleRepeatMode() = engine.toggleRepeatMode()
+    fun toggleRepeatMode() {
+        engine.toggleRepeatMode()
+        if (preferences.rememberMusicModes) savePreferences { it.copy(musicRepeatMode = engine.state.value.repeatMode) }
+    }
 
-    fun toggleShuffleMode() = engine.toggleShuffleMode()
+    fun toggleShuffleMode() {
+        engine.toggleShuffleMode()
+        if (preferences.rememberMusicModes) savePreferences { it.copy(musicShuffle = engine.state.value.shuffleModeEnabled) }
+    }
 
-    fun setPlaybackSpeed(speed: Float) = engine.setPlaybackSpeed(speed)
+    fun setPlaybackSpeed(speed: Float) {
+        engine.setPlaybackSpeed(speed)
+        savePreferences { it.copy(musicSpeed = speed) }
+    }
 
     fun seekToQueueIndex(index: Int) = engine.seekToQueueIndex(index)
 
@@ -192,7 +257,7 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
     fun toggleFavorite(songId: String, starred: Boolean) {
         viewModelScope.launch {
             engine.setCurrentSongStarred(starred)
-            val repo = repository.value
+            val repo = playingRepository
             if (repo == null) {
                 engine.setCurrentSongStarred(!starred)
                 _favoriteError.tryEmit(Unit)
@@ -221,7 +286,10 @@ class MusicPlaybackViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    fun toggleLyricsDisplay() = lyricsController.toggleDisplay()
+    fun toggleLyricsDisplay() {
+        lyricsController.toggleDisplay()
+        savePreferences { it.copy(lastMusicLyrics = lyricsController.showLyrics.value) }
+    }
 
     fun retryLyrics() = lyricsController.retry()
 

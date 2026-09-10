@@ -18,8 +18,8 @@ android {
         applicationId = "fun.han1997.nordic"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
-        versionName = "0.1.3"
+        versionCode = 4
+        versionName = "0.1.4"
     }
 
     buildTypes {
