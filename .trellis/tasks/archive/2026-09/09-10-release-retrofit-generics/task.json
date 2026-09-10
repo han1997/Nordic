@@ -1,0 +1,33 @@
+{
+  "id": "release-retrofit-generics",
+  "name": "release-retrofit-generics",
+  "title": "修复 release 混淆导致 Retrofit 泛型解析崩溃",
+  "description": "",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "hhy",
+  "assignee": "hhy",
+  "createdAt": "2026-09-10",
+  "completedAt": "2026-09-10",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": "49bf0d25ffe87f9a710580c1ff6a437c1a786970",
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "app/proguard-rules.pro",
+    "app/build.gradle.kts",
+    "app/src/test/java/com/nordic/mediahub/api/RetrofitReleaseContractTest.kt",
+    "CHANGELOG.md",
+    ".trellis/spec/backend/build-release.md",
+    ".trellis/spec/backend/quality-guidelines.md"
+  ],
+  "notes": "工作提交 49bf0d2；0.1.2/2，588 项测试全绿，Lint 0 error/22 warning，真实 release 36 个 suspend 方法及泛型定义核验通过。用户已确认提交；未进行真机连接复测。",
+  "meta": {}
+}

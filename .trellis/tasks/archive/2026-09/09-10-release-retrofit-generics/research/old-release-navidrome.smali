@@ -1,0 +1,1184 @@
+.class public interface abstract Lcom/nordic/mediahub/api/NavidromeApi;
+.super Ljava/lang/Object;
+.source "SourceFile"
+
+
+# annotations
+.annotation system Ldalvik/annotation/MemberClasses;
+    value = {
+        Lcom/nordic/mediahub/api/NavidromeApi$DefaultImpls;
+    }
+.end annotation
+
+
+# virtual methods
+.method public abstract createPlaylist(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "u"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "t"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "s"
+        .end annotation
+    .end param
+    .param p4    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "v"
+        .end annotation
+    .end param
+    .param p5    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "c"
+        .end annotation
+    .end param
+    .param p6    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "f"
+        .end annotation
+    .end param
+    .param p7    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "name"
+        .end annotation
+    .end param
+    .param p8    # Ljava/util/List;
+        .annotation runtime Ls3/t;
+            value = "songId"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/util/List<",
+            "Ljava/lang/String;",
+            ">;",
+            "Lx2/d;",
+            ")",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Ls3/f;
+        value = "rest/createPlaylist.view"
+    .end annotation
+.end method
+
+.method public abstract deletePlaylist(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "u"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "t"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "s"
+        .end annotation
+    .end param
+    .param p4    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "v"
+        .end annotation
+    .end param
+    .param p5    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "c"
+        .end annotation
+    .end param
+    .param p6    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "f"
+        .end annotation
+    .end param
+    .param p7    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "id"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Lx2/d;",
+            ")",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Ls3/f;
+        value = "rest/deletePlaylist.view"
+    .end annotation
+.end method
+
+.method public abstract getAlbum(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "u"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "t"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "s"
+        .end annotation
+    .end param
+    .param p4    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "v"
+        .end annotation
+    .end param
+    .param p5    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "c"
+        .end annotation
+    .end param
+    .param p6    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "f"
+        .end annotation
+    .end param
+    .param p7    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "id"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Lx2/d;",
+            ")",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Ls3/f;
+        value = "rest/getAlbum.view"
+    .end annotation
+.end method
+
+.method public abstract getAlbumList2(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IILjava/lang/Integer;Ljava/lang/Integer;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "u"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "t"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "s"
+        .end annotation
+    .end param
+    .param p4    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "v"
+        .end annotation
+    .end param
+    .param p5    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "c"
+        .end annotation
+    .end param
+    .param p6    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "f"
+        .end annotation
+    .end param
+    .param p7    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "type"
+        .end annotation
+    .end param
+    .param p8    # I
+        .annotation runtime Ls3/t;
+            value = "size"
+        .end annotation
+    .end param
+    .param p9    # I
+        .annotation runtime Ls3/t;
+            value = "offset"
+        .end annotation
+    .end param
+    .param p10    # Ljava/lang/Integer;
+        .annotation runtime Ls3/t;
+            value = "fromYear"
+        .end annotation
+    .end param
+    .param p11    # Ljava/lang/Integer;
+        .annotation runtime Ls3/t;
+            value = "toYear"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "II",
+            "Ljava/lang/Integer;",
+            "Ljava/lang/Integer;",
+            "Lx2/d;",
+            ")",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Ls3/f;
+        value = "rest/getAlbumList2.view"
+    .end annotation
+.end method
+
+.method public abstract getArtist(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "u"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "t"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "s"
+        .end annotation
+    .end param
+    .param p4    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "v"
+        .end annotation
+    .end param
+    .param p5    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "c"
+        .end annotation
+    .end param
+    .param p6    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "f"
+        .end annotation
+    .end param
+    .param p7    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "id"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Lx2/d;",
+            ")",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Ls3/f;
+        value = "rest/getArtist.view"
+    .end annotation
+.end method
+
+.method public abstract getArtists(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "u"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "t"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "s"
+        .end annotation
+    .end param
+    .param p4    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "v"
+        .end annotation
+    .end param
+    .param p5    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "c"
+        .end annotation
+    .end param
+    .param p6    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "f"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Lx2/d;",
+            ")",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Ls3/f;
+        value = "rest/getArtists.view"
+    .end annotation
+.end method
+
+.method public abstract getLyrics(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "u"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "t"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "s"
+        .end annotation
+    .end param
+    .param p4    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "v"
+        .end annotation
+    .end param
+    .param p5    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "c"
+        .end annotation
+    .end param
+    .param p6    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "f"
+        .end annotation
+    .end param
+    .param p7    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "artist"
+        .end annotation
+    .end param
+    .param p8    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "title"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Lx2/d;",
+            ")",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Ls3/f;
+        value = "rest/getLyrics.view"
+    .end annotation
+.end method
+
+.method public abstract getLyricsBySongId(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "u"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "t"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "s"
+        .end annotation
+    .end param
+    .param p4    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "v"
+        .end annotation
+    .end param
+    .param p5    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "c"
+        .end annotation
+    .end param
+    .param p6    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "f"
+        .end annotation
+    .end param
+    .param p7    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "id"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Lx2/d;",
+            ")",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Ls3/f;
+        value = "rest/getLyricsBySongId.view"
+    .end annotation
+.end method
+
+.method public abstract getPlaylist(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "u"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "t"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "s"
+        .end annotation
+    .end param
+    .param p4    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "v"
+        .end annotation
+    .end param
+    .param p5    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "c"
+        .end annotation
+    .end param
+    .param p6    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "f"
+        .end annotation
+    .end param
+    .param p7    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "id"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Lx2/d;",
+            ")",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Ls3/f;
+        value = "rest/getPlaylist.view"
+    .end annotation
+.end method
+
+.method public abstract getPlaylists(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "u"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "t"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "s"
+        .end annotation
+    .end param
+    .param p4    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "v"
+        .end annotation
+    .end param
+    .param p5    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "c"
+        .end annotation
+    .end param
+    .param p6    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "f"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Lx2/d;",
+            ")",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Ls3/f;
+        value = "rest/getPlaylists.view"
+    .end annotation
+.end method
+
+.method public abstract getRandomSongs(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "u"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "t"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "s"
+        .end annotation
+    .end param
+    .param p4    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "v"
+        .end annotation
+    .end param
+    .param p5    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "c"
+        .end annotation
+    .end param
+    .param p6    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "f"
+        .end annotation
+    .end param
+    .param p7    # I
+        .annotation runtime Ls3/t;
+            value = "size"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "I",
+            "Lx2/d;",
+            ")",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Ls3/f;
+        value = "rest/getRandomSongs.view"
+    .end annotation
+.end method
+
+.method public abstract getSimilarSongs(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "u"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "t"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "s"
+        .end annotation
+    .end param
+    .param p4    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "v"
+        .end annotation
+    .end param
+    .param p5    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "c"
+        .end annotation
+    .end param
+    .param p6    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "f"
+        .end annotation
+    .end param
+    .param p7    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "id"
+        .end annotation
+    .end param
+    .param p8    # I
+        .annotation runtime Ls3/t;
+            value = "count"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "I",
+            "Lx2/d;",
+            ")",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Ls3/f;
+        value = "rest/getSimilarSongs.view"
+    .end annotation
+.end method
+
+.method public abstract getStarred2(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "u"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "t"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "s"
+        .end annotation
+    .end param
+    .param p4    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "v"
+        .end annotation
+    .end param
+    .param p5    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "c"
+        .end annotation
+    .end param
+    .param p6    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "f"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Lx2/d;",
+            ")",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Ls3/f;
+        value = "rest/getStarred2.view"
+    .end annotation
+.end method
+
+.method public abstract ping(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "u"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "t"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "s"
+        .end annotation
+    .end param
+    .param p4    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "v"
+        .end annotation
+    .end param
+    .param p5    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "c"
+        .end annotation
+    .end param
+    .param p6    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "f"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Lx2/d;",
+            ")",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Ls3/f;
+        value = "rest/ping.view"
+    .end annotation
+.end method
+
+.method public abstract scrobble(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "u"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "t"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "s"
+        .end annotation
+    .end param
+    .param p4    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "v"
+        .end annotation
+    .end param
+    .param p5    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "c"
+        .end annotation
+    .end param
+    .param p6    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "f"
+        .end annotation
+    .end param
+    .param p7    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "id"
+        .end annotation
+    .end param
+    .param p8    # Z
+        .annotation runtime Ls3/t;
+            value = "submission"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Z",
+            "Lx2/d;",
+            ")",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Ls3/f;
+        value = "rest/scrobble.view"
+    .end annotation
+.end method
+
+.method public abstract search3(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIILx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "u"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "t"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "s"
+        .end annotation
+    .end param
+    .param p4    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "v"
+        .end annotation
+    .end param
+    .param p5    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "c"
+        .end annotation
+    .end param
+    .param p6    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "f"
+        .end annotation
+    .end param
+    .param p7    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "query"
+        .end annotation
+    .end param
+    .param p8    # I
+        .annotation runtime Ls3/t;
+            value = "artistCount"
+        .end annotation
+    .end param
+    .param p9    # I
+        .annotation runtime Ls3/t;
+            value = "albumCount"
+        .end annotation
+    .end param
+    .param p10    # I
+        .annotation runtime Ls3/t;
+            value = "songCount"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "III",
+            "Lx2/d;",
+            ")",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Ls3/f;
+        value = "rest/search3.view"
+    .end annotation
+.end method
+
+.method public abstract star(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "u"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "t"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "s"
+        .end annotation
+    .end param
+    .param p4    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "v"
+        .end annotation
+    .end param
+    .param p5    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "c"
+        .end annotation
+    .end param
+    .param p6    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "f"
+        .end annotation
+    .end param
+    .param p7    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "id"
+        .end annotation
+    .end param
+    .param p8    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "albumId"
+        .end annotation
+    .end param
+    .param p9    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "artistId"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Lx2/d;",
+            ")",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Ls3/f;
+        value = "rest/star2.view"
+    .end annotation
+.end method
+
+.method public abstract unstar(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "u"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "t"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "s"
+        .end annotation
+    .end param
+    .param p4    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "v"
+        .end annotation
+    .end param
+    .param p5    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "c"
+        .end annotation
+    .end param
+    .param p6    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "f"
+        .end annotation
+    .end param
+    .param p7    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "id"
+        .end annotation
+    .end param
+    .param p8    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "albumId"
+        .end annotation
+    .end param
+    .param p9    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "artistId"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Lx2/d;",
+            ")",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Ls3/f;
+        value = "rest/unstar.view"
+    .end annotation
+.end method
+
+.method public abstract updatePlaylist(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "u"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "t"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "s"
+        .end annotation
+    .end param
+    .param p4    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "v"
+        .end annotation
+    .end param
+    .param p5    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "c"
+        .end annotation
+    .end param
+    .param p6    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "f"
+        .end annotation
+    .end param
+    .param p7    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "playlistId"
+        .end annotation
+    .end param
+    .param p8    # Ljava/lang/String;
+        .annotation runtime Ls3/t;
+            value = "name"
+        .end annotation
+    .end param
+    .param p9    # Ljava/util/List;
+        .annotation runtime Ls3/t;
+            value = "songIdToAdd"
+        .end annotation
+    .end param
+    .param p10    # Ljava/util/List;
+        .annotation runtime Ls3/t;
+            value = "songIndexToRemove"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/util/List<",
+            "Ljava/lang/String;",
+            ">;",
+            "Ljava/util/List<",
+            "Ljava/lang/Integer;",
+            ">;",
+            "Lx2/d;",
+            ")",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Ls3/f;
+        value = "rest/updatePlaylist.view"
+    .end annotation
+.end method
+

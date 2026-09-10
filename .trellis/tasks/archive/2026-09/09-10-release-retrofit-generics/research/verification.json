@@ -1,0 +1,33 @@
+{
+  "versionName": "0.1.2",
+  "versionCode": 2,
+  "api_method_counts": {
+    "NavidromeApi": 19,
+    "AudiobookShelfApi": 9,
+    "EmbyApi": 8
+  },
+  "signature_samples": [
+    "NavidromeApi: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List<Ljava/lang/String;>;Lx2/d<-Lq3/M<Lcom/nordic/mediahub/api/SubsonicResponse;>;>;)Ljava/lang/Object;",
+    "AudiobookShelfApi: (Ljava/lang/String;Ljava/lang/String;Lcom/nordic/mediahub/api/AudiobookShelfSessionSyncRequest;Lx2/d<-Lq3/M<Lt2/n;>;>;)Ljava/lang/Object;",
+    "EmbyApi: (Lcom/nordic/mediahub/api/EmbyAuthenticateRequest;Ljava/lang/String;Lx2/d<-Lq3/M<Lcom/nordic/mediahub/api/EmbyAuthenticateResponse;>;>;)Ljava/lang/Object;"
+  ],
+  "generic_class_mapping": {
+    "kotlin.coroutines.Continuation": "x2.d",
+    "retrofit2.Response": "q3.M",
+    "retrofit2.Call": "q3.c"
+  },
+  "tests": {
+    "tests": 588,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "suites": 38,
+  "lint": {
+    "Warning": 22,
+    "Information": 18
+  },
+  "certificate_sha256": "16a2350bb63cc53f446ec3aeadbd08ccd9d9475db867c4564ea6b6c3372a545d",
+  "apk_sha256": "073d641210e8dfcf7cd4bf74ea9a63c8dcaa652bb69b4115bbf65b4dc16bf917",
+  "apk_bytes": 4359432
+}
