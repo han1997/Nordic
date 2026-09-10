@@ -1,0 +1,33 @@
+{
+  "id": "package-id-signing-version",
+  "name": "package-id-signing-version",
+  "title": "包名改为 fun.han1997.nordic、release 签名与版本管理规则",
+  "description": "",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "hhy",
+  "assignee": "hhy",
+  "createdAt": "2026-09-10",
+  "completedAt": "2026-09-10",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": "6430d6246adc3bfef7a6efcf99ad1925251408f7",
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "app/build.gradle.kts",
+    "README.md",
+    "CHANGELOG.md",
+    ".trellis/spec/backend/directory-structure.md",
+    ".trellis/spec/backend/index.md",
+    ".trellis/spec/backend/build-release.md"
+  ],
+  "notes": "实现 f62cafa、文档 6430d62；584 项单元测试实际重跑通过，Lint 0 error/22 warning，debug/release APK 签名与身份核验通过；未进行真机安装或覆盖升级。",
+  "meta": {}
+}

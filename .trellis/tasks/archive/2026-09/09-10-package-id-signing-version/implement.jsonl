@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "spec 索引与验证命令"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "包根与命名约定（需同步更新）"}
+{"file": ".trellis/spec/backend/build-release.md", "reason": "包名、版本、侧载签名与实际 APK 验证合同"}
+{"file": ".trellis/spec/backend/documentation-guidelines.md", "reason": "中文文档及 README/CHANGELOG 同步规则"}
