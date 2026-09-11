@@ -42,7 +42,10 @@ Retrofit 2.9 的 consumer rules 尚未包含以下 full-mode 泛型定义保护�
 ```powershell
 .\gradlew.bat :app:compileDebugKotlin :app:testDebugUnitTest :app:lintDebug :app:assembleRelease :app:assembleDebug
 $tools = Join-Path $env:LOCALAPPDATA "Android/Sdk/build-tools/34.0.0"
-$apk = ".\app\build\outputs\apk\release\app-release.apk"
+$releaseDir = ".\app\build\outputs\apk\release"
+$metadata = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $releaseDir "output-metadata.json") | ConvertFrom-Json
+$apk = Join-Path $releaseDir $metadata.elements[0].outputFile
+if ($metadata.elements[0].outputFile -ne "nordic-$($metadata.elements[0].versionName).apk") { throw "Release APK 文件名与版本号不一致" }
 & "$tools/apksigner.bat" verify --verbose --print-certs $apk
 & "$tools/aapt.exe" dump badging $apk
 $analyzer = Join-Path $env:LOCALAPPDATA "Android/Sdk/cmdline-tools/latest/bin/apkanalyzer.bat"
@@ -58,7 +61,9 @@ foreach ($api in @("NavidromeApi", "AudiobookShelfApi", "EmbyApi")) {
 - `JAVA_HOME` 使用 JDK 17；Android SDK 由本机 `local.properties` 的 `sdk.dir` 配置。不要提交本机配置或 keystore。
 - `applicationId = "fun.han1997.nordic"`，`namespace = "com.nordic.mediahub"`。改包名后与旧应用并存，不会自动迁移数据；卸载旧应用会删除其本地数据。
 - `versionName` 从 `0.1.1` 开始，每个修改代码的工作提交 patch +1；`versionCode` 从 `1` 开始，同步 +1。minor/major 仅在用户明确要求时调整。纯文档、任务归档、会话日志及重跑验证不递增。
-- Release 复用 `~/.android/debug.keystore`，直接输出 `app/build/outputs/apk/release/app-release.apk`；使用 debug 证书不等于开启 release 的 `debuggable`。
+- Release 复用 `~/.android/debug.keystore`，直接输出 `app/build/outputs/apk/release/nordic-<versionName>.apk`；使用 debug 证书不等于开启 release 的 `debuggable`。
+- Release APK 文件名由 Gradle 的实际 variant `versionName` 生成，格式严格为 `nordic-<versionName>.apk`，不得在脚本或 README 的打包命令中硬编码版本、构建后手动改名或依赖 `app-release.apk`。Debug 名称不变。
+- 当前 AGP 8.5.2 通过公开的 `ApkVariantOutput.outputFileName` 设置实际打包输出，不引用 `internal` 实现类；升级 AGP 时需复核此 API。`output-metadata.json` 必须记录同一文件名，安装/校验工具从 metadata 定位 APK，避免选中旧产物。
 - 覆盖安装必须保持 applicationId 和签名证书一致，versionCode 不回退。妥善备份 keystore；换机器或重新生成 debug keystore 后不能假定仍可覆盖安装。商店发布需另行规划专用签名及升级路径。
 - Manifest 中 Activity/Service 的类名仍指向 `com.nordic.mediahub`；Media3 的 `com.nordic.mediahub.session-activity` key 与对应 Activity 值保持一致。ADB 显式组件使用 `<applicationId>/<完整类名>`，不能把新包名当成类所在的包。
 - Retrofit suspend 方法经编译后最后一个参数为 `Continuation<? super Response<DTO>>`。R8 后必须保留其嵌套泛型签名，以及 Continuation、Response、Call 的泛型类型定义；仅保留 API/DTO 和 `-keepattributes Signature` 不够。允许类型重命名、优化和收缩，不需要保留整个 Kotlin/Retrofit 库的所有成员。
@@ -67,6 +72,7 @@ foreach ($api in @("NavidromeApi", "AudiobookShelfApi", "EmbyApi")) {
 
 | 条件 | 预期结果 / 处理 |
 |------|-----------------|
+| Release 文件名与 metadata | `outputFile` 等于 `nordic-<versionName>.apk`，文件存在且 manifest 版本一致；Debug 不被改名 |
 | 已签名 APK，包名及版本符合 Gradle 配置 | `apksigner verify` 退出码 0；`aapt dump badging` 显示预期 applicationId、versionCode、versionName |
 | `v1 = false`、`v2 = true` 且校验退出码为 0 | 当前 minSdk 26 可使用 v2 签名；不能仅凭缺少 v1 签名判定 APK 未签名 |
 | 未签名旧产物 | 不可分发；本次故障中 `apksigner` 报 `Missing META-INF/MANIFEST.MF`，ColorOS/Android 16 提示“安装包异常” |

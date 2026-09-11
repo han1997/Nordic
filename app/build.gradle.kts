@@ -1,3 +1,4 @@
+import com.android.build.gradle.api.ApkVariantOutput
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.testing.Test
 
@@ -18,8 +19,8 @@ android {
         applicationId = "fun.han1997.nordic"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "0.1.4"
+        versionCode = 5
+        versionName = "0.1.5"
     }
 
     buildTypes {
@@ -47,6 +48,17 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    // AGP 8.5 exposes APK naming through this public variant API.
+    // Set the packaging output itself so output-metadata.json stays consistent.
+    applicationVariants.configureEach {
+        if (buildType.name == "release") {
+            val releaseVersionName = versionName
+            outputs.withType<ApkVariantOutput>().configureEach {
+                outputFileName = "nordic-$releaseVersionName.apk"
+            }
+        }
     }
 }
 

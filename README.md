@@ -90,13 +90,23 @@ WebDAV 当前支持 Basic 与匿名认证，不支持仅提供 Digest 的服务�
 
 在 Android Studio 中打开项目，点击运行按钮即可。
 
-命令行构建使用 JDK 17，并在本机 `local.properties` 中配置 Android SDK 的 `sdk.dir`：
+命令行构建使用 JDK 17，并在本机 `local.properties` 中配置 Android SDK 的 `sdk.dir`。
+
+仅打包已签名的 Release APK：
+
+```powershell
+.\gradlew.bat :app:assembleRelease
+```
+
+需要同时执行编译、单元测试和 Lint 时：
 
 ```powershell
 .\gradlew.bat :app:compileDebugKotlin :app:testDebugUnitTest :app:lintDebug :app:assembleRelease
 ```
 
-Release 产物位于 `app/build/outputs/apk/release/app-release.apk`，已签名并启用 R8 混淆与资源收缩，可用于侧载；不要安装旧的 `app-release-unsigned.apk`。
+Release 产物自动命名为 `app/build/outputs/apk/release/nordic-<versionName>.apk`。例如 `versionName` 为 `0.1.5` 时生成 `nordic-0.1.5.apk`；以后修改 `app/build.gradle.kts` 中的 `versionName`，文件名会随之更新，不需要手动重命名。Debug 仍生成 `app-debug.apk`。
+
+Release 已签名并启用 R8 混淆与资源收缩，可用于侧载。请以本次构建的 `output-metadata.json` 中 `elements[].outputFile` 为准，避免误用输出目录中可能残留的旧 `app-release.apk` 或 `app-release-unsigned.apk`。
 
 ### 应用标识、版本与侧载签名
 
