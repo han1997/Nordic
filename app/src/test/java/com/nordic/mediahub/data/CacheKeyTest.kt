@@ -84,6 +84,6 @@ class CacheKeyTest {
     @Test
     fun videoCacheKey_embedsSchemaVersion() {
         val cfg = VideoServerConfig(type = VideoServerType.EMBY, serverUrl = "http://example.test", apiKey = "key-a")
-        assertTrue(cfg.cacheKey().endsWith("|v3"))
+        assertTrue(cfg.cacheKey().endsWith("|v4"))
     }
 }

@@ -8,7 +8,11 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.first
 
-private const val VIDEO_CACHE_SCHEMA_VERSION = 3
+// Bump whenever VideoItem/VideoLibrary gains a field: Gson bypasses Kotlin
+// constructors, so rows written before a non-null field existed deserialize
+// with that field null and crash on the first `copy`. v4 invalidated caches
+// written before VideoItem.sourceId/sourceType/externalSubtitles existed.
+private const val VIDEO_CACHE_SCHEMA_VERSION = 4
 
 /**
  * Upper bound on cached per-library item lists. Switching to a library not in
@@ -140,7 +144,13 @@ class EmbyVideoCacheRepository(
     }
 
     private fun parseOrNull(json: String): EmbyVideoCache? {
-        return runCatching { gson.fromJson(json, EmbyVideoCache::class.java) }.getOrNull()
+        val cache = runCatching { gson.fromJson(json, EmbyVideoCache::class.java) }.getOrNull() ?: return null
+        // Gson skips Kotlin constructor defaults, so a row persisted before a
+        // non-null field existed deserializes with that field null. Treat such
+        // rows as a cache miss instead of letting the first `copy` crash.
+        val rows = cache.videos.asSequence() + cache.resumeVideos.asSequence() +
+            cache.itemsByLibrary.values.asSequence().flatten()
+        return cache.takeIf { rows.none { video -> video.sourceType == null } }
     }
 }
 

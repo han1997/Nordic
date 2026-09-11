@@ -219,6 +219,44 @@ class EmbyVideoCacheRepositoryTest {
         assertNull(repo.load(config(apiKey = "key-1")))
     }
 
+    @Test
+    fun load_rejectsCacheRowsMissingNonNullableFields() = runCacheTest {
+        // Simulates a cache written before VideoItem gained sourceType: Gson
+        // bypasses Kotlin defaults, so loading it must be a cache miss — the
+        // rows would otherwise crash the first `copy` with a null sourceType.
+        val dataStore = fakeDataStore()
+        val repo = EmbyVideoCacheRepository(context = null, dataStoreProvider = { dataStore })
+        val cfg = config(apiKey = "key-1")
+        val legacyJson = """
+            {"configKey":"${cfg.cacheKey()}","updatedAtMillis":1000,
+             "libraries":[],"videos":[{"id":"v1","libraryId":"lib-1","title":"v1","type":"Movie"}],
+             "resumeVideos":[{"id":"ep-1","libraryId":"","title":"ep-1","type":"Episode"}],
+             "itemsByLibrary":{"lib-1":[{"id":"v2","libraryId":"lib-1","title":"v2","type":"Movie"}]},"libraryFetchedAt":{}}
+        """.trimIndent()
+        runBlocking {
+            dataStore.edit { it[stringPreferencesKey("emby_video_cache")] = legacyJson }
+        }
+        assertNull(repo.load(cfg))
+    }
+
+    @Test
+    fun load_acceptsCacheRowsWithAllNonNullableFields() = runCacheTest {
+        val dataStore = fakeDataStore()
+        val repo = EmbyVideoCacheRepository(context = null, dataStoreProvider = { dataStore })
+        val cfg = config(apiKey = "key-1")
+        val currentJson = """
+            {"configKey":"${cfg.cacheKey()}","updatedAtMillis":1000,
+             "libraries":[],"videos":[{"id":"v1","libraryId":"lib-1","title":"v1","type":"Movie","sourceId":"s1","sourceType":"EMBY"}],
+             "resumeVideos":[],"itemsByLibrary":{},"libraryFetchedAt":{}}
+        """.trimIndent()
+        runBlocking {
+            dataStore.edit { it[stringPreferencesKey("emby_video_cache")] = currentJson }
+        }
+        val loaded = repo.load(cfg)
+        assertNotNull(loaded)
+        assertEquals(listOf("v1"), loaded!!.videos.map { it.id })
+    }
+
     private fun config(user: String = "", apiKey: String): VideoServerConfig {
         return VideoServerConfig(
             type = VideoServerType.EMBY,
