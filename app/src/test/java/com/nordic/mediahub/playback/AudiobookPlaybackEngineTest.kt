@@ -54,6 +54,26 @@ class AudiobookPlaybackEngineTest {
     }
 
     @Test
+    fun resolveAudiobookAbsolutePositionSeconds_mapsTrackLocalBufferedPositionToWholeBookSeconds() {
+        // Buffered position is track-local in the controller timeline; the same
+        // offset math must place the buffer segment correctly on the whole-book
+        // slider (track 1 starts at 120s, buffered 45s into it → 165s).
+        val tracks = listOf(
+            track(index = 0, startOffsetSeconds = 0),
+            track(index = 1, startOffsetSeconds = 120)
+        )
+
+        assertEquals(
+            165,
+            resolveAudiobookAbsolutePositionSeconds(
+                tracks = tracks,
+                currentIndex = 1,
+                currentPositionMs = 45_000L
+            )
+        )
+    }
+
+    @Test
     fun resolveAudiobookTrackSeekPosition_mapsAbsolutePositionToTrackOffset() {
         val tracks = listOf(
             track(index = 0, startOffsetSeconds = 0),

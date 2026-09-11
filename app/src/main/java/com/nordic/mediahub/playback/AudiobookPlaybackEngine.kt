@@ -43,6 +43,7 @@ data class AudiobookPlaybackState(
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,
     val positionSeconds: Int = 0,
+    val bufferedPositionSeconds: Int = 0,
     val durationSeconds: Int = 0,
     val playbackSpeed: Float = 1f,
     val chapters: List<AudiobookChapter> = emptyList(),
@@ -381,6 +382,14 @@ class AudiobookPlaybackEngine(context: Context) {
             activeController.currentMediaItemIndex,
             activeController.currentPosition
         )
+        // Buffered position is track-local in the controller timeline; map it
+        // through the same track-offset math as the absolute position so the
+        // buffer segment lands at the correct spot on the whole-book slider.
+        val currentAbsoluteBuffered = resolveAbsolutePositionSeconds(
+            session.audioTracks,
+            activeController.currentMediaItemIndex,
+            activeController.bufferedPosition.takeIf { it != C.TIME_UNSET } ?: activeController.currentPosition
+        )
 
         _state.update {
             it.copy(
@@ -388,6 +397,7 @@ class AudiobookPlaybackEngine(context: Context) {
                 isPlaying = activeController.isPlaying,
                 isBuffering = activeController.playbackState == Player.STATE_BUFFERING,
                 positionSeconds = currentAbsolutePosition,
+                bufferedPositionSeconds = currentAbsoluteBuffered.coerceAtLeast(currentAbsolutePosition),
                 durationSeconds = maxOf(
                     resolveAudiobookDurationSeconds(session.audioTracks, session.durationSeconds),
                     (activeController.duration.takeIf { value -> value != C.TIME_UNSET }?.div(1000L)?.toInt()) ?: 0

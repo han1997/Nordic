@@ -138,6 +138,7 @@ fun MusicPlayerScreen(
     positionSeconds: Int,
     positionMillisFlow: StateFlow<Long>,
     durationSeconds: Int,
+    bufferedPositionSeconds: Int = 0,
     lyricsState: MusicLyricsUiState,
     showLyrics: Boolean,
     lyricsSeekRevision: Long,
@@ -385,6 +386,7 @@ fun MusicPlayerScreen(
                             hasSong = hasSong, isPlaying = isPlaying,
                             position = visiblePosition.coerceIn(0f, timeline.sliderMaxSeconds.toFloat()),
                             duration = resolvedDurationSeconds, colorScheme = colorScheme,
+                            bufferedPosition = bufferedPositionSeconds.toFloat(),
                             playbackStatus = playbackStatus, playbackStatusIsError = playbackStatusIsError,
                             onPositionChange = { scrubPosition = it },
                             onPositionChangeFinished = {
@@ -552,6 +554,7 @@ private fun PlayerConsole(
     isPlaying: Boolean,
     position: Float,
     duration: Int,
+    bufferedPosition: Float?,
     colorScheme: ColorScheme,
     playbackStatus: String?,
     playbackStatusIsError: Boolean,
@@ -570,7 +573,7 @@ private fun PlayerConsole(
         if (playbackStatus != null) Text(playbackStatus, style = MaterialTheme.typography.bodySmall,
             color = if (playbackStatusIsError) colorScheme.error else colorScheme.onSurfaceVariant,
             maxLines = 3, overflow = TextOverflow.Ellipsis)
-        MediaPlayerTimeline(position, duration, colorScheme, hasSong, onPositionChange,
+        MediaPlayerTimeline(position, duration, colorScheme, hasSong, bufferedPosition = bufferedPosition, onPositionChange,
             onPositionChangeFinished, onPositionChangeCanceled)
         MediaTransportRow(
             leading = MediaPlayerAction(Icons.Filled.Shuffle, if (shuffleModeEnabled) "关闭随机播放" else "开启随机播放",

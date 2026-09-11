@@ -190,6 +190,7 @@ internal fun MediaPlayerTimeline(
     durationSeconds: Int,
     colors: ColorScheme,
     enabled: Boolean,
+    bufferedPosition: Float? = null,
     onScrub: (Float) -> Unit,
     onScrubFinished: () -> Unit,
     onScrubCancelled: () -> Unit
@@ -199,6 +200,7 @@ internal fun MediaPlayerTimeline(
         PlayerThinSlider(
             position = (position.takeIf { it.isFinite() } ?: 0f).coerceIn(0f, timeline.sliderMaxSeconds.toFloat()), duration = timeline.sliderMaxSeconds,
             colorScheme = colors, enabled = enabled, modifier = Modifier.heightIn(min = NordicControlSizes.touchTarget),
+            bufferedPosition = bufferedPosition,
             onPositionChange = onScrub, onPositionChangeFinished = onScrubFinished, onPositionChangeCanceled = onScrubCancelled
         )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {

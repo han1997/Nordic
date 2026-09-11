@@ -32,6 +32,7 @@ data class MusicPlaybackState(
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,
     val positionSeconds: Int = 0,
+    val bufferedPositionSeconds: Int = 0,
     val durationSeconds: Int = 0,
     val errorMessage: String? = null,
     val repeatMode: Int = Player.REPEAT_MODE_OFF,
@@ -647,6 +648,11 @@ class MusicPlaybackEngine(context: Context) {
                 isPlaying = activeController.isPlaying,
                 isBuffering = activeController.playbackState == Player.STATE_BUFFERING,
                 positionSeconds = (activeController.currentPosition.coerceAtLeast(0L) / 1000L).toInt(),
+                bufferedPositionSeconds = (activeController.bufferedPosition
+                    .takeIf { it != C.TIME_UNSET }
+                    ?.coerceAtLeast(0L)
+                    ?.div(1000L)
+                    ?.toInt()) ?: 0,
                 durationSeconds = (playerDuration?.div(1000L)?.toInt() ?: fallbackDuration)
                     .coerceAtLeast(fallbackDuration),
                 errorMessage = when (activeController.playbackState) {

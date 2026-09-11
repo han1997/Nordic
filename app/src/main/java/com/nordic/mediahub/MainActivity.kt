@@ -1141,6 +1141,7 @@ private fun MusicPlayerLayer(
         positionSeconds = playbackState.positionSeconds,
         positionMillisFlow = musicVM.positionMillis,
         durationSeconds = playbackState.durationSeconds,
+        bufferedPositionSeconds = playbackState.bufferedPositionSeconds,
         lyricsState = lyricsState,
         showLyrics = showLyrics,
         lyricsSeekRevision = lyricsSeekRevision,

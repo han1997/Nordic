@@ -273,6 +273,7 @@ fun AudiobookPlayerScreen(
                                 icon = Icons.Filled.Close, destructive = true)
                         }
                         MediaPlayerTimeline(visiblePosition, duration, colorScheme, playbackControlsEnabled,
+                            bufferedPosition = state.bufferedPositionSeconds.toFloat().coerceAtLeast(visiblePosition),
                             onScrub = { scrubPosition = it },
                             onScrubFinished = {
                                 val target = scrubPosition ?: visiblePosition
