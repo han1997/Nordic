@@ -203,3 +203,38 @@ OPPO 真机复测 0.1.3 歌词交互：显示/切歌/手动滚动 2 秒恢复/�
 ### Next Steps
 
 - None - task complete
+
+
+## Session 179: 视频页旧缓存闪退修复 + 音乐/有声书缓冲进度条
+
+**Date**: 2026-09-11
+**Task**: 视频页旧缓存闪退修复 + 音乐/有声书缓冲进度条
+**Branch**: `main`
+
+### Summary
+
+1)视频页点击闪退：logcat 定位 VideoItem.copy sourceType NPE——WebDAV 版给 VideoItem 加非空字段但缓存 schema 未升版，旧 JSON 经 Gson 反序列化 sourceType 为 null；修复 VIDEO_CACHE_SCHEMA_VERSION 3→4 + parseOrNull 拒载含 null sourceType 行的缓存（降级为缓存未命中），补 2 个回归测试，CacheKeyTest 同步 v4；真机 PKJ110 验证 Emby/WebDAV 两来源均正常。2)音乐/有声书播放器补缓冲进度条：MusicPlaybackState/AudiobookPlaybackState 加 bufferedPositionSeconds，引擎发布 controller.bufferedPosition（TIME_UNSET 守卫），有声书轨内缓冲经 resolveAudiobookAbsolutePositionSeconds 映射全书绝对秒并 coerceAtLeast(position)；MediaPlayerTimeline 加可选 bufferedPosition 参数透传 PlayerThinSlider；补轨内缓冲映射单测。compile+649 tests+lint 全绿；真机交互验证因设备断开未完成，待复测。3)提交上一 session 遗留的 Release APK 自动命名工作（build.gradle.kts ApkVariantOutput + README/spec/CHANGELOG 同步）。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `cd8fb50` | (see git log) |
+| `9bf898b` | (see git log) |
+| `f68afcf` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
