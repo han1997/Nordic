@@ -1,0 +1,29 @@
+{
+  "unitTests": {
+    "suites": 52,
+    "tests": 704,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "newRegressions": [
+    {
+      "name": "com.nordic.mediahub.data.EncryptedConfigStoreReactivityTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "com.nordic.mediahub.data.EncryptedPreferencesInstanceTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    }
+  ],
+  "lint": {
+    "Warning": 25,
+    "Information": 18
+  }
+}

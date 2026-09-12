@@ -1,0 +1,46 @@
+{
+  "expectedFailure": true,
+  "reason": "Independent wrappers do not share listener registries",
+  "suites": [
+    {
+      "suite": "com.nordic.mediahub.data.EncryptedConfigStoreReactivityTest",
+      "tests": 5,
+      "failures": 4,
+      "errors": 0,
+      "failedTests": [
+        {
+          "name": "rejectingLastVisibleModuleAndNoOpWritesPreservesTheLiveState",
+          "type": "kotlinx.coroutines.TimeoutCancellationException"
+        },
+        {
+          "name": "sourceChangesReachAnAlreadySubscribedStore",
+          "type": "kotlinx.coroutines.TimeoutCancellationException"
+        },
+        {
+          "name": "moduleTogglesReachExistingCollectorsAndSettingsWithoutRecreatingStores",
+          "type": "kotlinx.coroutines.TimeoutCancellationException"
+        },
+        {
+          "name": "preferenceChangesAndResetReachOtherStoresAndPlaybackProjections",
+          "type": "kotlinx.coroutines.TimeoutCancellationException"
+        }
+      ]
+    },
+    {
+      "suite": "com.nordic.mediahub.data.EncryptedPreferencesInstanceTest",
+      "tests": 2,
+      "failures": 2,
+      "errors": 0,
+      "failedTests": [
+        {
+          "name": "concurrentStoresOpenOnlyOneWrapperAndListenerRegistry",
+          "type": "java.lang.AssertionError"
+        },
+        {
+          "name": "initializationFailureIsPropagatedAndRetriedWithoutCachingFailure",
+          "type": "java.lang.IllegalStateException"
+        }
+      ]
+    }
+  ]
+}

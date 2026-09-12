@@ -1,0 +1,332 @@
+.class public interface abstract Lcom/nordic/mediahub/api/AudiobookShelfApi;
+.super Ljava/lang/Object;
+.source "SourceFile"
+
+
+# annotations
+.annotation system Ldalvik/annotation/MemberClasses;
+    value = {
+        Lcom/nordic/mediahub/api/AudiobookShelfApi$DefaultImpls;
+    }
+.end annotation
+
+
+# virtual methods
+.method public abstract closeSession(Ljava/lang/String;Ljava/lang/String;Lcom/nordic/mediahub/api/AudiobookShelfSessionSyncRequest;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Lr3/i;
+            value = "Authorization"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Lr3/s;
+            value = "id"
+        .end annotation
+    .end param
+    .param p3    # Lcom/nordic/mediahub/api/AudiobookShelfSessionSyncRequest;
+        .annotation runtime Lr3/a;
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Lcom/nordic/mediahub/api/AudiobookShelfSessionSyncRequest;",
+            "Lx2/d<",
+            "-",
+            "Lp3/M<",
+            "Lt2/o;",
+            ">;>;)",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Lr3/o;
+        value = "api/session/{id}/close"
+    .end annotation
+.end method
+
+.method public abstract getLibraries(Ljava/lang/String;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Lr3/i;
+            value = "Authorization"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Lx2/d<",
+            "-",
+            "Lp3/M<",
+            "Lcom/nordic/mediahub/api/AudiobookShelfLibrariesResponse;",
+            ">;>;)",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Lr3/f;
+        value = "api/libraries"
+    .end annotation
+.end method
+
+.method public abstract getLibraryItem(Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Lr3/i;
+            value = "Authorization"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Lr3/s;
+            value = "id"
+        .end annotation
+    .end param
+    .param p3    # I
+        .annotation runtime Lr3/t;
+            value = "expanded"
+        .end annotation
+    .end param
+    .param p4    # Ljava/lang/String;
+        .annotation runtime Lr3/t;
+            value = "include"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "I",
+            "Ljava/lang/String;",
+            "Lx2/d<",
+            "-",
+            "Lp3/M<",
+            "Lcom/nordic/mediahub/api/AudiobookShelfLibraryItemExpandedDto;",
+            ">;>;)",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Lr3/f;
+        value = "api/items/{id}"
+    .end annotation
+.end method
+
+.method public abstract getLibraryItems(Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;IILx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Lr3/i;
+            value = "Authorization"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Lr3/s;
+            value = "id"
+        .end annotation
+    .end param
+    .param p3    # I
+        .annotation runtime Lr3/t;
+            value = "minified"
+        .end annotation
+    .end param
+    .param p4    # Ljava/lang/String;
+        .annotation runtime Lr3/t;
+            value = "include"
+        .end annotation
+    .end param
+    .param p5    # I
+        .annotation runtime Lr3/t;
+            value = "limit"
+        .end annotation
+    .end param
+    .param p6    # I
+        .annotation runtime Lr3/t;
+            value = "page"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "I",
+            "Ljava/lang/String;",
+            "II",
+            "Lx2/d<",
+            "-",
+            "Lp3/M<",
+            "Lcom/nordic/mediahub/api/AudiobookShelfLibraryItemsResponse;",
+            ">;>;)",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Lr3/f;
+        value = "api/libraries/{id}/items"
+    .end annotation
+.end method
+
+.method public abstract getProgress(Ljava/lang/String;Ljava/lang/String;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Lr3/i;
+            value = "Authorization"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Lr3/s;
+            value = "id"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Lx2/d<",
+            "-",
+            "Lp3/M<",
+            "Lcom/nordic/mediahub/api/AudiobookShelfMediaProgressDto;",
+            ">;>;)",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Lr3/f;
+        value = "api/me/progress/{id}"
+    .end annotation
+.end method
+
+.method public abstract login(Lcom/nordic/mediahub/api/AudiobookShelfLoginRequest;Ljava/lang/String;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Lcom/nordic/mediahub/api/AudiobookShelfLoginRequest;
+        .annotation runtime Lr3/a;
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Lr3/i;
+            value = "x-return-tokens"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Lcom/nordic/mediahub/api/AudiobookShelfLoginRequest;",
+            "Ljava/lang/String;",
+            "Lx2/d<",
+            "-",
+            "Lp3/M<",
+            "Lcom/nordic/mediahub/api/AudiobookShelfLoginResponse;",
+            ">;>;)",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Lr3/o;
+        value = "login"
+    .end annotation
+.end method
+
+.method public abstract startPlayback(Ljava/lang/String;Ljava/lang/String;Lcom/nordic/mediahub/api/AudiobookShelfPlayRequest;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Lr3/i;
+            value = "Authorization"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Lr3/s;
+            value = "id"
+        .end annotation
+    .end param
+    .param p3    # Lcom/nordic/mediahub/api/AudiobookShelfPlayRequest;
+        .annotation runtime Lr3/a;
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Lcom/nordic/mediahub/api/AudiobookShelfPlayRequest;",
+            "Lx2/d<",
+            "-",
+            "Lp3/M<",
+            "Lcom/nordic/mediahub/api/AudiobookShelfPlaybackSessionDto;",
+            ">;>;)",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Lr3/o;
+        value = "api/items/{id}/play"
+    .end annotation
+.end method
+
+.method public abstract syncSession(Ljava/lang/String;Ljava/lang/String;Lcom/nordic/mediahub/api/AudiobookShelfSessionSyncRequest;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Lr3/i;
+            value = "Authorization"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Lr3/s;
+            value = "id"
+        .end annotation
+    .end param
+    .param p3    # Lcom/nordic/mediahub/api/AudiobookShelfSessionSyncRequest;
+        .annotation runtime Lr3/a;
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Lcom/nordic/mediahub/api/AudiobookShelfSessionSyncRequest;",
+            "Lx2/d<",
+            "-",
+            "Lp3/M<",
+            "Lt2/o;",
+            ">;>;)",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Lr3/o;
+        value = "api/session/{id}/sync"
+    .end annotation
+.end method
+
+.method public abstract updateProgress(Ljava/lang/String;Ljava/lang/String;Lcom/nordic/mediahub/api/AudiobookShelfProgressUpdateRequest;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Lr3/i;
+            value = "Authorization"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Lr3/s;
+            value = "id"
+        .end annotation
+    .end param
+    .param p3    # Lcom/nordic/mediahub/api/AudiobookShelfProgressUpdateRequest;
+        .annotation runtime Lr3/a;
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Lcom/nordic/mediahub/api/AudiobookShelfProgressUpdateRequest;",
+            "Lx2/d<",
+            "-",
+            "Lp3/M<",
+            "Lt2/o;",
+            ">;>;)",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Lr3/n;
+        value = "api/me/progress/{id}"
+    .end annotation
+.end method
+

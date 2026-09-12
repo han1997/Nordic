@@ -1,0 +1,62 @@
+{
+  "NavidromeApi": {
+    "count": 19,
+    "methods": [
+      "createPlaylist",
+      "deletePlaylist",
+      "getAlbum",
+      "getAlbumList2",
+      "getArtist",
+      "getArtists",
+      "getLyrics",
+      "getLyricsBySongId",
+      "getPlaylist",
+      "getPlaylists",
+      "getRandomSongs",
+      "getSimilarSongs",
+      "getStarred2",
+      "ping",
+      "scrobble",
+      "search3",
+      "star",
+      "unstar",
+      "updatePlaylist"
+    ]
+  },
+  "AudiobookShelfApi": {
+    "count": 9,
+    "methods": [
+      "closeSession",
+      "getLibraries",
+      "getLibraryItem",
+      "getLibraryItems",
+      "getProgress",
+      "login",
+      "startPlayback",
+      "syncSession",
+      "updateProgress"
+    ]
+  },
+  "EmbyApi": {
+    "count": 8,
+    "methods": [
+      "authenticateByName",
+      "getItems",
+      "getPlaybackInfo",
+      "getResumeItems",
+      "getUserViews",
+      "getUsers",
+      "reportPlaybackProgress",
+      "reportPlaybackStopped"
+    ]
+  },
+  "Continuation": {
+    "genericTypeParameterPreserved": true
+  },
+  "Response": {
+    "genericTypeParameterPreserved": true
+  },
+  "Call": {
+    "genericTypeParameterPreserved": true
+  }
+}

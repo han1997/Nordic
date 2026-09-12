@@ -1,0 +1,8 @@
+{
+  "com.nordic.mediahub.api.NavidromeApi": "com.nordic.mediahub.api.NavidromeApi",
+  "com.nordic.mediahub.api.AudiobookShelfApi": "com.nordic.mediahub.api.AudiobookShelfApi",
+  "com.nordic.mediahub.api.EmbyApi": "com.nordic.mediahub.api.EmbyApi",
+  "kotlin.coroutines.Continuation": "x2.d",
+  "retrofit2.Response": "p3.M",
+  "retrofit2.Call": "p3.c"
+}

@@ -1,0 +1,11 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Android 项目开发与验证入口"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "存储与测试的层级归属"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "加密偏好、监听顺序、清理与失败语义"}
+{"file": ".trellis/spec/backend/media-sources-webdav-settings.md", "reason": "模块即时可见性、持久化及已有导航/播放契约"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "共享状态与 JVM 回归、Windows 顺序执行 Gradle"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "初始化异常不吞掉或降级，保留错误传播"}
+{"file": ".trellis/spec/backend/build-release.md", "reason": "0.1.8 / 8、完整打包与签名及 Retrofit 产物核验"}
+{"file": ".trellis/spec/backend/documentation-guidelines.md", "reason": "中文任务、CHANGELOG、验证证据"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "复用存储入口与测试 Fake，不新增 UI 状态副本"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "设置写入与根页面持续订阅的跨实例链路"}
+{"file": ".trellis/tasks/archive/2026-09/09-12-media-module-reactivity/research/root-cause.md", "reason": "第三方源码证据与红绿回归计划"}

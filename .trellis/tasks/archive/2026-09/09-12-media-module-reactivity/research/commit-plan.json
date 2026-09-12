@@ -1,0 +1,60 @@
+{
+  "status": "committed",
+  "message": "fix: 修复媒体模块开关需重启才生效",
+  "files": [
+    {
+      "path": "app/src/main/java/com/nordic/mediahub/data/EncryptedConfigStore.kt",
+      "sha256": "b9da2acec433c8f7bcb73b6d1ad24660e8c984c322620051d58e1c8bf6b7d23d",
+      "gitBlob": "f7f36590f3fc9b74ea904f8038492fc7dfbdc4a7"
+    },
+    {
+      "path": "app/src/test/java/com/nordic/mediahub/data/EncryptedConfigStoreTest.kt",
+      "sha256": "275b745cc614a5838255e49aad3f82671c5bc0da1c8bd42d3e4b0ca174f90ee3",
+      "gitBlob": "44687995a554f2b7574e1c2494acdccf58bcdca9"
+    },
+    {
+      "path": "app/src/test/java/com/nordic/mediahub/data/EncryptedConfigStoreReactivityTest.kt",
+      "sha256": "e548eba3c3054190c2accff976039a296f4be0c805143cd63a4c638b3dbc5924",
+      "gitBlob": "a1bb1e63959d82fe21a7a3259429261b47254f69"
+    },
+    {
+      "path": "app/src/test/java/com/nordic/mediahub/data/EncryptedPreferencesInstanceTest.kt",
+      "sha256": "6d16c375250ec88e1eab0b9fd8359afd6e518fdcd84385f2ac446841befaa302",
+      "gitBlob": "292e51225eb6fe0ccfa43df14666e0fb36c4ddbc"
+    },
+    {
+      "path": "app/build.gradle.kts",
+      "sha256": "1bf9f96ef45ddc93e3a0077da1692e2df2d99673e464544f21aab5676dd28182",
+      "gitBlob": "c7253eb9037c6a27ac4d765c14770469de29dc90"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "b6210a813da3ae58c6ec8ef46bb242c2d0b41b31181db0348f5eb016eb794a19",
+      "gitBlob": "dd634488a74e10d600953f3c9663103febd55179"
+    },
+    {
+      "path": ".trellis/spec/backend/database-guidelines.md",
+      "sha256": "1bcc55ee1983f39d93272c0031cc08ca6b711ecc320747e7d0cd56dd3a46d704",
+      "gitBlob": "96ce5c296c3af0e1da9ff12978e233633f938c2a"
+    },
+    {
+      "path": ".trellis/spec/backend/media-sources-webdav-settings.md",
+      "sha256": "02ba83c54617b27a7736f2f186139143affdd6d6092137f4ec489557ea0676ea",
+      "gitBlob": "974461cd34824b631425e2d8cc2ef007326696ed"
+    }
+  ],
+  "unrecognizedDirtyFiles": [],
+  "taskBookkeeping": "Task directory and evidence reserved for the subsequent archive commit",
+  "release": {
+    "variant": "release",
+    "file": "app/build/outputs/apk/release/nordic-0.1.8.apk",
+    "applicationId": "fun.han1997.nordic",
+    "versionName": "0.1.8",
+    "versionCode": 8,
+    "bytes": 4523272,
+    "sha256": "4851dcd734728422ce6c500178fa817ba642b312d68f213fc81ca8b392258c4f",
+    "certificateSha256": "16a2350bb63cc53f446ec3aeadbd08ccd9d9475db867c4564ea6b6c3372a545d"
+  },
+  "approval": "用户回复“行”确认原提交计划",
+  "workCommit": "9270ae730239d508dcc0398c7c3651521a33093d"
+}
