@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-4.md`
-- **Total Sessions**: 179
-- **Last Active**: 2026-09-11
+- **Total Sessions**: 180
+- **Last Active**: 2026-09-12
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-4.md` | ~240 | Active |
+| `journal-4.md` | ~273 | Active |
 | `journal-3.md` | ~1965 | Archived |
 | `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
@@ -32,6 +32,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 180 | 2026-09-12 | 视频域按钮无效修复：详情播放/音量手势/清晰度即时生效/WebDAV连播 | `f42e2dd` | `main` |
 | 179 | 2026-09-11 | 视频页旧缓存闪退修复 + 音乐/有声书缓冲进度条 | `cd8fb50`, `9bf898b`, `f68afcf` | `main` |
 | 178 | 2026-09-11 | WebDAV、多服务器与设置中心实现及收尾 | `1d62e1a` | `main` |
 | 177 | 2026-09-10 | 真机复测歌词交互（未发现问题） | - | `main` |

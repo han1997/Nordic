@@ -238,3 +238,36 @@ OPPO 真机复测 0.1.3 歌词交互：显示/切歌/手动滚动 2 秒恢复/�
 ### Next Steps
 
 - None - task complete
+
+
+## Session 180: 视频域按钮无效修复：详情播放/音量手势/清晰度即时生效/WebDAV连播
+
+**Date**: 2026-09-12
+**Task**: 视频域按钮无效修复：详情播放/音量手势/清晰度即时生效/WebDAV连播
+**Branch**: `main`
+
+### Summary
+
+全页面按钮审计后修复四项：1)剧集详情大播放按钮无效——Series 无 streamUrl 被禁用且视觉不明显；新增 resolveVideoDetailPlayTarget（下一集未看优先，否则分集序号最小一集），按钮显示目标集名直接开播，无可播分集才禁用。2)音量手势第二次拖动跳回——VideoVolumeController.currentVolume 构造快照过期，改实时读系统音量。3)清晰度切换需重播才生效——setQualityMode 检测 Emby 播放中快照进度重新握手续播，AUTO↔ORIGINAL 互切不打断，面板文案同步。4)WebDAV 无连播——WebDavScreen 接入 setEpisodeContext，resolveNextVideoEpisode/resolveVideoPlayerEpisodes/shouldPlaySelectedVideoEpisode 扩展同目录 Video 类型，compareNaturalNames 自然排序与浏览页一致。新增 8 个单测，compile+665 tests+lint+assembleDebug 全绿。真机 PKJ110 安装成功、音乐页无崩溃；视频详情页复测因设备反复断开未完成，待补测。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `f42e2dd` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
