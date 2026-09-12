@@ -52,21 +52,16 @@ internal fun WebDavScreen(config: VideoServerConfig, onPlay: (VideoItem) -> Unit
     val positions = remember { mutableMapOf<String, Pair<Int, Int>>() }
     val currentOnPlay by rememberUpdatedState(onPlay)
     val currentOnPlayFromStart by rememberUpdatedState(onPlayFromStart)
+    val currentOnEpisodeContext by rememberUpdatedState(onEpisodeContext)
     LaunchedEffect(config) { model.configure(config) }
-    // Publish the current directory's playable videos so the player can
-    // resolve "next episode" and the episode picker for WebDAV playback.
-    LaunchedEffect(rows) {
-        onEpisodeContext(rows.filter { it.isVideo }.map { entry ->
-            VideoItem(id = entry.path, libraryId = webDavParent(entry.path), title = entry.name,
-                type = "Video", sourceId = config.sourceId, sourceType = VideoServerType.WEBDAV,
-                streamUrl = null)
-        })
-    }
     DisposableEffect(model) { onDispose { model.cancelRequests() } }
     LaunchedEffect(state.path) { positions[state.path]?.let { listState.scrollToItem(it.first, it.second) } ?: listState.scrollToItem(0) }
     fun open(path: String) { positions[state.path] = listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset; model.open(path) }
     fun play(entry: WebDavEntry, fromStart: Boolean = false) {
-        model.play(entry, fromStart) { video, start -> if (start) currentOnPlayFromStart(video) else currentOnPlay(video) }
+        model.play(entry, fromStart) { video, start, episodeContext ->
+            currentOnEpisodeContext(episodeContext)
+            if (start) currentOnPlayFromStart(video) else currentOnPlay(video)
+        }
     }
     fun preference(change: (AppPreferences) -> AppPreferences) {
         scope.launch { runCatching { repository.updatePreferences(change) }.onFailure { settingError = "目录显示设置保存失败" } }

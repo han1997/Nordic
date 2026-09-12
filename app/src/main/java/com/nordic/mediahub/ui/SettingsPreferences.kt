@@ -27,6 +27,7 @@ internal val SETTINGS_SEARCH_ENTRIES = listOf(
     SettingsSearchEntry(SettingsPage.AUDIOBOOK, "book_sleep", "睡眠定时预选时长"),
     SettingsSearchEntry(SettingsPage.VIDEO, "video_speed", "视频默认倍速"),
     SettingsSearchEntry(SettingsPage.VIDEO, "video_pip", "画中画", "PiP 小窗"),
+    SettingsSearchEntry(SettingsPage.VIDEO, "video_auto_play_next", "自动连播", "下一集 连续播放 Emby WebDAV"),
     SettingsSearchEntry(SettingsPage.VIDEO, "video_aspect", "画面比例", "适应 裁切 拉伸"),
     SettingsSearchEntry(SettingsPage.VIDEO, "video_back", "视频后退步长"),
     SettingsSearchEntry(SettingsPage.VIDEO, "video_forward", "视频前进步长"),
@@ -93,6 +94,9 @@ internal fun PreferenceSettingsPage(
                 speed("默认倍速", "video_speed", prefs.videoSpeed, VIDEO_PLAYBACK_SPEED_OPTIONS) { p, v -> p.copy(videoSpeed = v) }()
                 SettingsRow("画中画", "播放中返回桌面时进入小窗，需系统允许画中画。", checked = prefs.videoPip,
                     id = "video_pip", highlighted = highlight == "video_pip", onCheckedChange = { value -> update { it.copy(videoPip = value) } })
+                SettingsRow("自动连播", "仅前台生效，播完后倒计时 5 秒播放下一集，可随时取消。", checked = prefs.videoAutoPlayNext,
+                    id = "video_auto_play_next", highlighted = highlight == "video_auto_play_next",
+                    onCheckedChange = { value -> update { it.copy(videoAutoPlayNext = value) } })
                 val aspect = mapOf("FIT" to "适应", "CROP" to "裁切填充", "FILL" to "拉伸填充")
                 SettingsRow("画面比例", value = aspect[prefs.videoAspect], id = "video_aspect", highlighted = highlight == "video_aspect", onClick = {
                     choose("画面比例", prefs.videoAspect, aspect.map { SettingsChoice(it.key, it.value) }) { selected -> update { it.copy(videoAspect = selected) } }

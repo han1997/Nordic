@@ -85,6 +85,7 @@ internal fun VideoPlayerPanelHost(
     isFullscreen: Boolean,
     pipEnabled: Boolean,
     autoSkipIntro: Boolean,
+    autoPlayNextEnabled: Boolean,
     qualityMode: com.nordic.mediahub.data.VideoQualityMode,
     onPanelChange: (VideoPlayerPanel) -> Unit,
     onDismiss: () -> Unit,
@@ -94,6 +95,7 @@ internal fun VideoPlayerPanelHost(
     onSetPreferredAudioTrack: (com.nordic.mediahub.data.VideoStreamInfo?) -> Unit,
     onTogglePip: (Boolean) -> Unit,
     onToggleAutoSkipIntro: (Boolean) -> Unit,
+    onToggleAutoPlayNext: (Boolean) -> Unit,
     onSetQualityMode: (com.nordic.mediahub.data.VideoQualityMode) -> Unit,
     onSeekTo: (Int) -> Unit,
     onPlayEpisode: (VideoItem) -> Unit,
@@ -160,6 +162,14 @@ internal fun VideoPlayerPanelHost(
                             VideoPlayerPanel.Settings -> Column(
                                 Modifier.weight(1f).verticalScroll(rememberScrollState())
                             ) {
+                                VideoPlayerSettingToggleRow(
+                                    icon = Icons.Filled.SkipNext,
+                                    title = "自动连播",
+                                    description = "仅前台生效，播完后倒计时 5 秒；画中画不连播",
+                                    checked = autoPlayNextEnabled,
+                                    colors = colors,
+                                    onCheckedChange = onToggleAutoPlayNext
+                                )
                                 if (state.introRange != null) {
                                     VideoPlayerSettingToggleRow(
                                         icon = Icons.Filled.SkipNext,

@@ -76,6 +76,20 @@ class MediaSourceTest {
         restored.saveVideoPipEnabled(false)
         assertFalse(restored.preferences.first().videoPip)
     }
+    @Test fun autoPlayPreferenceSurvivesStoreRecreationAndResetsWithoutDeletingSources() = runBlocking {
+        val prefs = FakeSharedPreferences()
+        val store = EncryptedConfigStore(null, { prefs }, { emptyMap() }, {})
+        store.updateSources { saveMediaSource(it, source()).state }
+        assertFalse(store.preferences.first().videoAutoPlayNext)
+        store.updatePreferences { it.copy(videoAutoPlayNext = true) }
+        val restored = EncryptedConfigStore(null, { prefs }, { emptyMap() }, {})
+        assertTrue(restored.preferences.first().videoAutoPlayNext)
+        restored.updatePreferences { AppPreferences() }
+        val reset = EncryptedConfigStore(null, { prefs }, { emptyMap() }, {})
+        assertFalse(reset.preferences.first().videoAutoPlayNext)
+        assertEquals(1, reset.sources.first().sources.size)
+    }
+
     @Test fun preferencesAddDefaultsForMissingFieldsAndValidateRanges() {
         val prefs = AppPreferencesCodec.decode("{\"theme\":\"DARK\",\"videoSkipBack\":999}")
         assertEquals(ThemeMode.DARK, prefs.theme)

@@ -413,11 +413,11 @@ internal fun resolveVideoOrientationRequest(showVideoPlayer: Boolean, lockedLand
 - **面板**：`VideoPlayerPanel` 单一状态，不能同时打开多个面板；同窗口布局保持系统栏控制权不变。全屏且宽度至少 600dp、宽大于高时使用侧面板，否则使用底部面板。面板和 chrome 使用 `WindowInsets.safeDrawing`，全屏也避让刘海。
 - **手势**：识别器只附着视频 surface 容器，与控制层/面板是兄弟节点；打开面板禁用底层播放手势、隐藏其可访问性节点。回调使用 `rememberUpdatedState`，不得捕获上一集的 `remember(video.id)` 状态。手势锁仍只禁用播放手势，按钮不因此失效；隐藏 chrome 后保留解锁入口。
 - **返回优先级**：面板自身 BackHandler 优先关闭面板；再解手势锁、退出全屏，最后调用应用外壳关闭。不要让底层导航抢先退出播放器。
-- **剧集来源**：选集与下一集共用 `resolveVideoPlayerEpisodes`。当前项优先于旧目录副本，按 id 去重、按季/集/标题排序；只允许同 libraryId、同剧集的 Episode。双方 seriesId 非空时必须相同；缺失 ID 时可用非空 seriesName 忽略大小写匹配；无剧集身份只保留当前项，不混合所有无名剧集。
+- **剧集来源**：选集与下一集共用 `resolveVideoPlayerEpisodes`。当前项优先于旧目录副本；先按 sourceType/sourceId/libraryId 隔离，再按来源级身份去重、按季/集/标题/ID 排序；只允许同剧集的 Episode。解析已移至 `data/VideoEpisodeSequence.kt`，供手动选集与自动连播共用。双方 seriesId 非空时必须相同；缺失 ID 时可用非空 seriesName 忽略大小写匹配；无剧集身份只保留当前项，不混合所有无名剧集。
 - **选集呈现**：按季查看，0 季显示“特别篇”，null 显示“未分季”；初次定位当前季/集，高亮当前播放项。复用 `VideoEpisodeRow(isCurrent, compact)` 与已看/续播展示，稳定列表 key 为 id。电影不显示选集，最后一集仍能选集；上下文只有当前项时明确“暂无其他已载入剧集”，不虚构全集、不自动联网补库。
 - **切换**：点击当前集仅收起面板；无 streamUrl 的项禁用。新选集及下一集都经 MainScreen 的 `onPlayVideo` / `runMediaHandoff`，先快照/关闭原项，再启动目标，不能直接 `videoVM.play(next)` 绕过进度保存。切换前记录全屏意图，启动目标后恢复 fullscreen 与方向锁状态。
 - **本地进度**：ViewModel 关闭时用 `updateVideoEpisodeProgress` 更新内存剧集上下文，沿用 `resolveVideoProgressSyncBaselineSeconds` 的启动零值保护；用户在服务器目录刷新前切回同集也能续播。不改变已看标记、持久缓存或现有后台上报/重试语义。
-- **片尾提示**：有可播放下一集且进入最后 30 秒时，仅在控制层/面板隐藏、未锁定、无播放状态异常且未手动取消时出现；放在顶部边缘避开时间线与常见字幕区，点击才播放，不能写“即将播放”暗示自动连播。
+- **片尾提示**：有可播放下一集且进入最后 30 秒时，仅在控制层/面板隐藏、未锁定、无播放状态异常且未手动取消时出现；放在顶部边缘避开时间线与常见字幕区，此片尾提示点击才播放；真正播完后的可选自动倒计时是独立状态，详见[视频自动连播合同](./video-auto-play-next.md)，两者不得同时展示。
 - **语义**：图标动作提供中文 contentDescription/Role；字幕、音轨、清晰度等没有真实能力的数据入口不得展示为可用功能。
 
 ### 4. Validation & Error Matrix

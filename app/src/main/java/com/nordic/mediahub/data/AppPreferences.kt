@@ -31,6 +31,7 @@ data class AppPreferences(
     val audiobookSleepMinutes: Int = 30,
     val videoSpeed: Float = 1f,
     val videoPip: Boolean = true,
+    val videoAutoPlayNext: Boolean = false,
     val videoAutoSkipIntro: Boolean = true,
     val videoQuality: VideoQualityMode = VideoQualityMode.AUTO,
     val videoAspect: String = "FIT",

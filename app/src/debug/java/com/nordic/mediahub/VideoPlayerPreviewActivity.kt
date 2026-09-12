@@ -20,10 +20,12 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.nordic.mediahub.data.VideoItem
 import com.nordic.mediahub.playback.VideoPlaybackState
+import com.nordic.mediahub.playback.VideoAutoPlayNextRequest
+import com.nordic.mediahub.playback.VideoAutoPlayNextState
 import com.nordic.mediahub.playback.resolveNextAspectRatioMode
 import com.nordic.mediahub.playback.updateVideoEpisodeProgress
 import com.nordic.mediahub.ui.VideoPlayerScreen
-import com.nordic.mediahub.ui.resolveNextVideoEpisode
+import com.nordic.mediahub.data.resolveNextVideoEpisode
 import com.nordic.mediahub.ui.theme.NordicTheme
 
 /** A debug-only visual/interaction fixture. Never creates a repository or a playback engine. */
@@ -36,6 +38,8 @@ class VideoPlayerPreviewActivity : ComponentActivity() {
         setContent {
             NordicTheme(darkTheme = true) {
                 var episodes by remember { mutableStateOf(previewEpisodes()) }
+                var autoPlayEnabled by remember { mutableStateOf(scenario == "autoplay") }
+                var showAutoPlayPreview by remember { mutableStateOf(scenario == "autoplay") }
                 var state by remember {
                     val episode = episodes[3]
                     val video = when (scenario) {
@@ -47,7 +51,7 @@ class VideoPlayerPreviewActivity : ComponentActivity() {
                     mutableStateOf(VideoPlaybackState(
                         video = video, durationSeconds = if (scenario == "unknown") 0 else 2700,
                         positionSeconds = if (scenario == "end") 2690 else 754,
-                        bufferedPositionSeconds = 1200, isPlaying = scenario == "end",
+                        bufferedPositionSeconds = 1200, isPlaying = scenario == "end", hasEnded = scenario == "autoplay",
                         isBuffering = scenario == "buffering",
                         errorMessage = if (scenario == "error") "预览：视频流暂时不可用" else null
                     ))
@@ -63,11 +67,13 @@ class VideoPlayerPreviewActivity : ComponentActivity() {
                 }
                 val surfaces = remember { mutableMapOf<SurfaceView, SurfaceHolder.Callback>() }
                 fun select(video: VideoItem) {
+                    showAutoPlayPreview = false
                     state.video?.let { episodes = updateVideoEpisodeProgress(episodes, it, state.positionSeconds) }
                     state = state.copy(video = video, positionSeconds = video.playbackPositionSeconds,
-                        isPlaying = false, isBuffering = false, errorMessage = null)
+                        isPlaying = false, isBuffering = false, errorMessage = null, hasEnded = false)
                 }
-                val next = state.video?.let { resolveNextVideoEpisode(it, episodes) }
+                val currentVideo = state.video
+                val next = currentVideo?.let { resolveNextVideoEpisode(it, episodes) }
                 VideoPlayerScreen(
                     state = state, colorScheme = MaterialTheme.colorScheme,
                     onSurfaceReady = { view ->
@@ -81,11 +87,21 @@ class VideoPlayerPreviewActivity : ComponentActivity() {
                         if (view.holder.surface.isValid) drawPreview(view.holder)
                     },
                     onSurfaceDisposed = { view -> surfaces.remove(view)?.let { view.holder.removeCallback(it) } },
-                    onSeek = { state = state.copy(positionSeconds = it) },
-                    onSeekRelative = { state = state.copy(positionSeconds = (state.positionSeconds + it).coerceAtLeast(0)) },
-                    onPlayPause = { state = state.copy(isPlaying = !state.isPlaying, isBuffering = false, errorMessage = null) },
+                    onSeek = { showAutoPlayPreview = false; state = state.copy(positionSeconds = it, hasEnded = false) },
+                    onSeekRelative = { showAutoPlayPreview = false; state = state.copy(positionSeconds = (state.positionSeconds + it).coerceAtLeast(0), hasEnded = false) },
+                    onPlayPause = { showAutoPlayPreview = false; state = state.copy(isPlaying = !state.isPlaying, isBuffering = false, errorMessage = null, hasEnded = false) },
                     onCycleAspectRatio = { state = state.copy(aspectRatioMode = resolveNextAspectRatioMode(state.aspectRatioMode)) },
                     onSetPlaybackSpeed = { state = state.copy(playbackSpeed = it) },
+                    autoPlayNextEnabled = autoPlayEnabled,
+                    onToggleAutoPlayNext = { autoPlayEnabled = it; if (!it) showAutoPlayPreview = false },
+                    // Static five-second fixture: tests exercise real timing; this previews layout/actions only.
+                    autoPlayNextState = if (showAutoPlayPreview && currentVideo != null && next != null) {
+                        VideoAutoPlayNextState.Countdown(VideoAutoPlayNextRequest(1, currentVideo, next), 5)
+                    } else VideoAutoPlayNextState.Idle,
+                    onAutoPlayNextNow = { next?.let(::select) },
+                    onDismissAutoPlayNext = { showAutoPlayPreview = false },
+                    onCancelPendingAutoPlayNext = { showAutoPlayPreview = false },
+                    onPanelOpenChanged = { if (it) showAutoPlayPreview = false },
                     nextEpisode = next, episodeContext = episodes, onPlayEpisode = ::select,
                     onPlayNextEpisode = { next?.let(::select) },
                     onToggleFullscreen = { fullscreen = !fullscreen }, isFullscreen = fullscreen,

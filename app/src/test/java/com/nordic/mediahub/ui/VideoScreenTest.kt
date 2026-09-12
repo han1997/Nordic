@@ -2,6 +2,9 @@ package com.nordic.mediahub.ui
 
 import androidx.compose.ui.unit.dp
 import com.nordic.mediahub.data.VideoItem
+import com.nordic.mediahub.data.resolveNextVideoEpisode
+import com.nordic.mediahub.data.resolveNextWebDavVideo
+import com.nordic.mediahub.data.resolveVideoPlayerEpisodes
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull

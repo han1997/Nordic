@@ -73,6 +73,7 @@ class ConfigRepository(context: Context) {
     }
     val videoPlaybackSpeed: Flow<Float?> = preferences.map { it.videoSpeed }.distinctUntilChanged()
     val videoPipEnabled: Flow<Boolean> = preferences.map { it.videoPip }.distinctUntilChanged()
+    val videoAutoPlayNext: Flow<Boolean> = preferences.map { it.videoAutoPlayNext }.distinctUntilChanged()
     val videoAutoSkipIntro: Flow<Boolean> = preferences.map { it.videoAutoSkipIntro }.distinctUntilChanged()
     val videoQualityMode: Flow<VideoQualityMode> = preferences.map { it.videoQuality }.distinctUntilChanged()
 
@@ -125,6 +126,7 @@ class ConfigRepository(context: Context) {
     }
     suspend fun saveVideoPlaybackSpeed(speed: Float) = updatePreferences { it.copy(videoSpeed = speed) }
     suspend fun saveVideoPipEnabled(enabled: Boolean) = updatePreferences { it.copy(videoPip = enabled) }
+    suspend fun saveVideoAutoPlayNext(enabled: Boolean) = updatePreferences { it.copy(videoAutoPlayNext = enabled) }
     suspend fun saveVideoAutoSkipIntro(enabled: Boolean) = updatePreferences { it.copy(videoAutoSkipIntro = enabled) }
     suspend fun saveVideoQualityMode(mode: VideoQualityMode) = updatePreferences { it.copy(videoQuality = mode) }
 }

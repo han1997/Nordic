@@ -82,6 +82,19 @@ class WebDavRepository(config: VideoServerConfig, client: OkHttpClient = OkHttpC
     fun preparePlayback(entry: WebDavEntry, siblings: List<WebDavEntry>): VideoItem {
         require(entry.isVideo) { "这个文件不是支持的视频类型" }
         ScopedMediaRegistry.registerWebDav(config)
+        return playableItem(entry, siblings)
+    }
+
+    /** Capture a playable directory queue, including hidden subtitles and source-local resume data. */
+    internal fun prepareEpisodeContext(
+        siblings: List<WebDavEntry>,
+        history: List<WebDavProgress>
+    ): List<VideoItem> {
+        ScopedMediaRegistry.registerWebDav(config)
+        return siblings.filter { it.isVideo }.map { resumeWebDavVideo(playableItem(it, siblings), history) }
+    }
+
+    private fun playableItem(entry: WebDavEntry, siblings: List<WebDavEntry>): VideoItem {
         val baseName = entry.name.substringBeforeLast('.')
         val subtitles = siblings.filter { it.isSubtitle && it.name.startsWith("$baseName.") && webDavParent(it.path) == webDavParent(entry.path) }
             .map { subtitle ->

@@ -16,6 +16,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -28,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -39,6 +42,8 @@ import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -69,6 +74,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import com.nordic.mediahub.data.VideoItem
+import com.nordic.mediahub.data.playbackIdentity
+import com.nordic.mediahub.playback.VideoAutoPlayNextState
+import com.nordic.mediahub.data.resolveVideoPlayerEpisodes
 import com.nordic.mediahub.playback.resolveVideoRelativeSeekPositionSeconds
 import com.nordic.mediahub.playback.AspectRatioMode
 import com.nordic.mediahub.playback.VideoPlaybackState
@@ -141,7 +149,7 @@ internal class VideoAdjustGestureState {
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
-fun VideoPlayerScreen(
+internal fun VideoPlayerScreen(
     state: VideoPlaybackState,
     colorScheme: ColorScheme,
     modifier: Modifier = Modifier,
@@ -161,6 +169,13 @@ fun VideoPlayerScreen(
     onTogglePip: (Boolean) -> Unit = {},
     autoSkipIntro: Boolean = true,
     onToggleAutoSkipIntro: (Boolean) -> Unit = {},
+    autoPlayNextEnabled: Boolean = false,
+    onToggleAutoPlayNext: (Boolean) -> Unit = {},
+    autoPlayNextState: VideoAutoPlayNextState = VideoAutoPlayNextState.Idle,
+    onAutoPlayNextNow: () -> Unit = {},
+    onDismissAutoPlayNext: () -> Unit = {},
+    onCancelPendingAutoPlayNext: () -> Unit = {},
+    onPanelOpenChanged: (Boolean) -> Unit = {},
     onSkipIntro: () -> Unit = {},
     qualityMode: com.nordic.mediahub.data.VideoQualityMode = com.nordic.mediahub.data.VideoQualityMode.AUTO,
     onSetQualityMode: (com.nordic.mediahub.data.VideoQualityMode) -> Unit = {},
@@ -177,6 +192,11 @@ fun VideoPlayerScreen(
     onRestartFromBeginning: () -> Unit = {}
 ) {
     val video = state.video
+    val videoIdentity = video?.playbackIdentity()
+    val autoCountdown = autoPlayNextState as? VideoAutoPlayNextState.Countdown
+    val autoReady = autoPlayNextState as? VideoAutoPlayNextState.Ready
+    val autoNextRequest = autoCountdown?.request ?: autoReady?.request
+    val autoPlayPending = autoNextRequest != null || autoPlayNextState is VideoAutoPlayNextState.Switching
     val durationSeconds = state.durationSeconds.coerceAtLeast(video?.durationSeconds ?: 0)
     val errorMessage = (externalError ?: state.errorMessage)?.takeIf { it.isNotBlank() }
     val statusTone = resolveVideoStatusTone(video != null, state.isBuffering, errorMessage)
@@ -189,13 +209,13 @@ fun VideoPlayerScreen(
     val surfaceReadyCallback = remember { { surface: SurfaceView -> currentOnSurfaceReady(surface) } }
     val surfaceDisposedCallback = remember { { surface: SurfaceView -> currentOnSurfaceDisposed(surface) } }
 
-    var scrubPosition by remember(video?.id) { mutableStateOf<Float?>(null) }
-    var controlsVisible by remember(video?.id) { mutableStateOf(true) }
-    var activePanel by remember(video?.id) { mutableStateOf<VideoPlayerPanel?>(null) }
-    var seekFeedback by remember(video?.id) { mutableStateOf<SeekFeedback?>(null) }
-    var gesturesLocked by remember(video?.id) { mutableStateOf(false) }
-    var isTempSpeeding by remember(video?.id) { mutableStateOf(false) }
-    var nextPromptDismissed by remember(video?.id) { mutableStateOf(false) }
+    var scrubPosition by remember(videoIdentity) { mutableStateOf<Float?>(null) }
+    var controlsVisible by remember(videoIdentity) { mutableStateOf(true) }
+    var activePanel by remember(videoIdentity) { mutableStateOf<VideoPlayerPanel?>(null) }
+    var seekFeedback by remember(videoIdentity) { mutableStateOf<SeekFeedback?>(null) }
+    var gesturesLocked by remember(videoIdentity) { mutableStateOf(false) }
+    var isTempSpeeding by remember(videoIdentity) { mutableStateOf(false) }
+    var nextPromptDismissed by remember(videoIdentity) { mutableStateOf(false) }
     var interactionVersion by remember { mutableIntStateOf(0) }
     val adjustGestureState = remember { VideoAdjustGestureState() }
     val context = LocalContext.current
@@ -207,8 +227,15 @@ fun VideoPlayerScreen(
     val feedbackJob = remember { AtomicReference<kotlinx.coroutines.Job?>(null) }
     val prePressSpeed = remember { AtomicReference(1f) }
 
+    fun openPanel(panel: VideoPlayerPanel) {
+        onPanelOpenChanged(true)
+        activePanel = panel
+        interactionVersion++
+    }
+
     fun closePanel() {
         activePanel = null
+        onPanelOpenChanged(false)
         controlsVisible = true
         interactionVersion++
     }
@@ -257,12 +284,22 @@ fun VideoPlayerScreen(
     LaunchedEffect(statusTone) {
         if (statusTone != null) controlsVisible = true
     }
-    DisposableEffect(video?.id) {
-        onDispose { feedbackJob.get()?.cancel() }
+    val currentOnPanelOpenChanged by rememberUpdatedState(onPanelOpenChanged)
+    DisposableEffect(videoIdentity) {
+        onDispose {
+            feedbackJob.get()?.cancel()
+            currentOnPanelOpenChanged(false)
+        }
+    }
+    var previouslyEnded by remember(videoIdentity) { mutableStateOf(false) }
+    LaunchedEffect(state.hasEnded) {
+        if (previouslyEnded && !state.hasEnded) nextPromptDismissed = false
+        previouslyEnded = state.hasEnded
     }
     LaunchedEffect(isInPipMode) {
         if (isInPipMode) {
             activePanel = null
+            onPanelOpenChanged(false)
             scrubPosition = null
             seekFeedback = null
             adjustGestureState.reset()
@@ -366,13 +403,16 @@ fun VideoPlayerScreen(
                         gesturesLocked = gesturesLocked,
                         onClose = { endTempSpeed(); onClose() },
                         onToggleLock = { gesturesLocked = !gesturesLocked; interactionVersion++ },
-                        onPanel = { panel -> activePanel = panel; interactionVersion++ },
+                        onPanel = ::openPanel,
                         onPlayPause = { onPlayPause(); interactionVersion++ },
                         onSeekRelative = ::seekRelative,
                         onCycleAspectRatio = { onCycleAspectRatio(); interactionVersion++ },
                         onPlayNextEpisode = ::playNextEpisode,
                         onToggleFullscreen = { onToggleFullscreen(); interactionVersion++ },
-                        onScrubChange = { scrubPosition = it },
+                        onScrubChange = {
+                            onCancelPendingAutoPlayNext()
+                            scrubPosition = it
+                        },
                         onScrubFinished = {
                             scrubPosition?.let { onSeek(it.roundToInt()) }
                             scrubPosition = null
@@ -381,14 +421,23 @@ fun VideoPlayerScreen(
                         onScrubCanceled = { scrubPosition = null }
                     )
                 }
-                if (shouldShowVideoNextEpisodePrompt(
+                if (autoNextRequest != null && activePanel == null && errorMessage == null) {
+                    VideoPlayerNextEpisodeOverlay(
+                        episodeTitle = autoNextRequest.next.title,
+                        countdownSeconds = autoCountdown?.secondsRemaining ?: 0,
+                        onClick = onAutoPlayNextNow,
+                        onDismiss = { nextPromptDismissed = true; onDismissAutoPlayNext() },
+                        modifier = Modifier.align(Alignment.Center)
+                            .windowInsetsPadding(WindowInsets.safeDrawing).padding(NordicSpacing.lg)
+                    )
+                } else if (!autoPlayPending && shouldShowVideoNextEpisodePrompt(
                         hasNextEpisode, durationSeconds, state.positionSeconds, controlsVisible,
                         activePanel != null, gesturesLocked, statusTone != null, nextPromptDismissed
                     )
                 ) {
                     VideoPlayerNextEpisodeOverlay(
                         episodeTitle = nextEpisode?.title.orEmpty(), onClick = ::playNextEpisode,
-                        onDismiss = { nextPromptDismissed = true },
+                        onDismiss = { nextPromptDismissed = true; onDismissAutoPlayNext() },
                         modifier = Modifier.align(Alignment.TopEnd)
                             .windowInsetsPadding(WindowInsets.safeDrawing).padding(NordicSpacing.lg)
                     )
@@ -423,8 +472,9 @@ fun VideoPlayerScreen(
                     panel = panel, state = state, episodes = episodes, nextEpisode = nextEpisode,
                     isFullscreen = isFullscreen, pipEnabled = pipEnabled,
                     autoSkipIntro = autoSkipIntro,
+                    autoPlayNextEnabled = autoPlayNextEnabled,
                     qualityMode = qualityMode,
-                    onPanelChange = { activePanel = it }, onDismiss = ::closePanel,
+                    onPanelChange = ::openPanel, onDismiss = ::closePanel,
                     onSetPlaybackSpeed = { speed -> onSetPlaybackSpeed(speed); closePanel() },
                     onCycleAspectRatio = onCycleAspectRatio,
                     onSetPreferredTextTrack = { stream ->
@@ -437,6 +487,7 @@ fun VideoPlayerScreen(
                     },
                     onTogglePip = onTogglePip,
                     onToggleAutoSkipIntro = onToggleAutoSkipIntro,
+                    onToggleAutoPlayNext = onToggleAutoPlayNext,
                     onSetQualityMode = onSetQualityMode,
                     onSeekTo = { position ->
                         closePanel()
@@ -937,7 +988,8 @@ private fun VideoPlayerNextEpisodeOverlay(
     episodeTitle: String,
     onClick: () -> Unit,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    countdownSeconds: Int? = null
 ) {
     Surface(
         color = Color.Black.copy(alpha = 0.72f),
@@ -945,17 +997,35 @@ private fun VideoPlayerNextEpisodeOverlay(
         shape = NordicShapes.md,
         modifier = modifier.widthIn(max = 300.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        if (countdownSeconds != null) {
             Column(
-                Modifier.weight(1f).clickable(role = Role.Button, onClick = onClick)
-                    .padding(NordicSpacing.md),
-                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
+                Modifier.verticalScroll(rememberScrollState()).padding(NordicSpacing.lg),
+                verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
             ) {
-                Text("播放下一集", style = MaterialTheme.typography.labelLarge, color = Color.White)
-                Text(episodeTitle, style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.68f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(if (countdownSeconds > 0) "$countdownSeconds 秒后播放下一集" else "即将播放下一集",
+                    style = MaterialTheme.typography.titleMedium, color = Color.White)
+                Text(episodeTitle, style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.68f), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
+                    TextButton(onClick = onDismiss, modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White)) { Text("取消") }
+                    TextButton(onClick = onClick, modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White)) { Text("立即播放") }
+                }
             }
-            VideoPlayerChromeButton(Icons.Filled.Close, description = "暂不播放下一集", onClick = onDismiss)
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(
+                    Modifier.weight(1f).clickable(role = Role.Button, onClick = onClick)
+                        .padding(NordicSpacing.md),
+                    verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
+                ) {
+                    Text("播放下一集", style = MaterialTheme.typography.labelLarge, color = Color.White)
+                    Text(episodeTitle, style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.68f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                VideoPlayerChromeButton(Icons.Filled.Close, description = "暂不播放下一集", onClick = onDismiss)
+            }
         }
     }
 }

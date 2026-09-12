@@ -1,6 +1,7 @@
 package com.nordic.mediahub.ui
 
 import com.nordic.mediahub.data.VideoItem
+import com.nordic.mediahub.data.resolveVideoPlayerEpisodes
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

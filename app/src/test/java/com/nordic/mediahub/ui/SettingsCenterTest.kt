@@ -16,7 +16,7 @@ class SettingsCenterTest {
     }
     @Test fun searchFindsDirectPreferencesWithoutIndexingCredentials() {
         assertEquals("subtitle", searchSettings("默认字幕").single().id)
-        assertEquals(SettingsPage.SERVERS, searchSettings("webdav").single().page)
+        assertTrue(searchSettings("webdav").any { it.page == SettingsPage.SERVERS })
         assertTrue(searchSettings("a-secret-password").isEmpty())
         assertTrue(searchSettings("   ").isEmpty())
     }
@@ -48,6 +48,20 @@ class SettingsCenterTest {
         assertEquals(30, defaults.audiobookSkipBack)
         assertEquals(ThemeMode.SYSTEM, defaults.theme)
     }
+    @Test fun autoPlayPreferenceDefaultsOffAndSearchTargetsTheSameSetting() {
+        assertFalse(AppPreferencesCodec.decode(null).videoAutoPlayNext)
+        val legacy = AppPreferencesCodec.decode("""{"videoPip":false,"videoSpeed":1.5}""")
+        assertFalse(legacy.videoAutoPlayNext)
+        assertFalse(legacy.videoPip)
+        assertEquals(1.5f, legacy.videoSpeed)
+        val enabled = legacy.copy(videoAutoPlayNext = true)
+        assertEquals(enabled, AppPreferencesCodec.decode(AppPreferencesCodec.encode(enabled)))
+        assertFalse(AppPreferencesCodec.decode(AppPreferencesCodec.encode(enabled.copy(videoAutoPlayNext = false))).videoAutoPlayNext)
+        assertEquals("video_auto_play_next", searchSettings("自动连播").single().id)
+        assertEquals("video_auto_play_next", searchSettings("下一集").single().id)
+        assertEquals(SettingsPage.VIDEO, searchSettings("WebDAV 连播").single().page)
+    }
+
     @Test fun fileSizesAreHonestForUnknownAndZeroValues() {
         assertEquals("未知大小", formatMediaBytes(null))
         assertEquals("0 B", formatMediaBytes(0))

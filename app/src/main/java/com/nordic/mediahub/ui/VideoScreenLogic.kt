@@ -3,7 +3,6 @@ package com.nordic.mediahub.ui
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nordic.mediahub.data.VideoItem
-import com.nordic.mediahub.data.compareNaturalNames
 
 internal fun VideoItem.metaText(): String {
     return buildList {
@@ -260,96 +259,6 @@ internal fun VideoItem.episodeLabel(): String {
         season != null -> "第 $season 季"
         else -> type.ifBlank { "Episode" }
     }
-}
-
-/**
- * Resolves the next episode to play after [current], from a catalog of videos.
- * Episodes of the same series (matched by [VideoItem.seriesId], falling back to
- * [VideoItem.seriesName]) are ordered by (seasonNumber, episodeNumber, title);
- * the result is the item immediately following [current] in that order.
- * WebDAV items (type "Video") fall back to same-directory natural ordering.
- * Returns null when [current] has no successor.
- */
-internal fun resolveNextVideoEpisode(
-    current: VideoItem,
-    videos: List<VideoItem>
-): VideoItem? {
-    if (current.type.equals("Video", ignoreCase = true)) {
-        return resolveNextWebDavVideo(current, videos)
-    }
-    if (!current.type.equals("Episode", ignoreCase = true)) return null
-    val sameSeries = resolveVideoPlayerEpisodes(current, videos).filter { it.id != current.id }
-    val currentIndex = sameSeries.indexOfFirst { candidate ->
-        (candidate.seasonNumber ?: Int.MAX_VALUE) == (current.seasonNumber ?: Int.MAX_VALUE) &&
-            (candidate.episodeNumber ?: Int.MAX_VALUE) == (current.episodeNumber ?: Int.MAX_VALUE) &&
-            candidate.title == current.title
-    }
-    if (currentIndex >= 0) return sameSeries.getOrNull(currentIndex + 1)
-    // Current not found in the sorted list (e.g. missing episode numbers):
-    // return the first episode strictly after the current one.
-    val currentSeason = current.seasonNumber ?: Int.MAX_VALUE
-    val currentEpisode = current.episodeNumber ?: Int.MAX_VALUE
-    return sameSeries.firstOrNull { candidate ->
-        val candidateSeason = candidate.seasonNumber ?: Int.MAX_VALUE
-        val candidateEpisode = candidate.episodeNumber ?: Int.MAX_VALUE
-        when {
-            candidateSeason != currentSeason -> candidateSeason > currentSeason
-            candidateEpisode != currentEpisode -> candidateEpisode > currentEpisode
-            else -> candidate.title > current.title
-        }
-    }
-}
-
-/**
- * WebDAV continuation: videos in the same directory (libraryId holds the
- * parent path) ordered by natural filename order — matching the browse
- * screen's `compareNaturalNames` so "next" follows what the user sees.
- */
-internal fun resolveNextWebDavVideo(current: VideoItem, videos: List<VideoItem>): VideoItem? {
-    val siblings = videos.filter { candidate ->
-        candidate.type.equals("Video", ignoreCase = true) &&
-            candidate.libraryId == current.libraryId &&
-            !candidate.streamUrl.isNullOrBlank()
-    }.sortedWith(
-        Comparator { a: VideoItem, b: VideoItem ->
-            compareNaturalNames(a.title, b.title).takeIf { it != 0 } ?: a.id.compareTo(b.id)
-        }
-    )
-    val currentIndex = siblings.indexOfFirst { it.id == current.id }
-    if (currentIndex >= 0) return siblings.getOrNull(currentIndex + 1)
-    return siblings.lastOrNull { it.id != current.id }
-}
-
-/** Same-series context shared by the picker and Next episode; the active item wins stale catalog copies. */
-internal fun resolveVideoPlayerEpisodes(current: VideoItem?, videos: List<VideoItem>): List<VideoItem> {
-    if (current == null) return emptyList()
-    if (current.type.equals("Video", ignoreCase = true)) {
-        return videos.filter { candidate ->
-            candidate.type.equals("Video", ignoreCase = true) &&
-                candidate.libraryId == current.libraryId &&
-                !candidate.streamUrl.isNullOrBlank()
-        }.distinctBy { it.id }.sortedWith(
-            Comparator { a: VideoItem, b: VideoItem ->
-                compareNaturalNames(a.title, b.title).takeIf { it != 0 } ?: a.id.compareTo(b.id)
-            }
-        )
-    }
-    if (!current.type.equals("Episode", ignoreCase = true)) return emptyList()
-    val related = videos.filter { candidate ->
-        candidate.type.equals("Episode", ignoreCase = true) &&
-            candidate.libraryId == current.libraryId &&
-            if (!current.seriesId.isNullOrBlank() && !candidate.seriesId.isNullOrBlank()) {
-                candidate.seriesId == current.seriesId
-            } else {
-                !current.seriesName.isNullOrBlank() &&
-                    candidate.seriesName.equals(current.seriesName, ignoreCase = true)
-            }
-    }
-    return (listOf(current) + related).distinctBy { it.id }.sortedWith(
-        compareBy<VideoItem> { it.seasonNumber ?: Int.MAX_VALUE }
-            .thenBy { it.episodeNumber ?: Int.MAX_VALUE }
-            .thenBy { it.title }
-    )
 }
 
 internal fun videoPlayerSeasonLabel(season: Int?): String = when (season) {

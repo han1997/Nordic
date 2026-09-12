@@ -36,6 +36,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nordic.mediahub.data.AppPreferences
@@ -51,6 +52,10 @@ import com.nordic.mediahub.data.AudiobookItemSummary
 import com.nordic.mediahub.data.AudiobookPlaybackSession
 import com.nordic.mediahub.data.NavidromeSong
 import com.nordic.mediahub.data.VideoItem
+import com.nordic.mediahub.data.resolveNextVideoEpisode
+import com.nordic.mediahub.data.playbackIdentity
+import com.nordic.mediahub.playback.VideoAutoPlayNextRequest
+import com.nordic.mediahub.playback.VideoAutoPlayNextState
 import com.nordic.mediahub.data.isReadyForAudiobookSync
 import com.nordic.mediahub.playback.AudiobookPlaybackViewModel
 import com.nordic.mediahub.playback.MusicPlaybackViewModel
@@ -225,7 +230,8 @@ internal fun runMediaHandoffCloseSteps(
         onFailed: () -> Unit
     ) -> Unit,
     onReady: () -> Unit,
-    onFailed: () -> Unit
+    onFailed: () -> Unit,
+    canProceed: () -> Boolean = { true }
 ) {
     var handoffFinished = false
 
@@ -237,6 +243,7 @@ internal fun runMediaHandoffCloseSteps(
 
     fun closeAt(index: Int) {
         if (handoffFinished) return
+        if (!canProceed()) { failHandoff(); return }
         if (index >= steps.size) {
             handoffFinished = true
             onReady()
@@ -525,17 +532,21 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         }
     }
     val closeVideoPlayback = remember(videoVM) {
-        { onClosed: () -> Unit, onFailed: () -> Unit ->
+        { onClosed: () -> Unit, onFailed: () -> Unit, autoPlayRequest: VideoAutoPlayNextRequest? ->
             videoVM.closeVideoPlayback(
                 onClosed = {
-                    showVideoPlayer = false
-                    isFullscreen = false
+                    // Keep the foreground player/fullscreen stable across an automatic handoff.
+                    if (autoPlayRequest == null) {
+                        showVideoPlayer = false
+                        isFullscreen = false
+                    }
                     onClosed()
                 },
                 onFailed = {
-                    showVideoPlayer = true
+                    if (autoPlayRequest == null) showVideoPlayer = true
                     onFailed()
-                }
+                },
+                autoPlayRequest = autoPlayRequest
             )
         }
     }
@@ -551,8 +562,11 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         {
             target: MediaPlaybackKind,
             replaceTargetPlayback: Boolean,
+            autoPlayRequest: VideoAutoPlayNextRequest?,
             onReady: (releaseSwitch: () -> Unit) -> Unit,
             onFailed: () -> Unit ->
+            // Explicit media choices always supersede a pending automatic request, even when busy.
+            if (autoPlayRequest == null) videoVM.cancelPendingAutoPlayNext()
             if (mediaSwitchInProgress.compareAndSet(false, true)) {
                 val steps = resolveMediaHandoffCloseSteps(
                     target = target,
@@ -570,17 +584,22 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                 onClosed()
                             }
                             MediaPlaybackKind.Audiobook -> closeAudiobookPlayback(onClosed, onStepFailed)
-                            MediaPlaybackKind.Video -> closeVideoPlayback(onClosed, onStepFailed)
+                            MediaPlaybackKind.Video -> closeVideoPlayback(onClosed, onStepFailed, autoPlayRequest)
                         }
                     },
                     onReady = {
                         onReady { mediaSwitchInProgress.set(false) }
                     },
                     onFailed = {
+                        if (autoPlayRequest != null) videoVM.cancelPendingAutoPlayNext()
                         onFailed()
                         mediaSwitchInProgress.set(false)
-                    }
+                    },
+                    canProceed = { autoPlayRequest == null || videoVM.isAutoPlayNextRequestValid(autoPlayRequest) }
                 )
+            } else if (autoPlayRequest != null) {
+                videoVM.cancelPendingAutoPlayNext()
+                onFailed()
             }
         }
     }
@@ -640,6 +659,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             runMediaHandoff(
                 MediaPlaybackKind.Music,
                 false,
+                null,
                 { releaseSwitch ->
                     musicVM.playQueue(
                         songs = songs,
@@ -667,6 +687,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                 runMediaHandoff(
                     MediaPlaybackKind.Audiobook,
                     action == AudiobookPlayRequestAction.CloseCurrentSessionBeforeStart,
+                    null,
                     { releaseSwitch ->
                         if (action == AudiobookPlayRequestAction.ReuseCurrentSession) {
                             audiobookVM.clearError()
@@ -690,26 +711,43 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             }
         }
     }
-    val onPlayVideo = remember(videoVM, runMediaHandoff) {
-        { video: VideoItem ->
+    val onPlayVideoRequest = remember(videoVM, runMediaHandoff) {
+        { video: VideoItem, autoPlayRequest: VideoAutoPlayNextRequest? ->
             val currentVideo = videoVM.state.value.video
             val keepFullscreen = showVideoPlayer && isFullscreen
             runMediaHandoff(
                 MediaPlaybackKind.Video,
-                currentVideo != null && currentVideo.id != video.id,
+                currentVideo != null && currentVideo.playbackIdentity() != video.playbackIdentity(),
+                autoPlayRequest,
                 { releaseSwitch ->
-                    videoVM.clearError()
-                    videoVM.play(video)
-                    showPlayer = false
-                    showAudiobookPlayer = false
-                    showVideoPlayer = true
-                    isFullscreen = keepFullscreen
-                    orientationLockedLandscape = keepFullscreen
-                    releaseSwitch()
+                    try {
+                        if (autoPlayRequest == null || videoVM.isAutoPlayNextRequestValid(autoPlayRequest)) {
+                            videoVM.clearError()
+                            if (autoPlayRequest == null) videoVM.play(video) else videoVM.playAutoPlayNext(autoPlayRequest)
+                            showPlayer = false
+                            showAudiobookPlayer = false
+                            showVideoPlayer = true
+                            isFullscreen = keepFullscreen
+                            orientationLockedLandscape = keepFullscreen
+                        }
+                    } finally {
+                        releaseSwitch()
+                    }
                 },
-                { }
+                {
+                    if (autoPlayRequest != null && !videoVM.hasPlayback) {
+                        showVideoPlayer = false
+                        isFullscreen = false
+                    }
+                }
             )
         }
+    }
+    val onPlayVideo = remember(onPlayVideoRequest) {
+        { video: VideoItem -> onPlayVideoRequest(video, null) }
+    }
+    val onAutoPlayVideo = remember(onPlayVideoRequest) {
+        { request: VideoAutoPlayNextRequest -> onPlayVideoRequest(request.next, request) }
     }
     val onPlayVideoFromStart = remember(videoVM, runMediaHandoff) {
         { video: VideoItem ->
@@ -717,6 +755,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             runMediaHandoff(
                 MediaPlaybackKind.Video,
                 currentVideo != null,
+                null,
                 { releaseSwitch ->
                     videoVM.clearError()
                     videoVM.playFromStart(video)
@@ -1016,6 +1055,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         closeVideoPlayback = closeCurrentVideoPlayback,
         closeVideoPlaybackAnyway = closeCurrentVideoPlaybackAnyway,
         onPlayEpisode = onPlayVideo,
+        onAutoPlayEpisode = onAutoPlayVideo,
         onPlayFromStart = onPlayVideoFromStart,
         onToggleFullscreen = {
             // Fullscreen locks landscape; leaving fullscreen restores the
@@ -1175,6 +1215,7 @@ private fun VideoPlayerLayer(
     closeVideoPlayback: () -> Unit,
     closeVideoPlaybackAnyway: () -> Unit,
     onPlayEpisode: (VideoItem) -> Unit,
+    onAutoPlayEpisode: (VideoAutoPlayNextRequest) -> Unit,
     onPlayFromStart: (VideoItem) -> Unit,
     onToggleFullscreen: () -> Unit
 ) {
@@ -1183,10 +1224,27 @@ private fun VideoPlayerLayer(
     val catalogVideos by videoVM.catalogVideos.collectAsStateWithLifecycle()
     val pipEnabled by videoVM.pipEnabled.collectAsStateWithLifecycle()
     val autoSkipIntro by videoVM.autoSkipIntro.collectAsStateWithLifecycle()
+    val autoPlayNextEnabled by videoVM.autoPlayNextEnabled.collectAsStateWithLifecycle()
+    val autoPlayNextState by videoVM.autoPlayNextState.collectAsStateWithLifecycle()
     val qualityMode by videoVM.qualityMode.collectAsStateWithLifecycle()
 
     val activity = LocalContext.current as? MainActivity
     val isInPipMode = activity?.isInVideoPipMode == true
+    LifecycleResumeEffect(showVideoPlayer, isInPipMode) {
+        videoVM.setAutoPlayNextForeground(showVideoPlayer && !isInPipMode)
+        onPauseOrDispose { videoVM.setAutoPlayNextForeground(false) }
+    }
+    val readyRequest = (autoPlayNextState as? VideoAutoPlayNextState.Ready)?.request
+    LaunchedEffect(readyRequest) {
+        if (readyRequest != null && videoVM.claimAutoPlayNext(readyRequest)) onAutoPlayEpisode(readyRequest)
+    }
+    LaunchedEffect(autoPlayNextState, videoPlaybackState.video, videoPlaybackError) {
+        // If preparation was cancelled after the old engine closed, leave no empty player behind.
+        if (autoPlayNextState == VideoAutoPlayNextState.Dismissed && showVideoPlayer &&
+            videoPlaybackState.video == null && videoPlaybackError == null && !videoVM.hasPlayback) {
+            closeVideoPlayback()
+        }
+    }
     val pipBridge = resolveVideoPipBridgeState(
         showVideoPlayer, pipEnabled, videoPlaybackState, videoPlaybackError
     )
@@ -1237,8 +1295,13 @@ private fun VideoPlayerLayer(
         enter = NordicMotion.enterSlideUp,
         exit = NordicMotion.exitSlideDown
     ) {
+        val preparingRequest = (autoPlayNextState as? VideoAutoPlayNextState.Switching)?.request
+        // During preparation keep a dismissible loading player, not an empty/uncancellable overlay.
+        val displayState = if (videoPlaybackState.video == null && preparingRequest != null) {
+            videoPlaybackState.copy(video = preparingRequest.next, isBuffering = true)
+        } else videoPlaybackState
         VideoPlayerScreen(
-            state = videoPlaybackState,
+            state = displayState,
             colorScheme = colorScheme,
             externalError = videoPlaybackError,
             onSurfaceReady = videoVM::attachSurface,
@@ -1258,6 +1321,13 @@ private fun VideoPlayerLayer(
             onTogglePip = videoVM::setPipEnabled,
             autoSkipIntro = autoSkipIntro,
             onToggleAutoSkipIntro = videoVM::setAutoSkipIntro,
+            autoPlayNextEnabled = autoPlayNextEnabled,
+            onToggleAutoPlayNext = videoVM::setAutoPlayNext,
+            autoPlayNextState = autoPlayNextState,
+            onAutoPlayNextNow = videoVM::playAutoPlayNextNow,
+            onDismissAutoPlayNext = videoVM::dismissAutoPlayNext,
+            onCancelPendingAutoPlayNext = videoVM::cancelPendingAutoPlayNext,
+            onPanelOpenChanged = videoVM::setAutoPlayNextPanelOpen,
             onSkipIntro = videoVM::skipIntro,
             qualityMode = qualityMode,
             onSetQualityMode = videoVM::setQualityMode,

@@ -380,6 +380,56 @@ class MainActivityTest {
     }
 
     @Test
+    fun mediaHandoffRevalidatesAfterAsynchronousSaveAndIgnoresDuplicateCallbacks() {
+        val events = mutableListOf<String>()
+        var valid = true
+        var saved: (() -> Unit)? = null
+        runMediaHandoffCloseSteps(
+            steps = listOf(MediaPlaybackKind.Video),
+            closeStep = { _, onClosed, _ -> events += "save-original"; saved = onClosed },
+            onReady = { events += "start-next" },
+            onFailed = { events += "cancelled" },
+            canProceed = { valid }
+        )
+        assertEquals(listOf("save-original"), events)
+        valid = false // Home / PiP / source switch / explicit play while saving.
+        saved?.invoke()
+        valid = true
+        saved?.invoke()
+        assertEquals(listOf("save-original", "cancelled"), events)
+    }
+
+    @Test
+    fun mediaHandoffRejectsStaleRequestBeforeClosingAnyCurrentPlayback() {
+        val events = mutableListOf<String>()
+        runMediaHandoffCloseSteps(
+            steps = listOf(MediaPlaybackKind.Video),
+            closeStep = { _, _, _ -> events += "close" },
+            onReady = { events += "start" },
+            onFailed = { events += "cancelled" },
+            canProceed = { false }
+        )
+        assertEquals(listOf("cancelled"), events)
+    }
+
+    @Test
+    fun mediaHandoffStartsOnceOnlyAfterTheOriginalProgressIsSaved() {
+        val events = mutableListOf<String>()
+        var saved: (() -> Unit)? = null
+        runMediaHandoffCloseSteps(
+            steps = listOf(MediaPlaybackKind.Video),
+            closeStep = { _, onClosed, _ -> events += "snapshot"; saved = onClosed },
+            onReady = { events += "resume-next" },
+            onFailed = { events += "failed" },
+            canProceed = { true }
+        )
+        events += "saved"
+        saved?.invoke()
+        saved?.invoke()
+        assertEquals(listOf("snapshot", "saved", "resume-next"), events)
+    }
+
+    @Test
     fun resolveVideoOrientationRequest_locksPortraitByDefaultOutsideFullscreen() {
         assertEquals(
             ActivityInfo.SCREEN_ORIENTATION_PORTRAIT,

@@ -94,7 +94,7 @@ internal class WebDavBrowserViewModel(application: Application) : AndroidViewMod
         viewModelScope.launch { try { local?.removeProgress(path) }
             catch (error: Exception) { if (error is CancellationException) throw error; _state.update { it.copy(error = "清除进度失败") } } }
     }
-    fun play(entry: WebDavEntry, fromStart: Boolean, onReady: (VideoItem, Boolean) -> Unit) {
+    fun play(entry: WebDavEntry, fromStart: Boolean, onReady: (VideoItem, Boolean, List<VideoItem>) -> Unit) {
         val remote = repository ?: return
         val saved = local ?: return
         playJob?.cancel()
@@ -104,10 +104,12 @@ internal class WebDavBrowserViewModel(application: Application) : AndroidViewMod
                 val parent = webDavParent(entry.path)
                 val siblings = if (_state.value.path == parent && _state.value.entries.any { it.path == entry.path }) _state.value.entries
                     else remote.listDirectory(parent).also { saved.saveDirectory(it) }.entries
-                val current = siblings.firstOrNull { it.path == entry.path }
+                val history = saved.progress.first()
+                val context = withContext(Dispatchers.Default) { remote.prepareEpisodeContext(siblings, history) }
+                val video = context.firstOrNull { it.id == entry.path }
                     ?: throw WebDavException(WebDavException.Kind.NOT_FOUND, "视频文件不存在或已被移动")
-                val video = resumeWebDavVideo(remote.preparePlayback(current, siblings), saved.progress.first())
-                onReady(video, fromStart)
+                // Publish only a fully prepared snapshot of the clicked file's directory, before playback.
+                onReady(video, fromStart, context)
             } catch (error: CancellationException) { throw error
             } catch (error: Exception) { _state.update { it.copy(error = error.message ?: "无法准备播放") }
             } finally { _state.update { it.copy(preparing = false) } }

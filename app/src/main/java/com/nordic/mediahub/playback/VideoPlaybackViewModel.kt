@@ -17,6 +17,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlin.coroutines.coroutineContext
 import com.nordic.mediahub.data.EmbyRepository
 import com.nordic.mediahub.data.VideoItem
+import com.nordic.mediahub.data.playbackIdentity
+import com.nordic.mediahub.data.resolveNextVideoEpisode
 import com.nordic.mediahub.data.VideoQualityMode
 import com.nordic.mediahub.data.isReadyForVideoSync
 import com.nordic.mediahub.data.resolveVideoPlaybackStreamUrl
@@ -86,6 +88,13 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     /** Auto intro-skip preference; enabled by default, persisted. */
     private val _autoSkipIntro = MutableStateFlow(true)
     val autoSkipIntro: StateFlow<Boolean> = _autoSkipIntro.asStateFlow()
+
+    private val autoPlayNextController = VideoAutoPlayNextController(viewModelScope) {
+        android.os.SystemClock.elapsedRealtime()
+    }
+    private val _autoPlayNextEnabled = MutableStateFlow(false)
+    val autoPlayNextEnabled: StateFlow<Boolean> = _autoPlayNextEnabled.asStateFlow()
+    internal val autoPlayNextState: StateFlow<VideoAutoPlayNextState> = autoPlayNextController.state
 
     /** Video quality preference; AUTO (direct play) by default, persisted. */
     private val _qualityMode = MutableStateFlow(VideoQualityMode.AUTO)
@@ -162,8 +171,31 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
             wasPlaying = snapshot.isPlaying
             wasEnded = snapshot.hasEnded
         }.launchIn(viewModelScope)
+        combine(state, _catalogVideos, _error) { snapshot, videos, error ->
+            val current = snapshot.video ?: (autoPlayNextState.value as? VideoAutoPlayNextState.Switching)?.request?.previous
+            val next = current?.let { resolveNextVideoEpisode(it, videos) }
+            snapshot.copy(errorMessage = error ?: snapshot.errorMessage) to next
+        }.onEach { (snapshot, next) ->
+            val wasPreparing = autoPlayNextState.value is VideoAutoPlayNextState.Switching
+            autoPlayNextController.updatePlayback(snapshot, next)
+            if (wasPreparing && autoPlayNextState.value == VideoAutoPlayNextState.Dismissed) {
+                // Catalog/error invalidation must also end a suspended handshake, not just hide its token.
+                qualityHandshakeJob?.cancel()
+            }
+        }.launchIn(viewModelScope)
+        configRepository.videoAutoPlayNext.onEach { enabled ->
+            _autoPlayNextEnabled.value = enabled
+            if (!enabled) cancelPendingAutoPlayNext()
+            autoPlayNextController.setEnabled(enabled)
+        }.launchIn(viewModelScope)
         configRepository.videoConfig
-            .onEach { if (selectedConfig != it) qualityHandshakeJob?.cancel(); selectedConfig = it }
+            .onEach {
+                if (selectedConfig != it) {
+                    cancelPendingAutoPlayNext()
+                    qualityHandshakeJob?.cancel()
+                }
+                selectedConfig = it
+            }
             .map { if (it.isReadyForVideoSync()) it else null }
             .distinctUntilChanged()
             .map { config -> config?.let { EmbyRepository(it) } }
@@ -296,14 +328,12 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
      * (best-effort with one retry) so a slow server can never trap the user
      * in the player.
      */
-    fun closeVideoPlayback(
+    internal fun closeVideoPlayback(
         onClosed: () -> Unit = {},
-        onFailed: (message: String) -> Unit = {}
+        onFailed: (message: String) -> Unit = {},
+        autoPlayRequest: VideoAutoPlayNextRequest? = null
     ) {
-        closeVideoPlaybackInternal(
-            onClosed = onClosed,
-            onFailed = onFailed
-        )
+        closeVideoPlaybackInternal(onClosed, onFailed, autoPlayRequest)
     }
 
     /**
@@ -323,14 +353,24 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
 
     private fun closeVideoPlaybackInternal(
         onClosed: () -> Unit = {},
-        onFailed: (message: String) -> Unit = {}
+        onFailed: (message: String) -> Unit = {},
+        autoPlayRequest: VideoAutoPlayNextRequest? = null
     ) {
+        if (autoPlayRequest == null) cancelPendingAutoPlayNext()
+        else if (!isAutoPlayNextRequestValid(autoPlayRequest)) {
+            onFailed("自动连播已取消")
+            return
+        }
         qualityHandshakeJob?.cancel()
         _error.value = null
         _syncError.value = null
         val currentState = engine.state.value
         val video = currentState.video
         if (video?.sourceType == VideoServerType.WEBDAV) {
+            _catalogVideos.value = updateVideoEpisodeProgress(
+                _catalogVideos.value, video, currentState.positionSeconds,
+                currentState.durationSeconds, currentState.hasEnded
+            )
             engine.stop()
             activePlaySessionId = null
             saveLocalProgress(currentState, onClosed)
@@ -353,10 +393,10 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                 statePositionSeconds = currentState.positionSeconds,
                 video = video
             )
-            engine.stop()
-            onClosed()
             val closedPlaySessionId = activePlaySessionId
             activePlaySessionId = null
+            engine.stop()
+            onClosed()
             viewModelScope.launch {
                 runCatching { repo.stopPlaybackProgress(video, positionSeconds, closedPlaySessionId) }
                     .onFailure { firstError ->
@@ -375,11 +415,13 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun play(video: VideoItem) {
+        autoPlayNextController.resetPlaybackCycle()
         _error.value = null
         startPlaybackWithQuality(video, fromStart = false)
     }
 
     fun playFromStart(video: VideoItem) {
+        autoPlayNextController.resetPlaybackCycle()
         _error.value = null
         startPlaybackWithQuality(video, fromStart = true)
     }
@@ -391,7 +433,12 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
      * failure). The handshake never blocks playback start by more than the
      * request itself; failures degrade to direct play.
      */
-    private fun startPlaybackWithQuality(video: VideoItem, fromStart: Boolean) {
+    private fun startPlaybackWithQuality(
+        video: VideoItem,
+        fromStart: Boolean,
+        autoPlayRequest: VideoAutoPlayNextRequest? = null
+    ) {
+        if (autoPlayRequest != null && !isAutoPlayNextRequestValid(autoPlayRequest)) return
         qualityHandshakeJob?.cancel()
         lastRequestedVideo = video
         val config = selectedConfig
@@ -407,7 +454,9 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                     ScopedMediaRegistry.registerWebDav(config)
                     sessionRepository.value = null
                     activePlaySessionId = null
+                    if (autoPlayRequest != null && !isAutoPlayNextRequestValid(autoPlayRequest)) return@launch
                     if (fromStart) engine.playFromStart(selected) else engine.play(selected)
+                    autoPlayRequest?.let(autoPlayNextController::complete)
                     return@launch
                 }
                 val repo = _repository.value ?: throw IllegalStateException("请先配置 Emby 服务器")
@@ -421,6 +470,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                     catch (error: CancellationException) { throw error }
                     catch (_: Exception) { null } else null
                 coroutineContext.ensureActive()
+                if (selectedConfig != config || (autoPlayRequest != null && !isAutoPlayNextRequestValid(autoPlayRequest))) return@launch
                 val transcodeUrl = session?.let { resolveVideoPlaybackStreamUrl(selected, mode, repoBaseUrl(repo), it) }
                 if (session != null && transcodeUrl != null && transcodeUrl != selected.streamUrl) {
                     activePlaySessionId = session.playSessionId
@@ -430,6 +480,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
                     activePlaySessionId = null
                     if (fromStart) engine.playFromStart(selected) else engine.play(selected)
                 }
+                autoPlayRequest?.let(autoPlayNextController::complete)
             } catch (error: CancellationException) { throw error
             } catch (error: Exception) { _error.value = error.message ?: "准备视频播放失败" }
         }
@@ -478,18 +529,32 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun stop() {
+        cancelPendingAutoPlayNext()
+        autoPlayNextController.resetPlaybackCycle()
         _catalogVideos.value = emptyList()
         activePlaySessionId = null
         engine.stop()
     }
 
-    fun seekTo(positionSeconds: Int) = engine.seekTo(positionSeconds)
+    fun seekTo(positionSeconds: Int) {
+        cancelPendingAutoPlayNext()
+        engine.seekTo(positionSeconds)
+    }
 
-    fun seekBackBy(intervalSeconds: Int = preferences.videoSkipBack) = engine.seekBackBy(intervalSeconds)
+    fun seekBackBy(intervalSeconds: Int = preferences.videoSkipBack) {
+        cancelPendingAutoPlayNext()
+        engine.seekBackBy(intervalSeconds)
+    }
 
-    fun seekForwardBy(intervalSeconds: Int = preferences.videoSkipForward) = engine.seekForwardBy(intervalSeconds)
+    fun seekForwardBy(intervalSeconds: Int = preferences.videoSkipForward) {
+        cancelPendingAutoPlayNext()
+        engine.seekForwardBy(intervalSeconds)
+    }
 
-    fun togglePlayPause() = engine.togglePlayPause()
+    fun togglePlayPause() {
+        cancelPendingAutoPlayNext()
+        engine.togglePlayPause()
+    }
 
     fun cycleAspectRatio() {
         engine.cycleAspectRatio()
@@ -520,6 +585,54 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
         viewModelScope.launch { runCatching { configRepository.saveVideoPipEnabled(enabled) }.onFailure { _syncError.value = "画中画设置保存失败" } }
     }
 
+    fun setAutoPlayNext(enabled: Boolean) {
+        // Persisted preferences are the only source of truth. Failed writes do not leave UI overrides.
+        if (!enabled) cancelPendingAutoPlayNext()
+        viewModelScope.launch {
+            runCatching { configRepository.saveVideoAutoPlayNext(enabled) }
+                .onFailure { _syncError.value = "自动连播设置保存失败" }
+        }
+    }
+
+    fun setAutoPlayNextForeground(foreground: Boolean) {
+        if (!foreground) cancelPendingAutoPlayNext()
+        autoPlayNextController.setForeground(foreground)
+    }
+
+    fun setAutoPlayNextPanelOpen(open: Boolean) {
+        if (open) cancelPendingAutoPlayNext()
+        autoPlayNextController.setPanelOpen(open)
+    }
+
+    fun cancelPendingAutoPlayNext() {
+        if (autoPlayNextState.value is VideoAutoPlayNextState.Switching) qualityHandshakeJob?.cancel()
+        autoPlayNextController.cancelPending()
+    }
+
+    fun dismissAutoPlayNext() {
+        cancelPendingAutoPlayNext()
+        autoPlayNextController.dismissCurrentPlayback()
+    }
+
+    fun playAutoPlayNextNow() = autoPlayNextController.playNow()
+
+    internal fun claimAutoPlayNext(request: VideoAutoPlayNextRequest): Boolean {
+        if (!autoPlayNextController.claim(request)) return false
+        if (isAutoPlayNextRequestValid(request)) return true
+        cancelPendingAutoPlayNext()
+        return false
+    }
+
+    internal fun isAutoPlayNextRequestValid(request: VideoAutoPlayNextRequest): Boolean =
+        autoPlayNextController.canStart(request) && selectedConfig.sourceId == request.previous.sourceId &&
+            selectedConfig.type == request.previous.sourceType
+
+    internal fun playAutoPlayNext(request: VideoAutoPlayNextRequest) {
+        if (!isAutoPlayNextRequestValid(request)) return
+        _error.value = null
+        startPlaybackWithQuality(request.next, fromStart = false, autoPlayRequest = request)
+    }
+
     fun setAutoSkipIntro(enabled: Boolean) {
         _autoSkipIntro.value = enabled
         engine.applyAutoSkipIntro(enabled)
@@ -533,6 +646,7 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     fun detachSurface(surfaceView: android.view.SurfaceView) = engine.detachSurface(surfaceView)
 
     override fun onCleared() {
+        autoPlayNextController.resetPlaybackCycle()
         engine.release()
     }
 }
@@ -541,11 +655,17 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
 internal fun updateVideoEpisodeProgress(
     videos: List<VideoItem>,
     current: VideoItem,
-    positionSeconds: Int
+    positionSeconds: Int,
+    durationSeconds: Int = current.durationSeconds,
+    completed: Boolean = false
 ): List<VideoItem> {
-    if (!current.type.equals("Episode", ignoreCase = true)) return videos
+    val isWebDavFile = current.sourceType == VideoServerType.WEBDAV && current.type.equals("Video", ignoreCase = true)
+    if (!isWebDavFile && !current.type.equals("Episode", ignoreCase = true)) return videos
     val snapshot = current.copy(
-        playbackPositionSeconds = resolveVideoProgressSyncBaselineSeconds(positionSeconds, current)
+        playbackPositionSeconds = if (isWebDavFile && completed) 0
+            else resolveVideoProgressSyncBaselineSeconds(positionSeconds, current),
+        durationSeconds = maxOf(durationSeconds, current.durationSeconds),
+        isPlayed = if (isWebDavFile) completed else current.isPlayed
     )
-    return (videos.filterNot { it.id == current.id && it.libraryId == current.libraryId } + snapshot)
+    return (videos.filterNot { it.playbackIdentity() == current.playbackIdentity() && it.libraryId == current.libraryId } + snapshot)
 }

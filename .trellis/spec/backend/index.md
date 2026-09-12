@@ -23,6 +23,7 @@ This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. 
 | [Logging Guidelines](./logging-guidelines.md) | Adding or changing `Log.*` calls or OkHttp logging interceptors |
 | [AudiobookShelf Integration Contract](./audiobookshelf-integration.md) | Changing audiobook auth, library browsing, playback sessions, progress sync, or Media3 audiobook state |
 | [Emby Integration Contract](./emby-integration.md) | 修改 Emby 认证、媒体库映射、视频播放/画中画、章节与片头跳过、转码与清晰度、进度上报或分季选集 |
+| [视频自动连播](./video-auto-play-next.md) | 修改前台连播、下一项解析、连播偏好、结束事件或异步视频交接 |
 | [Navidrome Integration Contract](./navidrome-integration.md) | Changing star/favorite toggles, playlist CRUD, or Subsonic API star/unstar/getStarled2 endpoints |
 
 ## Pre-Development Checklist
@@ -40,6 +41,7 @@ This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. 
 - 修改用户可见文案、项目文档、任务文档、发布记录或开发规范前，先阅读 [文档规范](./documentation-guidelines.md)。
 - Read [Logging Guidelines](./logging-guidelines.md) before adding diagnostics.
 - Read the service-specific contract when touching Navidrome, AudiobookShelf, or Emby behavior.
+- 修改手动/自动下一项解析、连播偏好、播放结束或异步切集前，阅读[视频自动连播](./video-auto-play-next.md)。
 
 ## Verification
 
