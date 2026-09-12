@@ -271,3 +271,46 @@ OPPO 真机复测 0.1.3 歌词交互：显示/切歌/手动滚动 2 秒恢复/�
 ### Next Steps
 
 - None - task complete
+
+
+## Session 181: 视频自动连播 0.1.6 实现、提交与归档
+
+**Date**: 2026-09-12
+**Task**: 视频自动连播 0.1.6 实现、提交与归档
+**Branch**: `main`
+
+### Summary
+
+完成 Emby/WebDAV 前台可取消自动连播，补齐 WebDAV 真实播放队列、字幕和本机续播；692 项单测、Lint、Debug/Release、签名与实际 DEX 泛型核验通过。用户确认后完成工作提交和任务归档，真机验收因无设备保留待办，未推送。
+
+### Main Changes
+
+- 实现默认关闭、仅前台、播完后 5 秒可取消的 Emby/WebDAV 自动连播；设置中心和播放器共用持久化开关。
+- 补齐真实 WebDAV 目录播放队列、同目录字幕、版本匹配续播；修正来源级身份、过期回调和原会话进度快照，加入工厂到计时状态机的链路回归。
+- 工作提交 `8d7f19f`，共 30 个已确认文件；提交前复核原始文件、规范化暂存内容与 APK 哈希，应用版本保持已验收的 `0.1.6 / 6`。
+- 自动验收：692 项单测、50 个 suite，0 失败/错误/跳过；Lint 0 error/fatal、25 Warning、18 Information；Debug/Release 打包、v2 签名、版本/调试入口及 36 个 Retrofit suspend 泛型签名核验通过。
+- Release：`app/build/outputs/apk/release/nordic-0.1.6.apk`，SHA-256 `8d31a362b1ed05217ce361b32afe50a72814813b2c4e8e650fdda6aa838bac65`；证书与旧 0.1.3 分发 APK 一致。
+- 任务归档到 `.trellis/tasks/archive/2026-09/09-12-video-auto-play-next/`；归档材料保留未执行的真机清单，并修正上下文路径和验收脚本的目录定位以支持归档后复核。
+- 未连接 Android 设备、未发现可用 AVD，因此没有进行真实 Emby/WebDAV 播放、覆盖安装、横竖屏/大字体或 PiP 设备验收；未操作手机或推送远端。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `8d7f19f` | (see git log) |
+
+### Testing
+
+- [OK] 692 项单测、50 个 suite，0 失败、0 错误、0 跳过。
+- [OK] Lint 0 error/fatal、25 Warning、18 Information；Debug/Release、v2 签名、版本和实际 DEX 的 36 个 Retrofit suspend 泛型签名核验通过。
+- [OK] 提交前 30 个文件及两个 APK 哈希与原验收快照一致；按 Git 换行规范化规则核对暂存内容后提交，没有重建或更改应用产物。
+- [未验证] 当前无连接设备或可用 AVD，未执行真实服务器播放、覆盖安装、横竖屏/大字体和 PiP 真机验收。
+
+### Status
+
+[OK] **开发、自动验收、提交与归档完成**（真机验收仍待设备可用）
+
+### Next Steps
+
+- 设备可用后按归档任务的 `manual-checklist.md` 补真机验收；本轮已收尾，无活动任务。
