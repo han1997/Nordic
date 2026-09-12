@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment.Companion.Center
@@ -146,7 +147,8 @@ fun AudiobookScreen(
     colorScheme: ColorScheme,
     isDark: Boolean,
     onThemeToggle: (Boolean) -> Unit,
-    onPlayAudiobook: (AudiobookItemSummary) -> Unit = {}
+    onPlayAudiobook: (AudiobookItemSummary) -> Unit = {},
+    onOpenSettings: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val repository = remember { ConfigRepository(context) }
@@ -431,6 +433,14 @@ fun AudiobookScreen(
                         ?: audiobookAuthorLabel(selectedItem?.authors?.joinToString(" / "))
                 },
                 actions = buildList {
+                    add(
+                        HeaderAction(
+                            icon = Icons.Filled.Settings,
+                            contentDescription = "打开设置",
+                            fixed = true,
+                            onClick = onOpenSettings
+                        )
+                    )
                     if (savedConfig.isReadyForAudiobookSync()) {
                         add(
                             HeaderAction(

@@ -2,8 +2,11 @@ package com.nordic.mediahub.ui
 
 import com.nordic.mediahub.data.AppPreferences
 import com.nordic.mediahub.data.AppPreferencesCodec
+import com.nordic.mediahub.data.MediaDomain
 import com.nordic.mediahub.data.MusicDefaultView
 import com.nordic.mediahub.data.ThemeMode
+import com.nordic.mediahub.data.resolveVisibleMediaTab
+import com.nordic.mediahub.data.visibleMediaDomains
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -23,7 +26,7 @@ class SettingsCenterTest {
     @Test fun searchCombinesKeywordsAndAllSettingsHaveUniqueIds() {
         assertTrue(searchSettings("视频 倍速").any { it.id == "video_speed" })
         assertEquals(SETTINGS_SEARCH_ENTRIES.size, SETTINGS_SEARCH_ENTRIES.map { it.id }.distinct().size)
-        assertEquals(8, SETTINGS_HOME_PAGES.size)
+        assertEquals(9, SETTINGS_HOME_PAGES.size)
     }
     @Test fun navigationGuardCanCancelAndReleaseDeferredNavigation() {
         val guard = SettingsNavigationGuard()
@@ -66,5 +69,58 @@ class SettingsCenterTest {
         assertEquals("未知大小", formatMediaBytes(null))
         assertEquals("0 B", formatMediaBytes(0))
         assertTrue(formatMediaBytes(1024).contains("KB"))
+    }
+
+    @Test fun moduleVisibilityDefaultsAllVisibleAndRoundTrips() {
+        val defaults = AppPreferencesCodec.decode(null)
+        assertTrue(defaults.showMusic)
+        assertTrue(defaults.showAudiobook)
+        assertTrue(defaults.showVideo)
+        val hidden = defaults.copy(showVideo = false)
+        assertEquals(hidden, AppPreferencesCodec.decode(AppPreferencesCodec.encode(hidden)))
+        assertFalse(AppPreferencesCodec.decode(AppPreferencesCodec.encode(hidden)).showVideo)
+    }
+
+    @Test fun allOffVisibilityRestoresEveryModuleVisible() {
+        val allOff = AppPreferences(showMusic = false, showAudiobook = false, showVideo = false)
+        val restored = AppPreferencesCodec.decode(AppPreferencesCodec.encode(allOff))
+        assertTrue(restored.showMusic)
+        assertTrue(restored.showAudiobook)
+        assertTrue(restored.showVideo)
+    }
+
+    @Test fun visibleMediaDomainsFollowsStableOrder() {
+        assertEquals(
+            listOf(MediaDomain.MUSIC, MediaDomain.AUDIOBOOK, MediaDomain.VIDEO),
+            AppPreferences().visibleMediaDomains()
+        )
+        assertEquals(
+            listOf(MediaDomain.MUSIC, MediaDomain.VIDEO),
+            AppPreferences(showAudiobook = false).visibleMediaDomains()
+        )
+        assertEquals(
+            listOf(MediaDomain.VIDEO),
+            AppPreferences(showMusic = false, showAudiobook = false).visibleMediaDomains()
+        )
+    }
+
+    @Test fun resolveVisibleMediaTabFallsBackInMusicAudiobookVideoOrder() {
+        assertEquals(0, AppPreferences().resolveVisibleMediaTab(0))
+        assertEquals(2, AppPreferences().resolveVisibleMediaTab(2))
+        // Hidden music falls back to audiobook.
+        assertEquals(1, AppPreferences(showMusic = false).resolveVisibleMediaTab(0))
+        // Hidden music + audiobook falls back to video.
+        assertEquals(2, AppPreferences(showMusic = false, showAudiobook = false).resolveVisibleMediaTab(1))
+        // Requested visible tab is preserved.
+        assertEquals(2, AppPreferences(showMusic = false).resolveVisibleMediaTab(2))
+    }
+
+    @Test fun hiddenModulePagesAndSearchFilterFollowVisibility() {
+        val hiddenVideo = AppPreferences(showVideo = false)
+        assertTrue(SettingsPage.VIDEO in hiddenModulePages(hiddenVideo))
+        assertTrue(SettingsPage.MUSIC !in hiddenModulePages(hiddenVideo))
+        assertTrue(searchSettings("画中画", hiddenVideo).isEmpty())
+        assertTrue(searchSettings("画中画").any { it.id == "video_pip" })
+        assertTrue(searchSettings("模块显示").any { it.id == "modules" })
     }
 }

@@ -59,6 +59,17 @@
 - 分组、输入、按钮、选择行、48dp 触达与主题字体遵循 ui-consistency；播放设置与播放器控制共享同一持久化来源。
 - 不能展示没有实现的投屏、Plex、云同步、视频下载或备份按钮。
 
+## 模块显示开关（0.1.7）
+
+- `AppPreferences.showMusic / showAudiobook / showVideo` 三个布尔字段，缺省 true；旧配置缺省 true，不新增旧 DataStore 迁移键、不改缓存 schema。`validated()` 在读取时把全关恢复为全部显示；`EncryptedConfigStore.updatePreferences` 在写入时 `require` 至少一个可见，拒绝全关。
+- 导航标识复用 `data.MediaDomain` 的稳定 0/1/2 映射（音乐/有声书/视频），不使用过滤后下标。`AppPreferences.visibleMediaDomains()` 按音乐→有声书→视频稳定顺序返回可见域；`resolveVisibleMediaTab(requestedTab)` 在请求 tab 被隐藏时按同序回退。
+- 设置移出底部导航：`MainScreen` 用独立 `showSettings` 状态渲染 `SettingsScreen`，媒体 tab 仍为 0/1/2。各媒体首页头部固定齿轮（`HeaderAction(fixed = true)`）进入设置首页；`LocalSourceActions.manage`（管理服务器）直达 SERVERS 页。设置页不显示媒体导航，返回在 HOME 时关闭设置回到原媒体。
+- 底部 Dock：两个/三个可见模块时显示媒体导航（`PolishedBottomNav` 按 `visibleDomains` 渲染），一个模块时只保留正在播放条、不显示导航/空占位/把手；`PolishedPlaybackDock` 在单模块且无播放内容时整体不绘制。
+- 隐藏模块时隐藏对应播放设置页与搜索项（`hiddenModulePages` 过滤 MUSIC/AUDIOBOOK/VIDEO），服务器、存储、隐私、模块显示与关于入口不受影响，数据与下载任务保留。
+- 隐藏正在播放/暂停/准备中的模块需确认：`ModuleVisibilityPage` 经 `isModuleActive` 判断，确认后 `hideModule` 按现有进度关闭策略停止该域（音乐 `stop`、有声书 `closeAudiobookPlayback`、视频 `closeVideoPlayback`），并取消有声书 `startPlayback` 准备与视频自动连播；只停目标域，不误停其他音频。关闭或偏好提交失败保持模块可见，已停止的播放不自动重启。
+- 隐藏模块不能从下载/迟到回调重新开播：音乐下载播放入口在 `showMusic` 为 false 时静默忽略；`AudiobookPlaybackViewModel.startPlayback` 保存可取消 Job 并用请求版本隔离迟到结果，`cancelPreparation()` 递增版本并取消 Job。
+- 启动页与上次媒体页只指向可见模块；重新显示不自动切页或播放，设置页不因切换可见性被退出（`showSettings` 为 rememberSaveable，不受偏好变化影响）。
+
 ## 错误与验收
 
 | 场景 | 必须结果 |

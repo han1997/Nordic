@@ -42,7 +42,10 @@ data class AppPreferences(
     val webDavShowHidden: Boolean = false,
     val webDavOnlyVideos: Boolean = true,
     val webDavSort: WebDavSort = WebDavSort.NAME,
-    val webDavSortDescending: Boolean = false
+    val webDavSortDescending: Boolean = false,
+    val showMusic: Boolean = true,
+    val showAudiobook: Boolean = true,
+    val showVideo: Boolean = true
 )
 
 internal val SEEK_INTERVAL_OPTIONS = listOf(5, 10, 15, 30, 60)
@@ -67,7 +70,13 @@ internal fun AppPreferences.validated(): AppPreferences = copy(
     subtitleLanguage = subtitleLanguage.takeIf { it in TrackLanguage.entries && it != TrackLanguage.DEFAULT } ?: TrackLanguage.OFF,
     audioLanguage = audioLanguage.takeIf { it in TrackLanguage.entries && it != TrackLanguage.OFF } ?: TrackLanguage.DEFAULT,
     webDavSort = webDavSort.takeIf { it in WebDavSort.entries } ?: WebDavSort.NAME
-)
+).let { validated ->
+    // At least one media module must remain visible; an all-off state (from a
+    // corrupt write or a rejected save) restores every module to visible.
+    if (!validated.showMusic && !validated.showAudiobook && !validated.showVideo) {
+        validated.copy(showMusic = true, showAudiobook = true, showVideo = true)
+    } else validated
+}
 
 internal object AppPreferencesCodec {
     private val gson = Gson()
@@ -83,5 +92,46 @@ internal object AppPreferencesCodec {
         } catch (error: Exception) {
             throw IOException("应用偏好无法读取，请在隐私与数据中恢复默认值", error)
         }
+    }
+}
+
+/** Media modules currently visible, in stable navigation order (音乐 → 有声书 → 视频). */
+fun AppPreferences.visibleMediaDomains(): List<MediaDomain> = buildList {
+    if (showMusic) add(MediaDomain.MUSIC)
+    if (showAudiobook) add(MediaDomain.AUDIOBOOK)
+    if (showVideo) add(MediaDomain.VIDEO)
+}
+
+fun AppPreferences.isMediaDomainVisible(domain: MediaDomain): Boolean = when (domain) {
+    MediaDomain.MUSIC -> showMusic
+    MediaDomain.AUDIOBOOK -> showAudiobook
+    MediaDomain.VIDEO -> showVideo
+}
+
+fun AppPreferences.withMediaDomainVisible(domain: MediaDomain, visible: Boolean): AppPreferences = when (domain) {
+    MediaDomain.MUSIC -> copy(showMusic = visible)
+    MediaDomain.AUDIOBOOK -> copy(showAudiobook = visible)
+    MediaDomain.VIDEO -> copy(showVideo = visible)
+}
+
+/**
+ * Resolves the media tab (0=音乐, 1=有声书, 2=视频) to show for a requested tab,
+ * falling back to the first visible module in 音乐 → 有声书 → 视频 order when the
+ * requested tab is hidden. The returned tab is always a visible module.
+ */
+fun AppPreferences.resolveVisibleMediaTab(requestedTab: Int): Int {
+    val visible = visibleMediaDomains()
+    if (visible.isEmpty()) return 0
+    val requested = requestedTab.coerceIn(0, 2)
+    val requestedDomain = when (requested) {
+        0 -> MediaDomain.MUSIC
+        1 -> MediaDomain.AUDIOBOOK
+        else -> MediaDomain.VIDEO
+    }
+    if (requestedDomain in visible) return requested
+    return when {
+        MediaDomain.MUSIC in visible -> 0
+        MediaDomain.AUDIOBOOK in visible -> 1
+        else -> 2
     }
 }

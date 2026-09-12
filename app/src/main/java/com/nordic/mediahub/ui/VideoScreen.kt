@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -53,7 +54,8 @@ fun VideoScreen(
     onThemeToggle: (Boolean) -> Unit,
     onPlayVideo: (VideoItem) -> Unit = {},
     onPlayVideoFromStart: (VideoItem) -> Unit = {},
-    onCatalogChanged: (List<VideoItem>) -> Unit = {}
+    onCatalogChanged: (List<VideoItem>) -> Unit = {},
+    onOpenSettings: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val configRepository = remember { ConfigRepository(context) }
@@ -444,7 +446,15 @@ fun VideoScreen(
                     savedConfig.isReadyForVideoSync() -> "已连接 Emby"
                     else -> "连接 Emby 后显示真实媒体库、海报和视频信息"
                 },
-                actions = buildList {
+actions = buildList {
+                    add(
+                        HeaderAction(
+                            icon = Icons.Filled.Settings,
+                            contentDescription = "打开设置",
+                            fixed = true,
+                            onClick = onOpenSettings
+                        )
+                    )
                     if (savedConfig.isReadyForVideoSync()) {
                         add(
                             HeaderAction(

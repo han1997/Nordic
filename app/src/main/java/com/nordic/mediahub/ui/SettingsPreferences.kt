@@ -1,23 +1,31 @@
 package com.nordic.mediahub.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.nordic.mediahub.data.*
 import com.nordic.mediahub.playback.PLAYBACK_SPEED_OPTIONS
 import com.nordic.mediahub.playback.resolvePlaybackSpeedLabel
 
 internal enum class SettingsPage(val title: String) {
-    HOME("设置"), SERVERS("媒体服务器"), APPEARANCE("外观与启动"), MUSIC("音乐播放"), AUDIOBOOK("有声书播放"),
+    HOME("设置"), SERVERS("媒体服务器"), APPEARANCE("外观与启动"), MODULES("模块显示"), MUSIC("音乐播放"), AUDIOBOOK("有声书播放"),
     VIDEO("视频播放"), STORAGE("存储与下载"), PRIVACY("隐私与数据"), ABOUT("关于与帮助"),
     ADD_SERVER("添加服务器"), EDIT_SERVER("编辑服务器"), DOWNLOADS("已下载音乐"), LEGACY("待归属旧数据"), HELP("连接帮助"), LICENSES("开源声明")
 }
-internal val SETTINGS_HOME_PAGES = listOf(SettingsPage.SERVERS, SettingsPage.APPEARANCE, SettingsPage.MUSIC,
+internal val SETTINGS_HOME_PAGES = listOf(SettingsPage.SERVERS, SettingsPage.APPEARANCE, SettingsPage.MODULES, SettingsPage.MUSIC,
     SettingsPage.AUDIOBOOK, SettingsPage.VIDEO, SettingsPage.STORAGE, SettingsPage.PRIVACY, SettingsPage.ABOUT)
 internal data class SettingsSearchEntry(val page: SettingsPage, val id: String, val title: String, val keywords: String = "")
 internal val SETTINGS_SEARCH_ENTRIES = listOf(
     SettingsSearchEntry(SettingsPage.SERVERS, "servers", "媒体服务器", "Navidrome AudiobookShelf Emby WebDAV 账号 地址 密码 多服务器"),
     SettingsSearchEntry(SettingsPage.APPEARANCE, "theme", "主题", "深色 浅色 跟随系统"),
     SettingsSearchEntry(SettingsPage.APPEARANCE, "startup", "启动页", "首页 默认页面"),
+    SettingsSearchEntry(SettingsPage.MODULES, "modules", "模块显示", "音乐 有声书 视频 显示 隐藏 开关"),
     SettingsSearchEntry(SettingsPage.MUSIC, "music_speed", "音乐默认倍速"),
     SettingsSearchEntry(SettingsPage.MUSIC, "music_modes", "记住循环与随机模式"),
     SettingsSearchEntry(SettingsPage.MUSIC, "music_view", "播放器默认视图", "封面 歌词"),
@@ -37,10 +45,19 @@ internal val SETTINGS_SEARCH_ENTRIES = listOf(
     SettingsSearchEntry(SettingsPage.PRIVACY, "privacy", "本机历史与书签", "进度 恢复默认 隐私 旧数据 归属"),
     SettingsSearchEntry(SettingsPage.ABOUT, "about", "版本与帮助", "开源 协议 连接指南")
 )
-internal fun searchSettings(query: String): List<SettingsSearchEntry> {
+internal fun searchSettings(query: String, prefs: AppPreferences = AppPreferences()): List<SettingsSearchEntry> {
     val terms = query.trim().lowercase().split(Regex("\\s+")).filter { it.isNotBlank() }
     if (terms.isEmpty()) return emptyList()
-    return SETTINGS_SEARCH_ENTRIES.filter { entry -> terms.all { "${entry.title} ${entry.page.title} ${entry.keywords}".contains(it, true) } }
+    return SETTINGS_SEARCH_ENTRIES
+        .filter { entry -> entry.page !in hiddenModulePages(prefs) }
+        .filter { entry -> terms.all { "${entry.title} ${entry.page.title} ${entry.keywords}".contains(it, true) } }
+}
+
+/** Settings pages that belong to a hidden media module and must be omitted from search and home. */
+internal fun hiddenModulePages(prefs: AppPreferences): Set<SettingsPage> = buildSet {
+    if (!prefs.showMusic) add(SettingsPage.MUSIC)
+    if (!prefs.showAudiobook) add(SettingsPage.AUDIOBOOK)
+    if (!prefs.showVideo) add(SettingsPage.VIDEO)
 }
 
 @Composable
@@ -131,5 +148,63 @@ internal fun PreferenceSettingsPage(
             }
             else -> Unit
         }
+    }
+}
+
+/**
+ * Module visibility toggles. Hiding a module that is currently playing, paused,
+ * or preparing requires confirmation and stops that module via the existing
+ * progress-close policy before the preference is saved. A failed stop or save
+ * leaves the module visible.
+ */
+@Composable
+internal fun ModuleVisibilityPage(
+    prefs: AppPreferences,
+    isModuleActive: (MediaDomain) -> Boolean,
+    onHideModule: (MediaDomain, onStopped: () -> Unit, onFailed: (String) -> Unit) -> Unit,
+    update: ((AppPreferences) -> AppPreferences) -> Unit
+) {
+    var pendingHide by remember { mutableStateOf<MediaDomain?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    fun toggle(domain: MediaDomain, visible: Boolean) {
+        error = null
+        if (visible) {
+            update { it.withMediaDomainVisible(domain, true) }
+        } else if (isModuleActive(domain)) {
+            pendingHide = domain
+        } else {
+            update { it.withMediaDomainVisible(domain, false) }
+        }
+    }
+
+    Column {
+        SettingsRow("音乐", "显示音乐库、搜索与播放入口。", checked = prefs.showMusic,
+            onCheckedChange = { toggle(MediaDomain.MUSIC, it) })
+        SettingsRow("有声书", "显示有声书书库与播放入口。", checked = prefs.showAudiobook,
+            onCheckedChange = { toggle(MediaDomain.AUDIOBOOK, it) })
+        SettingsRow("视频", "显示视频库与播放入口。", checked = prefs.showVideo,
+            onCheckedChange = { toggle(MediaDomain.VIDEO, it) })
+        error?.let { Text(it, color = androidx.compose.material3.MaterialTheme.colorScheme.error) }
+    }
+
+    pendingHide?.let { domain ->
+        AlertDialog(
+            onDismissRequest = { pendingHide = null },
+            title = { Text("隐藏${domain.label}模块？") },
+            text = { Text("将停止当前${domain.label}播放并保存进度。其他媒体的播放不受影响。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val target = domain
+                    pendingHide = null
+                    onHideModule(
+                        target,
+                        { update { it.withMediaDomainVisible(target, false) } },
+                        { message -> error = message }
+                    )
+                }) { Text("确认") }
+            },
+            dismissButton = { TextButton(onClick = { pendingHide = null }) { Text("取消") } }
+        )
     }
 }

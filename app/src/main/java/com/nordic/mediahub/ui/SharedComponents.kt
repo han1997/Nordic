@@ -67,7 +67,10 @@ internal fun MediaPageHeader(
     onBack: () -> Unit = {}
 ) {
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        val layout = resolveMediaHeaderActionLayout(maxWidth, showBack, actions.size, LocalDensity.current.fontScale)
+        val layout = resolveMediaHeaderActionLayout(
+            maxWidth, showBack, actions.size, LocalDensity.current.fontScale,
+            fixedActionCount = actions.count { it.fixed }
+        )
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),

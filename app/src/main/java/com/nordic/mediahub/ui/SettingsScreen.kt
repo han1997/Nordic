@@ -23,7 +23,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @Composable
-internal fun SettingsScreen(openServersRequest: Int = 0, onPlaySong: (NavidromeSong) -> Unit = {}) {
+internal fun SettingsScreen(
+    openServersRequest: Int = 0,
+    onPlaySong: (NavidromeSong) -> Unit = {},
+    onClose: () -> Unit = {},
+    isModuleActive: (MediaDomain) -> Boolean = { false },
+    onHideModule: (MediaDomain, () -> Unit, (String) -> Unit) -> Unit = { _, _, _ -> }
+) {
     val context = LocalContext.current
     val repository = remember { ConfigRepository(context) }
     val localStorageError by repository.storageError.collectAsStateWithLifecycle()
@@ -50,6 +56,7 @@ internal fun SettingsScreen(openServersRequest: Int = 0, onPlaySong: (NavidromeS
     fun navigate(next: SettingsPage) { pageName = next.name; searchOpen = false; query = ""; highlight = null }
     fun back() {
         if (searchOpen) { searchOpen = false; query = ""; return }
+        if (page == SettingsPage.HOME) { onClose(); return }
         navigate(when (page) {
             SettingsPage.EDIT_SERVER, SettingsPage.ADD_SERVER -> SettingsPage.SERVERS
             SettingsPage.DOWNLOADS -> SettingsPage.STORAGE
@@ -60,7 +67,7 @@ internal fun SettingsScreen(openServersRequest: Int = 0, onPlaySong: (NavidromeS
     }
     LaunchedEffect(openServersRequest) { if (openServersRequest > 0) navigate(SettingsPage.SERVERS) }
     LaunchedEffect(page) { if (page == SettingsPage.EDIT_SERVER && editor == null) navigate(SettingsPage.SERVERS) }
-    BackHandler(page != SettingsPage.HOME || searchOpen, onBack = ::back)
+    BackHandler(enabled = true, onBack = ::back)
     fun update(change: (AppPreferences) -> AppPreferences) {
         scope.launch { try { repository.updatePreferences(change) }
             catch (e: CancellationException) { throw e }
@@ -100,7 +107,7 @@ internal fun SettingsScreen(openServersRequest: Int = 0, onPlaySong: (NavidromeS
                     if (storageError != null) item { MediaStateCard("配置读取提示", storageError!!, tone = MediaStateTone.Error, density = MediaStateDensity.Compact) }
                     if (searchOpen) {
                         item { MediaSearchField(query, { query = it }, "搜索设置", "清空设置搜索", { query = "" }, colors) }
-                        val results = searchSettings(query)
+                        val results = searchSettings(query, preferences)
                         if (query.isNotBlank() && results.isEmpty()) item { MediaStateCard("没有匹配设置", "试试“字幕”“缓存”或“WebDAV”。", density = MediaStateDensity.Compact) }
                         items(results, key = { it.id }) { result ->
                             SettingsRow(result.title, "设置 / ${result.page.title}", onClick = {
@@ -109,7 +116,8 @@ internal fun SettingsScreen(openServersRequest: Int = 0, onPlaySong: (NavidromeS
                         }
                     } else when (page) {
                         SettingsPage.HOME -> {
-                            SETTINGS_HOME_PAGES.forEach { destination ->
+                            val hiddenPages = hiddenModulePages(preferences)
+                            SETTINGS_HOME_PAGES.filter { it !in hiddenPages }.forEach { destination ->
                                 if (destination == SettingsPage.SERVERS) item { SettingsSectionTitle("连接") }
                                 if (destination == SettingsPage.APPEARANCE) item { SettingsSectionTitle("体验与播放") }
                                 if (destination == SettingsPage.STORAGE) item { SettingsSectionTitle("数据与应用") }
@@ -117,6 +125,7 @@ internal fun SettingsScreen(openServersRequest: Int = 0, onPlaySong: (NavidromeS
                                     val summary = when (destination) {
                                         SettingsPage.SERVERS -> "音乐 ${sources.sources.count { it.domain == MediaDomain.MUSIC }} · 有声书 ${sources.sources.count { it.domain == MediaDomain.AUDIOBOOK }} · 视频 ${sources.sources.count { it.domain == MediaDomain.VIDEO }}"
                                         SettingsPage.APPEARANCE -> "${preferences.theme.label} · 启动${preferences.startupPage.label}"
+                                        SettingsPage.MODULES -> "音乐、有声书、视频的显示开关"
                                         SettingsPage.MUSIC -> "${preferences.musicSpeed}× · ${preferences.musicDefaultView.label}"
                                         SettingsPage.AUDIOBOOK -> "${preferences.audiobookSpeed}× · 后退 ${preferences.audiobookSkipBack} 秒"
                                         SettingsPage.VIDEO -> "${preferences.videoSpeed}× · ${if (preferences.videoPip) "画中画开启" else "画中画关闭"}"
@@ -127,6 +136,7 @@ internal fun SettingsScreen(openServersRequest: Int = 0, onPlaySong: (NavidromeS
                                     val icon = when (destination) {
                                         SettingsPage.SERVERS -> Icons.Filled.Dns
                                         SettingsPage.APPEARANCE -> Icons.Filled.Palette
+                                        SettingsPage.MODULES -> Icons.Filled.ViewModule
                                         SettingsPage.MUSIC -> Icons.Filled.MusicNote
                                         SettingsPage.AUDIOBOOK -> Icons.AutoMirrored.Filled.MenuBook
                                         SettingsPage.VIDEO -> Icons.Filled.Movie
@@ -176,6 +186,9 @@ internal fun SettingsScreen(openServersRequest: Int = 0, onPlaySong: (NavidromeS
                         }
                         SettingsPage.APPEARANCE, SettingsPage.MUSIC, SettingsPage.AUDIOBOOK, SettingsPage.VIDEO -> item {
                             PreferenceSettingsPage(page, preferences, sources.active(MediaDomain.VIDEO), highlight, ::update) { choice = it }
+                        }
+                        SettingsPage.MODULES -> item {
+                            ModuleVisibilityPage(preferences, isModuleActive, onHideModule, ::update)
                         }
                         SettingsPage.STORAGE -> item { StorageSettingsPage(sources) { id, name -> downloadsId = id; downloadsName = name; navigate(SettingsPage.DOWNLOADS) } }
                         SettingsPage.PRIVACY -> item { PrivacySettingsPage(sources) { navigate(SettingsPage.LEGACY) } }

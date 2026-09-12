@@ -46,6 +46,7 @@ internal data class HeaderAction(
     val icon: ImageVector,
     val contentDescription: String,
     val enabled: Boolean = true,
+    val fixed: Boolean = false,
     val onClick: () -> Unit
 )
 
@@ -130,9 +131,11 @@ internal fun HeaderActionGroup(
 ) {
     if (actions.isEmpty()) return
     val colors = MaterialTheme.colorScheme
-    val inlineCount = maxInlineActions.coerceIn(0, actions.size)
-    val inlineActions = actions.take(inlineCount)
-    val overflowActions = actions.drop(inlineCount)
+    val fixedActions = actions.filter { it.fixed }
+    val overflowableActions = actions.filter { !it.fixed }
+    val inlineCount = maxInlineActions.coerceIn(0, overflowableActions.size)
+    val inlineActions = overflowableActions.take(inlineCount)
+    val overflowActions = overflowableActions.drop(inlineCount)
     var menuExpanded by remember(actions.map { it.contentDescription }) { mutableStateOf(false) }
     Surface(
         color = colors.surfaceVariant.copy(alpha = 0.56f),
@@ -146,6 +149,9 @@ internal fun HeaderActionGroup(
             horizontalArrangement = Arrangement.spacedBy(NordicSpacing.xs),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            fixedActions.forEach { action ->
+                HeaderActionButton(action)
+            }
             inlineActions.forEach { action ->
                 HeaderActionButton(action)
             }

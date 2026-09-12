@@ -43,6 +43,13 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
 
     private var syncJob: Job? = null
 
+    // Cancellable start request with late isolation: a hidden module must not
+    // restart from a stale startPlayback result. Each request bumps the version;
+    // a result is applied only if it still matches the latest request.
+    private var startPlaybackJob: Job? = null
+    private var startPlaybackRequestVersion = 0
+    val isPreparing: Boolean get() = startPlaybackJob?.isActive == true
+
     init {
         configRepository.preferences.onEach {
             preferences = it
@@ -156,19 +163,29 @@ class AudiobookPlaybackViewModel(application: Application) : AndroidViewModel(ap
             return
         }
         _error.value = null
-        viewModelScope.launch {
+        val requestVersion = ++startPlaybackRequestVersion
+        startPlaybackJob = viewModelScope.launch {
             runCatching { repo.startPlayback(libraryItemId) }
                 .onSuccess { session ->
+                    if (requestVersion != startPlaybackRequestVersion) return@onSuccess
                     sessionRepository.value = repo
                     engine.play(session)
                     refreshBookmarks()
                     onResult(Result.success(session))
                 }
                 .onFailure { error ->
+                    if (requestVersion != startPlaybackRequestVersion) return@onFailure
                     _error.value = error.message ?: "启动有声书播放失败"
                     onResult(Result.failure(error))
                 }
         }
+    }
+
+    /** Cancels an in-flight start request so a hidden module cannot restart from a late result. */
+    fun cancelPreparation() {
+        startPlaybackRequestVersion++
+        startPlaybackJob?.cancel()
+        startPlaybackJob = null
     }
 
     fun closeAudiobookPlayback(

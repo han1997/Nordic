@@ -57,6 +57,8 @@ import com.nordic.mediahub.data.playbackIdentity
 import com.nordic.mediahub.playback.VideoAutoPlayNextRequest
 import com.nordic.mediahub.playback.VideoAutoPlayNextState
 import com.nordic.mediahub.data.isReadyForAudiobookSync
+import com.nordic.mediahub.data.visibleMediaDomains
+import com.nordic.mediahub.data.resolveVisibleMediaTab
 import com.nordic.mediahub.playback.AudiobookPlaybackViewModel
 import com.nordic.mediahub.playback.MusicPlaybackViewModel
 import com.nordic.mediahub.playback.VideoPlaybackViewModel
@@ -484,7 +486,14 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     val preferences = LocalAppPreferences.current
-    var selectedTab by rememberSaveable { mutableStateOf(if (preferences.startupPage.tab < 0) preferences.lastMediaTab else preferences.startupPage.tab) }
+    var selectedTab by rememberSaveable {
+        mutableStateOf(
+            preferences.resolveVisibleMediaTab(
+                if (preferences.startupPage.tab < 0) preferences.lastMediaTab else preferences.startupPage.tab
+            )
+        )
+    }
+    var showSettings by rememberSaveable { mutableStateOf(false) }
     var openServersRequest by rememberSaveable { mutableIntStateOf(0) }
     val tabStateHolder = rememberSaveableStateHolder()
     val navigationGuard = remember { SettingsNavigationGuard() }
@@ -508,10 +517,18 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     val configurationError by configRepository.storageError.collectAsStateWithLifecycle()
     val inheritedConfigurationError = LocalConfigurationError.current
     val musicSettingsError by musicVM.settingsError.collectAsStateWithLifecycle()
+    val visibleDomains = preferences.visibleMediaDomains()
+    val showMediaNav = visibleDomains.size >= 2
     LaunchedEffect(selectedTab) {
         if (selectedTab in 0..2 && selectedTab != preferences.lastMediaTab) {
             runCatching { configRepository.updatePreferences { it.copy(lastMediaTab = selectedTab) } }
         }
+    }
+    // When a module is hidden, fall back to the first visible module (音乐 → 有声书 → 视频).
+    // Re-showing a module never auto-switches the page or restarts playback.
+    LaunchedEffect(preferences.showMusic, preferences.showAudiobook, preferences.showVideo) {
+        val resolved = preferences.resolveVisibleMediaTab(selectedTab)
+        if (resolved != selectedTab) selectedTab = resolved
     }
     val audiobookConfig by configRepository.audiobookConfig.collectAsStateWithLifecycle(AudiobookShelfConfig())
     val colorScheme = MaterialTheme.colorScheme
@@ -654,25 +671,60 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         }
     }
 
+    // Stops a media module before it is hidden, using the existing progress-close
+    // policy. Cancels in-flight preparation (audiobook start, video auto-play-next)
+    // so a late callback cannot restart a hidden module. Only the target domain is
+    // stopped; other audio types are untouched.
+    val hideModule = remember(musicVM, audiobookVM, videoVM) {
+        { domain: SourceDomain, onStopped: () -> Unit, onFailed: (String) -> Unit ->
+            when (domain) {
+                SourceDomain.MUSIC -> {
+                    musicVM.stop()
+                    showPlayer = false
+                    onStopped()
+                }
+                SourceDomain.AUDIOBOOK -> {
+                    audiobookVM.cancelPreparation()
+                    audiobookVM.closeAudiobookPlayback(
+                        onClosed = { showAudiobookPlayer = false; onStopped() },
+                        onFailed = { message -> onFailed(message) }
+                    )
+                }
+                SourceDomain.VIDEO -> {
+                    videoVM.cancelPendingAutoPlayNext()
+                    videoVM.closeVideoPlayback(
+                        onClosed = { showVideoPlayer = false; isFullscreen = false; onStopped() },
+                        onFailed = { message -> onFailed(message) }
+                    )
+                }
+            }
+        }
+    }
+
+    val musicVisible by rememberUpdatedState(preferences.showMusic)
     val onSongSelected = remember(musicVM, runMediaHandoff) {
         { songs: List<NavidromeSong>, index: Int, allowUnplayableStartFallback: Boolean ->
-            runMediaHandoff(
-                MediaPlaybackKind.Music,
-                false,
-                null,
-                { releaseSwitch ->
-                    musicVM.playQueue(
-                        songs = songs,
-                        startIndex = index,
-                        allowUnplayableStartFallback = allowUnplayableStartFallback
-                    )
-                    showAudiobookPlayer = false
-                    showVideoPlayer = false
-                    showPlayer = true
-                    releaseSwitch()
-                },
-                { }
-            )
+            // A hidden music module must not restart playback from the downloaded
+            // music entry point; silently ignore the request.
+            if (musicVisible) {
+                runMediaHandoff(
+                    MediaPlaybackKind.Music,
+                    false,
+                    null,
+                    { releaseSwitch ->
+                        musicVM.playQueue(
+                            songs = songs,
+                            startIndex = index,
+                            allowUnplayableStartFallback = allowUnplayableStartFallback
+                        )
+                        showAudiobookPlayer = false
+                        showVideoPlayer = false
+                        showPlayer = true
+                        releaseSwitch()
+                    },
+                    { }
+                )
+            }
         }
     }
     val onPlayAudiobook = remember(audiobookVM, runMediaHandoff, audiobookConfig) {
@@ -782,7 +834,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         audiobookVM.setPlayerVisible(showAudiobookPlayer)
     }
 
-    val hasPlayerLayer = showPlayer || showAudiobookPlayer || showVideoPlayer
+    val hasPlayerLayer = showPlayer || showAudiobookPlayer || showVideoPlayer || showSettings
     val bottomDockPresentation = resolveBottomDockPresentation(
         hasPlayerLayer = hasPlayerLayer,
         fullDockVisible = bottomDockVisible
@@ -799,7 +851,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
     }
 
     fun applyDockScrollDelta(deltaPx: Float) {
-        if (showPlayer || showAudiobookPlayer || showVideoPlayer) return
+        if (showPlayer || showAudiobookPlayer || showVideoPlayer || showSettings || !showMediaNav) return
         val dockVisible = bottomDockPresentation == BottomDockPresentation.Dock
         val accumulator = dockScrollAccumulatedPx
         // Direction reversal resets the accumulated distance so a short
@@ -824,7 +876,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         }
     }
 
-    val bottomDockScrollConnection = remember(showPlayer, showAudiobookPlayer, showVideoPlayer) {
+    val bottomDockScrollConnection = remember(showPlayer, showAudiobookPlayer, showVideoPlayer, showSettings, showMediaNav) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (available.y != 0f) applyDockScrollDelta(available.y)
@@ -864,7 +916,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
         }
     }
 
-    LaunchedEffect(selectedTab, showPlayer, showAudiobookPlayer, showVideoPlayer) {
+    LaunchedEffect(selectedTab, showPlayer, showAudiobookPlayer, showVideoPlayer, showSettings) {
         bottomDockVisible = true
     }
 
@@ -926,7 +978,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             SourceDomain.AUDIOBOOK -> audiobookVM.closeAudiobookPlayback(onClosed = { showAudiobookPlayer = false; closed() }, onFailed = failed)
             SourceDomain.VIDEO -> videoVM.closeVideoPlayback(onClosed = { showVideoPlayer = false; isFullscreen = false; closed() }, onFailed = failed)
         } },
-        onManage = { navigationGuard.navigate { openServersRequest++; selectedTab = 3 } }
+        onManage = { navigationGuard.navigate { openServersRequest++; showSettings = true } }
     ) {
     Scaffold(
         containerColor = colorScheme.background
@@ -971,31 +1023,44 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                             .padding(padding)
                             .padding(bottom = dockBottomPadding)
                     ) {
-                        Crossfade(
-                            targetState = selectedTab,
-                            animationSpec = tween(
-                                NordicMotion.durationMedium,
-                                easing = NordicMotion.easingStandard
-                            ),
-                            label = "main-tab-crossfade"
-                        ) { tab ->
-                            // SaveableStateProvider keeps each tab's list scroll
-                            // position and rememberSaveable state alive across
-                            // switches instead of tearing down the whole screen.
-                            tabStateHolder.SaveableStateProvider(key = tab) {
-                                val domain = when (tab) { 0 -> SourceDomain.MUSIC; 1 -> SourceDomain.AUDIOBOOK; 2 -> SourceDomain.VIDEO; else -> null }
-                                CompositionLocalProvider(LocalSourceDomain provides domain) {
-                                    when (tab) {
-                                        0 -> MusicScreenV2(isDark, onThemeToggle, onSongSelected)
-                                        1 -> AudiobookScreen(colorScheme, isDark, onThemeToggle, onPlayAudiobook)
-                                        2 -> {
-                                            val source = sourceState.active(SourceDomain.VIDEO)
-                                            if (source?.kind == MediaSourceKind.WEBDAV) {
-                                                WebDavScreen(source.videoConfig(), onPlayVideo, onPlayVideoFromStart, videoVM::setEpisodeContext)
-                                            } else VideoScreen(colorScheme, isDark, onThemeToggle, onPlayVideo,
-                                                onPlayVideoFromStart, videoVM::setEpisodeContext)
+                        if (showSettings) {
+                            SettingsScreen(
+                                openServersRequest = openServersRequest,
+                                onPlaySong = { song -> onSongSelected(listOf(song), 0, false) },
+                                onClose = { showSettings = false },
+                                isModuleActive = { domain -> when (domain) {
+                                    SourceDomain.MUSIC -> musicVM.state.value.currentSong != null
+                                    SourceDomain.AUDIOBOOK -> audiobookVM.state.value.session != null || audiobookVM.isPreparing
+                                    SourceDomain.VIDEO -> videoVM.hasPlayback
+                                } },
+                                onHideModule = { domain, onStopped, onFailed -> hideModule(domain, onStopped, onFailed) }
+                            )
+                        } else {
+                            Crossfade(
+                                targetState = selectedTab,
+                                animationSpec = tween(
+                                    NordicMotion.durationMedium,
+                                    easing = NordicMotion.easingStandard
+                                ),
+                                label = "main-tab-crossfade"
+                            ) { tab ->
+                                // SaveableStateProvider keeps each tab's list scroll
+                                // position and rememberSaveable state alive across
+                                // switches instead of tearing down the whole screen.
+                                tabStateHolder.SaveableStateProvider(key = tab) {
+                                    val domain = when (tab) { 0 -> SourceDomain.MUSIC; 1 -> SourceDomain.AUDIOBOOK; 2 -> SourceDomain.VIDEO; else -> null }
+                                    CompositionLocalProvider(LocalSourceDomain provides domain) {
+                                        when (tab) {
+                                            0 -> MusicScreenV2(isDark, onThemeToggle, onSongSelected, onOpenSettings = { navigationGuard.navigate { showSettings = true } })
+                                            1 -> AudiobookScreen(colorScheme, isDark, onThemeToggle, onPlayAudiobook, onOpenSettings = { navigationGuard.navigate { showSettings = true } })
+                                            2 -> {
+                                                val source = sourceState.active(SourceDomain.VIDEO)
+                                                if (source?.kind == MediaSourceKind.WEBDAV) {
+                                                    WebDavScreen(source.videoConfig(), onPlayVideo, onPlayVideoFromStart, videoVM::setEpisodeContext, onOpenSettings = { navigationGuard.navigate { showSettings = true } })
+                                                } else VideoScreen(colorScheme, isDark, onThemeToggle, onPlayVideo,
+                                                    onPlayVideoFromStart, videoVM::setEpisodeContext, onOpenSettings = { navigationGuard.navigate { showSettings = true } })
+                                            }
                                         }
-                                        3 -> SettingsScreen(openServersRequest) { song -> onSongSelected(listOf(song), 0, false) }
                                     }
                                 }
                             }
@@ -1005,36 +1070,63 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
             }
 
             // Bottom dock — overlaid on content via BottomCenter so Scaffold's
-            // containerColor does not fill a full-width bottom bar area.
-            Box(
-                modifier = Modifier.align(Alignment.BottomCenter)
-            ) {
-                AnimatedBottomDock(
-                    visible = bottomDockPresentation == BottomDockPresentation.Dock
+            // containerColor does not fill a full-width bottom bar area. Hidden
+            // entirely on the settings page (no media navigation there).
+            if (!showSettings) {
+                Box(
+                    modifier = Modifier.align(Alignment.BottomCenter)
                 ) {
-                    Box(
-                        modifier = Modifier.onSizeChanged { size ->
-                            measuredDockHeight = with(density) { size.height.toDp() }
+                    if (showMediaNav) {
+                        AnimatedBottomDock(
+                            visible = bottomDockPresentation == BottomDockPresentation.Dock
+                        ) {
+                            Box(
+                                modifier = Modifier.onSizeChanged { size ->
+                                    measuredDockHeight = with(density) { size.height.toDp() }
+                                }
+                            ) {
+                                PlaybackDockSlot(
+                                    musicVM = musicVM,
+                                    audiobookVM = audiobookVM,
+                                    videoVM = videoVM,
+                                    selectedTab = selectedTab,
+                                    colorScheme = colorScheme,
+                                    visibleDomains = visibleDomains,
+                                    onOpenPlayer = openNowPlayingPlayer,
+                                    onSelect = { tab -> navigationGuard.navigate { selectedTab = tab } }
+                                )
+                            }
                         }
-                    ) {
-                        PlaybackDockSlot(
-                            musicVM = musicVM,
-                            audiobookVM = audiobookVM,
-                            videoVM = videoVM,
-                            selectedTab = selectedTab,
-                            colorScheme = colorScheme,
-                            onOpenPlayer = openNowPlayingPlayer,
-                            onSelect = { tab -> navigationGuard.navigate { selectedTab = tab } }
-                        )
+                        AnimatedBottomDock(
+                            visible = bottomDockPresentation == BottomDockPresentation.Handle
+                        ) {
+                            BottomDockHandle(
+                                colorScheme = colorScheme,
+                                onClick = { bottomDockVisible = true }
+                            )
+                        }
+                    } else {
+                        // Single visible module: keep the now-playing bar only,
+                        // with no navigation, no empty placeholder, and no handle.
+                        AnimatedBottomDock(visible = true) {
+                            Box(
+                                modifier = Modifier.onSizeChanged { size ->
+                                    measuredDockHeight = with(density) { size.height.toDp() }
+                                }
+                            ) {
+                                PlaybackDockSlot(
+                                    musicVM = musicVM,
+                                    audiobookVM = audiobookVM,
+                                    videoVM = videoVM,
+                                    selectedTab = selectedTab,
+                                    colorScheme = colorScheme,
+                                    visibleDomains = visibleDomains,
+                                    onOpenPlayer = openNowPlayingPlayer,
+                                    onSelect = { tab -> navigationGuard.navigate { selectedTab = tab } }
+                                )
+                            }
+                        }
                     }
-                }
-                AnimatedBottomDock(
-                    visible = bottomDockPresentation == BottomDockPresentation.Handle
-                ) {
-                    BottomDockHandle(
-                        colorScheme = colorScheme,
-                        onClick = { bottomDockVisible = true }
-                    )
                 }
             }
         }
@@ -1097,6 +1189,7 @@ private fun PlaybackDockSlot(
     videoVM: VideoPlaybackViewModel,
     selectedTab: Int,
     colorScheme: ColorScheme,
+    visibleDomains: List<SourceDomain>,
     onOpenPlayer: () -> Unit,
     onSelect: (Int) -> Unit
 ) {
@@ -1154,6 +1247,7 @@ private fun PlaybackDockSlot(
         nowPlaying = nowPlaying,
         isPlaying = isPlaying,
         playbackStatus = playbackStatus,
+        visibleDomains = visibleDomains,
         onOpenPlayer = onOpenPlayer,
         onPlayPause = onPlayPause,
         onSelect = onSelect

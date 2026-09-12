@@ -34,7 +34,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun WebDavScreen(config: VideoServerConfig, onPlay: (VideoItem) -> Unit, onPlayFromStart: (VideoItem) -> Unit, onEpisodeContext: (List<VideoItem>) -> Unit = {}) {
+internal fun WebDavScreen(config: VideoServerConfig, onPlay: (VideoItem) -> Unit, onPlayFromStart: (VideoItem) -> Unit, onEpisodeContext: (List<VideoItem>) -> Unit = {}, onOpenSettings: () -> Unit = {}) {
     val model: WebDavBrowserViewModel = viewModel(key = "webdav-${config.sourceId}")
     val state by model.state.collectAsStateWithLifecycle()
     val rows by model.visibleEntries.collectAsStateWithLifecycle()
@@ -73,7 +73,8 @@ internal fun WebDavScreen(config: VideoServerConfig, onPlay: (VideoItem) -> Unit
         verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
         item(key = "header") {
             MediaPageHeader("视频", if (state.loading) "正在读取目录" else "${rows.size} 个项目 · ${formatCacheAge(state.fetchedAt) ?: "尚未刷新"}",
-                listOf(HeaderAction(Icons.Filled.Search, "搜索当前目录", onClick = { search = !search }),
+                listOf(HeaderAction(Icons.Filled.Settings, "打开设置", fixed = true, onClick = onOpenSettings),
+                    HeaderAction(Icons.Filled.Search, "搜索当前目录", onClick = { search = !search }),
                     HeaderAction(Icons.Filled.Refresh, "刷新目录", onClick = model::refresh),
                     HeaderAction(Icons.AutoMirrored.Filled.Sort, "目录排序与显示", onClick = { showSort = true })), colors)
         }

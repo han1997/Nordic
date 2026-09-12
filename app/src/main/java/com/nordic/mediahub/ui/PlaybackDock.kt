@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.nordic.mediahub.data.MediaDomain
 import com.nordic.mediahub.data.NavidromeSong
 import com.nordic.mediahub.ui.theme.NordicAlpha
 import com.nordic.mediahub.ui.theme.NordicControlSizes
@@ -128,10 +129,16 @@ internal fun PolishedPlaybackDock(
     nowPlaying: DockNowPlayingContent?,
     isPlaying: Boolean,
     playbackStatus: String? = null,
+    visibleDomains: List<MediaDomain> = listOf(MediaDomain.MUSIC, MediaDomain.AUDIOBOOK, MediaDomain.VIDEO),
     onOpenPlayer: () -> Unit,
     onPlayPause: () -> Unit,
     onSelect: (Int) -> Unit
 ) {
+    val showNav = visibleDomains.size >= 2
+    // With a single visible module there is no navigation to render; the
+    // now-playing bar is kept independently, but an empty placeholder (no
+    // active playback) must not draw a meaningless dock.
+    if (!showNav && nowPlaying == null) return
     Surface(
         color = colorScheme.surface.copy(alpha = DOCK_SURFACE_ALPHA),
         contentColor = colorScheme.onSurface,
@@ -167,14 +174,16 @@ internal fun PolishedPlaybackDock(
                     onOpenPlayer = onOpenPlayer,
                     onPlayPause = onPlayPause
                 )
-                Box(
-                    Modifier
-                        .padding(horizontal = NordicSpacing.lg, vertical = 2.dp)
-                        .height(1.dp)
-                        .fillMaxWidth()
-                        .background(colorScheme.onSurface.copy(alpha = DOCK_DIVIDER_ALPHA))
-                )
-                PolishedBottomNav(selected, colorScheme, onSelect)
+                if (showNav) {
+                    Box(
+                        Modifier
+                            .padding(horizontal = NordicSpacing.lg, vertical = 2.dp)
+                            .height(1.dp)
+                            .fillMaxWidth()
+                            .background(colorScheme.onSurface.copy(alpha = DOCK_DIVIDER_ALPHA))
+                    )
+                    PolishedBottomNav(selected, colorScheme, visibleDomains, onSelect)
+                }
             }
         }
     }
@@ -233,7 +242,12 @@ internal fun BottomDockHandle(
 }
 
 @Composable
-internal fun PolishedBottomNav(selected: Int, colorScheme: ColorScheme, onSelect: (Int) -> Unit) {
+internal fun PolishedBottomNav(
+    selected: Int,
+    colorScheme: ColorScheme,
+    visibleDomains: List<MediaDomain>,
+    onSelect: (Int) -> Unit
+) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -242,10 +256,14 @@ internal fun PolishedBottomNav(selected: Int, colorScheme: ColorScheme, onSelect
             .selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
     ) {
-        PolishedNavItem(Icons.Filled.LibraryMusic, "音乐", selected == 0, colorScheme, Modifier.weight(1f)) { onSelect(0) }
-        PolishedNavItem(Icons.AutoMirrored.Filled.MenuBook, "有声书", selected == 1, colorScheme, Modifier.weight(1f)) { onSelect(1) }
-        PolishedNavItem(Icons.Filled.Movie, "视频", selected == 2, colorScheme, Modifier.weight(1f)) { onSelect(2) }
-        PolishedNavItem(Icons.Filled.Settings, "设置", selected == 3, colorScheme, Modifier.weight(1f)) { onSelect(3) }
+        visibleDomains.forEach { domain ->
+            val (icon, label, tab) = when (domain) {
+                MediaDomain.MUSIC -> Triple(Icons.Filled.LibraryMusic, "音乐", 0)
+                MediaDomain.AUDIOBOOK -> Triple(Icons.AutoMirrored.Filled.MenuBook, "有声书", 1)
+                MediaDomain.VIDEO -> Triple(Icons.Filled.Movie, "视频", 2)
+            }
+            PolishedNavItem(icon, label, selected == tab, colorScheme, Modifier.weight(1f)) { onSelect(tab) }
+        }
     }
 }
 @Composable

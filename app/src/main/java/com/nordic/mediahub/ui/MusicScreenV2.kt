@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -76,7 +77,8 @@ internal const val DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK = false
 fun MusicScreenV2(
     isDark: Boolean,
     onThemeToggle: (Boolean) -> Unit,
-    onSongSelected: (List<NavidromeSong>, Int, Boolean) -> Unit = { _, _, _ -> }
+    onSongSelected: (List<NavidromeSong>, Int, Boolean) -> Unit = { _, _, _ -> },
+    onOpenSettings: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
@@ -768,6 +770,14 @@ fun MusicScreenV2(
     val refreshErrorSubtitle = mediaRefreshErrorSubtitle(errorMsg, hasErrorContent)
     val standaloneError = standaloneMediaError(errorMsg, hasErrorContent)
     val headerActions = buildList {
+        add(
+            HeaderAction(
+                icon = Icons.Filled.Settings,
+                contentDescription = "打开设置",
+                fixed = true,
+                onClick = onOpenSettings
+            )
+        )
         if (savedConfig.isReadyForMusicSync()) {
             add(
                 HeaderAction(

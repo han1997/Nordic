@@ -36,6 +36,7 @@ internal fun shouldScrollMediaSegments(availableWidth: Dp, minimumWidths: List<D
 
 - `NordicControlSizes.touchTarget = 48dp`，为真实布局占位，不依赖越界扩大的隐藏点击范围。
 - 顶部标题/返回/操作的布局必须由扣除页面边距后的宽度与 fontScale 决定。无法容纳的 action 进入更多菜单，不能直接删除、縮小或截掉；原顺序、disabled 与回调保留。
+- 固定动作（如各媒体首页的设置齿轮）用 `HeaderAction(fixed = true)` 标记，始终内联渲染、不进入更多菜单；`resolveMediaHeaderActionLayout` 的 `fixedActionCount` 为固定动作预留槽位，其余动作在窄屏溢出。
 - 根页头部使用单行紧凑布局（`MediaPageHeader` showBack=false 分支）：titleLarge SemiBold 左对齐 + 副标题降为 bodySmall 单行状态文本，Row 垂直居中；不使用 displaySmall 大字标题（与底部 dock 页签重复）。子页标题使用 headlineMedium，长子页标题允许两行，标题声明 heading 语义。根页副标题只保留状态语义（条目数/缓存年龄/刷新/错误），不写操作教学文案（如"点一下直接播放"）。
 - 返回、搜索和页头图标采用同一尺寸/圆角/按压反馈；不为返回按钮单独增加常驻阴影。
 

@@ -155,7 +155,9 @@ class EncryptedConfigStore(
         synchronized(ENCRYPTED_CONFIG_LOCK) {
             runMigrationIfNeeded()
             val previous = readAppPreferences(prefs)
-            if (!prefs.edit().putAppPreferences(transform(previous).validated()).commit()) {
+            val next = transform(previous)
+            require(next.showMusic || next.showAudiobook || next.showVideo) { "至少保留一个媒体模块" }
+            if (!prefs.edit().putAppPreferences(next.validated()).commit()) {
                 prefs.edit().putAppPreferences(previous).commit()
                 throw IOException("保存设置失败，请重试")
             }

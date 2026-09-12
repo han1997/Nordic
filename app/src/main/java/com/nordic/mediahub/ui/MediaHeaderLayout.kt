@@ -16,9 +16,11 @@ internal fun resolveMediaHeaderActionLayout(
     availableWidth: Dp,
     showBack: Boolean,
     actionCount: Int,
-    fontScale: Float = 1f
+    fontScale: Float = 1f,
+    fixedActionCount: Int = 0
 ): MediaHeaderActionLayout {
     val count = actionCount.coerceAtLeast(0)
+    val fixed = fixedActionCount.coerceIn(0, count)
     if (count == 0) return MediaHeaderActionLayout(0, false, 0.dp)
     val scale = fontScale.takeIf { it.isFinite() && it > 0f }?.coerceIn(1f, 2f) ?: 1f
     val titleWidth = (if (showBack) 96.dp else 112.dp) * scale
@@ -28,9 +30,12 @@ internal fun resolveMediaHeaderActionLayout(
     val remaining = availableWidth - titleWidth - backWidth - NordicSpacing.md
     val slots = ((remaining - groupPadding + NordicSpacing.xs) / slotWidth)
         .toInt().coerceAtLeast(1).coerceAtMost(count)
-    val overflow = slots < count
+    // Fixed actions always occupy their slots; only the remaining actions overflow.
+    val overflowableCount = count - fixed
+    val overflowableSlots = (slots - fixed).coerceAtLeast(0).coerceAtMost(overflowableCount)
+    val overflow = overflowableSlots < overflowableCount
     return MediaHeaderActionLayout(
-        inlineActionCount = if (overflow) slots - 1 else count,
+        inlineActionCount = if (overflow) (overflowableSlots - 1).coerceAtLeast(0) else overflowableCount,
         showsOverflow = overflow,
         actionGroupWidth = groupPadding + NordicControlSizes.touchTarget * slots + NordicSpacing.xs * (slots - 1)
     )
