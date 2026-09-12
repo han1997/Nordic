@@ -1,0 +1,7 @@
+- 实现默认关闭、仅前台、播完后 5 秒可取消的 Emby/WebDAV 自动连播；设置中心和播放器共用持久化开关。
+- 补齐真实 WebDAV 目录播放队列、同目录字幕、版本匹配续播；修正来源级身份、过期回调和原会话进度快照，加入工厂到计时状态机的链路回归。
+- 工作提交 `8d7f19f`，共 30 个已确认文件；提交前复核原始文件、规范化暂存内容与 APK 哈希，应用版本保持已验收的 `0.1.6 / 6`。
+- 自动验收：692 项单测、50 个 suite，0 失败/错误/跳过；Lint 0 error/fatal、25 Warning、18 Information；Debug/Release 打包、v2 签名、版本/调试入口及 36 个 Retrofit suspend 泛型签名核验通过。
+- Release：`app/build/outputs/apk/release/nordic-0.1.6.apk`，SHA-256 `8d31a362b1ed05217ce361b32afe50a72814813b2c4e8e650fdda6aa838bac65`；证书与旧 0.1.3 分发 APK 一致。
+- 任务归档到 `.trellis/tasks/archive/2026-09/09-12-video-auto-play-next/`；归档材料保留未执行的真机清单，并修正上下文路径和验收脚本的目录定位以支持归档后复核。
+- 未连接 Android 设备、未发现可用 AVD，因此没有进行真实 Emby/WebDAV 播放、覆盖安装、横竖屏/大字体或 PiP 设备验收；未操作手机或推送远端。

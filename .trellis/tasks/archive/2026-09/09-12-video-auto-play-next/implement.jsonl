@@ -1,0 +1,11 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "应用规范入口"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "层次与文件归属"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "结束事件、切集、进度与 PiP 合同"}
+{"file": ".trellis/spec/backend/media-sources-webdav-settings.md", "reason": "来源隔离与设备级偏好"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "偏好持久化与订阅"}
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "共享控件、触控与无障碍"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "测试与质量门禁"}
+{"file": ".trellis/spec/backend/documentation-guidelines.md", "reason": "中文文档与发布记录"}
+{"file": ".trellis/spec/backend/build-release.md", "reason": "版本与 APK 验证"}
+{"file": ".trellis/tasks/archive/2026-09/09-12-video-auto-play-next/research/implementation-notes.md", "reason": "代码调研与并发风险"}
+{"file": ".trellis/spec/backend/video-auto-play-next.md", "reason": "本轮连播、候选、计时与异步交接执行合同"}

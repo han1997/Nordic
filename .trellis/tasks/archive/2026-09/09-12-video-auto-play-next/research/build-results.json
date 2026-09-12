@@ -1,0 +1,35 @@
+{
+  "tests": {
+    "suites": 50,
+    "tests": 692,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "lint": {
+    "Warning": 25,
+    "Information": 18
+  },
+  "artifacts": [
+    {
+      "variant": "debug",
+      "file": "app/build/outputs/apk/debug/app-debug.apk",
+      "applicationId": "fun.han1997.nordic",
+      "versionName": "0.1.6",
+      "versionCode": 6,
+      "bytes": 24910734,
+      "sha256": "f91dac2e2fe5127d0a4b74357c86491073f6955c344df5b6ca9434dc3bf2beb6",
+      "certificateSha256": "16a2350bb63cc53f446ec3aeadbd08ccd9d9475db867c4564ea6b6c3372a545d"
+    },
+    {
+      "variant": "release",
+      "file": "app/build/outputs/apk/release/nordic-0.1.6.apk",
+      "applicationId": "fun.han1997.nordic",
+      "versionName": "0.1.6",
+      "versionCode": 6,
+      "bytes": 4523272,
+      "sha256": "8d31a362b1ed05217ce361b32afe50a72814813b2c4e8e650fdda6aa838bac65",
+      "certificateSha256": "16a2350bb63cc53f446ec3aeadbd08ccd9d9475db867c4564ea6b6c3372a545d"
+    }
+  ]
+}

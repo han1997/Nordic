@@ -1,0 +1,328 @@
+.class public interface abstract Lcom/nordic/mediahub/api/EmbyApi;
+.super Ljava/lang/Object;
+.source "SourceFile"
+
+
+# annotations
+.annotation system Ldalvik/annotation/MemberClasses;
+    value = {
+        Lcom/nordic/mediahub/api/EmbyApi$DefaultImpls;
+    }
+.end annotation
+
+
+# virtual methods
+.method public abstract authenticateByName(Lcom/nordic/mediahub/api/EmbyAuthenticateRequest;Ljava/lang/String;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Lcom/nordic/mediahub/api/EmbyAuthenticateRequest;
+        .annotation runtime Lr3/a;
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Lr3/i;
+            value = "X-Emby-Authorization"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Lcom/nordic/mediahub/api/EmbyAuthenticateRequest;",
+            "Ljava/lang/String;",
+            "Lx2/d<",
+            "-",
+            "Lp3/M<",
+            "Lcom/nordic/mediahub/api/EmbyAuthenticateResponse;",
+            ">;>;)",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Lr3/o;
+        value = "Users/AuthenticateByName"
+    .end annotation
+.end method
+
+.method public abstract getItems(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IILx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Lr3/s;
+            value = "userId"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Lr3/i;
+            value = "X-Emby-Token"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Lr3/t;
+            value = "ParentId"
+        .end annotation
+    .end param
+    .param p4    # Z
+        .annotation runtime Lr3/t;
+            value = "Recursive"
+        .end annotation
+    .end param
+    .param p5    # Ljava/lang/String;
+        .annotation runtime Lr3/t;
+            value = "IncludeItemTypes"
+        .end annotation
+    .end param
+    .param p6    # Ljava/lang/String;
+        .annotation runtime Lr3/t;
+            value = "Fields"
+        .end annotation
+    .end param
+    .param p7    # Ljava/lang/String;
+        .annotation runtime Lr3/t;
+            value = "SortBy"
+        .end annotation
+    .end param
+    .param p8    # Ljava/lang/String;
+        .annotation runtime Lr3/t;
+            value = "SortOrder"
+        .end annotation
+    .end param
+    .param p9    # I
+        .annotation runtime Lr3/t;
+            value = "StartIndex"
+        .end annotation
+    .end param
+    .param p10    # I
+        .annotation runtime Lr3/t;
+            value = "Limit"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Z",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "II",
+            "Lx2/d<",
+            "-",
+            "Lp3/M<",
+            "Lcom/nordic/mediahub/api/EmbyItemsResponse;",
+            ">;>;)",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Lr3/f;
+        value = "Users/{userId}/Items"
+    .end annotation
+.end method
+
+.method public abstract getPlaybackInfo(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/nordic/mediahub/api/EmbyPlaybackInfoRequest;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Lr3/s;
+            value = "itemId"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Lr3/i;
+            value = "X-Emby-Token"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Lr3/t;
+            value = "UserId"
+        .end annotation
+    .end param
+    .param p4    # Lcom/nordic/mediahub/api/EmbyPlaybackInfoRequest;
+        .annotation runtime Lr3/a;
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Lcom/nordic/mediahub/api/EmbyPlaybackInfoRequest;",
+            "Lx2/d<",
+            "-",
+            "Lp3/M<",
+            "Lcom/nordic/mediahub/api/EmbyPlaybackInfoResponse;",
+            ">;>;)",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Lr3/o;
+        value = "Items/{itemId}/PlaybackInfo"
+    .end annotation
+.end method
+
+.method public abstract getResumeItems(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;ILx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Lr3/s;
+            value = "userId"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Lr3/i;
+            value = "X-Emby-Token"
+        .end annotation
+    .end param
+    .param p3    # Ljava/lang/String;
+        .annotation runtime Lr3/t;
+            value = "MediaTypes"
+        .end annotation
+    .end param
+    .param p4    # Z
+        .annotation runtime Lr3/t;
+            value = "Recursive"
+        .end annotation
+    .end param
+    .param p5    # Ljava/lang/String;
+        .annotation runtime Lr3/t;
+            value = "Fields"
+        .end annotation
+    .end param
+    .param p6    # I
+        .annotation runtime Lr3/t;
+            value = "Limit"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Z",
+            "Ljava/lang/String;",
+            "I",
+            "Lx2/d<",
+            "-",
+            "Lp3/M<",
+            "Lcom/nordic/mediahub/api/EmbyItemsResponse;",
+            ">;>;)",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Lr3/f;
+        value = "Users/{userId}/Items/Resume"
+    .end annotation
+.end method
+
+.method public abstract getUserViews(Ljava/lang/String;Ljava/lang/String;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Lr3/s;
+            value = "userId"
+        .end annotation
+    .end param
+    .param p2    # Ljava/lang/String;
+        .annotation runtime Lr3/i;
+            value = "X-Emby-Token"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Ljava/lang/String;",
+            "Lx2/d<",
+            "-",
+            "Lp3/M<",
+            "Lcom/nordic/mediahub/api/EmbyItemsResponse;",
+            ">;>;)",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Lr3/f;
+        value = "Users/{userId}/Views"
+    .end annotation
+.end method
+
+.method public abstract getUsers(Ljava/lang/String;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Lr3/i;
+            value = "X-Emby-Token"
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Lx2/d<",
+            "-",
+            "Lp3/M<",
+            "Ljava/util/List<",
+            "Lcom/nordic/mediahub/api/EmbyUserDto;",
+            ">;>;>;)",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Lr3/f;
+        value = "Users"
+    .end annotation
+.end method
+
+.method public abstract reportPlaybackProgress(Ljava/lang/String;Lcom/nordic/mediahub/api/EmbyPlaybackProgressRequest;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Lr3/i;
+            value = "X-Emby-Token"
+        .end annotation
+    .end param
+    .param p2    # Lcom/nordic/mediahub/api/EmbyPlaybackProgressRequest;
+        .annotation runtime Lr3/a;
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Lcom/nordic/mediahub/api/EmbyPlaybackProgressRequest;",
+            "Lx2/d<",
+            "-",
+            "Lp3/M<",
+            "Lt2/o;",
+            ">;>;)",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Lr3/o;
+        value = "Sessions/Playing/Progress"
+    .end annotation
+.end method
+
+.method public abstract reportPlaybackStopped(Ljava/lang/String;Lcom/nordic/mediahub/api/EmbyPlaybackProgressRequest;Lx2/d;)Ljava/lang/Object;
+    .param p1    # Ljava/lang/String;
+        .annotation runtime Lr3/i;
+            value = "X-Emby-Token"
+        .end annotation
+    .end param
+    .param p2    # Lcom/nordic/mediahub/api/EmbyPlaybackProgressRequest;
+        .annotation runtime Lr3/a;
+        .end annotation
+    .end param
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(",
+            "Ljava/lang/String;",
+            "Lcom/nordic/mediahub/api/EmbyPlaybackProgressRequest;",
+            "Lx2/d<",
+            "-",
+            "Lp3/M<",
+            "Lt2/o;",
+            ">;>;)",
+            "Ljava/lang/Object;"
+        }
+    .end annotation
+
+    .annotation runtime Lr3/o;
+        value = "Sessions/Playing/Stopped"
+    .end annotation
+.end method
+
