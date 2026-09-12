@@ -68,6 +68,9 @@ internal fun VideoDetailScreen(
             VideoEpisodeFilter.Unwatched -> relatedEpisodes.filter { !it.isPlayed }
         }
     }
+    // A Series has no stream of its own: the primary play button targets the
+    // next unwatched episode (or the first one). Null keeps the button disabled.
+    val playTarget = remember(video, relatedEpisodes) { resolveVideoDetailPlayTarget(video, relatedEpisodes) }
 
     LazyColumn(
         modifier = Modifier
@@ -80,6 +83,8 @@ internal fun VideoDetailScreen(
             VideoDetailHero(
                 video = video,
                 playAction = playAction,
+                playEnabled = playTarget != null,
+                playTargetTitle = playTarget?.takeIf { it.id != video.id }?.title,
                 colorScheme = colorScheme,
                 onBack = onBack,
                 onPlay = onPlay,
@@ -180,6 +185,8 @@ private fun VideoEpisodeFilterRow(
 private fun VideoDetailHero(
     video: VideoItem,
     playAction: VideoDetailPlayAction,
+    playEnabled: Boolean,
+    playTargetTitle: String?,
     colorScheme: ColorScheme,
     onBack: () -> Unit,
     onPlay: () -> Unit,
@@ -265,16 +272,15 @@ private fun VideoDetailHero(
                 }
             }
 
-            val playEnabled = !video.streamUrl.isNullOrBlank()
             Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
                 PrimaryActionButton(
-                    text = playAction.primaryLabel,
+                    text = if (playTargetTitle != null) "播放 $playTargetTitle" else playAction.primaryLabel,
                     colorScheme = colorScheme,
                     enabled = playEnabled,
                     onClick = onPlay,
                     icon = Icons.Filled.PlayArrow
                 )
-                if (playAction.secondaryLabel != null) {
+                if (playAction.secondaryLabel != null && !video.streamUrl.isNullOrBlank()) {
                     SecondaryActionButton(
                         text = playAction.secondaryLabel,
                         colorScheme = colorScheme,

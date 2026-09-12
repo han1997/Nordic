@@ -952,7 +952,7 @@ fun MainScreen(isDark: Boolean, onThemeToggle: (Boolean) -> Unit) {
                                         2 -> {
                                             val source = sourceState.active(SourceDomain.VIDEO)
                                             if (source?.kind == MediaSourceKind.WEBDAV) {
-                                                WebDavScreen(source.videoConfig(), onPlayVideo, onPlayVideoFromStart)
+                                                WebDavScreen(source.videoConfig(), onPlayVideo, onPlayVideoFromStart, videoVM::setEpisodeContext)
                                             } else VideoScreen(colorScheme, isDark, onThemeToggle, onPlayVideo,
                                                 onPlayVideoFromStart, videoVM::setEpisodeContext)
                                         }

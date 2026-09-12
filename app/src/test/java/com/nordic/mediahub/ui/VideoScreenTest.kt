@@ -497,6 +497,102 @@ class VideoScreenTest {
         assertEquals(150, action.primaryResumeSeconds)
     }
 
+    private fun playableVideo(
+        id: String,
+        title: String,
+        type: String = "Video",
+        libraryId: String = "/dir/",
+        isPlayed: Boolean = false,
+        playbackPositionSeconds: Int = 0
+    ): VideoItem {
+        return video(
+            id = id, title = title, type = type, libraryId = libraryId,
+            isPlayed = isPlayed, playbackPositionSeconds = playbackPositionSeconds
+        ).copy(streamUrl = "https://example.test/$id")
+    }
+
+    @Test
+    fun resolveVideoDetailPlayTarget_playableItemPlaysItself() {
+        val movie = playableVideo(id = "movie-1", title = "Movie", type = "Movie")
+        assertEquals("movie-1", resolveVideoDetailPlayTarget(movie, emptyList())?.id)
+    }
+
+    @Test
+    fun resolveVideoDetailPlayTarget_seriesPlaysNextUnwatchedEpisode() {
+        val series = video(id = "series-1", title = "Show", type = "Series")
+        val watched = playableVideo(id = "ep-1", title = "E1", type = "Episode", isPlayed = true)
+        val resumed = playableVideo(id = "ep-2", title = "E2", type = "Episode", playbackPositionSeconds = 60)
+        val fresh = playableVideo(id = "ep-3", title = "E3", type = "Episode")
+
+        assertEquals("ep-2", resolveVideoDetailPlayTarget(series, listOf(watched, fresh, resumed))?.id)
+    }
+
+    @Test
+    fun resolveVideoDetailPlayTarget_seriesFallsBackToFirstEpisode() {
+        val series = video(id = "series-1", title = "Show", type = "Series")
+        val ep1 = playableVideo(id = "ep-1", title = "E1", type = "Episode")
+        val ep2 = playableVideo(id = "ep-2", title = "E2", type = "Episode")
+
+        assertEquals("ep-1", resolveVideoDetailPlayTarget(series, listOf(ep2, ep1))?.id)
+    }
+
+    @Test
+    fun resolveVideoDetailPlayTarget_seriesWithoutPlayableEpisodesIsNull() {
+        val series = video(id = "series-1", title = "Show", type = "Series")
+        val unplayable = video(id = "ep-1", title = "E1", type = "Episode")
+
+        assertNull(resolveVideoDetailPlayTarget(series, listOf(unplayable)))
+        assertNull(resolveVideoDetailPlayTarget(series, emptyList()))
+    }
+
+    @Test
+    fun resolveNextWebDavVideo_returnsNextSiblingInNaturalTitleOrder() {
+        val current = playableVideo(id = "/dir/b.mp4", title = "b.mp4")
+        val catalog = listOf(
+            playableVideo(id = "/dir/a.mp4", title = "a.mp4"),
+            current,
+            playableVideo(id = "/dir/c10.mp4", title = "c10.mp4"),
+            playableVideo(id = "/dir/c2.mp4", title = "c2.mp4"),
+            playableVideo(id = "/other/d.mp4", title = "d.mp4", libraryId = "/other/")
+        )
+
+        assertEquals("/dir/c2.mp4", resolveNextWebDavVideo(current, catalog)?.id)
+    }
+
+    @Test
+    fun resolveNextWebDavVideo_returnsNullForLastSibling() {
+        val current = playableVideo(id = "/dir/c.mp4", title = "c.mp4")
+        val catalog = listOf(
+            playableVideo(id = "/dir/a.mp4", title = "a.mp4"),
+            current
+        )
+
+        assertNull(resolveNextWebDavVideo(current, catalog))
+    }
+
+    @Test
+    fun resolveVideoPlayerEpisodes_includesWebDavSameDirectoryVideos() {
+        val current = playableVideo(id = "/dir/b.mp4", title = "b.mp4")
+        val catalog = listOf(
+            playableVideo(id = "/dir/a.mp4", title = "a.mp4"),
+            current,
+            playableVideo(id = "/dir/c.mp4", title = "c.mp4"),
+            playableVideo(id = "/other/d.mp4", title = "d.mp4", libraryId = "/other/")
+        )
+
+        val episodes = resolveVideoPlayerEpisodes(current, catalog)
+        assertEquals(listOf("/dir/a.mp4", "/dir/b.mp4", "/dir/c.mp4"), episodes.map { it.id })
+    }
+
+    @Test
+    fun shouldPlaySelectedVideoEpisode_acceptsWebDavVideoType() {
+        val current = playableVideo(id = "/dir/a.mp4", title = "a.mp4")
+        val next = playableVideo(id = "/dir/b.mp4", title = "b.mp4")
+
+        assertTrue(shouldPlaySelectedVideoEpisode(current, next))
+        assertFalse(shouldPlaySelectedVideoEpisode(current, current))
+    }
+
     private fun episode(
         id: String,
         title: String,

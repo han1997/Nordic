@@ -397,6 +397,9 @@ fun VideoScreen(
     selectedVideo?.let { video ->
         val relatedEpisodes = remember(video, videos) { videos.relatedEpisodesFor(video) }
         val playAction = remember(video) { resolveVideoDetailPlayAction(video) }
+        // Series detail: the primary play button plays the resolved episode
+        // target (next unwatched, else first); playable items play themselves.
+        val playTarget = remember(video, relatedEpisodes) { resolveVideoDetailPlayTarget(video, relatedEpisodes) }
         VideoDetailScreen(
             video = video,
             relatedEpisodes = relatedEpisodes,
@@ -406,7 +409,7 @@ fun VideoScreen(
                 videoResetNotice = null
                 selectedVideo = null
             },
-            onPlay = { onPlayVideo(video) },
+            onPlay = { playTarget?.let(onPlayVideo) },
             onPlayFromStart = { onPlayVideoFromStart(video) },
             onPlayEpisode = onPlayVideo
         )

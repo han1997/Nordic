@@ -873,7 +873,12 @@ internal class VideoBrightnessController(private val window: Window) {
  */
 internal class VideoVolumeController(private val audioManager: AudioManager) {
     private val maxVolume: Int = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
-    private val currentVolume: Int = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+
+    // Read live on every access: a constructor snapshot goes stale after the
+    // first adjustment, so the next gesture session would restart from the old
+    // volume and snap the level back (the "volume gesture does nothing" bug).
+    private val currentVolume: Int
+        get() = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
 
     val volumeFraction: Float
         get() = currentVolume.toFloat() / maxVolume.toFloat()

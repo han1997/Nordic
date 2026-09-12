@@ -3,6 +3,7 @@ package com.nordic.mediahub.ui
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nordic.mediahub.data.VideoItem
+import com.nordic.mediahub.data.compareNaturalNames
 
 internal fun VideoItem.metaText(): String {
     return buildList {
@@ -48,6 +49,32 @@ internal fun resolveVideoDetailPlayAction(video: VideoItem): VideoDetailPlayActi
             secondaryLabel = null
         )
     }
+}
+
+/**
+ * Resolves what the detail page's primary play button should do.
+ *
+ * Playable items (Movie/Episode/Video with a stream URL) play themselves.
+ * A Series has no stream of its own: the button plays the next unwatched
+ * episode, falling back to the first episode — matching mainstream clients.
+ * Returns null when there is nothing playable (button stays disabled).
+ */
+internal fun resolveVideoDetailPlayTarget(
+    video: VideoItem,
+    relatedEpisodes: List<VideoItem>
+): VideoItem? {
+    if (!video.streamUrl.isNullOrBlank()) return video
+    if (!video.type.equals("Series", ignoreCase = true)) return null
+    val playable = relatedEpisodes.filter { !it.streamUrl.isNullOrBlank() }
+    if (playable.isEmpty()) return null
+    val ordered = playable.sortedWith(
+        compareBy<VideoItem> { it.seasonNumber ?: Int.MAX_VALUE }
+            .thenBy { it.episodeNumber ?: Int.MAX_VALUE }
+            .thenBy { it.title }
+    )
+    return ordered.firstOrNull { !it.isPlayed && it.playbackPositionSeconds > 0 }
+        ?: ordered.firstOrNull { !it.isPlayed }
+        ?: ordered.first()
 }
 
 internal enum class VideoEpisodeFilter(val label: String) {
@@ -240,12 +267,16 @@ internal fun VideoItem.episodeLabel(): String {
  * Episodes of the same series (matched by [VideoItem.seriesId], falling back to
  * [VideoItem.seriesName]) are ordered by (seasonNumber, episodeNumber, title);
  * the result is the item immediately following [current] in that order.
- * Returns null when [current] is not an episode or has no successor.
+ * WebDAV items (type "Video") fall back to same-directory natural ordering.
+ * Returns null when [current] has no successor.
  */
 internal fun resolveNextVideoEpisode(
     current: VideoItem,
     videos: List<VideoItem>
 ): VideoItem? {
+    if (current.type.equals("Video", ignoreCase = true)) {
+        return resolveNextWebDavVideo(current, videos)
+    }
     if (!current.type.equals("Episode", ignoreCase = true)) return null
     val sameSeries = resolveVideoPlayerEpisodes(current, videos).filter { it.id != current.id }
     val currentIndex = sameSeries.indexOfFirst { candidate ->
@@ -269,9 +300,41 @@ internal fun resolveNextVideoEpisode(
     }
 }
 
+/**
+ * WebDAV continuation: videos in the same directory (libraryId holds the
+ * parent path) ordered by natural filename order — matching the browse
+ * screen's `compareNaturalNames` so "next" follows what the user sees.
+ */
+internal fun resolveNextWebDavVideo(current: VideoItem, videos: List<VideoItem>): VideoItem? {
+    val siblings = videos.filter { candidate ->
+        candidate.type.equals("Video", ignoreCase = true) &&
+            candidate.libraryId == current.libraryId &&
+            !candidate.streamUrl.isNullOrBlank()
+    }.sortedWith(
+        Comparator { a: VideoItem, b: VideoItem ->
+            compareNaturalNames(a.title, b.title).takeIf { it != 0 } ?: a.id.compareTo(b.id)
+        }
+    )
+    val currentIndex = siblings.indexOfFirst { it.id == current.id }
+    if (currentIndex >= 0) return siblings.getOrNull(currentIndex + 1)
+    return siblings.lastOrNull { it.id != current.id }
+}
+
 /** Same-series context shared by the picker and Next episode; the active item wins stale catalog copies. */
 internal fun resolveVideoPlayerEpisodes(current: VideoItem?, videos: List<VideoItem>): List<VideoItem> {
-    if (current == null || !current.type.equals("Episode", ignoreCase = true)) return emptyList()
+    if (current == null) return emptyList()
+    if (current.type.equals("Video", ignoreCase = true)) {
+        return videos.filter { candidate ->
+            candidate.type.equals("Video", ignoreCase = true) &&
+                candidate.libraryId == current.libraryId &&
+                !candidate.streamUrl.isNullOrBlank()
+        }.distinctBy { it.id }.sortedWith(
+            Comparator { a: VideoItem, b: VideoItem ->
+                compareNaturalNames(a.title, b.title).takeIf { it != 0 } ?: a.id.compareTo(b.id)
+            }
+        )
+    }
+    if (!current.type.equals("Episode", ignoreCase = true)) return emptyList()
     val related = videos.filter { candidate ->
         candidate.type.equals("Episode", ignoreCase = true) &&
             candidate.libraryId == current.libraryId &&
@@ -302,8 +365,8 @@ internal fun videoPlayerEpisodeStartIndex(episodes: List<VideoItem>, currentId: 
     episodes.indexOfFirst { it.id == currentId }.coerceAtLeast(0)
 
 internal fun shouldPlaySelectedVideoEpisode(current: VideoItem?, selected: VideoItem): Boolean =
-    selected.id != current?.id && selected.type.equals("Episode", ignoreCase = true) &&
-        !selected.streamUrl.isNullOrBlank()
+    selected.id != current?.id && selected.streamUrl.isNullOrBlank().not() &&
+        (selected.type.equals("Episode", ignoreCase = true) || selected.type.equals("Video", ignoreCase = true))
 
 internal enum class VideoTypeFilter(val label: String) {
     All("全部"),

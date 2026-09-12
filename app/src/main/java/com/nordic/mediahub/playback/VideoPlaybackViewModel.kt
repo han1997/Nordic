@@ -437,8 +437,44 @@ class VideoPlaybackViewModel(application: Application) : AndroidViewModel(applic
     private fun repoBaseUrl(repo: EmbyRepository): String = repo.baseUrlForStreamUrls()
 
     fun setQualityMode(mode: VideoQualityMode) {
+        val previousMode = _qualityMode.value
         _qualityMode.value = mode
         viewModelScope.launch { runCatching { configRepository.saveVideoQualityMode(mode) }.onFailure { _syncError.value = "清晰度设置保存失败" } }
+        // Apply immediately to the running Emby playback: snapshot the current
+        // position, re-run the quality handshake, and resume at that position.
+        // Only a real tier change needs a restart; AUTO↔ORIGINAL both play the
+        // direct stream, so switching between them must not interrupt playback.
+        val snapshot = engine.state.value
+        val video = snapshot.video ?: return
+        if (video.sourceType != VideoServerType.WEBDAV &&
+            !video.streamUrl.isNullOrBlank() &&
+            snapshot.errorMessage == null &&
+            mode != previousMode &&
+            mode.bitrateBps != previousMode.bitrateBps
+        ) {
+            val resumeSeconds = snapshot.positionSeconds
+            qualityHandshakeJob?.cancel()
+            lastRequestedVideo = video
+            qualityHandshakeJob = viewModelScope.launch {
+                try {
+                    val repo = _repository.value ?: return@launch
+                    val session = if (mode.bitrateBps != null) try { repo.getPlaybackInfo(video, mode.bitrateBps) }
+                        catch (error: CancellationException) { throw error }
+                        catch (_: Exception) { null } else null
+                    coroutineContext.ensureActive()
+                    val transcodeUrl = session?.let { resolveVideoPlaybackStreamUrl(video, mode, repoBaseUrl(repo), it) }
+                    val target = video.copy(playbackPositionSeconds = resumeSeconds)
+                    if (session != null && transcodeUrl != null && transcodeUrl != video.streamUrl) {
+                        activePlaySessionId = session.playSessionId
+                        engine.playTranscoded(target, transcodeUrl, video.streamUrl.orEmpty())
+                    } else {
+                        activePlaySessionId = null
+                        engine.play(target)
+                    }
+                } catch (error: CancellationException) { throw error
+                } catch (error: Exception) { _error.value = error.message ?: "切换清晰度失败" }
+            }
+        }
     }
 
     fun stop() {

@@ -34,7 +34,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun WebDavScreen(config: VideoServerConfig, onPlay: (VideoItem) -> Unit, onPlayFromStart: (VideoItem) -> Unit) {
+internal fun WebDavScreen(config: VideoServerConfig, onPlay: (VideoItem) -> Unit, onPlayFromStart: (VideoItem) -> Unit, onEpisodeContext: (List<VideoItem>) -> Unit = {}) {
     val model: WebDavBrowserViewModel = viewModel(key = "webdav-${config.sourceId}")
     val state by model.state.collectAsStateWithLifecycle()
     val rows by model.visibleEntries.collectAsStateWithLifecycle()
@@ -53,6 +53,15 @@ internal fun WebDavScreen(config: VideoServerConfig, onPlay: (VideoItem) -> Unit
     val currentOnPlay by rememberUpdatedState(onPlay)
     val currentOnPlayFromStart by rememberUpdatedState(onPlayFromStart)
     LaunchedEffect(config) { model.configure(config) }
+    // Publish the current directory's playable videos so the player can
+    // resolve "next episode" and the episode picker for WebDAV playback.
+    LaunchedEffect(rows) {
+        onEpisodeContext(rows.filter { it.isVideo }.map { entry ->
+            VideoItem(id = entry.path, libraryId = webDavParent(entry.path), title = entry.name,
+                type = "Video", sourceId = config.sourceId, sourceType = VideoServerType.WEBDAV,
+                streamUrl = null)
+        })
+    }
     DisposableEffect(model) { onDispose { model.cancelRequests() } }
     LaunchedEffect(state.path) { positions[state.path]?.let { listState.scrollToItem(it.first, it.second) } ?: listState.scrollToItem(0) }
     fun open(path: String) { positions[state.path] = listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset; model.open(path) }

@@ -478,7 +478,7 @@ private fun VideoPlayerQualityContent(
 ) {
     Column(modifier.verticalScroll(rememberScrollState())) {
         Text(
-            "切换清晰度后重新播放生效，自动保留播放进度；限码率档位由服务器转码播放。",
+            "切换清晰度立即生效并保留播放进度；限码率档位由服务器转码播放。",
             style = MaterialTheme.typography.bodySmall,
             color = colors.onSurface.copy(alpha = NordicAlpha.medium),
             modifier = Modifier.padding(vertical = NordicSpacing.sm)
