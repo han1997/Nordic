@@ -353,3 +353,46 @@ trellis-continue 确认无活动任务且工作区干净；媒体模块显示与
 ### Next Steps
 
 - 无活动任务；后续若继续验收此功能，应按归档 PRD 执行并补充真实结果，尤其是真机播放、小屏/大字体与异常状态。
+
+
+## Session 183: 模块开关即时生效修复 0.1.8、提交与归档
+
+**Date**: 2026-09-13
+**Task**: 模块开关即时生效修复 0.1.8、提交与归档
+**Branch**: `main`
+
+### Summary
+
+修复模块开关保存后需重启才刷新：默认配置仓库共享线程安全的加密包装器，保留初始化失败重试和既有监听清理。新增 7 项回归先红后绿，704 项单测、Lint、Debug/Release、签名与 36 个 Retrofit 泛型核验通过。用户确认后提交 8 个文件并归档，本轮未重建、未推送或操作手机，真机验收保留待办。
+
+### Main Changes
+
+- 根因：AndroidX EncryptedSharedPreferences 的 listener 列表属于包装器对象；旧实现每个 store 新建包装器，虽共享文件却无法通知其他页面。
+- 默认入口通过 EncryptedPreferencesInstance 复用一个成功初始化的实例，仅用 applicationContext；并发首访只创建一次，Keystore 异常透传且可以重试，不引入 Activity 重启或 UI 假状态。
+- 新增跨 store 持续订阅回归，覆盖七种模块组合、稳定导航/回退、设置分类与搜索、注销隔离、持久化/恢复默认、全关保护、播放投影及来源更新；原 configFlow 注册顺序与 finally 清理未改变。
+- 工作提交 `9270ae7` 严格包含用户确认的 8 个文件；提交前原始文件 SHA-256、暂存 blob 和 Debug/Release APK 均与验收快照一致，无额外来源改动、没有修改版本或重跑构建。
+- 持久化与设置规范、CHANGELOG 同步；应用版本为 0.1.8 / 8。任务归档到 `.trellis/tasks/archive/2026-09/09-12-media-module-reactivity/`，归档后 jsonl 路径已更新并通过验证。
+- 修复包：`app/build/outputs/apk/release/nordic-0.1.8.apk`；SHA-256 `4851dcd734728422ce6c500178fa817ba642b312d68f213fc81ca8b392258c4f`。
+- 手机只读检查时为 PKJ110 / 0.1.7，正在使用其他应用；本轮未安装、启动、接管屏幕、点击开关、停止播放、卸载或清除数据。
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `9270ae7` | fix: 修复媒体模块开关需重启才生效 |
+
+### Testing
+
+- [OK] 回归先红后绿：旧行为 7 项中 6 项失败；修复后新增 7 项与全量 704 项通过，52 个 suite，0 失败/错误/跳过。
+- [OK] 编译、Lint、Debug/Release 与 v2 签名通过；Lint 0 Error/Fatal、25 Warning、18 Information，实际 Release DEX 的 36 个 Retrofit suspend 泛型及三类泛型定义保留。
+- [OK] 本轮提交前核对 8 个批准文件、暂存内容和两个 APK 的快照；归档后的上下文路径有效。未重新执行构建或改变产物。
+- [未验证] 未在设备上安装 0.1.8，也未执行真实 Compose 点击、重启保持、播放中隐藏、小屏或大字体检查。
+
+### Status
+
+[OK] **代码修复、自动验证、工作提交、归档与日志完成**（真机交互验收仍待执行）。
+
+### Next Steps
+
+- 后续安装 0.1.8 后按 `.trellis/tasks/archive/2026-09/09-12-media-module-reactivity/research/manual-checklist.md` 补真机验收，并恢复原模块组合；本轮无活动任务，未推送远端。
