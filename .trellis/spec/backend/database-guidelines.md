@@ -610,7 +610,7 @@ init { migrationScope.launch { runMigrationIfNeeded() } }
 
 ### 1. 范围 / 触发条件
 
-新增视频播放偏好，或修改 `EncryptedConfigStore.configFlow` 的初始快照、监听和清理逻辑时适用。此共享路径也服务三类服务器配置，不能以“仅一个开关”跳过跨域回归。
+新增视频/全局偏好，或修改 `EncryptedConfigStore` 的实例创建、`configFlow` 初始快照、监听和清理逻辑时适用。此共享路径也服务模块显示与三类服务器配置，不能以“仅一个开关”跳过跨实例/跨域回归。
 
 ### 2. 关键签名
 
@@ -618,10 +618,14 @@ init { migrationScope.launch { runMigrationIfNeeded() } }
 - `EncryptedConfigStore.videoPipEnabled: Flow<Boolean>`、`suspend saveVideoPipEnabled(enabled: Boolean)`；`ConfigRepository` 透传。
 - `VideoPlaybackViewModel.pipEnabled: StateFlow<Boolean>`（初始 true）、`setPipEnabled(Boolean)`；UI 不直接写 SharedPreferences。
 - `private fun <T> configFlow(watchedKeys: Set<String>, read: (SharedPreferences) -> T): Flow<T>`。
+- `EncryptedPreferencesInstance.getOrCreate(create: () -> SharedPreferences): SharedPreferences` 是加密包装器的线程安全惰性持有者；默认 `createEncryptedSharedPreferences(context)` 使用同一个进程级持有者和 `applicationContext`。
 
 ### 3. 可执行合同
 
 - PiP 键缺失或为非法字符串时默认 true；持久化 false 在新 store / 下次启动后仍是 false。保存使用 `Dispatchers.IO` 内的 `commit()`，不引入另一份内存-only 偏好来源。
+- 同一进程访问 `secret_prefs` 的所有默认 store 必须共享一个成功初始化的 `EncryptedSharedPreferences` **包装器对象**。AndroidX 1.1.0 的 listener 列表属于包装器，同文件的新包装器不会通知旧包装器的订阅者；仅文件名相同不构成响应式共享。
+- 包装器并发首访只初始化一次；Keystore/工厂异常原样传播且不缓存失败，下次可以重试，不能降级明文或缓存空配置。
+- 设置页与根界面可以使用不同 `ConfigRepository`，但模块开关成功保存后，已有 `preferences` 订阅应立即收到新状态，驱动 `LocalAppPreferences`、媒体入口、设置分类与搜索；不得用重启 Activity、手动 reload 或开关局部假状态代替通知链路。
 - 新播放偏好不属于旧版配置 DataStore 的迁移键，不为它扩展 `EncryptedConfigKeys.ALL` 的历史迁移快照。
 - 配置订阅顺序必须为：**注册 listener → 读取并发送当前值 → 等待关闭 → finally 注销 listener**。先读后监听会丢掉两步之间的并发保存，使 UI 保持旧配置或 `first { changed }` 永久等待。
 - 回调仍过滤 `watchedKeys`，`changedKey == null` 表示整体变化；保留 `distinctUntilChanged`，无变化保存不多发状态。
@@ -633,6 +637,9 @@ init { migrationScope.launch { runMigrationIfNeeded() } }
 |---|---|
 | PiP 键缺失 / 非法字符串 | true |
 | 保存 false 后重建 store | false |
+| 页面 A 已订阅，页面 B 保存模块/播放偏好或来源 | A 无需重建或重订阅即可获得新状态 |
+| 并发创建多个默认 store | 同一个包装器和监听注册表 |
+| 首次 Keystore 创建失败后重试 | 首次异常透传，重试可成功且之后复用 |
 | 在 listener 注册过程中发生保存 | 注册后的初始快照可见新值，不漏掉最后一次保存 |
 | 保存无变化值 | distinctUntilChanged 丢弃重复状态 |
 | 取消订阅 / 初始 read 抛错 | finally 注销 listener |
@@ -641,6 +648,8 @@ init { migrationScope.launch { runMigrationIfNeeded() } }
 ### 5. 正常 / 基础 / 错误案例
 
 - 正常：关闭 PiP → 快速离开播放器 → 下次启动仍保持关闭。
+- 正常：模块页连续隐藏/显示 → 原有根界面 Flow 每次获得新值；销毁一个订阅者不影响其他页面。
+- 错误：每个 store 都调用一次 `EncryptedSharedPreferences.create`，误以为同文件代表共享监听；持久化成功但界面直到重启才变化。
 - 基础：没有偏好键的旧安装直接默认开启，不新增一次历史迁移。
 - 错误：初始值先发出，再注册 listener；此时 IO 保存已经完成且没有后续写入，订阅永远收不到更新。
 
@@ -649,6 +658,8 @@ init { migrationScope.launch { runMigrationIfNeeded() } }
 - `EncryptedConfigStoreTest.videoPipEnabled_defaultsTrueWhenUnsetAndRoundTrips`、`restoresDisabledPreferenceInNewStore`、`defaultsTrueForMalformedValue`。
 - `videoPipEnabled_observesWriteDuringListenerRegistration` 使用委托 SharedPreferences，在真正注册 listener 前写入 false；原先先读后监听实现应确定性超时，正确实现应立即获得 false，不靠 sleep 调度概率复现。
 - 配置流测试使用有限等待（该类 JUnit Timeout 5 秒，竞态用例 `withTimeout(1_000)`），避免一次通知丢失阻塞整个测试进程。
+- `EncryptedConfigStoreReactivityTest` 用共享数据 Map、独立 listener 列表模拟同文件的不同包装器；断言持续订阅的多个 store 经七种模块组合切换后立即更新，稳定标签/回退、设置分类/搜索、恢复默认、全关保护、播放投影与来源更新一致。不能仅以新 store 的 `first()` 证明实时通知。
+- `EncryptedPreferencesInstanceTest` 断言八线程首次获取只创建一个包装器、初始化异常透传/可重试、成功后不再次调用工厂。
 - 共享 helper 改动后运行所有配置/迁移测试与完整 app 单测，不仅测试 PiP 单一字段。
 
 ### 7. 错误与正确示例

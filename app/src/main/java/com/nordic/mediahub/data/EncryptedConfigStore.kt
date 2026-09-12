@@ -49,18 +49,33 @@ internal object EncryptedConfigKeys {
     )
 }
 
-internal fun createEncryptedSharedPreferences(context: Context): SharedPreferences {
-    val masterKey = MasterKey.Builder(context)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
-    return EncryptedSharedPreferences.create(
-        context,
-        ENCRYPTED_PREFS_FILE_NAME,
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-    )
+/** EncryptedSharedPreferences listeners belong to the wrapper, not the backing file. */
+internal class EncryptedPreferencesInstance {
+    private var preferences: SharedPreferences? = null
+
+    // Share one successfully initialized wrapper across stores, including concurrent
+    // first readers/writers. A failed Keystore initialization remains retryable.
+    @Synchronized
+    fun getOrCreate(create: () -> SharedPreferences): SharedPreferences =
+        preferences ?: create().also { preferences = it }
 }
+
+private val encryptedPreferencesInstance = EncryptedPreferencesInstance()
+
+internal fun createEncryptedSharedPreferences(context: Context): SharedPreferences =
+    encryptedPreferencesInstance.getOrCreate {
+        val appContext = context.applicationContext
+        val masterKey = MasterKey.Builder(appContext)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        EncryptedSharedPreferences.create(
+            appContext,
+            ENCRYPTED_PREFS_FILE_NAME,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
 
 internal fun readLegacyDataStoreSnapshot(context: Context): Map<String, String?> {
     return runBlocking {

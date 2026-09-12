@@ -434,8 +434,9 @@ class EncryptedConfigStoreTest {
     }
 }
 
-internal class FakeSharedPreferences : SharedPreferences {
-    private val data = mutableMapOf<String, Any?>()
+internal class FakeSharedPreferences(
+    private val data: MutableMap<String, Any?> = mutableMapOf()
+) : SharedPreferences {
     private val listeners = mutableListOf<SharedPreferences.OnSharedPreferenceChangeListener>()
 
     override fun getAll(): Map<String, *> = synchronized(data) { data.toMap() }
