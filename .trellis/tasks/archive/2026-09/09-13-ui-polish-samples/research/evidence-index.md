@@ -2,6 +2,8 @@
 
 ## 当前结论
 
+- 工作提交：`a889a1b`（0.1.9 / 9）；本任务仅收尾并归档首轮样板，不自动开展全量迁移。
+
 - **代码/自动质量门禁通过；2026-09-14 用户确认首轮样板方向及 55 个文件的单次提交范围。** 未展开其余页面的逐页迁移，不能称作全应用 UI 打磨完成。
 - 本轮承接未提交样板，补齐了短屏测试、真实键盘窗口同步、同帧几何检查、截图稳定性和空播放器样例；详细复盘见 [debug-retrospective.md](./debug-retrospective.md)。
 - 最终白名单共 **12 批次、198 张初始视口截图**，另有 **4 张真实交互后的播放器控制区截图**；不是 198 个独立页面。正常/短屏各 17 项 UI 测试、真实设置 1 项，均对应同一源码、Debug APK 和测试 APK。
@@ -11,11 +13,11 @@
 
 | 材料 | 用途 |
 |---|---|
-| [浅色样板总览](../../../../app/build/reports/ui-polish/review/final/overview-light-1_0.png) | 歌曲、专辑、播放器、队列、模块与表单 |
-| [深色样板总览](../../../../app/build/reports/ui-polish/review/final/overview-dark-1_0.png) | 同样六个入口、相同内容 |
-| [2× 字号总览](../../../../app/build/reports/ui-polish/review/final/overview-light-2_0.png) | 实际系统大字体，不是缩放截图 |
-| [正常/短屏完整控制区](../../../../app/build/reports/ui-polish/review/final/player-controls-large.png) | 真实滚动、点击后播放按钮完整可见 |
-| [浅色前后参考](../../../../app/build/reports/ui-polish/review/final/comparison-light.png) / [深色前后参考](../../../../app/build/reports/ui-polish/review/final/comparison-dark.png) | 使用历史原图，限制见下节 |
+| [浅色样板总览](../../../../../../app/build/reports/ui-polish/review/final/overview-light-1_0.png) | 歌曲、专辑、播放器、队列、模块与表单 |
+| [深色样板总览](../../../../../../app/build/reports/ui-polish/review/final/overview-dark-1_0.png) | 同样六个入口、相同内容 |
+| [2× 字号总览](../../../../../../app/build/reports/ui-polish/review/final/overview-light-2_0.png) | 实际系统大字体，不是缩放截图 |
+| [正常/短屏完整控制区](../../../../../../app/build/reports/ui-polish/review/final/player-controls-large.png) | 真实滚动、点击后播放按钮完整可见 |
+| [浅色前后参考](../../../../../../app/build/reports/ui-polish/review/final/comparison-light.png) / [深色前后参考](../../../../../../app/build/reports/ui-polish/review/final/comparison-dark.png) | 使用历史原图，限制见下节 |
 
 拼图由 `make-review.py` 从原始 PNG 缩放排列，不重绘、不抹除缺陷；每个拼图的输入路径与 SHA-256 保存在 `review/final/*-review.json`。大图和 APK 均留在被忽略的 build 目录，不进入工作提交。
 
@@ -46,7 +48,7 @@
 原始构建/签名/DEX 报告见 `app/build/reports/ui-polish/artifacts/`。复核命令：
 
 ```powershell
-py -3 .trellis/tasks/09-13-ui-polish-samples/research/summarize-evidence.py
+py -3 .trellis/tasks/archive/2026-09/09-13-ui-polish-samples/research/summarize-evidence.py
 ```
 
 该命令重新核对所有白名单 manifest、源码/产物指纹、每张图片 SHA-256、实际像素尺寸、系统字号和通过状态；缺少批次或源码改变会失败。
@@ -91,4 +93,4 @@ py -3 .trellis/tasks/09-13-ui-polish-samples/research/summarize-evidence.py
 - **用户已确认首轮视觉方向；严格大字体前后基线仍有缺口，方向确认不等于逐页/逐状态穷尽验收。** 其余音乐、有声书、视频/WebDAV、设置页面继续按 [coverage.md](./coverage.md) 待验。
 - 未连接真实 Navidrome/ABS/Emby/WebDAV；未验证真实媒体下载/播放/上报、PiP、横竖屏切换、个人手机或升级覆盖；未测试 TalkBack 朗读和外接键盘全路径。
 - 收藏/下载操作层仅有打开及下载预览无副作用回归，不存在独立最终截图；队列更多菜单有回调测试，不宣称菜单所有条目均逐项截图。
-- 源码/指纹不变时，下次继续应先读本索引，无需又从构建和截图起点重跑。用户已批准 [commit-plan.md](./commit-plan.md) 的完整范围；完成工作提交后仅归档本轮样板并记录日志。其余页面待后续任务，不自动 push、不自动扩大到全量。
+- 源码/指纹不变时，下次继续应先读本索引，无需又从构建和截图起点重跑。用户已批准 [commit-plan.md](./commit-plan.md) 的完整范围；工作提交 `a889a1b` 已完成，仅归档本轮样板并记录日志。其余页面待后续任务，不自动 push、不自动扩大到全量。

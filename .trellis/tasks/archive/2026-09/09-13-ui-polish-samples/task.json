@@ -3,7 +3,7 @@
   "name": "ui-polish-samples",
   "title": "全应用 UI 精修：验收底座与首轮样板",
   "description": "",
-  "status": "in_progress",
+  "status": "completed",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -11,21 +11,21 @@
   "creator": "hhy",
   "assignee": "hhy",
   "createdAt": "2026-09-13",
-  "completedAt": null,
+  "completedAt": "2026-09-14",
   "branch": null,
   "base_branch": "main",
   "worktree_path": null,
-  "commit": null,
+  "commit": "a889a1bba74af2334283b2ca2a4e65ebc7721388",
   "pr_url": null,
   "subtasks": [],
   "children": [],
   "parent": null,
   "relatedFiles": [],
-  "notes": "2026-09-14：用户确认首轮样板方向并批准全部 55 个候选文件（含 27 个既有 WIP）；保留历史基线和未验证范围，不代表全应用逐页完成。 自动门禁与源码/产物指纹复核通过；执行 Phase 3.4 单个工作提交后归档首轮样板任务并记录日志。不 push、不自动开展全量迁移。",
+  "notes": "2026-09-14：用户确认首轮样板方向及 55 个文件（含 27 个既有 WIP），工作提交 a889a1b 已完成。本轮按样板范围归档；代码、产物与最终证据指纹一致。严格历史大字体基线、穷尽无障碍/真实媒体/个人设备验收及其余页面仍保留待办。不 push、不自动开展全量迁移。",
   "meta": {
     "review_handoff": {
       "date": "2026-09-14",
-      "phase": "3.4-confirmed-ready-to-commit",
+      "phase": "finished-samples-only",
       "sourceSha256": "8b4b2b02e8fe355637e368d4320964b379f5ec1f29f9e216fd3164dec642b850",
       "evidence": "research/evidence-index.md",
       "quality": "research/quality-check.md",
@@ -33,7 +33,9 @@
       "fullApplicationComplete": false,
       "acceptedAt": "2026-09-14",
       "userResponse": "确认",
-      "acceptedScope": "用户确认首轮样板方向并批准全部 55 个候选文件（含 27 个既有 WIP）；保留历史基线和未验证范围，不代表全应用逐页完成。"
+      "acceptedScope": "用户确认首轮样板方向并批准全部 55 个候选文件（含 27 个既有 WIP）；保留历史基线和未验证范围，不代表全应用逐页完成。",
+      "workCommit": "a889a1bba74af2334283b2ca2a4e65ebc7721388",
+      "archivePath": ".trellis/tasks/archive/2026-09/09-13-ui-polish-samples"
     }
   }
 }

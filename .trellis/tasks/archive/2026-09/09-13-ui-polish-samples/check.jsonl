@@ -10,5 +10,5 @@
 {"file": ".trellis/spec/backend/documentation-guidelines.md", "reason": "中文文案和验收记录"}
 {"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "复用生产 Composable，不复制样板"}
 {"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "UI 状态/回调和宿主副作用边界"}
-{"file": ".trellis/tasks/09-13-ui-polish-samples/research/implementation-plan.md", "reason": "已确认方案与首轮关卡"}
+{"file": ".trellis/tasks/archive/2026-09/09-13-ui-polish-samples/research/implementation-plan.md", "reason": "已确认方案与首轮关卡"}
 {"file": ".trellis/spec/backend/ui-catalog-verification.md", "reason": "专用模拟器、系统字号、稳定窗口、真实可见性与证据指纹合同"}
