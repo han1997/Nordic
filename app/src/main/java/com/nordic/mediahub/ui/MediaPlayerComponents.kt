@@ -135,18 +135,13 @@ internal fun MediaPlayerTopBar(
     speedEnabled: Boolean,
     extraAction: MediaPlayerAction? = null
 ) {
-    val edge = (64.dp * LocalDensity.current.fontScale.coerceIn(1f, 1.375f)).coerceAtMost(88.dp)
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.width(edge), contentAlignment = Alignment.CenterStart) {
-            MediaPlayerIconAction(MediaPlayerAction(Icons.Filled.KeyboardArrowDown, "收起播放器", onClose), colors)
-        }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+        MediaPlayerIconAction(MediaPlayerAction(Icons.Filled.KeyboardArrowDown, "收起播放器", onClose), colors)
         Text(title, style = MaterialTheme.typography.titleSmall, color = colors.onSurfaceVariant,
-            maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
-            modifier = Modifier.weight(1f))
+            maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         extraAction?.let { MediaPlayerIconAction(it, colors) }
-        Box(Modifier.width(edge), contentAlignment = Alignment.CenterEnd) {
-            MediaPlayerTool(speedLabel, "播放速度 $speedLabel", colors, onSpeed, enabled = speedEnabled)
-        }
+        MediaPlayerTool(speedLabel, "播放速度 $speedLabel", colors, onSpeed, enabled = speedEnabled)
     }
 }
 

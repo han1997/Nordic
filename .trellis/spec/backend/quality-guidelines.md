@@ -397,68 +397,49 @@ When a shelf is only a visual preview of a longer playback source, keep the prev
 
 Playback scrubbers should keep local scrub state while dragging and call the playback engine's `seekTo(...)` only from `onValueChangeFinished`. Do not call seek on every slider `onValueChange`; it can flood Media3 with repeated seeks and make video/audio playback stutter.
 
-### Manual drag displacement for LazyColumn reordering (pre-1.7)
+### 队列拖动的实测几何与可访问操作
 
-**Scope / Trigger**: Any change to `MusicQueueSheet` drag-to-reorder, or any LazyColumn that needs real-time item displacement without `animateItem()` / `animateItemPlacement()` (Compose Foundation 1.7+ API, not available in BOM 2024.01.00 / 1.6.x).
+**1. 范围 / 触发**：修改 `MusicQueueSheet` 的拖动、移除或上下移菜单时适用。保留父级共享位移状态，不因 Compose BOM 升级顺带重写拖动模型。
 
-**Signatures**:
-- `internal data class QueueDragState(val draggedIndex: Int? = null, val accumulatedPx: Float = 0f)`
-- `internal fun resolveQueueRowDisplacement(rowIndex: Int, dragState: QueueDragState, rowHeightPx: Float): Float`
+**2. 关键签名**：
+- `QueueDragState(draggedIndex: Int?, accumulatedPx: Float, targetIndex: Int?, draggedExtentPx: Float)`。
+- `QueueItemBounds(index: Int, offset: Int, size: Int)`。
+- `resolveQueueDropTarget(draggedIndex: Int, deltaPx: Float, items: List<QueueItemBounds>, count: Int): Int`。
+- `resolveQueueRowDisplacement(rowIndex: Int, dragState: QueueDragState, rowHeightPx: Float): Float`。
 
-**Contract**:
-- Maintain drag state at the `LazyColumn` parent level (not inside individual rows): `draggedIndex: Int?` and `accumulatedPx: Float`.
-- The dragged row: `translationY = accumulatedPx` (follows finger) + lift state (scaleY/alpha micro-change via `animateFloatAsState`).
-- Non-dragged rows: if the dragged row has moved past them (based on `accumulatedPx` direction and magnitude relative to `rowHeightPx`), they shift by one row height in the opposite direction. Use `animateFloatAsState` with `tween(NordicMotion.durationMicro, easingStandard)` for smooth transitions.
-- On drag end: calculate `rowDelta = (accumulatedPx / rowHeightPx).roundToInt()`, call `onMoveQueueItem(index, targetIndex)`, then clear drag state. Non-dragged rows animate back to 0 via `animateFloatAsState`.
-- On drag cancel: clear drag state; all rows animate back to 0.
-- No shadows on dragged rows (Flat-at-Rest; lift state is interaction feedback, not decorative shadow).
-- Do NOT use `animateItem()` or `animateItemPlacement()` — these are 1.7+ APIs.
+**3. 可执行合同**：
+- 拖动状态放在 `MusicQueueSheet` 父级。手指位移通过 `accumulatedPx` 累积，被拖行跟随手指，其他行只在跨过目标时让位。
+- 从 `LazyListLayoutInfo.visibleItemsInfo` 获取真实 offset/size，以行中心选择当前可见范围内最近目标；被拖行 extent 为实测高度加 `mainAxisItemSpacing`。大字体行不能从固定 64dp 推算落点。
+- 邻行按被拖行的 extent 反向位移，用 NordicMotion 的 micro tween 平滑恢复。`rowHeightPx` 只保留兼容旧状态的回退与抬起反馈尺度，不替代正常拖放中的实测几何。
+- `pointerInput` 的 `onDrag`/`onDragEnd` 经 `rememberUpdatedState` 读取最新回调，松手提交一次原 `onMoveQueueItem(from, to)`；取消只清状态，不提交。
+- 当前播放、重复歌曲与队列顺序仍由原引擎持有；UI 不建立第二份生产队列。位置感知 key 继续使用 `"${song.id}:$index"`。
+- 行保留 42dp 封面和 48dp 拖动/更多目标；下一首、移除、上移、下移放入菜单，保留 enabled 及原回调。不能要求所有用户通过长按拖动才能排序。
+- 不为拖动增加常驻阴影；保持现有缩放/alpha 的交互反馈。
 
-**Validation & Error Matrix**:
-| Condition | Behavior |
+**4. 验证与错误矩阵**：
+
+| 条件 | 结果 |
 |---|---|
-| No drag in progress | `dragState.draggedIndex == null`; all rows at `translationY = 0` |
-| Dragged row | `translationY = accumulatedPx` (follows finger) |
-| Row above dragged, dragged down past it | Shifts down by one row height |
-| Row below dragged, dragged up past it | Shifts up by one row height |
-| Row not affected | `translationY = 0` |
-| `rowHeightPx <= 0` | Returns `0f` (no crash) |
-| Drag end | Clear state, submit `onMoveQueueItem`, rows animate back |
-| Drag cancel | Clear state, rows animate back |
+| 不同高度的相邻行、向上/向下拖动 | 按实际中心选目标，邻行按被拖行 extent 让位 |
+| 无拖动 / 未跨过目标 | 邻行位移为 0，不提交无效移动 |
+| 无效 draggedIndex / count=0 | 返回 -1；调用方不提交 |
+| 非有限 delta / 缺少当前可见行 | 保持原索引，不用猜测落点 |
+| 超出当前可见范围 | 限制在可见有效目标；未实现自动滚动，不宣称可跨屏拖放 |
+| 取消拖动 | 清状态，无队列回调 |
+| 大字体 / 无法拖动 | 菜单上下移仍可达；当前播放索引由引擎结果驱动 |
 
-**Good/Base/Bad Cases**:
-- Good: User drags row 2 down by 1.5 row heights; rows 3-4 shift up by one row height in real time; on release row 2 moves to position 3.
-- Base: Small drag below threshold; no rows shift; on release no reorder.
-- Bad: Using `animateItemPlacement()` (1.7+ API, not available in current BOM).
-- Bad: Maintaining drag state inside individual `QueueRow` composables (can't coordinate displacement across rows).
-- Bad: Adding `shadowElevation` to the dragged row (violates Flat-at-Rest).
+**5. 正反案例**：正确：160px 行跨过 100px 行后，邻行按被拖行的完整 extent 让位；错误：将手指距离除以固定 64dp，再用另一行的高度移动邻项。
 
-**Wrong vs Correct**:
-```kotlin
-// Wrong: per-row drag state, no cross-row coordination.
-@Composable
-private fun QueueRow(...) {
-    var dragOffsetY by remember { mutableFloatStateOf(0f) }
-    // Only this row moves; other rows don't displace.
-}
-```
+**6. 必需测试**：`QueueItemGeometryTest` 覆盖双向、可变高度、视口边界、NaN/空列表和 extent；保留 `MusicQueueSheetTest` 的兼容性用例；`UiCatalogInteractionTest` 验证真实长按拖动提交最新落点，以及大字体更多菜单的下移回调。
+
+**7. 错误与正确写法**：
 
 ```kotlin
-// Correct: shared drag state at parent level, each row reads it.
-@Composable
-fun MusicQueueSheet(...) {
-    var dragState by remember { mutableStateOf(QueueDragState()) }
-    LazyColumn {
-        itemsIndexed(queue) { index, song ->
-            QueueRow(
-                dragState = dragState,
-                onDragStart = { dragState = QueueDragState(index, 0f) },
-                onDrag = { delta -> dragState = dragState.copy(accumulatedPx = dragState.accumulatedPx + delta) },
-                onDragEnd = { ... onMoveQueueItem(...); dragState = QueueDragState() }
-            )
-        }
-    }
-}
+// 错误：视觉行高变化后，固定尺寸得出错误索引。
+val target = index + (offset / fixed64DpPx).roundToInt()
+// 正确：目标取自渲染几何，松手使用最近一次更新的 targetIndex。
+val bounds = listState.layoutInfo.visibleItemsInfo.map { QueueItemBounds(it.index, it.offset, it.size) }
+val target = resolveQueueDropTarget(index, offset, bounds, queue.size)
 ```
 
 ### Music player progress controls

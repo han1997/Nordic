@@ -1,5 +1,9 @@
 package com.nordic.mediahub.ui
 
+import com.nordic.mediahub.ui.theme.NordicSpacing
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -178,14 +182,22 @@ internal fun ModuleVisibilityPage(
         }
     }
 
-    Column {
-        SettingsRow("音乐", "显示音乐库、搜索与播放入口。", checked = prefs.showMusic,
-            onCheckedChange = { toggle(MediaDomain.MUSIC, it) })
-        SettingsRow("有声书", "显示有声书书库与播放入口。", checked = prefs.showAudiobook,
-            onCheckedChange = { toggle(MediaDomain.AUDIOBOOK, it) })
-        SettingsRow("视频", "显示视频库与播放入口。", checked = prefs.showVideo,
-            onCheckedChange = { toggle(MediaDomain.VIDEO, it) })
-        error?.let { Text(it, color = androidx.compose.material3.MaterialTheme.colorScheme.error) }
+    val colors = MaterialTheme.colorScheme
+    Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
+        Text("选择首页显示的媒体内容", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+        SettingsGroup {
+            SettingsRow("音乐", "音乐库、搜索与播放入口", checked = prefs.showMusic,
+                onCheckedChange = { toggle(MediaDomain.MUSIC, it) })
+            HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
+            SettingsRow("有声书", "书库、章节与收听入口", checked = prefs.showAudiobook,
+                onCheckedChange = { toggle(MediaDomain.AUDIOBOOK, it) })
+            HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
+            SettingsRow("视频", "视频库、网盘与播放入口", checked = prefs.showVideo,
+                onCheckedChange = { toggle(MediaDomain.VIDEO, it) })
+        }
+        Text("至少保留一个模块。隐藏不会删除服务器、历史或下载内容。",
+            style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+        error?.let { Text(it, color = colors.error, style = MaterialTheme.typography.bodyMedium) }
     }
 
     pendingHide?.let { domain ->

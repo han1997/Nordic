@@ -18,6 +18,7 @@ This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. 
 | [音乐页面 UI](./music-ui.md) | 修改音乐发现、列表、专辑/歌手/歌单详情、集合操作与文案 |
 | [音乐歌词](./music-lyrics.md) | 修改歌词解析/加载状态、完整显示、同步跟随、手动浏览和播放器视图记忆 |
 | [共享 UI 一致性](./ui-consistency.md) | 修改主题/字体、标题导航、分段选择、搜索输入或详情动作；执行跨页面一致性检查 |
+| [UI 样板验收](./ui-catalog-verification.md) | 修改 Debug UI 目录、Compose instrumentation、系统字号/窗口截图或逐页证据 |
 | [Quality Guidelines](./quality-guidelines.md) | Reviewing shared components, cache semantics, test coverage, and known anti-patterns |
 | [文档规范](./documentation-guidelines.md) | 编写中文优先沟通、用户可见文案、CHANGELOG 条目、README 更新或任务文档 |
 | [Logging Guidelines](./logging-guidelines.md) | Adding or changing `Log.*` calls or OkHttp logging interceptors |
@@ -38,6 +39,7 @@ This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. 
 - 修改歌词获取、播放页歌词或相关手势前，阅读[音乐歌词](./music-lyrics.md)。
 - 修改共享视觉/交互组件前，先阅读 [共享 UI 一致性](./ui-consistency.md)，并保留逐页真机验收与自动检查的区别。
 - Read [Quality Guidelines](./quality-guidelines.md) before modifying shared UI state components, music library navigation, or cache contracts.
+- 修改 Debug 样板、截图与 UI instrumentation 前，阅读 [UI 样板验收](./ui-catalog-verification.md)；只能操作专用模拟器，自动化通过不代表用户已确认视觉方向。
 - 修改用户可见文案、项目文档、任务文档、发布记录或开发规范前，先阅读 [文档规范](./documentation-guidelines.md)。
 - Read [Logging Guidelines](./logging-guidelines.md) before adding diagnostics.
 - Read the service-specific contract when touching Navidrome, AudiobookShelf, or Emby behavior.

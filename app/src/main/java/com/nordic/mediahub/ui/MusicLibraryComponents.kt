@@ -129,7 +129,7 @@ internal fun MusicCollectionHeader(
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = if (layout.stacked) Alignment.CenterHorizontally else Alignment.Start,
-                verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)
+                verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
             ) {
                 Text(title, style = MaterialTheme.typography.headlineMedium, color = colorScheme.onSurface,
                     textAlign = if (layout.stacked) TextAlign.Center else TextAlign.Start,

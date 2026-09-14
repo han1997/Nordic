@@ -1,5 +1,11 @@
 package com.nordic.mediahub.ui
 
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -31,9 +37,9 @@ import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
 
 @Composable
-internal fun SettingsSectionTitle(title: String) {
+internal fun SettingsSectionTitle(title: String, topPadding: Dp = NordicSpacing.xl) {
     Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = NordicSpacing.xl, bottom = NordicSpacing.sm).semantics { heading() })
+        modifier = Modifier.padding(top = topPadding, bottom = NordicSpacing.sm).semantics { heading() })
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -59,21 +65,55 @@ internal fun SettingsRow(
         onClick != null -> Modifier.clickable(enabled = enabled, role = Role.Button, onClick = onClick)
         else -> Modifier
     }
-    Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag(id).bringIntoViewRequester(bringIntoView)
-        .background(if (highlighted) colors.primaryContainer else colors.surface.copy(alpha = 0f), NordicShapes.sm)
-        .then(actionModifier).padding(vertical = NordicSpacing.sm),
-        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md), verticalAlignment = Alignment.CenterVertically) {
-        icon?.let { Icon(it, null, Modifier.size(NordicControlSizes.icon), tint = if (destructive) colors.error else colors.primary) }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, color = if (destructive) colors.error else colors.onSurface)
-            val detail = listOfNotNull(subtitle.takeIf { it.isNotBlank() }, value?.takeIf { it.length > 10 }).joinToString(" · ")
-            if (detail.isNotBlank()) Text(detail, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+    val density = LocalDensity.current
+    val measurer = rememberTextMeasurer()
+    val titleStyle = MaterialTheme.typography.titleMedium
+    val valueStyle = MaterialTheme.typography.bodyMedium
+    val titleWidth = remember(title, titleStyle, measurer, density) {
+        with(density) { measurer.measure(AnnotatedString(title), titleStyle, maxLines = 1, softWrap = false).size.width.toDp() }
+    }
+    val valueWidth = remember(value, valueStyle, measurer, density) {
+        with(density) { measurer.measure(AnnotatedString(value.orEmpty()), valueStyle, maxLines = 1, softWrap = false).size.width.toDp() }
+    }
+    val contentColor = when {
+        !enabled -> colors.onSurface.copy(alpha = 0.38f)
+        destructive -> colors.error
+        highlighted -> colors.onPrimaryContainer
+        else -> colors.onSurface
+    }
+    val secondaryColor = (if (highlighted) colors.onPrimaryContainer else colors.onSurfaceVariant)
+        .copy(alpha = if (enabled) 1f else 0.38f)
+    BoxWithConstraints(Modifier.fillMaxWidth().then(if (id.isBlank()) Modifier else Modifier.testTag(id))
+        .bringIntoViewRequester(bringIntoView).clip(NordicShapes.sm)
+        .background(if (highlighted) colors.primaryContainer else colors.surface.copy(alpha = 0f))
+        .then(actionModifier)) {
+        val inlineValue = !value.isNullOrBlank() && checked == null &&
+            shouldInlineSettingsValue(maxWidth, titleWidth, valueWidth, density.fontScale, icon != null, onClick != null)
+        Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(vertical = NordicSpacing.md),
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md), verticalAlignment = Alignment.CenterVertically) {
+            icon?.let { Icon(it, null, Modifier.size(NordicControlSizes.icon), tint = if (!enabled || destructive) contentColor else colors.primary) }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
+                Text(title, style = titleStyle, color = contentColor)
+                if (!inlineValue && !value.isNullOrBlank()) Text(value, style = valueStyle, color = secondaryColor)
+                if (subtitle.isNotBlank()) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = secondaryColor)
+            }
+            when {
+                checked != null -> Switch(checked, onCheckedChange = null, enabled = enabled)
+                inlineValue -> Text(value.orEmpty(), style = valueStyle, color = secondaryColor)
+            }
+            if (onClick != null) Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null,
+                Modifier.size(NordicControlSizes.compactIcon), tint = secondaryColor)
         }
-        when {
-            checked != null -> Switch(checked, onCheckedChange = null, enabled = enabled)
-            value != null && value.length <= 10 -> Text(value, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
-        }
-        if (onClick != null) Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(NordicControlSizes.compactIcon), tint = colors.onSurfaceVariant)
+    }
+}
+
+/** A quiet group boundary; individual rows retain their own role and click target. */
+@Composable
+internal fun SettingsGroup(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Surface(modifier.fillMaxWidth(), shape = NordicShapes.md, color = colors.surface,
+        border = BorderStroke(1.dp, colors.outlineVariant.copy(alpha = 0.6f))) {
+        Column(Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.xs), content = content)
     }
 }
 

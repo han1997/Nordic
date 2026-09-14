@@ -144,3 +144,23 @@ adb shell am start -n fun.han1997.nordic/com.nordic.mediahub.VideoPlayerPreviewA
 ```
 
 可传 `--es scenario movie|unknown|buffering|error|end|empty|autoplay`（选择一个值）验证状态。`autoplay` 固定显示 5 秒连播提示，用于检查布局、取消和立即播放，不模拟真实计时。该入口不进入 release 构建；预览验证不能替代真实 Emby 播放/上报测试。
+
+
+### 全页面精修样板目录（仅 Debug）
+
+首轮样板保留现有紫青品牌，覆盖歌曲列表、专辑详情、音乐播放器／歌词／队列／倍速、模块显示与服务器表单。首轮样板方向已确认；其他页面仍需继续逐页打磨，不能把方向确认或共享组件通过测试当作整应用验收完成。
+
+`UiCatalogActivity` 使用本地合成状态，复用正式界面组件；目录中可以切换深浅主题、字号和状态。它不连接账号、不写入设置、不启动媒体服务。封面仅来自仓库既有参考图的调试裁图，Release 不包含此入口和样例资源。
+
+在已安装 Debug 包的专用模拟器上打开目录（示例序列号仅用于本任务 AVD，先确认对应设备）：
+
+```powershell
+adb -s emulator-5580 emu avd name
+adb -s emulator-5580 shell am start -n fun.han1997.nordic/com.nordic.mediahub.UiCatalogActivity
+```
+
+可直接选择页面：`--es screen songs|album|player|lyrics|queue|speed|modules|server|server_emby|server_webdav|settings_rows`；状态使用 `--es state normal|long|empty|loading|error|no_art|disabled`，主题使用 `--ez dark true`，字体使用 `--ef font_scale 2.0`。每项选择单个值，只有适用页面会体现对应状态。
+
+手动字号选项用于内容预览；包含 Dialog／系统栏的正式验收还必须切换模拟器系统字号，不能只传 `font_scale`。任务的 `research/run-ui-checks.py` 会设置并恢复系统字号、分辨率和密度，并封存 APK／源码／截图哈希；详见 `.trellis/spec/backend/ui-catalog-verification.md`。
+
+自动化 APK 通过 `:app:assembleDebugAndroidTest` 构建，再用明确的模拟器 `-s` 运行 instrumentation；不要使用会把个人手机也纳入的无差别设备执行。原始截图／报告位于 `app/build/reports/ui-polish/`，截图、交互、真实应用设置数据流和服务端播放分别记录验收范围。

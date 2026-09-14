@@ -165,8 +165,80 @@ fun MusicPlayerScreen(
     val downloadManager = remember(song?.sourceId) { com.nordic.mediahub.data.MusicDownloadManagers.get(context, song?.sourceId.orEmpty()) }
     val downloadStates by downloadManager.downloadStates.collectAsStateWithLifecycle()
     val download = downloadStates[song?.id]
-    var showActions by remember { mutableStateOf(false) }
     LaunchedEffect(downloadManager) { withContext(Dispatchers.IO) { downloadManager.restoreDownloadState() } }
+    MusicPlayerContent(
+        song = song,
+        colorScheme = colorScheme,
+        isPlaying = isPlaying,
+        isBuffering = isBuffering,
+        playbackError = playbackError,
+        positionSeconds = positionSeconds,
+        positionMillisFlow = positionMillisFlow,
+        durationSeconds = durationSeconds,
+        bufferedPositionSeconds = bufferedPositionSeconds,
+        lyricsState = lyricsState,
+        showLyrics = showLyrics,
+        lyricsSeekRevision = lyricsSeekRevision,
+        onToggleLyrics = onToggleLyrics,
+        onRetryLyrics = onRetryLyrics,
+        repeatMode = repeatMode,
+        shuffleModeEnabled = shuffleModeEnabled,
+        playbackSpeed = playbackSpeed,
+        onSeek = onSeek,
+        onPlayPause = onPlayPause,
+        onClose = onClose,
+        onSeekToNext = onSeekToNext,
+        onSeekToPrevious = onSeekToPrevious,
+        onToggleRepeat = onToggleRepeat,
+        onToggleShuffle = onToggleShuffle,
+        onOpenQueue = onOpenQueue,
+        onToggleFavorite = onToggleFavorite,
+        onSetPlaybackSpeed = onSetPlaybackSpeed,
+        favoriteError = favoriteError,
+        onDownloadSong = onDownloadSong,
+        modifier = modifier,
+        download = download,
+        onCancelDownload = { song?.id?.let(downloadManager::cancelDownload) }
+    )
+}
+
+/** Render-only player surface; the production host owns downloads and persistence. */
+@Composable
+internal fun MusicPlayerContent(
+    song: NavidromeSong?,
+    colorScheme: ColorScheme,
+    isPlaying: Boolean,
+    isBuffering: Boolean,
+    playbackError: String?,
+    positionSeconds: Int,
+    positionMillisFlow: StateFlow<Long>,
+    durationSeconds: Int,
+    modifier: Modifier = Modifier,
+    bufferedPositionSeconds: Int = 0,
+    lyricsState: MusicLyricsUiState,
+    showLyrics: Boolean,
+    lyricsSeekRevision: Long,
+    onToggleLyrics: () -> Unit,
+    onRetryLyrics: () -> Unit,
+    repeatMode: Int = Player.REPEAT_MODE_OFF,
+    shuffleModeEnabled: Boolean = false,
+    playbackSpeed: Float = 1f,
+    onSeek: (Int) -> Unit,
+    onPlayPause: () -> Unit,
+    onClose: () -> Unit,
+    onSeekToNext: () -> Unit = {},
+    onSeekToPrevious: () -> Unit = {},
+    onToggleRepeat: () -> Unit = {},
+    onToggleShuffle: () -> Unit = {},
+    onOpenQueue: () -> Unit = {},
+    onToggleFavorite: (songId: String, starred: Boolean) -> Unit = { _, _ -> },
+    onSetPlaybackSpeed: (Float) -> Unit = {},
+    favoriteError: SharedFlow<Unit>? = null,
+    onDownloadSong: () -> Unit = {},
+    download: com.nordic.mediahub.data.DownloadStateEntry? = null,
+    onCancelDownload: () -> Unit = {}
+) {
+    var showActions by remember { mutableStateOf(false) }
     val resolvedDurationSeconds = maxOf(durationSeconds, song?.duration ?: 0, 0)
     val timeline = resolvePlayerTimeline(positionSeconds, resolvedDurationSeconds)
     val currentOnClose by rememberUpdatedState(onClose)
@@ -439,7 +511,7 @@ fun MusicPlayerScreen(
                 download?.state != com.nordic.mediahub.data.DownloadState.DOWNLOADING && song?.streamUrl?.startsWith("file:") != true,
                 onClick = { onDownloadSong(); showActions = false })
             if (download?.state == com.nordic.mediahub.data.DownloadState.DOWNLOADING) {
-                SettingsRow("取消下载", onClick = { song?.id?.let(downloadManager::cancelDownload); showActions = false })
+                SettingsRow("取消下载", onClick = { onCancelDownload(); showActions = false })
             }
         }
     }

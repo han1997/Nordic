@@ -1,0 +1,1363 @@
+[
+  {
+    "component": "AnimatedBottomDock",
+    "file": "app/src/main/java/com/nordic/mediahub/MainActivity.kt",
+    "line": 275,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MainScreen",
+    "file": "app/src/main/java/com/nordic/mediahub/MainActivity.kt",
+    "line": 487,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "PlaybackDockSlot",
+    "file": "app/src/main/java/com/nordic/mediahub/MainActivity.kt",
+    "line": 1186,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicPlayerLayer",
+    "file": "app/src/main/java/com/nordic/mediahub/MainActivity.kt",
+    "line": 1258,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoPlayerLayer",
+    "file": "app/src/main/java/com/nordic/mediahub/MainActivity.kt",
+    "line": 1304,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "AudiobookPlayerLayer",
+    "file": "app/src/main/java/com/nordic/mediahub/MainActivity.kt",
+    "line": 1448,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicQueueLayer",
+    "file": "app/src/main/java/com/nordic/mediahub/MainActivity.kt",
+    "line": 1500,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "rememberPressScale",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/AnimatedComponents.kt",
+    "line": 54,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "Modifier.pressScale",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/AnimatedComponents.kt",
+    "line": 76,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "AnimatedIconButton",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/AnimatedComponents.kt",
+    "line": 94,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "HeaderActionGroup",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/AnimatedComponents.kt",
+    "line": 127,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "HeaderActionButton",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/AnimatedComponents.kt",
+    "line": 187,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "AudiobookPlayerScreen",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/AudiobookPlayerScreen.kt",
+    "line": 101,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "AudiobookChapterListSheet",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/AudiobookPlayerScreen.kt",
+    "line": 374,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "AudiobookPlaybackSpeedSheet",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/AudiobookPlayerScreen.kt",
+    "line": 399,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "AudiobookSleepTimerSheet",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/AudiobookPlayerScreen.kt",
+    "line": 404,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "AudiobookBookmarkSheet",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/AudiobookPlayerScreen.kt",
+    "line": 451,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "AudiobookBookmarkRow",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/AudiobookPlayerScreen.kt",
+    "line": 478,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "AudiobookPrimaryDisplay",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/AudiobookPlayerScreen.kt",
+    "line": 504,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "AudiobookScreen",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/AudiobookScreen.kt",
+    "line": 146,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "AudiobookLibrarySelector",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/AudiobookScreen.kt",
+    "line": 676,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "AudiobookSummaryCard",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/AudiobookScreen.kt",
+    "line": 702,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "AudiobookDetailHeader",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/AudiobookScreen.kt",
+    "line": 771,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "AudiobookChapterRow",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/AudiobookScreen.kt",
+    "line": 863,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "AuthedAsyncImage",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/AuthedAsyncImage.kt",
+    "line": 15,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "NavidromeConfigCard",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/ConfigCards.kt",
+    "line": 44,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "AudiobookConfigCard",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/ConfigCards.kt",
+    "line": 76,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoConfigCard",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/ConfigCards.kt",
+    "line": 108,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "ServerConfigActions",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/ConfigCards.kt",
+    "line": 184,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoServerCredentialsFields",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/ConfigCards.kt",
+    "line": 224,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "ServerConfigCard",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/ConfigCards.kt",
+    "line": 238,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "ConfigTextField",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/ConfigCards.kt",
+    "line": 264,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaChoiceChip",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MediaChoiceChip.kt",
+    "line": 33,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaPlayerIconAction",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MediaPlayerComponents.kt",
+    "line": 57,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaPlayerTool",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MediaPlayerComponents.kt",
+    "line": 94,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaPlayerTopBar",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MediaPlayerComponents.kt",
+    "line": 129,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaTransportRow",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MediaPlayerComponents.kt",
+    "line": 149,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaPlayerTimeline",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MediaPlayerComponents.kt",
+    "line": 183,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaAudioPlayerBody",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MediaPlayerComponents.kt",
+    "line": 212,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaPlayerArtwork",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MediaPlayerComponents.kt",
+    "line": 243,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaPlayerSheetHeader",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MediaPlayerSheets.kt",
+    "line": 56,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaPlayerSheet",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MediaPlayerSheets.kt",
+    "line": 85,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaPlaybackSpeedSheet",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MediaPlayerSheets.kt",
+    "line": 125,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaPlayerChoiceRow",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MediaPlayerSheets.kt",
+    "line": 143,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaTransientPill",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MediaPlayerSheets.kt",
+    "line": 187,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaSearchField",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MediaSearchField.kt",
+    "line": 29,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaSegmentedControl",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MediaSegmentedControl.kt",
+    "line": 54,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaSegmentItem",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MediaSegmentedControl.kt",
+    "line": 120,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaSourceManagementHost",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MediaSourceControls.kt",
+    "line": 55,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaSourceTitle",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MediaSourceControls.kt",
+    "line": 133,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaStateCard",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MediaStateComponents.kt",
+    "line": 51,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaLoadingCard",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MediaStateComponents.kt",
+    "line": 111,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicSearchLanding",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicBrowseComponents.kt",
+    "line": 57,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "SearchResultSectionHeader",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicBrowseComponents.kt",
+    "line": 152,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "PlaylistListRow",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicBrowseComponents.kt",
+    "line": 180,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "PlaylistDetailHeader",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicBrowseComponents.kt",
+    "line": 200,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicDetailEmptyState",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicBrowseComponents.kt",
+    "line": 218,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicSegmentedTabs",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicBrowseComponents.kt",
+    "line": 230,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicSearchButton",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicBrowseComponents.kt",
+    "line": 252,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "SongSortSegmentedControl",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicBrowseComponents.kt",
+    "line": 257,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "AlbumSortSegmentedControl",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicBrowseComponents.kt",
+    "line": 270,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "AlbumListRow",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicBrowseComponents.kt",
+    "line": 284,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "AlbumDetailHeader",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicBrowseComponents.kt",
+    "line": 300,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicEqualizerSheet",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicEqualizerSheet.kt",
+    "line": 52,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicHeroBanner",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicHomeSections.kt",
+    "line": 50,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicSectionHeader",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicHomeSections.kt",
+    "line": 75,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "CompactAlbumShelfCard",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicHomeSections.kt",
+    "line": 139,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "SongShelfCard",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicHomeSections.kt",
+    "line": 164,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "ArtistShelfCard",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicHomeSections.kt",
+    "line": 183,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "SongListRow",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicHomeSections.kt",
+    "line": 204,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "ArtistListRow",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicHomeSections.kt",
+    "line": 221,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "CompactMusicShelfItem",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicHomeSections.kt",
+    "line": 236,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicLibraryRow",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicLibraryComponents.kt",
+    "line": 53,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicCollectionHeader",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicLibraryComponents.kt",
+    "line": 107,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicCollectionDescription",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicLibraryComponents.kt",
+    "line": 174,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicCollectionAction",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicLibraryComponents.kt",
+    "line": 195,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicLyricsDisplay",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicLyricsDisplay.kt",
+    "line": 91,
+    "status": "首轮样板，最终自动验证通过，待用户视觉确认",
+    "sample": "lyrics",
+    "visualAcceptance": "待用户确认",
+    "evidence": "research/evidence-index.md"
+  },
+  {
+    "component": "SyncedLyricsList",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicLyricsDisplay.kt",
+    "line": 154,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "LyricList",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicLyricsDisplay.kt",
+    "line": 267,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicPlayerScreen",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicPlayerScreen.kt",
+    "line": 132,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicPlayerContent",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicPlayerScreen.kt",
+    "line": 207,
+    "status": "首轮样板，最终自动验证通过，待用户视觉确认",
+    "sample": "player",
+    "visualAcceptance": "待用户确认",
+    "evidence": "research/evidence-index.md"
+  },
+  {
+    "component": "PlayerPrimaryDisplay",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicPlayerScreen.kt",
+    "line": 532,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "PlayerArtwork",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicPlayerScreen.kt",
+    "line": 590,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "PlayerTitleMetaRow",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicPlayerScreen.kt",
+    "line": 595,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "PlayerConsole",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicPlayerScreen.kt",
+    "line": 624,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicSeekFeedbackChip",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicPlayerScreen.kt",
+    "line": 677,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicPlaybackSpeedSheet",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicPlayerScreen.kt",
+    "line": 696,
+    "status": "首轮样板，最终自动验证通过，待用户视觉确认",
+    "sample": "speed",
+    "visualAcceptance": "待用户确认",
+    "evidence": "research/evidence-index.md"
+  },
+  {
+    "component": "FavoriteErrorNotice",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicPlayerScreen.kt",
+    "line": 711,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicQueueSheet",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicQueueSheet.kt",
+    "line": 146,
+    "status": "首轮样板，最终自动验证通过，待用户视觉确认",
+    "sample": "queue",
+    "visualAcceptance": "待用户确认",
+    "evidence": "research/evidence-index.md"
+  },
+  {
+    "component": "QueueEmptyState",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicQueueSheet.kt",
+    "line": 316,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "QueueRow",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicQueueSheet.kt",
+    "line": 335,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "QueueDragHandle",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicQueueSheet.kt",
+    "line": 476,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "QueueTextAction",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicQueueSheet.kt",
+    "line": 499,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicScreenV2",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicScreenV2.kt",
+    "line": 77,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicPageList",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicScreenV2Pages.kt",
+    "line": 54,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicHomePage",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicScreenV2Pages.kt",
+    "line": 84,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicAlbumsPage",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicScreenV2Pages.kt",
+    "line": 204,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicSongsPage",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicScreenV2Pages.kt",
+    "line": 252,
+    "status": "首轮样板，最终自动验证通过，待用户视觉确认",
+    "sample": "songs",
+    "visualAcceptance": "待用户确认",
+    "evidence": "research/evidence-index.md"
+  },
+  {
+    "component": "MusicArtistsPage",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicScreenV2Pages.kt",
+    "line": 317,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicArtistDetailPage",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicScreenV2Pages.kt",
+    "line": 343,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicAlbumDetailPage",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicScreenV2Pages.kt",
+    "line": 381,
+    "status": "首轮样板，最终自动验证通过，待用户视觉确认",
+    "sample": "album",
+    "visualAcceptance": "待用户确认",
+    "evidence": "research/evidence-index.md"
+  },
+  {
+    "component": "MusicSearchPage",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicScreenV2Pages.kt",
+    "line": 418,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicPlaylistsPage",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicScreenV2Pages.kt",
+    "line": 568,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicPlaylistDetailPage",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicScreenV2Pages.kt",
+    "line": 599,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MusicScrollbar",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/MusicScrollbar.kt",
+    "line": 87,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "DockPlayPauseButton",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/PlaybackDock.kt",
+    "line": 85,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "PolishedPlaybackDock",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/PlaybackDock.kt",
+    "line": 127,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "BottomDockHandle",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/PlaybackDock.kt",
+    "line": 193,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "PolishedBottomNav",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/PlaybackDock.kt",
+    "line": 246,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "PolishedNavItem",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/PlaybackDock.kt",
+    "line": 272,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "PolishedNowPlayingBar",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/PlaybackDock.kt",
+    "line": 335,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "PlayerThinSlider",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/PlayerThinSlider.kt",
+    "line": 45,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "ServerConfigScreen",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/ServerConfigScreen.kt",
+    "line": 9,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "ServerEditorScreen",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/ServerEditorScreen.kt",
+    "line": 23,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "ServerEditorContent",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/ServerEditorScreen.kt",
+    "line": 75,
+    "status": "首轮样板，最终自动验证通过，待用户视觉确认",
+    "sample": "server/server_emby/server_webdav",
+    "visualAcceptance": "待用户确认",
+    "evidence": "research/evidence-index.md"
+  },
+  {
+    "component": "SettingsSectionTitle",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/SettingsComponents.kt",
+    "line": 40,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "SettingsRow",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/SettingsComponents.kt",
+    "line": 47,
+    "status": "首轮样板，最终自动验证通过，待用户视觉确认",
+    "sample": "settings_rows",
+    "visualAcceptance": "待用户确认",
+    "evidence": "research/evidence-index.md"
+  },
+  {
+    "component": "SettingsGroup",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/SettingsComponents.kt",
+    "line": 112,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "SettingsChoiceDialog",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/SettingsComponents.kt",
+    "line": 124,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "StorageSettingsPage",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/SettingsDataPages.kt",
+    "line": 23,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "DownloadedMusicScreen",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/SettingsDataPages.kt",
+    "line": 64,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "PrivacySettingsPage",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/SettingsDataPages.kt",
+    "line": 109,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "LegacyDataPage",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/SettingsDataPages.kt",
+    "line": 148,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "PreferenceSettingsPage",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/SettingsPreferences.kt",
+    "line": 68,
+    "status": "共享文件受影响，未单独验收",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "ModuleVisibilityPage",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/SettingsPreferences.kt",
+    "line": 165,
+    "status": "首轮样板，最终自动验证通过，待用户视觉确认",
+    "sample": "modules",
+    "visualAcceptance": "待用户确认",
+    "evidence": "research/evidence-index.md"
+  },
+  {
+    "component": "SettingsScreen",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/SettingsScreen.kt",
+    "line": 26,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaPageHeader",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/SharedComponents.kt",
+    "line": 60,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MediaConfigPanel",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/SharedComponents.kt",
+    "line": 109,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "MetaChip",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/SharedComponents.kt",
+    "line": 125,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "ToneMetaChip",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/SharedComponents.kt",
+    "line": 155,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "ScreenBackButton",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/SharedComponents.kt",
+    "line": 179,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "CoverArt",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/SharedComponents.kt",
+    "line": 194,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "PrimaryActionButton",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/SharedComponents.kt",
+    "line": 279,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "SecondaryActionButton",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/SharedComponents.kt",
+    "line": 341,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "NordicTheme",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/theme/Theme.kt",
+    "line": 80,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoLibrarySelector",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoBrowseComponents.kt",
+    "line": 53,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoCard",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoBrowseComponents.kt",
+    "line": 75,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoSpotlightSections",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoBrowseComponents.kt",
+    "line": 136,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoSpotlightRow",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoBrowseComponents.kt",
+    "line": 189,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "ContinueWatchingCard",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoBrowseComponents.kt",
+    "line": 242,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoBrowserControls",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoBrowseComponents.kt",
+    "line": 342,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoDetailScreen",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoDetailScreen.kt",
+    "line": 54,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoEpisodeFilterRow",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoDetailScreen.kt",
+    "line": 160,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoDetailHero",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoDetailScreen.kt",
+    "line": 185,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoEpisodeRow",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoDetailScreen.kt",
+    "line": 297,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoPlayerChrome",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerChrome.kt",
+    "line": 59,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoPlayerGestureLockButton",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerChrome.kt",
+    "line": 192,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoPlayerChromeButton",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerChrome.kt",
+    "line": 201,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "Modifier.videoPlayerGestures",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerGestures.kt",
+    "line": 79,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoPlayerPanelHost",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerPanels.kt",
+    "line": 80,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoPlayerSettingRow",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerPanels.kt",
+    "line": 271,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoPlayerSettingToggleRow",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerPanels.kt",
+    "line": 297,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoPlayerInfoContent",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerPanels.kt",
+    "line": 324,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoPlayerEpisodesContent",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerPanels.kt",
+    "line": 355,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoPlayerChaptersContent",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerPanels.kt",
+    "line": 440,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoPlayerQualityContent",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerPanels.kt",
+    "line": 483,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoPlayerTracksContent",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerPanels.kt",
+    "line": 515,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoPlayerScreen",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerScreen.kt",
+    "line": 152,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoPlayerSurface",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerScreen.kt",
+    "line": 509,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoPlayerScrim",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerScreen.kt",
+    "line": 557,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "BoxScope.VideoPlayerCenterMessage",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerScreen.kt",
+    "line": 575,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "BoxScope.VideoPlayerSeekFeedbackOverlay",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerScreen.kt",
+    "line": 632,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoAdjustGestureOverlay",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerScreen.kt",
+    "line": 815,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoPlayerLockOverlay",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerScreen.kt",
+    "line": 874,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoPlayerTempSpeedChip",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerScreen.kt",
+    "line": 950,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoPlayerNextEpisodeOverlay",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerScreen.kt",
+    "line": 987,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoPlayerSkipIntroButton",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoPlayerScreen.kt",
+    "line": 1035,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "VideoScreen",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/VideoScreen.kt",
+    "line": 51,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  },
+  {
+    "component": "WebDavScreen",
+    "file": "app/src/main/java/com/nordic/mediahub/ui/WebDavScreen.kt",
+    "line": 37,
+    "status": "未逐项审查",
+    "sample": null,
+    "visualAcceptance": "未执行"
+  }
+]

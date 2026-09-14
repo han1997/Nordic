@@ -1,0 +1,14 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "项目入口和质量门禁"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Compose、debug 与测试文件归属"}
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "全局视觉、触控、语义与逐页证据"}
+{"file": ".trellis/spec/backend/music-ui.md", "reason": "音乐列表与集合详情样板"}
+{"file": ".trellis/spec/backend/music-lyrics.md", "reason": "播放器歌词行为不回退"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "组件复用、动效/状态隔离、Windows 验证"}
+{"file": ".trellis/spec/backend/media-sources-webdav-settings.md", "reason": "设置表单、模块开关与来源语义"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "预览隔离与偏好真实更新链路"}
+{"file": ".trellis/spec/backend/build-release.md", "reason": "版本递增、签名、debug 入口隔离与产物核验"}
+{"file": ".trellis/spec/backend/documentation-guidelines.md", "reason": "中文文案和验收记录"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "复用生产 Composable，不复制样板"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "UI 状态/回调和宿主副作用边界"}
+{"file": ".trellis/tasks/09-13-ui-polish-samples/research/implementation-plan.md", "reason": "已确认方案与首轮关卡"}
+{"file": ".trellis/spec/backend/ui-catalog-verification.md", "reason": "专用模拟器、系统字号、稳定窗口、真实可见性与证据指纹合同"}

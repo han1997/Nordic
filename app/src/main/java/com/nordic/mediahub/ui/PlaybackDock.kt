@@ -22,6 +22,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -251,7 +252,8 @@ internal fun PolishedBottomNav(
     Row(
         Modifier
             .fillMaxWidth()
-            .height(58.dp)
+            .heightIn(min = 58.dp)
+            .height(IntrinsicSize.Min)
             .padding(horizontal = NordicSpacing.sm)
             .selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
@@ -287,7 +289,7 @@ internal fun PolishedNavItem(
         animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
     )
     val contentColor by animateColorAsState(
-        targetValue = if (selected) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
+        targetValue = if (selected) colorScheme.primary else colorScheme.onSurfaceVariant,
         animationSpec = tween(durationMillis = NordicMotion.durationMicro, easing = NordicMotion.easingStandard)
     )
 
@@ -310,6 +312,7 @@ internal fun PolishedNavItem(
         contentAlignment = Alignment.Center
     ) {
         Column(
+            modifier = Modifier.padding(vertical = NordicSpacing.xs),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
@@ -340,9 +343,10 @@ internal fun PolishedNowPlayingBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(66.dp)
-            .clickable(onClick = onOpenPlayer)
-            .padding(horizontal = 14.dp),
+            .heightIn(min = 66.dp)
+            .testTag("now-playing-bar")
+            .clickable(role = Role.Button, onClickLabel = "打开播放器", onClick = onOpenPlayer)
+            .padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
         val placeholderIcon: ImageVector = when (nowPlaying) {
@@ -421,9 +425,9 @@ internal fun PolishedNowPlayingBar(
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Normal,
                 color = if (playbackStatus == null) {
-                    colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
+                    colorScheme.onSurfaceVariant
                 } else {
-                    colorScheme.primary.copy(alpha = 0.78f)
+                    colorScheme.primary
                 },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

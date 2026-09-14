@@ -1,38 +1,41 @@
 package com.nordic.mediahub.ui
 
+import androidx.compose.ui.platform.testTag
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.Role
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -42,12 +45,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -93,7 +92,9 @@ private val QUEUE_SHEET_LIST_MAX_HEIGHT = 520.dp
  */
 internal data class QueueDragState(
     val draggedIndex: Int? = null,
-    val accumulatedPx: Float = 0f
+    val accumulatedPx: Float = 0f,
+    val targetIndex: Int? = null,
+    val draggedExtentPx: Float = 0f
 )
 
 /**
@@ -120,20 +121,27 @@ internal fun resolveQueueRowDisplacement(
     val draggedDelta = dragState.accumulatedPx
     if (draggedDelta == 0f) return 0f
 
-    val rowsCrossed = (draggedDelta / rowHeightPx).roundToInt()
-    if (rowsCrossed == 0) return 0f
-
-    val draggedTargetIndex = draggedIndex + rowsCrossed
-    val isBetween =
-        if (rowsCrossed > 0) rowIndex in (draggedIndex + 1)..draggedTargetIndex
+    val draggedTargetIndex = dragState.targetIndex ?: (draggedIndex + (draggedDelta / rowHeightPx).roundToInt())
+    if (draggedTargetIndex == draggedIndex) return 0f
+    val isBetween = if (draggedTargetIndex > draggedIndex) rowIndex in (draggedIndex + 1)..draggedTargetIndex
         else rowIndex in draggedTargetIndex until draggedIndex
-
     if (!isBetween) return 0f
-
-    return if (rowsCrossed > 0) -rowHeightPx else rowHeightPx
+    val extent = dragState.draggedExtentPx.takeIf { it > 0f } ?: rowHeightPx
+    return if (draggedTargetIndex > draggedIndex) -extent else extent
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+internal data class QueueItemBounds(val index: Int, val offset: Int, val size: Int)
+
+/** Drop by rendered item centers, not a hard-coded row height that fails with large text. */
+internal fun resolveQueueDropTarget(draggedIndex: Int, deltaPx: Float, items: List<QueueItemBounds>, count: Int): Int {
+    if (draggedIndex !in 0 until count) return -1
+    if (!deltaPx.isFinite()) return draggedIndex
+    val valid = items.filter { it.index in 0 until count && it.size > 0 }
+    val current = valid.firstOrNull { it.index == draggedIndex } ?: return draggedIndex
+    val center = current.offset + current.size / 2f + deltaPx
+    return valid.minByOrNull { abs(it.offset + it.size / 2f - center) }?.index ?: draggedIndex
+}
+
 @Composable
 fun MusicQueueSheet(
     queue: List<NavidromeSong>,
@@ -198,11 +206,6 @@ fun MusicQueueSheet(
             if (queue.isEmpty()) {
                 QueueEmptyState(colorScheme = colorScheme)
             } else {
-                QueueCurrentHint(
-                    currentSong = queue.getOrNull(resolvedCurrentIndex),
-                    upcomingCount = upcomingCount,
-                    colorScheme = colorScheme
-                )
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -264,23 +267,23 @@ fun MusicQueueSheet(
                                             removingIndex = null
                                         }
                                     },
+                                    onMoveUp = { onMoveQueueItem(index, index - 1) },
+                                    onMoveDown = { onMoveQueueItem(index, index + 1) },
                                     onDragStart = {
-                                        dragState = QueueDragState(
-                                            draggedIndex = index,
-                                            accumulatedPx = 0f
-                                        )
+                                        val item = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
+                                        dragState = QueueDragState(draggedIndex = index, targetIndex = index,
+                                            draggedExtentPx = (item?.size ?: 0).toFloat() + listState.layoutInfo.mainAxisItemSpacing)
                                     },
                                     onDrag = { deltaPx ->
-                                        dragState = dragState.copy(
-                                            accumulatedPx = dragState.accumulatedPx + deltaPx
-                                        )
+                                        val offset = dragState.accumulatedPx + deltaPx
+                                        val bounds = listState.layoutInfo.visibleItemsInfo.map { QueueItemBounds(it.index, it.offset, it.size) }
+                                        dragState = dragState.copy(accumulatedPx = offset,
+                                            targetIndex = resolveQueueDropTarget(index, offset, bounds, queue.size))
                                     },
-                                    onDragEnd = { rowDelta ->
-                                        val targetIndex = (index + rowDelta).coerceIn(queue.indices)
+                                    onDragEnd = {
+                                        val targetIndex = dragState.targetIndex ?: index
                                         dragState = QueueDragState()
-                                        if (targetIndex != index) {
-                                            onMoveQueueItem(index, targetIndex)
-                                        }
+                                        if (targetIndex in queue.indices && targetIndex != index) onMoveQueueItem(index, targetIndex)
                                     },
                                     onDragCancel = {
                                         dragState = QueueDragState()
@@ -321,53 +324,10 @@ private fun QueueEmptyState(colorScheme: ColorScheme) {
         Text(
             "当前没有播放队列",
             style = MaterialTheme.typography.bodyMedium,
-            color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
+            color = colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.xxl)
         )
-    }
-}
-
-@Composable
-private fun QueueCurrentHint(
-    currentSong: NavidromeSong?,
-    upcomingCount: Int,
-    colorScheme: ColorScheme
-) {
-    Surface(
-        color = colorScheme.primary.copy(alpha = 0.08f),
-        contentColor = colorScheme.onSurface,
-        shape = NordicShapes.md,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = NordicSpacing.md)
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),
-            verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
-        ) {
-            Text(
-                currentSong?.title ?: "未定位当前播放",
-                style = MaterialTheme.typography.titleSmall,
-                color = colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                if (currentSong == null) {
-                    "点击任意歌曲即可开始播放"
-                } else if (upcomingCount > 0) {
-                    "已定位到当前播放，后续还有 $upcomingCount 首"
-                } else {
-                    "已定位到当前播放，后续队列为空"
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
     }
 }
 
@@ -385,11 +345,16 @@ private fun QueueRow(
     onClick: () -> Unit,
     onPlayNext: () -> Unit,
     onRemove: () -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
     onDragStart: () -> Unit = {},
     onDrag: (Float) -> Unit = {},
-    onDragEnd: (Int) -> Unit = {},
+    onDragEnd: () -> Unit = {},
     onDragCancel: () -> Unit = {}
 ) {
+    var menuExpanded by remember(song.id) { mutableStateOf(false) }
+    val currentOnDragEnd by rememberUpdatedState(onDragEnd)
+    val currentOnDrag by rememberUpdatedState(onDrag)
     val density = LocalDensity.current
     val rowHeightPx = with(density) { 64.dp.toPx() }
     val liftThresholdPx = rowHeightPx * 0.5f
@@ -431,7 +396,7 @@ private fun QueueRow(
     )
     val resolvedTranslationY = if (isDragged) dragOffsetY else animatedDisplacement
     val backgroundColor = if (isCurrent) {
-        colorScheme.primary.copy(alpha = 0.1f)
+        colorScheme.primaryContainer
     } else {
         colorScheme.surface
     }
@@ -441,18 +406,18 @@ private fun QueueRow(
         shape = NordicShapes.sm,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = NordicSpacing.md)
             .zIndex(if (isDragged) 1f else 0f)
             .graphicsLayer {
                 translationY = resolvedTranslationY
                 scaleY = animatedLiftScale
                 alpha = animatedLiftAlpha
             }
-            .clickable(onClick = onClick)
+            .semantics { selected = isCurrent }
+            .clickable(role = Role.Button, onClickLabel = "播放${song.title}", onClick = onClick)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm),
-            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
+            modifier = Modifier.padding(horizontal = NordicSpacing.sm, vertical = NordicSpacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm),
             verticalAlignment = Alignment.CenterVertically
         ) {
             QueueDragHandle(
@@ -466,99 +431,42 @@ private fun QueueRow(
                         onDragCancel = {
                             onDragCancel()
                         },
-                        onDragEnd = {
-                            val rowDelta = (dragOffsetY / rowHeightPx).roundToInt()
-                            val allowedDelta = when {
-                                rowDelta < 0 && canMoveUp -> rowDelta
-                                rowDelta > 0 && canMoveDown -> rowDelta
-                                else -> 0
-                            }
-                            onDragEnd(allowedDelta)
-                        },
+                        onDragEnd = { currentOnDragEnd() },
                         onDrag = { _, dragAmount ->
-                            onDrag(dragAmount.y)
+                            currentOnDrag(dragAmount.y)
                         }
                     )
                 }
             )
 
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(NordicShapes.sm)
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                colorScheme.primary.copy(alpha = if (isCurrent) 0.28f else 0.16f),
-                                colorScheme.secondary.copy(alpha = if (isCurrent) 0.2f else 0.1f)
-                            )
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                if (song.coverArt != null) {
-                    AuthedAsyncImage(
-                        url = song.coverArt,
-                        contentDescription = song.title,
-                        contentScale = ContentScale.Crop,
-                        crossfadeEnabled = false,
-                        modifier = Modifier.matchParentSize()
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Filled.MusicNote,
-                        contentDescription = null,
-                        tint = if (isCurrent) colorScheme.primary else colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+            Box(Modifier.size(42.dp).testTag("queue-artwork")) {
+                CoverArt(song.coverArt, song.title, colorScheme, size = 42.dp,
+                    modifier = Modifier.matchParentSize().clearAndSetSemantics {}, shape = NordicShapes.sm, fallbackIcon = Icons.Filled.MusicNote)
             }
 
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
-            ) {
-                Text(
-                    song.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = if (isCurrent) colorScheme.primary else colorScheme.onSurface,
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
+                Text(song.title, style = MaterialTheme.typography.titleSmall,
+                    color = if (isCurrent) colorScheme.onPrimaryContainer else colorScheme.onSurface,
                     fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    musicArtistLabel(song.artist),
+                    maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(if (isCurrent) "当前播放 · ${musicArtistLabel(song.artist)}" else musicArtistLabel(song.artist),
                     style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Normal,
-                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                    color = if (isCurrent) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-
-            Spacer(modifier = Modifier.width(NordicSpacing.xs))
-
-            QueueTextAction(
-                text = "下一首",
-                enabled = canPlayNext,
-                colorScheme = colorScheme,
-                onClick = onPlayNext
-            )
-            QueueIconAction(
-                icon = Icons.Filled.Close,
-                contentDescription = "移除歌曲",
-                enabled = canRemove,
-                colorScheme = colorScheme,
-                onClick = onRemove
-            )
-
-            if (isCurrent) {
-                Icon(
-                    imageVector = Icons.Filled.MusicNote,
-                    contentDescription = "当前播放",
-                    tint = colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
-                )
+            Box {
+                AnimatedIconButton(Icons.Filled.MoreVert, "队列操作：${song.title}", { menuExpanded = true },
+                    colorScheme = colorScheme, containerColor = androidx.compose.ui.graphics.Color.Transparent)
+                DropdownMenu(menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    DropdownMenuItem(text = { Text("下一首播放") }, enabled = canPlayNext,
+                        onClick = { menuExpanded = false; onPlayNext() })
+                    DropdownMenuItem(text = { Text("上移") }, enabled = canMoveUp,
+                        onClick = { menuExpanded = false; onMoveUp() })
+                    DropdownMenuItem(text = { Text("下移") }, enabled = canMoveDown,
+                        onClick = { menuExpanded = false; onMoveDown() })
+                    DropdownMenuItem(text = { Text("从队列移除", color = if (canRemove) colorScheme.error else colorScheme.onSurface.copy(alpha = 0.38f)) },
+                        enabled = canRemove, onClick = { menuExpanded = false; onRemove() })
+                }
             }
         }
     }
@@ -607,53 +515,19 @@ private fun QueueTextAction(
         },
         shape = NordicShapes.full,
         modifier = Modifier
-            .width(58.dp)
+            .widthIn(min = NordicControlSizes.touchTarget)
             .heightIn(min = NordicControlSizes.touchTarget)
-            .clickable(enabled = enabled, onClick = onClick)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
     ) {
         Box(
             contentAlignment = Alignment.Center,
-            modifier = Modifier.padding(vertical = NordicSpacing.sm)
+            modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.sm)
         ) {
             Text(
                 text,
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1
-            )
-        }
-    }
-}
-
-@Composable
-private fun QueueIconAction(
-    icon: ImageVector,
-    contentDescription: String,
-    enabled: Boolean,
-    colorScheme: ColorScheme,
-    onClick: () -> Unit
-) {
-    Surface(
-        color = if (enabled) {
-            colorScheme.error.copy(alpha = 0.1f)
-        } else {
-            colorScheme.surfaceVariant.copy(alpha = 0.4f)
-        },
-        contentColor = if (enabled) {
-            colorScheme.error
-        } else {
-            colorScheme.onSurface.copy(alpha = NordicAlpha.faint)
-        },
-        shape = NordicShapes.full,
-        modifier = Modifier
-            .size(NordicControlSizes.touchTarget)
-            .clickable(enabled = enabled, onClick = onClick)
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                modifier = Modifier.size(18.dp)
             )
         }
     }

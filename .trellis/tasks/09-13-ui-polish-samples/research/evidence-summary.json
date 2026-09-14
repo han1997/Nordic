@@ -1,0 +1,345 @@
+{
+  "createdAt": "2026-09-14T14:40:45.532926+00:00",
+  "codeBaseline": "d4b4c0d",
+  "sourceSha256": "8b4b2b02e8fe355637e368d4320964b379f5ec1f29f9e216fd3164dec642b850",
+  "appSha256": "6c3fca6de2e0cf9dd0ed52589400dac66a981a851df66d8ffd7971fde089aa94",
+  "testApkSha256": "d0cf0372e2ce27fd5f7cba066c2c7d4b0496e210b350552609af1b0e6a588cd7",
+  "runnerSha256": "b5aa74946e6dcaec24ac39f2c053324f977cb59ef0bfe402076e2a72eda29c05",
+  "build": {
+    "tests": {
+      "suites": 54,
+      "tests": 712,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "lint": {
+      "Warning": 27,
+      "Information": 18
+    },
+    "artifacts": [
+      {
+        "variant": "debug",
+        "file": "app/build/outputs/apk/debug/app-debug.apk",
+        "applicationId": "fun.han1997.nordic",
+        "versionName": "0.1.9",
+        "versionCode": 9,
+        "bytes": 25139760,
+        "sha256": "6c3fca6de2e0cf9dd0ed52589400dac66a981a851df66d8ffd7971fde089aa94",
+        "certificateSha256": "16a2350bb63cc53f446ec3aeadbd08ccd9d9475db867c4564ea6b6c3372a545d"
+      },
+      {
+        "variant": "release",
+        "file": "app/build/outputs/apk/release/nordic-0.1.9.apk",
+        "applicationId": "fun.han1997.nordic",
+        "versionName": "0.1.9",
+        "versionCode": 9,
+        "bytes": 4539656,
+        "sha256": "33e3bf62a07e50cb0e187fe364987006a41057bafef162d4d2c78e160c5c6474",
+        "certificateSha256": "16a2350bb63cc53f446ec3aeadbd08ccd9d9475db867c4564ea6b6c3372a545d"
+      }
+    ]
+  },
+  "retrofitSuspendMethodsVerified": 36,
+  "screenshotCount": 198,
+  "batches": [
+    {
+      "phase": "final-interaction",
+      "kind": "interaction",
+      "testsRun": 17,
+      "imageCount": 0,
+      "capturedAt": "2026-09-14T11:02:39.134622+00:00",
+      "durationSeconds": 70.9,
+      "arguments": {
+        "phase": "final-interaction",
+        "kind": "interaction",
+        "screens": "songs,album,player,lyrics,queue,speed,modules,server,settings_rows",
+        "states": "normal",
+        "fonts": "1,2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "additionalServerFieldsStayReachableAtLargeFont",
+        "busyFormAndDisabledSettingsDoNotExposeEnabledActions",
+        "catalogPlayerDoesNotStartAPlaybackServiceOrChangePreferences",
+        "draggingQueueRowSubmitsTheLatestDropPosition",
+        "emptyPlayerStartsAtZeroWithDisabledTransport",
+        "longSettingsValueStacksBelowTitleAtLargeFont",
+        "moduleSwitchesUpdateImmediatelyAndRejectAllHidden",
+        "nowPlayingBarGrowsForLargeTextInsteadOfClippingMetadata",
+        "playerControlsStayReachableByScrollingAtLargeFont",
+        "playerTransportAndSpeedSelectionProduceCallbacks",
+        "queueTitlesHaveSpaceAndReorderHasAnAccessibleMenu",
+        "sampleControlsExposeRolesSelectionAndMinimumTouchTargets",
+        "serverFormEditsAndSavesWithoutPersistentSideEffects",
+        "serverSaveStaysReachableAboveTheKeyboardAtLargeFont",
+        "songFilterAndClearUseTheProductionPage",
+        "statusIconPixelGuardRejectsBlankAndOppositeThemeFrames",
+        "themeAndFontChangesKeepSystemBarsInSyncAfterClosingSheets"
+      ],
+      "manifest": "app/build/reports/ui-polish/final-interaction/evidence.json",
+      "manifestSha256": "85ce617f01e83e5a7a7afab02cc815c595e1ca415df0dad20785add95eb2153b"
+    },
+    {
+      "phase": "final-interaction-short",
+      "kind": "interaction",
+      "testsRun": 17,
+      "imageCount": 0,
+      "capturedAt": "2026-09-14T10:58:50.497603+00:00",
+      "durationSeconds": 63.8,
+      "arguments": {
+        "phase": "final-interaction-short",
+        "kind": "interaction",
+        "screens": "songs,album,player,lyrics,queue,speed,modules,server,settings_rows",
+        "states": "normal",
+        "fonts": "1,2",
+        "width": 320,
+        "height": 480
+      },
+      "testNames": [
+        "additionalServerFieldsStayReachableAtLargeFont",
+        "busyFormAndDisabledSettingsDoNotExposeEnabledActions",
+        "catalogPlayerDoesNotStartAPlaybackServiceOrChangePreferences",
+        "draggingQueueRowSubmitsTheLatestDropPosition",
+        "emptyPlayerStartsAtZeroWithDisabledTransport",
+        "longSettingsValueStacksBelowTitleAtLargeFont",
+        "moduleSwitchesUpdateImmediatelyAndRejectAllHidden",
+        "nowPlayingBarGrowsForLargeTextInsteadOfClippingMetadata",
+        "playerControlsStayReachableByScrollingAtLargeFont",
+        "playerTransportAndSpeedSelectionProduceCallbacks",
+        "queueTitlesHaveSpaceAndReorderHasAnAccessibleMenu",
+        "sampleControlsExposeRolesSelectionAndMinimumTouchTargets",
+        "serverFormEditsAndSavesWithoutPersistentSideEffects",
+        "serverSaveStaysReachableAboveTheKeyboardAtLargeFont",
+        "songFilterAndClearUseTheProductionPage",
+        "statusIconPixelGuardRejectsBlankAndOppositeThemeFrames",
+        "themeAndFontChangesKeepSystemBarsInSyncAfterClosingSheets"
+      ],
+      "manifest": "app/build/reports/ui-polish/final-interaction-short/evidence.json",
+      "manifestSha256": "213456acca70328a0244cc1508e6deeca947ed8af5d806fe7c8eeaebacc4b5c3"
+    },
+    {
+      "phase": "delivery-live",
+      "kind": "live",
+      "testsRun": 1,
+      "imageCount": 0,
+      "capturedAt": "2026-09-14T11:06:20.439315+00:00",
+      "durationSeconds": 10.3,
+      "arguments": {
+        "phase": "delivery-live",
+        "kind": "live",
+        "screens": "songs,album,player,lyrics,queue,speed,modules,server,settings_rows",
+        "states": "normal",
+        "fonts": "1,2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "settingsGearAndModuleChangesWorkThroughTheRealRoot"
+      ],
+      "manifest": "app/build/reports/ui-polish/delivery-live/evidence.json",
+      "manifestSha256": "f2421b8fe8542147cdad87dce1348c7377c4db7364cc5378c55933f8410d7c03"
+    },
+    {
+      "phase": "delivery-samples",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 44,
+      "capturedAt": "2026-09-14T11:10:25.470379+00:00",
+      "durationSeconds": 69.8,
+      "arguments": {
+        "phase": "delivery-samples",
+        "kind": "screenshots",
+        "screens": "songs,album,player,lyrics,queue,speed,modules,server,server_emby,server_webdav,settings_rows",
+        "states": "normal",
+        "fonts": "1,2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "manifest": "app/build/reports/ui-polish/delivery-samples/evidence.json",
+      "manifestSha256": "70d832cd22f957c99d9dc680df381d633702a1a5f98619c50900a7cb135b0ab6"
+    },
+    {
+      "phase": "delivery-music-states",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 64,
+      "capturedAt": "2026-09-14T11:15:46.952066+00:00",
+      "durationSeconds": 91.9,
+      "arguments": {
+        "phase": "delivery-music-states",
+        "kind": "screenshots",
+        "screens": "songs,album,player,lyrics",
+        "states": "empty,loading,error,no_art",
+        "fonts": "1,2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "manifest": "app/build/reports/ui-polish/delivery-music-states/evidence.json",
+      "manifestSha256": "4ae0e0c5d97b836f8e8d4913c5700a9cd308feb6ded80b510a064155548328f6"
+    },
+    {
+      "phase": "delivery-long",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 20,
+      "capturedAt": "2026-09-14T11:52:23.021879+00:00",
+      "durationSeconds": 38.4,
+      "arguments": {
+        "phase": "delivery-long",
+        "kind": "screenshots",
+        "screens": "songs,album,player,queue,server",
+        "states": "long",
+        "fonts": "1,2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "manifest": "app/build/reports/ui-polish/delivery-long/evidence.json",
+      "manifestSha256": "2a839b383f73ca9247d7bc2cf4ac618041710204e88cb4f0ee9a199c29b8abea"
+    },
+    {
+      "phase": "delivery-disabled",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 8,
+      "capturedAt": "2026-09-14T12:00:06.128554+00:00",
+      "durationSeconds": 16.4,
+      "arguments": {
+        "phase": "delivery-disabled",
+        "kind": "screenshots",
+        "screens": "server,settings_rows",
+        "states": "disabled",
+        "fonts": "1,2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "manifest": "app/build/reports/ui-polish/delivery-disabled/evidence.json",
+      "manifestSha256": "c1bf5f1bc8f3618be343ae51bc15f8e12e8eaf64749c13de2875b10ddf345df4"
+    },
+    {
+      "phase": "delivery-server-states",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 8,
+      "capturedAt": "2026-09-14T12:03:45.601768+00:00",
+      "durationSeconds": 16.8,
+      "arguments": {
+        "phase": "delivery-server-states",
+        "kind": "screenshots",
+        "screens": "server",
+        "states": "loading,error",
+        "fonts": "1,2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "manifest": "app/build/reports/ui-polish/delivery-server-states/evidence.json",
+      "manifestSha256": "5d03a13b009aac22e9e4f9fec0d6590d3d176a0967742a1f7521e0a2e9a1d643"
+    },
+    {
+      "phase": "delivery-queue-empty",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 4,
+      "capturedAt": "2026-09-14T12:09:48.337559+00:00",
+      "durationSeconds": 16.1,
+      "arguments": {
+        "phase": "delivery-queue-empty",
+        "kind": "screenshots",
+        "screens": "queue",
+        "states": "empty",
+        "fonts": "1,2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "manifest": "app/build/reports/ui-polish/delivery-queue-empty/evidence.json",
+      "manifestSha256": "c57d9100c745f0ed9813507a2ffe9136e90fbc822b661397d63be1b35e16b551"
+    },
+    {
+      "phase": "delivery-short",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 18,
+      "capturedAt": "2026-09-14T12:17:00.450938+00:00",
+      "durationSeconds": 31.2,
+      "arguments": {
+        "phase": "delivery-short",
+        "kind": "screenshots",
+        "screens": "songs,album,player,lyrics,queue,speed,modules,server,settings_rows",
+        "states": "normal",
+        "fonts": "2",
+        "width": 320,
+        "height": 480
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "manifest": "app/build/reports/ui-polish/delivery-short/evidence.json",
+      "manifestSha256": "62a023f7682789c532d8609f15f28a3277069bf7a94583693453dcaa1fb51f69"
+    },
+    {
+      "phase": "delivery-wide",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 22,
+      "capturedAt": "2026-09-14T12:22:42.934356+00:00",
+      "durationSeconds": 46.7,
+      "arguments": {
+        "phase": "delivery-wide",
+        "kind": "screenshots",
+        "screens": "songs,album,player,lyrics,queue,speed,modules,server,server_emby,server_webdav,settings_rows",
+        "states": "normal",
+        "fonts": "2",
+        "width": 720,
+        "height": 960
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "manifest": "app/build/reports/ui-polish/delivery-wide/evidence.json",
+      "manifestSha256": "2866e5ad9f4afbef0fed613f5a522a6cb8ee6812be3f80af34821492d6a4673a"
+    },
+    {
+      "phase": "delivery-mid",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 10,
+      "capturedAt": "2026-09-14T12:28:25.455154+00:00",
+      "durationSeconds": 26.1,
+      "arguments": {
+        "phase": "delivery-mid",
+        "kind": "screenshots",
+        "screens": "songs,album,player,queue,settings_rows",
+        "states": "normal",
+        "fonts": "1.5",
+        "width": 392,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "manifest": "app/build/reports/ui-polish/delivery-mid/evidence.json",
+      "manifestSha256": "785ef2b9db2f837506404ce9d73f3ddb2005399ef4ed3b31ca2cfc706367ee89"
+    }
+  ],
+  "visualAcceptance": "2026-09-14 用户确认首轮样板方向；保留 evidence-index.md 验证限制；未完成全应用逐页迁移",
+  "historicalBaseline": "baseline 仅作历史视觉参考；无系统字号/源码指纹，不作大字体 Dialog 严格同条件对照"
+}

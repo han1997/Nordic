@@ -43,7 +43,7 @@ internal fun shouldScrollMediaSegments(availableWidth: Dp, minimumWidths: List<D
 ### 选择与分段
 
 - 互斥选择使用 `selectable`、`Role.Tab` 与 `selectableGroup`；选中不仅依赖颜色，也必须暴露 selected 语义。
-- 播放器弹层选择行必须复用 `MediaPlayerChoiceRow`，不得在单个弹层里另写近似实现。选中态使用 `primaryContainer` 完整背景 + `onPrimaryContainer` 文字 + 勾选图标；未选中态使用 `surfaceVariant` 0.42 alpha 容器 + `onSurface` 文字；选中副标题用 `onPrimaryContainer` 0.78 alpha，未选中副标题用 `onSurfaceVariant`。行最小高度 56dp，容器圆角 md。
+- 播放器弹层选择行必须复用 `MediaPlayerChoiceRow`，不得在单个弹层里另写近似实现。选中态使用 `primaryContainer` 完整背景 + `onPrimaryContainer` 文字 + 勾选图标；未选中态使用 `surfaceVariant` 0.42 alpha 容器 + `onSurface` 文字；选中副标题用完整 `onPrimaryContainer`，未选中副标题用 `onSurfaceVariant`。深色合成背景下，0.78 alpha 的副标题只有约 3.78:1，不得恢复该透明度或降低 4.5:1 门槛。行最小高度 56dp，容器圆角 md。
 - 弹层内的互斥选择 chip（如均衡器预设）同样使用 `selectable(selected, role = Role.RadioButton)` + 选中语义，选中样式对齐 `primaryContainer`/`onPrimaryContainer` 语言，最小高度 48dp；不得用裸 `clickable` + 仅颜色区分。
 - 新弹层接入统一容器时，删除本地 `ModalBottomSheet` + 手写标题 Row 的重复实现（参考 `MusicEqualizerSheet`、`MusicQueueSheet` 的迁移），保持原有 `skipPartiallyExpanded` 与内容逻辑不变。
 - 歌词展示面字号例外：`MusicLyricsDisplay` 歌词行使用 18sp/24sp（紧凑 16sp/20sp），位于 headlineMedium 与 titleMedium 之间，是专用展示面而非标准文本槽；以命名常量 `LYRIC_LINE_*` 显式声明。歌词长句自然换行，不用 maxLines/省略号截正文；跟随按钮按实际字体测量预留空间，不因出现/消失改变视口。其他新文本不得引用此字号例外。行为合同见 [音乐歌词](./music-lyrics.md)。
@@ -52,6 +52,13 @@ internal fun shouldScrollMediaSegments(availableWidth: Dp, minimumWidths: List<D
 - ≤4 项且等分宽度能完整容纳最宽标签时用等宽 Row；否则使用同一表面中的 LazyRow。>4 项始终使用 LazyRow。
 - 横向列表使用稳定 key；所选项不在可见区时定位到它，已可见时不强制跳动。
 - 选择芯片至少 48dp 高，保留最多 240dp 宽的长标签省略与完整无障碍文本；大字体不固定死高度。
+
+### 播放器面板与窗口
+
+- `MediaPlayerSheetHeader` 的 `trailingAction` 在字体 >1.3 或内容宽度 <320dp 时换到下一行；标题、关闭与次要操作都保持可达，不缩小触控目标。
+- `MediaPlayerSheet` 只通过其 `DialogWindowProvider` 设置自己的系统栏图标；根据应用实际 surface 明暗选择前景，不依赖系统夜间模式，也不改宿主 Activity 的窗口所有权。
+- `PolishedNowPlayingBar` 最小 66dp、`PolishedBottomNav` 最小 58dp，随字体自然增高；不能固定高度后把文字裁在容器外。
+- 音频 sheet 与视频窗口内 panel 继续使用各自宿主，样板修正不改变全屏/PiP 生命周期。
 
 ### 输入与详情动作
 
@@ -115,3 +122,10 @@ Text("播放", color = colorScheme.onPrimary)
 - 视频详情分集筛选、播放器倍速面板选择行分别复用 `MediaChoiceChip`（含 `selectableGroup`）与 `MediaPlayerChoiceRow`；不得另写裸 `clickable` 自绘选中样式。
 - 视频设置开关行保持最小 64dp、主题字体与间距；整行使用 `toggleable(value, role = Role.Switch)` 暴露开关状态，内部 M3 `Switch(onCheckedChange = null)` 只负责视觉，避免嵌套两个操作目标。PiP 中不组合播放器面板与控制，保留视频/字幕节点。
 - 配置页表单遵循同一语言：`ConfigTextField` 用 TextField `label` 参数承载字段名（自带关联语义），placeholder/输入统一 `bodyLarge`；服务器卡片容器 `surfaceVariant` 0.5 alpha + md 圆角 + 标题 heading 语义；保存/测试连接使用 `PrimaryActionButton`/`SecondaryActionButton`；状态消息最多三行省略。服务器类型选择复用 `MediaChoiceChip`（enabled 表达支持状态），不另写自绘选中容器。
+
+## 设置行与样板验收扩展
+
+- `SettingsRow` 使用 `shouldInlineSettingsValue(availableWidth, titleWidth, valueWidth, fontScale, hasIcon, hasNavigation)`：实际文字测量连同图标、箭头和间距共同预算，不能再按字符串长度决定值的位置。空间不足时值独立放在标题下，说明另起一行。
+- 设置行最小 64dp；整行暴露唯一的 Button/Switch 角色，内部 `Switch(onCheckedChange = null)` 不再重复接收操作。禁用视觉与禁用语义必须同时保留。
+- `ServerEditorScreen` 仍拥有测试连接、保存、取消及草稿保护；共享 `ServerEditorContent` 不构建 repository，复用的 `ConfigTextField` 保留安全键盘、密码显隐与 enabled。
+- 调试样板和真实设置流程的隔离、系统字号、全窗口截图与逐页证据合同见 [UI 样板验收](./ui-catalog-verification.md)。

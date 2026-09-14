@@ -1,5 +1,12 @@
 package com.nordic.mediahub.ui
 
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.core.view.WindowCompat
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.runtime.SideEffect
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -54,18 +61,22 @@ internal fun MediaPlayerSheetHeader(
     subtitle: String? = null,
     trailingAction: (@Composable () -> Unit)? = null
 ) {
-    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, color = colors.onSurface,
-                maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.semantics { heading() })
-            if (!subtitle.isNullOrBlank()) Text(subtitle, style = MaterialTheme.typography.bodySmall,
-                color = colors.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val stackAction = trailingAction != null && (LocalDensity.current.fontScale > 1.3f || maxWidth < 320.dp)
+        Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
+                    Text(title, style = MaterialTheme.typography.titleMedium, color = colors.onSurface,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.semantics { heading() })
+                    if (!subtitle.isNullOrBlank()) Text(subtitle, style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+                if (!stackAction) trailingAction?.invoke()
+                AnimatedIconButton(Icons.Filled.Close, "关闭$title", onDismiss, colorScheme = colors, containerColor = Color.Transparent)
+            }
+            if (stackAction) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { trailingAction?.invoke() }
         }
-        if (trailingAction != null) {
-            trailingAction()
-        }
-        AnimatedIconButton(Icons.Filled.Close, "关闭$title", onDismiss, colorScheme = colors, containerColor = Color.Transparent)
     }
 }
 
@@ -87,6 +98,18 @@ internal fun MediaPlayerSheet(
         shape = NordicShapes.xl,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = skipPartiallyExpanded)
     ) {
+        // Material3 1.3 derives dialog system bars from system night mode, which can
+        // differ from Nordic's explicit theme. Change only this dialog's window.
+        val view = LocalView.current
+        val window = (view.parent as? DialogWindowProvider)?.window
+        SideEffect {
+            window?.let {
+                WindowCompat.getInsetsController(it, it.decorView).apply {
+                    isAppearanceLightStatusBars = colors.surface.luminance() > 0.5f
+                    isAppearanceLightNavigationBars = colors.surface.luminance() > 0.5f
+                }
+            }
+        }
         Column(
             Modifier.fillMaxWidth().heightIn(max = maxHeight).navigationBarsPadding()
                 .padding(horizontal = NordicSpacing.lg).padding(bottom = NordicSpacing.lg),
@@ -107,7 +130,7 @@ internal fun MediaPlaybackSpeedSheet(
     onDismiss: () -> Unit
 ) {
     MediaPlayerSheet("播放速度", colors, onDismiss, subtitle = "当前 ${resolvePlaybackSpeedLabel(currentSpeed)}") {
-        LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false)) {
+        LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
             items(options, key = { it }) { speed ->
                 MediaPlayerChoiceRow(resolvePlaybackSpeedLabel(speed), abs(speed - currentSpeed) < 0.001f, colors,
                     onClick = { onSelect(speed) })
@@ -146,7 +169,7 @@ internal fun MediaPlayerChoiceRow(
                 color = if (selected == true) colors.onPrimaryContainer else colors.onSurface,
                 maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (!subtitle.isNullOrBlank()) Text(subtitle, style = MaterialTheme.typography.bodySmall,
-                color = if (selected == true) colors.onPrimaryContainer.copy(alpha = 0.78f) else colors.onSurfaceVariant,
+                color = if (selected == true) colors.onPrimaryContainer else colors.onSurfaceVariant,
                 maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         if (selected == true) Icon(Icons.Filled.Check, "当前选择", tint = colors.onPrimaryContainer)

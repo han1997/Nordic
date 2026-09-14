@@ -205,10 +205,12 @@ fun SongListRow(
     song: NavidromeSong,
     colorScheme: ColorScheme,
     modifier: Modifier = Modifier,
+    showAlbum: Boolean = true,
     onClick: () -> Unit = {}
 ) {
     MusicLibraryRow(
-        title = song.title, subtitle = musicArtistLabel(song.artist), metadata = song.album,
+        title = song.title, subtitle = listOfNotNull(musicArtistLabel(song.artist),
+            song.album?.takeIf { showAlbum && it.isNotBlank() }).distinct().joinToString(" · "),
         trailingText = musicTrackDurationLabel(song.duration),
         colorScheme = colorScheme, modifier = modifier, clickLabel = "播放歌曲", onClick = onClick,
         artwork = { CoverArt(song.coverArt, song.title, colorScheme, fallbackIcon = Icons.Filled.MusicNote) }

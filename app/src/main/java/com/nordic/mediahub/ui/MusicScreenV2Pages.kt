@@ -1,5 +1,6 @@
 package com.nordic.mediahub.ui
 
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,6 +53,7 @@ import com.nordic.mediahub.ui.theme.NordicSpacing
 @Composable
 private fun MusicPageList(
     isHome: Boolean,
+    itemSpacing: Dp = if (isHome) NordicSpacing.lg else NordicSpacing.md,
     content: androidx.compose.foundation.lazy.LazyListScope.() -> Unit
 ) {
     val listState = rememberLazyListState()
@@ -65,9 +67,7 @@ private fun MusicPageList(
                 end = NordicSpacing.lg,
                 bottom = NordicSpacing.xxl
             ),
-            verticalArrangement = Arrangement.spacedBy(
-                if (isHome) NordicSpacing.lg else NordicSpacing.md
-            )
+            verticalArrangement = Arrangement.spacedBy(itemSpacing)
         ) {
             content()
         }
@@ -260,7 +260,7 @@ internal fun MusicSongsPage(
     onSongFilterClear: () -> Unit,
     onSongSortChange: (MusicSongSort) -> Unit
 ) {
-    MusicPageList(isHome = false) {
+    MusicPageList(isHome = false, itemSpacing = NordicSpacing.sm) {
         if (songs.isEmpty()) {
             item {
                 MusicDetailEmptyState(
@@ -387,7 +387,7 @@ internal fun MusicAlbumDetailPage(
     onPlayAlbumAll: () -> Unit,
     hasVisibleError: Boolean = false
 ) {
-    MusicPageList(isHome = false) {
+    MusicPageList(isHome = false, itemSpacing = NordicSpacing.sm) {
         if (album == null) {
             item { MusicDetailEmptyState("未选择专辑", "返回首页选择一张专辑。") }
         } else {
@@ -405,7 +405,7 @@ internal fun MusicAlbumDetailPage(
             } else {
                 itemsIndexed(albumDetailSongs, key = { index, song -> "album-song-${song.id}-$index" },
                     contentType = { _, _ -> "album-song-row" }) { index, song ->
-                    SongListRow(song, colorScheme, onClick = {
+                    SongListRow(song, colorScheme, showAlbum = false, onClick = {
                         onSongSelected(albumDetailSongs, index, DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK)
                     })
                 }
