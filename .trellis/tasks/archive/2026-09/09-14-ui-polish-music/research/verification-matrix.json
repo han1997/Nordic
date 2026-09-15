@@ -1,0 +1,83 @@
+{
+  "baselineSourceSha256": "3ed2bf796d0ba43181bfab4b1d5732968610476dc165fe554b9c51d173637290",
+  "pairs": [
+    {
+      "before": "r2-baseline-full",
+      "after": "r2-final-normal",
+      "images": 52
+    },
+    {
+      "before": "r2-baseline-short",
+      "after": "r2-final-short",
+      "images": 26
+    },
+    {
+      "before": "r2-baseline-mid",
+      "after": "r2-final-mid",
+      "images": 26
+    },
+    {
+      "before": "r2-baseline-wide",
+      "after": "r2-final-wide",
+      "images": 26
+    },
+    {
+      "before": "r2-baseline-long",
+      "after": "r2-final-long",
+      "images": 40
+    },
+    {
+      "before": "r2-baseline-states",
+      "after": "r2-final-states",
+      "images": 42
+    },
+    {
+      "before": "r2-baseline-dialog-states",
+      "after": "r2-final-dialog-states",
+      "images": 12
+    },
+    {
+      "before": "r2-baseline-cache",
+      "after": "r2-final-cache",
+      "images": 16
+    }
+  ],
+  "extraScreenshots": {
+    "r2-final-no-art": 28,
+    "r2-final-actions": 16,
+    "r2-final-eq-empty": 2,
+    "r2-final-library-empty": 2,
+    "r2-final-search-empty": 2,
+    "r2-final-detail-cache": 4,
+    "r2-final-shared": 24
+  },
+  "interaction": {
+    "r2-final-music-normal": [
+      "music",
+      19,
+      5
+    ],
+    "r2-final-music-short": [
+      "music",
+      19,
+      5
+    ],
+    "r2-final-shared-normal": [
+      "interaction",
+      17,
+      2
+    ],
+    "r2-final-shared-short": [
+      "interaction",
+      17,
+      2
+    ],
+    "r2-final-live": [
+      "live",
+      1,
+      0
+    ]
+  },
+  "artifacts": "r2-final-artifacts",
+  "scaffoldCorrection": "初始 Debug 子页多渲染一行根页导航，后续对齐真实 MusicScreenV2；只影响 playlists / playlist_create 等样板宿主，不宣称删除了生产导航。环境、主题、数据与系统字号不变，比较图明确标注。"
+}

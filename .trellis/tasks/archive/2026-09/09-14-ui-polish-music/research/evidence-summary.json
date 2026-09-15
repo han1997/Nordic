@@ -1,0 +1,768 @@
+{
+  "createdAt": "2026-09-15T07:29:17.171260+00:00",
+  "codeBaseline": "c1ee241",
+  "sourceSha256": "17b32c07bb797fdae36bb35c8055d4ed7c83cdb00dc9c382098d780647423ffc",
+  "appSha256": "0c350a5b93fffead52a24527677051d92c1b198f9c811d4dae3dce55ccd7be7a",
+  "testApkSha256": "333e45c6389e7731d9f612c58bed4c2df482b60886928313b179086cb1398caf",
+  "runnerSha256": "a4170f1f092e76191d78727b2140a7caa70ba5e670482da47d063fa22611b220",
+  "baselineSourceSha256": "3ed2bf796d0ba43181bfab4b1d5732968610476dc165fe554b9c51d173637290",
+  "baselineScreenshotCount": 240,
+  "screenshotCount": 318,
+  "interactionImageCount": 14,
+  "build": {
+    "sourceSha256": "17b32c07bb797fdae36bb35c8055d4ed7c83cdb00dc9c382098d780647423ffc",
+    "verifierSha256": "0f03b09e45199333afeab552cb3d02e8d0e744067ff258aba497927334ddd5db",
+    "tests": {
+      "suites": 56,
+      "tests": 723,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "lint": {
+      "Warning": 26,
+      "Information": 18
+    },
+    "artifacts": [
+      {
+        "variant": "debug",
+        "file": "app/build/outputs/apk/debug/app-debug.apk",
+        "applicationId": "fun.han1997.nordic",
+        "versionName": "0.1.10",
+        "versionCode": 10,
+        "bytes": 25287888,
+        "sha256": "0c350a5b93fffead52a24527677051d92c1b198f9c811d4dae3dce55ccd7be7a",
+        "certificateSha256": "16a2350bb63cc53f446ec3aeadbd08ccd9d9475db867c4564ea6b6c3372a545d"
+      },
+      {
+        "variant": "release",
+        "file": "app/build/outputs/apk/release/nordic-0.1.10.apk",
+        "applicationId": "fun.han1997.nordic",
+        "versionName": "0.1.10",
+        "versionCode": 10,
+        "bytes": 4539772,
+        "sha256": "310e34866de4e81d09354b273dd485164e9cfed4477f7ac9995b96794f65d321",
+        "certificateSha256": "16a2350bb63cc53f446ec3aeadbd08ccd9d9475db867c4564ea6b6c3372a545d"
+      }
+    ]
+  },
+  "retrofitSuspendMethodsVerified": 36,
+  "baselineBatches": [
+    {
+      "phase": "r2-baseline-full",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 52,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-baseline-full/evidence.json",
+      "manifestSha256": "2d85da9f020df523503436d88d16508712c30a67ea3e9900277e69c6f6e27587",
+      "arguments": {
+        "phase": "r2-baseline-full",
+        "kind": "screenshots",
+        "screens": "home,albums,artists,artist,search,search_landing,playlists,playlist,playlist_create,playlist_rename,playlist_delete,equalizer,music_actions",
+        "states": "normal",
+        "fonts": "1,2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-14T23:46:45.129466+00:00",
+      "durationSeconds": 88.0
+    },
+    {
+      "phase": "r2-baseline-short",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 26,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-baseline-short/evidence.json",
+      "manifestSha256": "6a111260e5c977eb3d77daafd490b98b0c0aa33df1933a83328e1be34ddc9aa1",
+      "arguments": {
+        "phase": "r2-baseline-short",
+        "kind": "screenshots",
+        "screens": "home,albums,artists,artist,search,search_landing,playlists,playlist,playlist_create,playlist_rename,playlist_delete,equalizer,music_actions",
+        "states": "normal",
+        "fonts": "2",
+        "width": 320,
+        "height": 480
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-14T23:49:35.633133+00:00",
+      "durationSeconds": 42.8
+    },
+    {
+      "phase": "r2-baseline-mid",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 26,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-baseline-mid/evidence.json",
+      "manifestSha256": "71bedb55110146f638c0376e1b1b6c5ede05ef8df9f1c9b374fd5c8e0c751598",
+      "arguments": {
+        "phase": "r2-baseline-mid",
+        "kind": "screenshots",
+        "screens": "home,albums,artists,artist,search,search_landing,playlists,playlist,playlist_create,playlist_rename,playlist_delete,equalizer,music_actions",
+        "states": "normal",
+        "fonts": "1.5",
+        "width": 392,
+        "height": 820
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-14T23:50:19.158858+00:00",
+      "durationSeconds": 51.4
+    },
+    {
+      "phase": "r2-baseline-wide",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 26,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-baseline-wide/evidence.json",
+      "manifestSha256": "28098180dd082517c367068d11c0bcbcb152a1314fa37b9ac27f06e65f1cc7a7",
+      "arguments": {
+        "phase": "r2-baseline-wide",
+        "kind": "screenshots",
+        "screens": "home,albums,artists,artist,search,search_landing,playlists,playlist,playlist_create,playlist_rename,playlist_delete,equalizer,music_actions",
+        "states": "normal",
+        "fonts": "2",
+        "width": 720,
+        "height": 960
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-14T23:51:11.353444+00:00",
+      "durationSeconds": 54.4
+    },
+    {
+      "phase": "r2-baseline-long",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 40,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-baseline-long/evidence.json",
+      "manifestSha256": "5d333dee64b3609666aaa590956157aeb15d52a5026da6140f6f95b3b1dfc2a9",
+      "arguments": {
+        "phase": "r2-baseline-long",
+        "kind": "screenshots",
+        "screens": "home,albums,artists,artist,search,playlists,playlist,playlist_create,playlist_rename,playlist_delete",
+        "states": "long",
+        "fonts": "1,2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-14T23:52:06.813884+00:00",
+      "durationSeconds": 65.4
+    },
+    {
+      "phase": "r2-baseline-states",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 42,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-baseline-states/evidence.json",
+      "manifestSha256": "4ba860b4177f5e74ce0aa96bed68b1207c76fe9ffd207673b73aff3b217686b6",
+      "arguments": {
+        "phase": "r2-baseline-states",
+        "kind": "screenshots",
+        "screens": "home,albums,artists,artist,search,playlists,playlist",
+        "states": "empty,loading,error",
+        "fonts": "2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-14T23:53:13.114394+00:00",
+      "durationSeconds": 62.0
+    },
+    {
+      "phase": "r2-baseline-dialog-states",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 12,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-baseline-dialog-states/evidence.json",
+      "manifestSha256": "72f90069db4719469d9636a3cd987e83e78956a06b7fcbfa8b79116d80325aac",
+      "arguments": {
+        "phase": "r2-baseline-dialog-states",
+        "kind": "screenshots",
+        "screens": "playlist_create,playlist_rename,playlist_delete",
+        "states": "loading,error",
+        "fonts": "2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-14T23:54:15.733113+00:00",
+      "durationSeconds": 30.0
+    },
+    {
+      "phase": "r2-baseline-cache",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 16,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-baseline-cache/evidence.json",
+      "manifestSha256": "b9ed71c2ac5ed5264dd832c6e470b4e05df57ddadcfb619b32c43f2d004a703d",
+      "arguments": {
+        "phase": "r2-baseline-cache",
+        "kind": "screenshots",
+        "screens": "home,albums,artists,playlists",
+        "states": "refreshing,cached_error",
+        "fonts": "2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-14T23:54:46.348951+00:00",
+      "durationSeconds": 31.2
+    }
+  ],
+  "batches": [
+    {
+      "phase": "r2-final-normal",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 52,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-final-normal/evidence.json",
+      "manifestSha256": "79227b6c7503bc34423a7a3e58ebd510dd9a37f76580f27061f72e5d8f482939",
+      "arguments": {
+        "phase": "r2-final-normal",
+        "kind": "screenshots",
+        "screens": "home,albums,artists,artist,search,search_landing,playlists,playlist,playlist_create,playlist_rename,playlist_delete,equalizer,music_actions",
+        "states": "normal",
+        "fonts": "1,2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-15T06:08:04.225755+00:00",
+      "durationSeconds": 91.4
+    },
+    {
+      "phase": "r2-final-short",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 26,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-final-short/evidence.json",
+      "manifestSha256": "19071b8017c72ab631b56006b2b0b3c983d7ff538d439e4254f6233fe15c3b83",
+      "arguments": {
+        "phase": "r2-final-short",
+        "kind": "screenshots",
+        "screens": "home,albums,artists,artist,search,search_landing,playlists,playlist,playlist_create,playlist_rename,playlist_delete,equalizer,music_actions",
+        "states": "normal",
+        "fonts": "2",
+        "width": 320,
+        "height": 480
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-15T06:09:36.427171+00:00",
+      "durationSeconds": 46.4
+    },
+    {
+      "phase": "r2-final-mid",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 26,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-final-mid/evidence.json",
+      "manifestSha256": "13ec068be7d88e75cca393cd1ad269533568e8dc21f1133d8089cc072ff42d42",
+      "arguments": {
+        "phase": "r2-final-mid",
+        "kind": "screenshots",
+        "screens": "home,albums,artists,artist,search,search_landing,playlists,playlist,playlist_create,playlist_rename,playlist_delete,equalizer,music_actions",
+        "states": "normal",
+        "fonts": "1.5",
+        "width": 392,
+        "height": 820
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-15T06:10:23.564299+00:00",
+      "durationSeconds": 56.6
+    },
+    {
+      "phase": "r2-final-wide",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 26,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-final-wide/evidence.json",
+      "manifestSha256": "3f6a81ae81c7dff7aed6b867e4a99e40ea3627b52302412a3fa561d56fdd4ea7",
+      "arguments": {
+        "phase": "r2-final-wide",
+        "kind": "screenshots",
+        "screens": "home,albums,artists,artist,search,search_landing,playlists,playlist,playlist_create,playlist_rename,playlist_delete,equalizer,music_actions",
+        "states": "normal",
+        "fonts": "2",
+        "width": 720,
+        "height": 960
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-15T06:11:21.048102+00:00",
+      "durationSeconds": 57.2
+    },
+    {
+      "phase": "r2-final-long",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 40,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-final-long/evidence.json",
+      "manifestSha256": "f1b3101f330e41ad0bd931d5387848d7b9fd085b758795532cd55cfc42f3f803",
+      "arguments": {
+        "phase": "r2-final-long",
+        "kind": "screenshots",
+        "screens": "home,albums,artists,artist,search,playlists,playlist,playlist_create,playlist_rename,playlist_delete",
+        "states": "long",
+        "fonts": "1,2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-15T06:12:19.144896+00:00",
+      "durationSeconds": 73.9
+    },
+    {
+      "phase": "r2-final-states",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 42,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-final-states/evidence.json",
+      "manifestSha256": "1c9aa4f26b23f10d04dff5cf69f2fa03bc671c00d5c5777f420604f82a5d50e1",
+      "arguments": {
+        "phase": "r2-final-states",
+        "kind": "screenshots",
+        "screens": "home,albums,artists,artist,search,playlists,playlist",
+        "states": "empty,loading,error",
+        "fonts": "2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-15T06:13:34.058126+00:00",
+      "durationSeconds": 65.0
+    },
+    {
+      "phase": "r2-final-dialog-states",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 12,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-final-dialog-states/evidence.json",
+      "manifestSha256": "95818b1c552e93c189279c9d8e93efff434dba08d88f0b99262d9871aba75a76",
+      "arguments": {
+        "phase": "r2-final-dialog-states",
+        "kind": "screenshots",
+        "screens": "playlist_create,playlist_rename,playlist_delete",
+        "states": "loading,error",
+        "fonts": "2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-15T06:14:39.725311+00:00",
+      "durationSeconds": 33.7
+    },
+    {
+      "phase": "r2-final-cache",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 16,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-final-cache/evidence.json",
+      "manifestSha256": "1629f3c6bc8b65e7b98402960cc8d2461e36f2fda222021020b82247466d4048",
+      "arguments": {
+        "phase": "r2-final-cache",
+        "kind": "screenshots",
+        "screens": "home,albums,artists,playlists",
+        "states": "refreshing,cached_error",
+        "fonts": "2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-15T06:15:14.134317+00:00",
+      "durationSeconds": 33.1
+    },
+    {
+      "phase": "r2-final-no-art",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 28,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-final-no-art/evidence.json",
+      "manifestSha256": "727b6923855ef47ca668bc3379feb16eefc4c326e1051c1230d308c7a872b659",
+      "arguments": {
+        "phase": "r2-final-no-art",
+        "kind": "screenshots",
+        "screens": "home,albums,artist,search,search_landing,playlists,playlist",
+        "states": "no_art",
+        "fonts": "1,2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-15T06:15:47.862525+00:00",
+      "durationSeconds": 49.3
+    },
+    {
+      "phase": "r2-final-actions",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 16,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-final-actions/evidence.json",
+      "manifestSha256": "a5954aa355c7325c53810ae78d36e3722376bd3042098c05b308cbe2b59b2398",
+      "arguments": {
+        "phase": "r2-final-actions",
+        "kind": "screenshots",
+        "screens": "music_actions",
+        "states": "empty,loading,error,disabled",
+        "fonts": "1,2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-15T06:16:37.863981+00:00",
+      "durationSeconds": 45.5
+    },
+    {
+      "phase": "r2-final-eq-empty",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 2,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-final-eq-empty/evidence.json",
+      "manifestSha256": "392896c011a06e4d4ed94306017cf516d3c8527d86057ee0dfc199228751db43",
+      "arguments": {
+        "phase": "r2-final-eq-empty",
+        "kind": "screenshots",
+        "screens": "equalizer",
+        "states": "empty",
+        "fonts": "2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-15T06:17:24.023263+00:00",
+      "durationSeconds": 12.7
+    },
+    {
+      "phase": "r2-final-library-empty",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 2,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-final-library-empty/evidence.json",
+      "manifestSha256": "b035d94ba4a3f9447d19562baee5687e90c6e12e0ddd45369618f54927e53409",
+      "arguments": {
+        "phase": "r2-final-library-empty",
+        "kind": "screenshots",
+        "screens": "home",
+        "states": "library_empty",
+        "fonts": "2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-15T06:17:37.401850+00:00",
+      "durationSeconds": 12.5
+    },
+    {
+      "phase": "r2-final-search-empty",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 2,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-final-search-empty/evidence.json",
+      "manifestSha256": "82cb8b79d357c9221e6ae7273762b781900c26bc9fae63a13a99761e1e98119b",
+      "arguments": {
+        "phase": "r2-final-search-empty",
+        "kind": "screenshots",
+        "screens": "search_landing",
+        "states": "empty",
+        "fonts": "2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-15T06:17:50.624592+00:00",
+      "durationSeconds": 13.2
+    },
+    {
+      "phase": "r2-final-detail-cache",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 4,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-final-detail-cache/evidence.json",
+      "manifestSha256": "baa35f9bb6a886593827312d28d18a9e3c017acc16b5b97ffe98bf58fc7acf3d",
+      "arguments": {
+        "phase": "r2-final-detail-cache",
+        "kind": "screenshots",
+        "screens": "artist,playlist",
+        "states": "cached_error",
+        "fonts": "2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-15T06:18:04.866908+00:00",
+      "durationSeconds": 16.5
+    },
+    {
+      "phase": "r2-final-shared",
+      "kind": "screenshots",
+      "testsRun": 1,
+      "imageCount": 24,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-final-shared/evidence.json",
+      "manifestSha256": "bf65b9db37e809fc76932ffde25eddaa11f348af4d5b99bce4beb3896c57a924",
+      "arguments": {
+        "phase": "r2-final-shared",
+        "kind": "screenshots",
+        "screens": "songs,album,player,lyrics,queue,speed",
+        "states": "normal",
+        "fonts": "1,2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "captureDeterministicSamples"
+      ],
+      "capturedAt": "2026-09-15T06:18:22.102411+00:00",
+      "durationSeconds": 56.6
+    },
+    {
+      "phase": "r2-final-music-normal",
+      "kind": "music",
+      "testsRun": 19,
+      "imageCount": 0,
+      "interactionImageCount": 5,
+      "manifest": "app/build/reports/ui-polish/r2-final-music-normal/evidence.json",
+      "manifestSha256": "fe707786fe6c2fb448f6628aaf528f6f1a1a75f1aec387ac264c1967b12c755a",
+      "arguments": {
+        "phase": "r2-final-music-normal",
+        "kind": "music",
+        "screens": "songs,album,player,lyrics,queue,speed,modules,server,settings_rows",
+        "states": "normal",
+        "fonts": "1,2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "albumSortingAndDetailPlayUseProductionCallbacks",
+        "artistListAndDetailKeepAlbumNavigationAndPlayAll",
+        "blankPlaylistNameAndImeDoneShareTheSameSubmissionGuard",
+        "cachedRefreshesAndFailuresKeepLibraryRowsInsteadOfFalseEmptyCards",
+        "discoverySectionActionsKeepTheirNavigationAndAccessibleNames",
+        "discoveryShelfClickUsesTheOriginalQueueIndex",
+        "downloadsCancelRetryAndDisabledStatesKeepTheirOriginalCallbacks",
+        "equalizerPresetsAndTheLastBandAreReachableAndExposeTheirState",
+        "failedPagesHaveScrollableRetryAndDoNotReportSuccessfulEmptyContent",
+        "favoriteActionUsesTheExistingPlayerEntryAndCallback",
+        "knownEmptyCollectionsDisablePlayAndConfiguredEmptyIsNotSetup",
+        "longDeleteConfirmationCanScrollAndCancelNeverDeletes",
+        "playlistErrorsRemainReadableAndRetainTheDraftForRetry",
+        "playlistNavigationManagementAndRenameKeepTheirCallbacks",
+        "playlistSaveIsFullyAboveTheRealKeyboardAtLargeFont",
+        "searchArtistsAndAlbumShelvesKeepTheirDetailCallbacks",
+        "searchErrorRetryUsesTheSameQueryChangeCallback",
+        "searchSongsKeepTheirResultQueueAndClearReturnsToSuggestions",
+        "submittingPlaylistDialogsDisableEditingDismissalAndMutations"
+      ],
+      "capturedAt": "2026-09-15T05:36:23.997512+00:00",
+      "durationSeconds": 132.8
+    },
+    {
+      "phase": "r2-final-music-short",
+      "kind": "music",
+      "testsRun": 19,
+      "imageCount": 0,
+      "interactionImageCount": 5,
+      "manifest": "app/build/reports/ui-polish/r2-final-music-short/evidence.json",
+      "manifestSha256": "00f0c84fc4be868ba97b0292bc077856c4dee714ecff70bc60bb34c3b76c80ee",
+      "arguments": {
+        "phase": "r2-final-music-short",
+        "kind": "music",
+        "screens": "songs,album,player,lyrics,queue,speed,modules,server,settings_rows",
+        "states": "normal",
+        "fonts": "1,2",
+        "width": 320,
+        "height": 480
+      },
+      "testNames": [
+        "albumSortingAndDetailPlayUseProductionCallbacks",
+        "artistListAndDetailKeepAlbumNavigationAndPlayAll",
+        "blankPlaylistNameAndImeDoneShareTheSameSubmissionGuard",
+        "cachedRefreshesAndFailuresKeepLibraryRowsInsteadOfFalseEmptyCards",
+        "discoverySectionActionsKeepTheirNavigationAndAccessibleNames",
+        "discoveryShelfClickUsesTheOriginalQueueIndex",
+        "downloadsCancelRetryAndDisabledStatesKeepTheirOriginalCallbacks",
+        "equalizerPresetsAndTheLastBandAreReachableAndExposeTheirState",
+        "failedPagesHaveScrollableRetryAndDoNotReportSuccessfulEmptyContent",
+        "favoriteActionUsesTheExistingPlayerEntryAndCallback",
+        "knownEmptyCollectionsDisablePlayAndConfiguredEmptyIsNotSetup",
+        "longDeleteConfirmationCanScrollAndCancelNeverDeletes",
+        "playlistErrorsRemainReadableAndRetainTheDraftForRetry",
+        "playlistNavigationManagementAndRenameKeepTheirCallbacks",
+        "playlistSaveIsFullyAboveTheRealKeyboardAtLargeFont",
+        "searchArtistsAndAlbumShelvesKeepTheirDetailCallbacks",
+        "searchErrorRetryUsesTheSameQueryChangeCallback",
+        "searchSongsKeepTheirResultQueueAndClearReturnsToSuggestions",
+        "submittingPlaylistDialogsDisableEditingDismissalAndMutations"
+      ],
+      "capturedAt": "2026-09-15T05:34:17.200073+00:00",
+      "durationSeconds": 125.8
+    },
+    {
+      "phase": "r2-final-shared-normal",
+      "kind": "interaction",
+      "testsRun": 17,
+      "imageCount": 0,
+      "interactionImageCount": 2,
+      "manifest": "app/build/reports/ui-polish/r2-final-shared-normal/evidence.json",
+      "manifestSha256": "57c249839f737bfe7a940955274182bcaf9c6c577037da663955d8a35507fc3b",
+      "arguments": {
+        "phase": "r2-final-shared-normal",
+        "kind": "interaction",
+        "screens": "songs,album,player,lyrics,queue,speed,modules,server,settings_rows",
+        "states": "normal",
+        "fonts": "1,2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "additionalServerFieldsStayReachableAtLargeFont",
+        "busyFormAndDisabledSettingsDoNotExposeEnabledActions",
+        "catalogPlayerDoesNotStartAPlaybackServiceOrChangePreferences",
+        "draggingQueueRowSubmitsTheLatestDropPosition",
+        "emptyPlayerStartsAtZeroWithDisabledTransport",
+        "longSettingsValueStacksBelowTitleAtLargeFont",
+        "moduleSwitchesUpdateImmediatelyAndRejectAllHidden",
+        "nowPlayingBarGrowsForLargeTextInsteadOfClippingMetadata",
+        "playerControlsStayReachableByScrollingAtLargeFont",
+        "playerTransportAndSpeedSelectionProduceCallbacks",
+        "queueTitlesHaveSpaceAndReorderHasAnAccessibleMenu",
+        "sampleControlsExposeRolesSelectionAndMinimumTouchTargets",
+        "serverFormEditsAndSavesWithoutPersistentSideEffects",
+        "serverSaveStaysReachableAboveTheKeyboardAtLargeFont",
+        "songFilterAndClearUseTheProductionPage",
+        "statusIconPixelGuardRejectsBlankAndOppositeThemeFrames",
+        "themeAndFontChangesKeepSystemBarsInSyncAfterClosingSheets"
+      ],
+      "capturedAt": "2026-09-15T05:38:37.543246+00:00",
+      "durationSeconds": 89.0
+    },
+    {
+      "phase": "r2-final-shared-short",
+      "kind": "interaction",
+      "testsRun": 17,
+      "imageCount": 0,
+      "interactionImageCount": 2,
+      "manifest": "app/build/reports/ui-polish/r2-final-shared-short/evidence.json",
+      "manifestSha256": "645cec9d7e2e151451b3a888e3a7457bb88c477915b1f4c99ebaec890578c6a9",
+      "arguments": {
+        "phase": "r2-final-shared-short",
+        "kind": "interaction",
+        "screens": "songs,album,player,lyrics,queue,speed,modules,server,settings_rows",
+        "states": "normal",
+        "fonts": "1,2",
+        "width": 320,
+        "height": 480
+      },
+      "testNames": [
+        "additionalServerFieldsStayReachableAtLargeFont",
+        "busyFormAndDisabledSettingsDoNotExposeEnabledActions",
+        "catalogPlayerDoesNotStartAPlaybackServiceOrChangePreferences",
+        "draggingQueueRowSubmitsTheLatestDropPosition",
+        "emptyPlayerStartsAtZeroWithDisabledTransport",
+        "longSettingsValueStacksBelowTitleAtLargeFont",
+        "moduleSwitchesUpdateImmediatelyAndRejectAllHidden",
+        "nowPlayingBarGrowsForLargeTextInsteadOfClippingMetadata",
+        "playerControlsStayReachableByScrollingAtLargeFont",
+        "playerTransportAndSpeedSelectionProduceCallbacks",
+        "queueTitlesHaveSpaceAndReorderHasAnAccessibleMenu",
+        "sampleControlsExposeRolesSelectionAndMinimumTouchTargets",
+        "serverFormEditsAndSavesWithoutPersistentSideEffects",
+        "serverSaveStaysReachableAboveTheKeyboardAtLargeFont",
+        "songFilterAndClearUseTheProductionPage",
+        "statusIconPixelGuardRejectsBlankAndOppositeThemeFrames",
+        "themeAndFontChangesKeepSystemBarsInSyncAfterClosingSheets"
+      ],
+      "capturedAt": "2026-09-15T05:40:07.225360+00:00",
+      "durationSeconds": 88.6
+    },
+    {
+      "phase": "r2-final-live",
+      "kind": "live",
+      "testsRun": 1,
+      "imageCount": 0,
+      "interactionImageCount": 0,
+      "manifest": "app/build/reports/ui-polish/r2-final-live/evidence.json",
+      "manifestSha256": "f380d5bdc2bdfe786afeea9f58500f2ed2ea9dbe0cb8197384cf33fc3811a47f",
+      "arguments": {
+        "phase": "r2-final-live",
+        "kind": "live",
+        "screens": "songs,album,player,lyrics,queue,speed,modules,server,settings_rows",
+        "states": "normal",
+        "fonts": "1,2",
+        "width": 360,
+        "height": 800
+      },
+      "testNames": [
+        "settingsGearAndModuleChangesWorkThroughTheRealRoot"
+      ],
+      "capturedAt": "2026-09-15T05:41:36.667370+00:00",
+      "durationSeconds": 15.7
+    }
+  ],
+  "scaffoldCorrection": "初始 Debug 子页多渲染一行根页导航，后续对齐真实 MusicScreenV2；只影响 playlists / playlist_create 等样板宿主，不宣称删除了生产导航。环境、主题、数据与系统字号不变，比较图明确标注。",
+  "visualAcceptance": "待用户确认；真实服务/个人设备/其余媒体域未验收"
+}
