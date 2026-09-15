@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
@@ -43,6 +44,7 @@ import com.nordic.mediahub.data.NavidromeAlbum
 import com.nordic.mediahub.data.NavidromeArtist
 import com.nordic.mediahub.data.NavidromeSong
 import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicControlSizes
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
 
@@ -117,7 +119,8 @@ fun MusicSectionHeader(
                 shape = NordicShapes.full,
                 border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.06f)),
                 modifier = Modifier
-                    .heightIn(min = 48.dp)
+                    .heightIn(min = NordicControlSizes.touchTarget)
+                    .semantics { contentDescription = if (actionLabel == "全部") "查看全部$title" else "$actionLabel$title" }
                     .clickable(role = Role.Button, onClick = onAction)
             ) {
                 Box(
@@ -189,7 +192,7 @@ fun ArtistShelfCard(
     CompactMusicShelfItem(
         title = artist.name,
         subtitle = musicAlbumCountLabel(artist.albumCount),
-        meta = "Artist",
+        meta = "歌手",
         artworkUrl = null,
         contentDescription = artist.name,
         colorScheme = colorScheme,

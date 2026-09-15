@@ -68,7 +68,7 @@ internal fun MusicSearchLanding(
     val suggestedSongs = remember(songs) { songs.take(8) }
     val suggestedArtists = remember(artists) { artists.take(8) }
 
-    Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.lg)) {
+    Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.xxl)) {
         if (!hasSuggestions) {
             MediaStateCard(
                 title = "输入关键词开始搜索",
@@ -84,64 +84,70 @@ internal fun MusicSearchLanding(
         )
 
         if (albums.isNotEmpty()) {
-            SearchResultSectionHeader(
-                title = "最近专辑",
-                count = albums.size,
-                colorScheme = colorScheme
-            )
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
-                items(
-                    items = suggestedAlbums,
-                    key = { "search-home-album-${it.id}" },
-                    contentType = { "search-home-album-card" }
-                ) { album ->
-                    CompactAlbumShelfCard(
-                        album = album,
-                        colorScheme = colorScheme,
-                        onClick = { onAlbumClick(album) }
-                    )
+            Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+                SearchResultSectionHeader(
+                    title = "最近专辑",
+                    count = albums.size,
+                    colorScheme = colorScheme
+                )
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
+                    items(
+                        items = suggestedAlbums,
+                        key = { "search-home-album-${it.id}" },
+                        contentType = { "search-home-album-card" }
+                    ) { album ->
+                        CompactAlbumShelfCard(
+                            album = album,
+                            colorScheme = colorScheme,
+                            onClick = { onAlbumClick(album) }
+                        )
+                    }
                 }
             }
         }
 
         if (songs.isNotEmpty()) {
-            SearchResultSectionHeader(
-                title = "最近歌曲",
-                count = songs.size,
-                colorScheme = colorScheme
-            )
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
-                itemsIndexed(
-                    items = suggestedSongs,
-                    key = { index, song -> "search-home-song-${song.id}-$index" },
-                    contentType = { _, _ -> "search-home-song-card" }
-                ) { index, song ->
-                    SongShelfCard(
-                        song = song,
-                        colorScheme = colorScheme,
-                        onClick = { onSongClick(index) }
-                    )
+            Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+                SearchResultSectionHeader(
+                    title = "最近歌曲",
+                    count = songs.size,
+                    colorScheme = colorScheme
+                )
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
+                    itemsIndexed(
+                        items = suggestedSongs,
+                        key = { index, song -> "search-home-song-${song.id}-$index" },
+                        contentType = { _, _ -> "search-home-song-card" }
+                    ) { index, song ->
+                        SongShelfCard(
+                            song = song,
+                            colorScheme = colorScheme,
+                            onClick = { onSongClick(index) }
+                        )
+                    }
                 }
             }
         }
 
         if (artists.isNotEmpty()) {
-            SearchResultSectionHeader(
-                title = "歌手",
-                count = artists.size,
-                colorScheme = colorScheme
-            )
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
-                items(
-                    items = suggestedArtists,
-                    key = { "search-home-artist-${it.id}" },
-                    contentType = { "search-home-artist-card" }
-                ) { artist ->
-                    ArtistShelfCard(
-                        artist = artist,
-                        colorScheme = colorScheme,
-                        onClick = { onArtistClick(artist) }
-                    )
+            Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+                SearchResultSectionHeader(
+                    title = "歌手",
+                    count = artists.size,
+                    colorScheme = colorScheme
+                )
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
+                    items(
+                        items = suggestedArtists,
+                        key = { "search-home-artist-${it.id}" },
+                        contentType = { "search-home-artist-card" }
+                    ) { artist ->
+                        ArtistShelfCard(
+                            artist = artist,
+                            colorScheme = colorScheme,
+                            onClick = { onArtistClick(artist) }
+                        )
+                    }
                 }
             }
         }
@@ -155,7 +161,7 @@ internal fun SearchResultSectionHeader(
     colorScheme: ColorScheme
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(top = NordicSpacing.sm),
         horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -164,7 +170,7 @@ internal fun SearchResultSectionHeader(
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.weight(1f, fill = false).semantics { heading() },
             color = colorScheme.onBackground,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
         Text(
@@ -207,7 +213,7 @@ internal fun PlaylistDetailHeader(
     MusicCollectionHeader(
         itemId = playlist.id, title = playlist.name,
         subtitle = playlist.owner?.trim()?.takeIf { it.isNotEmpty() }?.let { "创建者：$it" } ?: "Navidrome 歌单",
-        metadata = listOfNotNull(musicSongCountLabel(songCount), playlist.duration.takeIf { it > 0 }?.let(::formatDuration)),
+        metadata = listOfNotNull(musicSongCountLabel(songCount), playlist.duration.takeIf { it > 0 && songCount > 0 }?.let(::formatDuration)),
         artworkUrl = playlist.coverArt, fallbackIcon = Icons.AutoMirrored.Filled.QueueMusic,
         colorScheme = colorScheme, onPlayAll = onPlayAll, playEnabled = playEnabled,
         description = playlist.comment

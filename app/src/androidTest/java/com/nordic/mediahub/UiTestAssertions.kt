@@ -39,6 +39,6 @@ internal fun SemanticsNodeInteraction.assertMinimumTouchTarget(): SemanticsNodeI
 internal fun SemanticsNodeInteraction.assertIsFullyVisible(): SemanticsNodeInteraction = apply {
     val node = fetchSemanticsNode()
     val visible = node.boundsInWindow
-    assertTrue("Control must not be clipped by its viewport",
+    assertTrue("Control must not be clipped: visible=$visible, size=${node.size}, root=${node.boundsInRoot}",
         visible.width + 1f >= node.size.width && visible.height + 1f >= node.size.height)
 }

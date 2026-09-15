@@ -96,6 +96,7 @@ class UiCatalogInteractionTest {
         compose.onNodeWithContentDescription("音乐操作").performClick()
         compose.onNodeWithText("下载当前歌曲").performClick()
         compose.runOnIdle { assertTrue(compose.activity.recordedEvents.contains("download-preview")) }
+        for (screen in listOf("home", "playlist_create", "equalizer", "music_actions")) show(screen)
         assertArrayEquals(before, preferences.takeIf(File::isFile)?.readBytes())
         assertEquals(beforeServices, services())
     }

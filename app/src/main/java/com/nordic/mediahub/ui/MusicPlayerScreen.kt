@@ -502,18 +502,7 @@ internal fun MusicPlayerContent(
     }
 
     if (showActions) {
-        MediaPlayerSheet("音乐操作", colorScheme, { showActions = false }) {
-            SettingsRow("下载当前歌曲", subtitle = when (download?.state) {
-                com.nordic.mediahub.data.DownloadState.DOWNLOADED -> "已下载，可在设置中的存储与下载页面管理"
-                com.nordic.mediahub.data.DownloadState.DOWNLOADING -> "正在下载 ${(download.progress * 100).toInt()}%"
-                else -> download?.errorMessage ?: "保存在此来源的本机下载目录"
-            }, enabled = download?.state != com.nordic.mediahub.data.DownloadState.DOWNLOADED &&
-                download?.state != com.nordic.mediahub.data.DownloadState.DOWNLOADING && song?.streamUrl?.startsWith("file:") != true,
-                onClick = { onDownloadSong(); showActions = false })
-            if (download?.state == com.nordic.mediahub.data.DownloadState.DOWNLOADING) {
-                SettingsRow("取消下载", onClick = { onCancelDownload(); showActions = false })
-            }
-        }
+        MusicActionsSheet(song, download, colorScheme, onDownloadSong, onCancelDownload) { showActions = false }
     }
     if (showSpeedSheet) {
         MusicPlaybackSpeedSheet(

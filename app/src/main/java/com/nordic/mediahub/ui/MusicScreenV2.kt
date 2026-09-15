@@ -753,6 +753,8 @@ fun MusicScreenV2(
     val hasContent = albums.isNotEmpty() || songs.isNotEmpty() || artists.isNotEmpty() || playlists.isNotEmpty()
     val hasErrorContent = when (libraryPage) {
         MusicLibraryPage.Albums -> sortedAlbums.isNotEmpty()
+        MusicLibraryPage.Songs -> songs.isNotEmpty()
+        MusicLibraryPage.Artists -> artists.isNotEmpty()
         MusicLibraryPage.ArtistDetail -> artistAlbums.isNotEmpty()
         MusicLibraryPage.AlbumDetail -> albumDetailSongs.isNotEmpty()
         MusicLibraryPage.Playlists -> playlists.isNotEmpty()
@@ -768,7 +770,6 @@ fun MusicScreenV2(
     val homeArtists = remember(artists) { artists.take(10) }
     val cacheAgeLabel = formatCacheAge(cacheUpdatedAtMillis)
     val refreshErrorSubtitle = mediaRefreshErrorSubtitle(errorMsg, hasErrorContent)
-    val standaloneError = standaloneMediaError(errorMsg, hasErrorContent)
     val headerActions = buildList {
         add(
             HeaderAction(
@@ -850,6 +851,27 @@ fun MusicScreenV2(
         MusicLibraryPage.PlaylistDetail -> refreshErrorSubtitle.orEmpty()
     }
 
+    val feedback = MusicLibraryFeedbackState(
+        resetNotice = musicResetNotice,
+        detailNotice = musicDetailInvalidationNotice,
+        error = errorMsg.takeUnless { libraryPage == MusicLibraryPage.Search },
+        hasContent = hasErrorContent,
+        isInitialLoading = isLoading && !hasContent && libraryPage in listOf(
+            MusicLibraryPage.Home, MusicLibraryPage.Songs, MusicLibraryPage.Artists),
+        showSetup = libraryPage == MusicLibraryPage.Home && !isLoading && !savedConfig.isReadyForMusicSync()
+    )
+    fun retryCurrentPage() {
+        when (libraryPage) {
+            MusicLibraryPage.Albums -> scope.launch { loadAlbumList(albumSort) }
+            MusicLibraryPage.Playlists -> scope.launch { loadPlaylists() }
+            MusicLibraryPage.AlbumDetail -> if (!isLoadingAlbumDetail) selectedAlbum?.let(::openAlbumDetail)
+            MusicLibraryPage.ArtistDetail -> if (!isLoadingArtistDetail) selectedArtist?.let(::openArtistDetail)
+            MusicLibraryPage.PlaylistDetail -> if (!isLoadingPlaylistDetail) selectedPlaylist?.let(::openPlaylistDetail)
+            MusicLibraryPage.Search -> Unit // Search retries reuse onSearchQueryChange in the page.
+            else -> scope.launch { refreshMusicData(savedConfig) }
+        }
+    }
+
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -891,63 +913,6 @@ fun MusicScreenV2(
             }
         }
 
-        if (musicResetNotice != null) {
-            MediaStateCard(
-                title = "已应用新的音乐配置",
-                subtitle = musicResetNotice.orEmpty(),
-                density = MediaStateDensity.Compact,
-                modifier = Modifier.padding(
-                    horizontal = NordicSpacing.lg,
-                    vertical = NordicSpacing.md
-                )
-            )
-        }
-
-        if (musicDetailInvalidationNotice != null) {
-            MediaStateCard(
-                title = "详情已更新",
-                subtitle = musicDetailInvalidationNotice.orEmpty(),
-                density = MediaStateDensity.Compact,
-                modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.md)
-            )
-        }
-
-        if (standaloneError != null) {
-            MediaStateCard(
-                title = "连接失败",
-                subtitle = standaloneError,
-                hint = "检查配置或点击刷新重试",
-                tone = MediaStateTone.Error,
-                modifier = Modifier.padding(
-                    horizontal = NordicSpacing.lg,
-                    vertical = NordicSpacing.md
-                )
-            )
-        }
-
-        if (isLoading && !hasContent) {
-            MediaLoadingCard(
-                title = "正在同步 Navidrome",
-                subtitle = "加载专辑、歌曲和歌手...",
-                modifier = Modifier.padding(
-                    horizontal = NordicSpacing.lg,
-                    vertical = NordicSpacing.md
-                )
-            )
-        }
-
-        if (!isLoading && !isLoadingPlaylists && !isLoadingPlaylistDetail && standaloneError == null && !hasContent) {
-            MediaStateCard(
-                title = "先接入你的音乐库",
-                subtitle = "填入 Navidrome 地址、用户名和密码后,最近添加的专辑和歌曲会直接出现在这里。",
-                hint = "前往配置 tab 开始连接",
-                modifier = Modifier.padding(
-                    horizontal = NordicSpacing.lg,
-                    vertical = NordicSpacing.md
-                )
-            )
-        }
-
         AnimatedContent(
             targetState = libraryPage,
             transitionSpec = {
@@ -967,6 +932,8 @@ fun MusicScreenV2(
                     homePlaybackQueue = homePlaybackQueue,
                     homeAlbums = homeAlbums,
                     homeArtists = homeArtists,
+                    feedback = feedback,
+                    onRetry = ::retryCurrentPage,
                     colorScheme = colorScheme,
                     onOpenAlbumDetail = { album -> openAlbumDetail(album) },
                     onSongSelected = onSongSelected,
@@ -979,6 +946,8 @@ fun MusicScreenV2(
                     sortedAlbums = sortedAlbums,
                     isLoadingAlbumList = isLoadingAlbumList,
                     albumSort = albumSort,
+                    feedback = feedback,
+                    onRetry = ::retryCurrentPage,
                     colorScheme = colorScheme,
                     onOpenAlbumDetail = { album -> openAlbumDetail(album) },
                     onLoadAlbumList = { sort -> scope.launch { loadAlbumList(sort) } }
@@ -988,6 +957,8 @@ fun MusicScreenV2(
                     visibleSongs = visibleSongs,
                     songFilterQuery = songFilterQuery,
                     songSort = songSort,
+                    feedback = feedback,
+                    onRetry = ::retryCurrentPage,
                     colorScheme = colorScheme,
                     onSongSelected = onSongSelected,
                     onSongFilterChange = { songFilterQuery = it },
@@ -996,6 +967,8 @@ fun MusicScreenV2(
                 )
                 MusicLibraryPage.Artists -> MusicArtistsPage(
                     artists = artists,
+                    feedback = feedback,
+                    onRetry = ::retryCurrentPage,
                     colorScheme = colorScheme,
                     onOpenArtistDetail = { artist -> openArtistDetail(artist) }
                 )
@@ -1003,6 +976,8 @@ fun MusicScreenV2(
                     artist = selectedArtist,
                     isLoadingArtistDetail = isLoadingArtistDetail,
                     artistAlbums = artistAlbums,
+                    feedback = feedback,
+                    onRetry = ::retryCurrentPage,
                     colorScheme = colorScheme,
                     hasVisibleError = errorMsg != null,
                     onOpenAlbumDetail = { album -> openAlbumDetail(album) },
@@ -1024,6 +999,8 @@ fun MusicScreenV2(
                     album = selectedAlbum,
                     isLoadingAlbumDetail = isLoadingAlbumDetail,
                     albumDetailSongs = albumDetailSongs,
+                    feedback = feedback,
+                    onRetry = ::retryCurrentPage,
                     colorScheme = colorScheme,
                     hasVisibleError = errorMsg != null,
                     onSongSelected = onSongSelected,
@@ -1038,6 +1015,8 @@ fun MusicScreenV2(
                     recentlyAddedSongs = recentlyAddedSongs,
                     songs = songs,
                     artists = artists,
+                    feedback = feedback,
+                    onRetry = ::retryCurrentPage,
                     colorScheme = colorScheme,
                     onSongSelected = onSongSelected,
                     onOpenAlbumDetail = { album -> openAlbumDetail(album) },
@@ -1078,6 +1057,8 @@ fun MusicScreenV2(
                 MusicLibraryPage.Playlists -> MusicPlaylistsPage(
                     isLoadingPlaylists = isLoadingPlaylists,
                     playlists = playlists,
+                    feedback = feedback,
+                    onRetry = ::retryCurrentPage,
                     colorScheme = colorScheme,
                     onOpenPlaylistDetail = { playlist -> openPlaylistDetail(playlist) },
                     onCreatePlaylist = {
@@ -1090,6 +1071,8 @@ fun MusicScreenV2(
                     playlist = selectedPlaylist,
                     isLoadingPlaylistDetail = isLoadingPlaylistDetail,
                     playlistSongs = playlistSongs,
+                    feedback = feedback,
+                    onRetry = ::retryCurrentPage,
                     colorScheme = colorScheme,
                     hasVisibleError = errorMsg != null,
                     onSongSelected = onSongSelected,
@@ -1114,99 +1097,18 @@ fun MusicScreenV2(
     }
 
     if (isCreatingPlaylist || renamingPlaylist != null) {
-        val keyboard = LocalSoftwareKeyboardController.current
-        AlertDialog(
-            onDismissRequest = {
-                if (!isPlaylistActionRunning) closePlaylistActionDialogs()
-            },
-            title = {
-                Text(if (isCreatingPlaylist) "新建歌单" else "重命名歌单")
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
-                    OutlinedTextField(
-                        value = playlistNameDraft,
-                        onValueChange = { playlistNameDraft = it },
-                        label = { Text("歌单名称") },
-                        singleLine = true,
-                        textStyle = MaterialTheme.typography.bodyLarge,
-                        enabled = !isPlaylistActionRunning,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = colorScheme.primary,
-                            unfocusedBorderColor = colorScheme.outline
-                        ),
-                        shape = NordicShapes.md,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = {
-                            if (playlistNameDraft.isNotBlank() && !isPlaylistActionRunning) {
-                                keyboard?.hide()
-                                submitPlaylistNameAction()
-                            }
-                        })
-                    )
-                    playlistActionError?.let { message ->
-                        Text(
-                            message,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colorScheme.error
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = playlistNameDraft.isNotBlank() && !isPlaylistActionRunning,
-                    onClick = ::submitPlaylistNameAction
-                ) {
-                    Text(if (isPlaylistActionRunning) "处理中" else if (isCreatingPlaylist) "创建" else "保存")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    enabled = !isPlaylistActionRunning,
-                    onClick = { closePlaylistActionDialogs() }
-                ) {
-                    Text("取消")
-                }
-            }
+        MusicPlaylistNameDialog(
+            creating = isCreatingPlaylist, name = playlistNameDraft, isRunning = isPlaylistActionRunning,
+            error = playlistActionError, colorScheme = colorScheme,
+            onNameChange = { playlistNameDraft = it }, onSubmit = ::submitPlaylistNameAction,
+            onDismiss = ::closePlaylistActionDialogs
         )
     }
-
     deletingPlaylist?.let { playlist ->
-        AlertDialog(
-            onDismissRequest = {
-                if (!isPlaylistActionRunning) closePlaylistActionDialogs()
-            },
-            title = { Text("删除歌单") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
-                    Text("确定删除“${playlist.name}”？这个操作会同步到 Navidrome。")
-                    playlistActionError?.let { message ->
-                        Text(
-                            message,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colorScheme.error
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = !isPlaylistActionRunning,
-                    colors = ButtonDefaults.textButtonColors(contentColor = colorScheme.error),
-                    onClick = { deleteSelectedPlaylist() }
-                ) {
-                    Text(if (isPlaylistActionRunning) "处理中" else "删除")
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    enabled = !isPlaylistActionRunning,
-                    onClick = { closePlaylistActionDialogs() }
-                ) {
-                    Text("取消")
-                }
-            }
+        MusicPlaylistDeleteDialog(
+            playlistName = playlist.name, isRunning = isPlaylistActionRunning,
+            error = playlistActionError, colorScheme = colorScheme,
+            onConfirm = ::deleteSelectedPlaylist, onDismiss = ::closePlaylistActionDialogs
         )
     }
 }

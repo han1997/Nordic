@@ -54,6 +54,14 @@ class NordicDesignContractTest {
                 Triple("tertiaryContainer", c.onTertiaryContainer, c.tertiaryContainer.compositeOver(c.surfaceVariant)),
                 Triple("error", c.onError, c.error),
                 Triple("errorContainer", c.onErrorContainer, c.errorContainer),
+                Triple("dialogError", c.error, c.surfaceContainerHigh),
+                Triple("dialogFocusedLabel", c.onPrimaryContainer, c.surfaceContainerHigh),
+                Triple("dialogCancel", c.onSurfaceVariant, c.surfaceContainerHigh),
+                Triple("eqBandLabel", c.onSurfaceVariant, c.surface),
+                Triple("eqPreset", c.onSurfaceVariant, c.surfaceVariant.copy(alpha = 0.56f).compositeOver(c.surface)),
+                Triple("musicEmpty", c.onSurface.copy(alpha = 0.68f), c.surfaceVariant.copy(alpha = 0.5f).compositeOver(c.background)),
+                Triple("musicLoading", c.onSurface.copy(alpha = 0.68f), c.surfaceVariant.copy(alpha = 0.76f).compositeOver(c.background)),
+                Triple("musicError", c.onErrorContainer.copy(alpha = 0.82f), c.errorContainer),
                 Triple("inverse", c.inverseOnSurface, c.inverseSurface)
             )
             roles.forEach { (name, foreground, background) ->

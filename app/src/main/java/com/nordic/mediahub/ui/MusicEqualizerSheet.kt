@@ -2,26 +2,22 @@ package com.nordic.mediahub.ui
 
 import android.media.audiofx.Equalizer
 import android.util.Log
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -30,23 +26,17 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import com.nordic.mediahub.ui.theme.NordicAlpha
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import com.nordic.mediahub.ui.theme.NordicControlSizes
-import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
-import kotlin.math.roundToInt
+import java.util.Locale
 
 @Composable
 fun MusicEqualizerSheet(
@@ -86,177 +76,110 @@ fun MusicEqualizerSheet(
         }
     }
 
-    MediaPlayerSheet(
-        title = "均衡器",
-        colors = colorScheme,
-        onDismiss = onDismiss,
-        skipPartiallyExpanded = false
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(NordicSpacing.lg)
-        ) {
+    MusicEqualizerContent(
+        available = equalizer != null, presetNames = presetNames, bandCount = bandCount,
+        bandLevelRange = bandLevelRange, centerFreqs = centerFreqs, bandLevels = bandLevels,
+        selectedPreset = selectedPreset, colorScheme = colorScheme, onDismiss = onDismiss,
+        onSelectPreset = { index ->
+            try {
+                equalizer?.usePreset(index.toShort())
+                selectedPreset = index
+                bandLevels = (0 until bandCount).map { equalizer?.getBandLevel(it.toShort()) ?: 0 }
+            } catch (e: Exception) {
+                Log.e("MusicEqualizer", "Failed to apply equalizer preset", e)
+            }
+        },
+        onBandLevelChange = { band, level ->
+            try {
+                equalizer?.setBandLevel(band.toShort(), level)
+                selectedPreset = -1
+                bandLevels = bandLevels.toMutableList().also { it[band] = level }
+            } catch (e: Exception) {
+                Log.e("MusicEqualizer", "Failed to set equalizer band level", e)
+            }
+        }
+    )
+}
 
-            if (equalizer == null) {
-                Surface(
-                    color = colorScheme.surfaceVariant.copy(alpha = 0.46f),
-                    shape = NordicShapes.md,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = NordicSpacing.md)
-                ) {
-                    Text(
-                        "均衡器不可用",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = NordicSpacing.lg, vertical = NordicSpacing.xxl)
-                    )
-                }
+/** No audio effect, service, or preferences are created by this content layer. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun MusicEqualizerContent(
+    available: Boolean,
+    presetNames: List<String>,
+    bandCount: Int,
+    bandLevelRange: Pair<Int, Int>,
+    centerFreqs: List<Int>,
+    bandLevels: List<Short>,
+    selectedPreset: Int,
+    colorScheme: ColorScheme,
+    onDismiss: () -> Unit,
+    onSelectPreset: (Int) -> Unit,
+    onBandLevelChange: (Int, Short) -> Unit
+) {
+    MediaPlayerSheet("均衡器", colorScheme, onDismiss) {
+        LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false),
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.lg)) {
+            if (!available) {
+                item { MusicDetailEmptyState("均衡器不可用", "此音频会话暂不支持调整音效。") }
             } else {
-                // Preset buttons
-                if (presetNames.isNotEmpty()) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = NordicSpacing.md),
-                        verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-                    ) {
-                        Text(
-                            "预设",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-                            modifier = Modifier.padding(horizontal = NordicSpacing.sm)
-                        )
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-                        ) {
-                            itemsIndexed(
-                                items = presetNames,
-                                key = { index, name -> "eq-preset-$name-$index" }
-                            ) { index, name ->
-                                val isSelected = selectedPreset == index
-                                val source = remember { MutableInteractionSource() }
-                                Surface(
-                                    color = if (isSelected) {
-                                        colorScheme.primaryContainer
-                                    } else {
-                                        colorScheme.surfaceVariant.copy(alpha = 0.42f)
-                                    },
-                                    contentColor = if (isSelected) {
-                                        colorScheme.onPrimaryContainer
-                                    } else {
-                                        colorScheme.onSurface
-                                    },
-                                    shape = NordicShapes.full,
-                                    modifier = Modifier
-                                        .heightIn(min = NordicControlSizes.touchTarget)
-                                        .selectable(
-                                            selected = isSelected,
-                                            role = Role.RadioButton,
-                                            interactionSource = source,
-                                            indication = null,
-                                            onClick = {
-                                                try {
-                                                    equalizer?.usePreset(index.toShort())
-                                                    selectedPreset = index
-                                                    bandLevels = (0 until bandCount).map {
-                                                        equalizer?.getBandLevel(it.toShort()) ?: 0
-                                                    }
-                                                } catch (e: Exception) {
-                                                    Log.e("MusicEqualizer", "Failed to apply equalizer preset", e)
-                                                }
-                                            }
-                                        )
-                                ) {
-                                    Text(
-                                        name,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.padding(horizontal = NordicSpacing.md)
-                                    )
-                                }
+                if (presetNames.isNotEmpty()) item(key = "presets") {
+                    Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+                        Text("预设", style = MaterialTheme.typography.titleSmall, color = colorScheme.onSurface,
+                            modifier = Modifier.semantics { heading() })
+                        LazyRow(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+                            itemsIndexed(presetNames, key = { index, name -> "eq-preset-$name-$index" }) { index, name ->
+                                MediaChoiceChip(name, selectedPreset == index, colorScheme,
+                                    role = Role.RadioButton, onClick = { onSelectPreset(index) })
                             }
                         }
                     }
                 }
-
-                // Band sliders - horizontal sliders labeled with frequency
-                if (bandCount > 0) {
-                    Column(
-                        modifier = Modifier.padding(horizontal = NordicSpacing.md),
-                        verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-                    ) {
-                        Text(
-                            "自定义频段",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
-                            modifier = Modifier.padding(horizontal = NordicSpacing.sm)
-                        )
-                        Column(
-                            modifier = Modifier.padding(horizontal = NordicSpacing.xs),
-                            verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
-                        ) {
-                            for (band in 0 until bandCount) {
-                                val level = bandLevels.getOrElse(band) { 0 }
-                                val freqHz = centerFreqs.getOrElse(band) { 0 } / 1000
-                                val freqLabel = if (freqHz >= 1000) {
-                                    "${freqHz / 1000}kHz"
-                                } else {
-                                    "${freqHz}Hz"
-                                }
-                                val minLevel = bandLevelRange.first
-                                val maxLevel = bandLevelRange.second
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
-                                ) {
-                                    Text(
-                                        freqLabel,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                                        modifier = Modifier.widthIn(min = 52.dp)
-                                    )
-                                    Slider(
-                                        value = level.toFloat(),
-                                        onValueChange = { newLevel ->
-                                            try {
-                                                equalizer?.setBandLevel(
-                                                    band.toShort(),
-                                                    newLevel.toInt().toShort()
-                                                )
-                                                selectedPreset = -1
-                                                bandLevels = bandLevels.toMutableList().also {
-                                                    it[band] = newLevel.toInt().toShort()
-                                                }
-                                            } catch (e: Exception) {
-                                                Log.e("MusicEqualizer", "Failed to set equalizer band level", e)
-                                            }
-                                        },
-                                        valueRange = minLevel.toFloat()..maxLevel.toFloat(),
-                                        colors = SliderDefaults.colors(
-                                            thumbColor = colorScheme.primary,
-                                            activeTrackColor = colorScheme.primary,
-                                            inactiveTrackColor = colorScheme.onSurface.copy(alpha = 0.13f)
-                                        ),
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    val dbLabel = String.format("%.1f", level.toFloat() / 100f)
-                                    Text(
-                                        "${dbLabel}dB",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
-                                        modifier = Modifier.widthIn(min = 48.dp),
-                                        textAlign = TextAlign.End
-                                    )
-                                }
-                            }
+                if (bandCount > 0) item(key = "band-heading") {
+                    Text("自定义频段", style = MaterialTheme.typography.titleSmall, color = colorScheme.onSurface,
+                        modifier = Modifier.semantics { heading() })
+                }
+                items(bandCount.coerceAtLeast(0), key = { "eq-band-$it" }) { band ->
+                    val frequency = equalizerFrequencyLabel(centerFreqs.getOrElse(band) { 0 })
+                    val level = bandLevels.getOrElse(band) { 0 }
+                    val levelLabel = String.format(Locale.getDefault(), "%.1f dB", level / 100f)
+                    val (min, max) = bandLevelRange
+                    val adjustable = min < max
+                    val interactionSource = remember { MutableInteractionSource() }
+                    val sliderColors = SliderDefaults.colors(thumbColor = colorScheme.primary, activeTrackColor = colorScheme.primary)
+                    Column(Modifier.fillMaxWidth()) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(frequency, style = MaterialTheme.typography.bodyMedium, color = colorScheme.onSurfaceVariant)
+                            Text(levelLabel, style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
+                                color = colorScheme.onSurfaceVariant)
                         }
+                        Slider(
+                            value = if (adjustable) level.toInt().coerceIn(min, max).toFloat() else 0f,
+                            onValueChange = { onBandLevelChange(band, it.toInt().toShort()) },
+                            valueRange = if (adjustable) min.toFloat()..max.toFloat() else 0f..1f,
+                            enabled = adjustable,
+                            // Material3 1.3 expands slider semantics 10dp on either side. Reserve real
+                            // space inside the lazy viewport; the stock 44dp thumb is also below our 48dp target.
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = NordicSpacing.md)
+                                .heightIn(min = NordicControlSizes.touchTarget).semantics {
+                                contentDescription = "调整 $frequency 频段"
+                                stateDescription = levelLabel
+                            },
+                            colors = sliderColors,
+                            interactionSource = interactionSource,
+                            thumb = {
+                                SliderDefaults.Thumb(interactionSource, colors = sliderColors, enabled = adjustable,
+                                    thumbSize = DpSize(4.dp, NordicControlSizes.touchTarget))
+                            }
+                        )
                     }
                 }
             }
         }
     }
+}
+
+internal fun equalizerFrequencyLabel(milliHertz: Int): String {
+    val hertz = milliHertz.coerceAtLeast(0) / 1000
+    return if (hertz < 1000) "$hertz Hz" else String.format(Locale.getDefault(), "%.1f kHz", hertz / 1000f)
 }

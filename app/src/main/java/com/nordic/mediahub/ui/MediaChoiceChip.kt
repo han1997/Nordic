@@ -36,6 +36,7 @@ internal fun MediaChoiceChip(
     colorScheme: ColorScheme,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    role: Role = Role.Tab,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -60,12 +61,12 @@ internal fun MediaChoiceChip(
         border = BorderStroke(1.dp, if (selected) colorScheme.primary.copy(alpha = 0.35f) else colorScheme.onSurface.copy(alpha = 0.06f)),
         modifier = modifier
             .heightIn(min = NordicControlSizes.touchTarget)
-            .widthIn(max = NordicControlSizes.choiceMaxWidth)
+            .widthIn(min = NordicControlSizes.touchTarget, max = NordicControlSizes.choiceMaxWidth)
             .pressScale(interactionSource, enabled = enabled)
             .selectable(
                 selected = selected,
                 enabled = enabled,
-                role = Role.Tab,
+                role = role,
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick

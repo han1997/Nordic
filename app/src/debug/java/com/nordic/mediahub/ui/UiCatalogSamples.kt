@@ -25,11 +25,17 @@ internal enum class UiSampleScreen(val id: String, val label: String) {
     Catalog("catalog", "UI 样板目录"), Songs("songs", "歌曲列表"), Album("album", "专辑详情"),
     Player("player", "音乐播放器"), Lyrics("lyrics", "歌词"), Queue("queue", "播放队列"), Speed("speed", "播放速度"),
     Modules("modules", "模块显示"), Server("server", "服务器编辑"),
-    ServerEmby("server_emby", "Emby 连接表单"), ServerWebdav("server_webdav", "WebDAV 连接表单"), SettingsRows("settings_rows", "设置组件")
+    ServerEmby("server_emby", "Emby 连接表单"), ServerWebdav("server_webdav", "WebDAV 连接表单"), SettingsRows("settings_rows", "设置组件"),
+    Home("home", "音乐发现"), Albums("albums", "专辑列表"), Artists("artists", "歌手列表"),
+    Artist("artist", "歌手详情"), Search("search", "搜索结果"), SearchLanding("search_landing", "搜索建议"),
+    Playlists("playlists", "歌单列表"), Playlist("playlist", "歌单详情"),
+    PlaylistCreate("playlist_create", "新建歌单"), PlaylistRename("playlist_rename", "重命名歌单"),
+    PlaylistDelete("playlist_delete", "删除歌单"), Equalizer("equalizer", "均衡器组件 · 未接入"),
+    MusicActions("music_actions", "音乐下载操作")
 }
 internal enum class UiSampleState(val id: String, val label: String) {
     Normal("normal", "正常"), LongText("long", "长文本"), Empty("empty", "空白"), Loading("loading", "加载中"),
-    Error("error", "错误"), NoArtwork("no_art", "无封面"), Disabled("disabled", "禁用")
+    Error("error", "错误"), NoArtwork("no_art", "无封面"), Disabled("disabled", "禁用"), Refreshing("refreshing", "缓存刷新"), CachedError("cached_error", "缓存失败"), LibraryEmpty("library_empty", "已配置空曲库")
 }
 internal data class UiSampleRequest(val screen: UiSampleScreen = UiSampleScreen.Catalog, val state: UiSampleState = UiSampleState.Normal,
     val dark: Boolean = false, val fontScale: Float = 1f)
@@ -77,6 +83,7 @@ internal fun UiCatalogContent(
         UiSampleScreen.Modules -> ModuleSample(request, onNavigate, onEvent)
         UiSampleScreen.Server, UiSampleScreen.ServerEmby, UiSampleScreen.ServerWebdav -> ServerSample(request, onNavigate, onEvent)
         UiSampleScreen.SettingsRows -> SettingsRowSample(request, onNavigate, onEvent)
+        else -> MusicCatalogSample(request, songs, onNavigate, onEvent)
     }
 }
 
@@ -129,7 +136,7 @@ private fun LibrarySample(request: UiSampleRequest, songs: List<NavidromeSong>, 
 }
 
 @Composable
-private fun PlayerSample(request: UiSampleRequest, initialSongs: List<NavidromeSong>, onNavigate: (UiSampleScreen) -> Unit, onEvent: (String) -> Unit) {
+internal fun PlayerSample(request: UiSampleRequest, initialSongs: List<NavidromeSong>, onNavigate: (UiSampleScreen) -> Unit, onEvent: (String) -> Unit) {
     var songs by remember { mutableStateOf(if (request.screen == UiSampleScreen.Queue && request.state == UiSampleState.Empty) emptyList() else initialSongs) }
     var index by remember { mutableIntStateOf(0) }
     var playing by remember { mutableStateOf(false) }

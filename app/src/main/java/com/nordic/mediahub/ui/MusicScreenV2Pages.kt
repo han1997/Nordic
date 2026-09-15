@@ -33,6 +33,7 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.nordic.mediahub.data.NavidromeAlbum
 import com.nordic.mediahub.data.NavidromeAlbumSort
@@ -53,7 +54,9 @@ import com.nordic.mediahub.ui.theme.NordicSpacing
 @Composable
 private fun MusicPageList(
     isHome: Boolean,
-    itemSpacing: Dp = if (isHome) NordicSpacing.lg else NordicSpacing.md,
+    itemSpacing: Dp = if (isHome) NordicSpacing.xxl else NordicSpacing.sm,
+    feedback: MusicLibraryFeedbackState = MusicLibraryFeedbackState(),
+    onRetry: (() -> Unit)? = null,
     content: androidx.compose.foundation.lazy.LazyListScope.() -> Unit
 ) {
     val listState = rememberLazyListState()
@@ -69,6 +72,7 @@ private fun MusicPageList(
             ),
             verticalArrangement = Arrangement.spacedBy(itemSpacing)
         ) {
+            if (feedback.isVisible) item(key = "library-feedback") { MusicLibraryFeedback(feedback, onRetry) }
             content()
         }
         MusicScrollbar(
@@ -95,52 +99,59 @@ internal fun MusicHomePage(
     onOpenAlbumLibrary: () -> Unit,
     onNavigateToSongs: () -> Unit,
     onNavigateToArtists: () -> Unit,
-    onOpenArtistDetail: (NavidromeArtist) -> Unit
+    onOpenArtistDetail: (NavidromeArtist) -> Unit,
+    feedback: MusicLibraryFeedbackState = MusicLibraryFeedbackState(),
+    onRetry: (() -> Unit)? = null
 ) {
-    MusicPageList(isHome = true) {
+    MusicPageList(isHome = true, feedback = feedback, onRetry = onRetry) {
+        if (albums.isEmpty() && recentlyAddedSongs.isEmpty() && artists.isEmpty() && !feedback.suppressesEmptyState) {
+            item { MusicDetailEmptyState("音乐库暂无内容", "当前音乐库还没有可展示的专辑、歌曲或歌手。") }
+        }
         if (albums.isNotEmpty()) {
             item {
-                MusicSectionHeader(
-                    title = "刚刚同步",
-                    colorScheme = colorScheme
-                )
-            }
-            item {
-                MusicHeroBanner(
-                    album = albums.first(),
-                    colorScheme = colorScheme,
-                    onClick = { onOpenAlbumDetail(albums.first()) }
-                )
+                Column(Modifier.testTag("music-home-hero"), verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+                    MusicSectionHeader(
+                        title = "刚刚同步",
+                        colorScheme = colorScheme
+                    )
+
+                    MusicHeroBanner(
+                        album = albums.first(),
+                        colorScheme = colorScheme,
+                        onClick = { onOpenAlbumDetail(albums.first()) }
+                    )
+                }
             }
         }
 
         if (recentlyAddedSongs.isNotEmpty()) {
             item {
-                MusicSectionHeader(
-                    title = "最近添加",
-                    colorScheme = colorScheme,
-                    actionLabel = "全部",
-                    onAction = onNavigateToSongs
-                )
-            }
-            item {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
-                    itemsIndexed(
-                        items = homeSongs,
-                        key = { index, song -> "home-song-${song.id}-$index" },
-                        contentType = { _, _ -> "home-song-card" }
-                    ) { index, song ->
-                        SongShelfCard(
-                            song = song,
-                            colorScheme = colorScheme,
-                            onClick = {
-                                onSongSelected(
-                                    homePlaybackQueue,
-                                    index,
-                                    DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK
-                                )
-                            }
-                        )
+                Column(Modifier.testTag("music-home-songs"), verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+                    MusicSectionHeader(
+                        title = "最近添加",
+                        colorScheme = colorScheme,
+                        actionLabel = "全部",
+                        onAction = onNavigateToSongs
+                    )
+
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
+                        itemsIndexed(
+                            items = homeSongs,
+                            key = { index, song -> "home-song-${song.id}-$index" },
+                            contentType = { _, _ -> "home-song-card" }
+                        ) { index, song ->
+                            SongShelfCard(
+                                song = song,
+                                colorScheme = colorScheme,
+                                onClick = {
+                                    onSongSelected(
+                                        homePlaybackQueue,
+                                        index,
+                                        DIRECT_SELECTION_ALLOW_UNPLAYABLE_START_FALLBACK
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -148,25 +159,26 @@ internal fun MusicHomePage(
 
         if (albums.isNotEmpty()) {
             item {
-                MusicSectionHeader(
-                    title = "最近专辑",
-                    colorScheme = colorScheme,
-                    actionLabel = "全部",
-                    onAction = onOpenAlbumLibrary
-                )
-            }
-            item {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
-                    items(
-                        items = homeAlbums,
-                        key = { "home-album-${it.id}" },
-                        contentType = { "home-album-card" }
-                    ) { album ->
-                        CompactAlbumShelfCard(
-                            album = album,
-                            colorScheme = colorScheme,
-                            onClick = { onOpenAlbumDetail(album) }
-                        )
+                Column(Modifier.testTag("music-home-albums"), verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+                    MusicSectionHeader(
+                        title = "最近专辑",
+                        colorScheme = colorScheme,
+                        actionLabel = "全部",
+                        onAction = onOpenAlbumLibrary
+                    )
+
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
+                        items(
+                            items = homeAlbums,
+                            key = { "home-album-${it.id}" },
+                            contentType = { "home-album-card" }
+                        ) { album ->
+                            CompactAlbumShelfCard(
+                                album = album,
+                                colorScheme = colorScheme,
+                                onClick = { onOpenAlbumDetail(album) }
+                            )
+                        }
                     }
                 }
             }
@@ -174,25 +186,26 @@ internal fun MusicHomePage(
 
         if (artists.isNotEmpty()) {
             item {
-                MusicSectionHeader(
-                    title = "曲库歌手",
-                    colorScheme = colorScheme,
-                    actionLabel = "全部",
-                    onAction = onNavigateToArtists
-                )
-            }
-            item {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
-                    items(
-                        items = homeArtists,
-                        key = { "home-artist-${it.id}" },
-                        contentType = { "home-artist-card" }
-                    ) { artist ->
-                        ArtistShelfCard(
-                            artist = artist,
-                            colorScheme = colorScheme,
-                            onClick = { onOpenArtistDetail(artist) }
-                        )
+                Column(Modifier.testTag("music-home-artists"), verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+                    MusicSectionHeader(
+                        title = "曲库歌手",
+                        colorScheme = colorScheme,
+                        actionLabel = "全部",
+                        onAction = onNavigateToArtists
+                    )
+
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
+                        items(
+                            items = homeArtists,
+                            key = { "home-artist-${it.id}" },
+                            contentType = { "home-artist-card" }
+                        ) { artist ->
+                            ArtistShelfCard(
+                                artist = artist,
+                                colorScheme = colorScheme,
+                                onClick = { onOpenArtistDetail(artist) }
+                            )
+                        }
                     }
                 }
             }
@@ -207,9 +220,11 @@ internal fun MusicAlbumsPage(
     albumSort: NavidromeAlbumSort,
     colorScheme: ColorScheme,
     onOpenAlbumDetail: (NavidromeAlbum) -> Unit,
-    onLoadAlbumList: (NavidromeAlbumSort) -> Unit
+    onLoadAlbumList: (NavidromeAlbumSort) -> Unit,
+    feedback: MusicLibraryFeedbackState = MusicLibraryFeedbackState(),
+    onRetry: (() -> Unit)? = null
 ) {
-    MusicPageList(isHome = false) {
+    MusicPageList(isHome = false, feedback = feedback, onRetry = onRetry) {
         item {
             AlbumSortSegmentedControl(
                 selectedSort = albumSort,
@@ -224,12 +239,11 @@ internal fun MusicAlbumsPage(
 
         if (isLoadingAlbumList) {
             item {
-                MediaLoadingCard(
-                    title = "正在加载专辑",
-                    subtitle = "按${albumSort.displayLabel()}从 Navidrome 拉取专辑列表。"
-                )
+                MusicListLoadingStatus("正在加载专辑", "按${albumSort.displayLabel()}从 Navidrome 拉取专辑列表。",
+                    hasContent = sortedAlbums.isNotEmpty())
             }
-        } else if (sortedAlbums.isEmpty()) {
+        }
+        if (shouldShowMusicCollectionEmpty(isLoadingAlbumList, sortedAlbums.size, feedback.suppressesEmptyState)) {
             item {
                 MusicDetailEmptyState(
                     title = "暂无专辑",
@@ -258,11 +272,13 @@ internal fun MusicSongsPage(
     onSongSelected: (List<NavidromeSong>, Int, Boolean) -> Unit,
     onSongFilterChange: (String) -> Unit,
     onSongFilterClear: () -> Unit,
-    onSongSortChange: (MusicSongSort) -> Unit
+    onSongSortChange: (MusicSongSort) -> Unit,
+    feedback: MusicLibraryFeedbackState = MusicLibraryFeedbackState(),
+    onRetry: (() -> Unit)? = null
 ) {
-    MusicPageList(isHome = false, itemSpacing = NordicSpacing.sm) {
+    MusicPageList(isHome = false, feedback = feedback, onRetry = onRetry) {
         if (songs.isEmpty()) {
-            item {
+            if (!feedback.suppressesEmptyState) item {
                 MusicDetailEmptyState(
                     title = "暂无歌曲",
                     subtitle = "刷新音乐库后，Navidrome 中的全部歌曲会显示在这里。",
@@ -317,10 +333,12 @@ internal fun MusicSongsPage(
 internal fun MusicArtistsPage(
     artists: List<NavidromeArtist>,
     colorScheme: ColorScheme,
-    onOpenArtistDetail: (NavidromeArtist) -> Unit
+    onOpenArtistDetail: (NavidromeArtist) -> Unit,
+    feedback: MusicLibraryFeedbackState = MusicLibraryFeedbackState(),
+    onRetry: (() -> Unit)? = null
 ) {
-    MusicPageList(isHome = false) {
-        if (artists.isEmpty()) {
+    MusicPageList(isHome = false, feedback = feedback, onRetry = onRetry) {
+        if (artists.isEmpty() && !feedback.suppressesEmptyState) {
             item {
                 MusicDetailEmptyState(
                     title = "暂无歌手",
@@ -347,9 +365,11 @@ internal fun MusicArtistDetailPage(
     colorScheme: ColorScheme,
     onOpenAlbumDetail: (NavidromeAlbum) -> Unit,
     onPlayArtistAll: () -> Unit,
-    hasVisibleError: Boolean = false
+    hasVisibleError: Boolean = false,
+    feedback: MusicLibraryFeedbackState = MusicLibraryFeedbackState(),
+    onRetry: (() -> Unit)? = null
 ) {
-    MusicPageList(isHome = false) {
+    MusicPageList(isHome = false, feedback = feedback, onRetry = onRetry) {
         if (artist == null) {
             item { MusicDetailEmptyState("未选择歌手", "返回首页选择一位歌手。") }
         } else {
@@ -366,7 +386,8 @@ internal fun MusicArtistDetailPage(
             }
             if (isLoadingArtistDetail) {
                 item { MediaLoadingCard("正在加载歌手专辑", "从 Navidrome 拉取该歌手的专辑列表。") }
-            } else if (shouldShowMusicCollectionEmpty(false, artistAlbums.size, hasVisibleError)) {
+            }
+            if (shouldShowMusicCollectionEmpty(isLoadingArtistDetail, artistAlbums.size, hasVisibleError || feedback.suppressesEmptyState)) {
                 item { MusicDetailEmptyState("暂无专辑", "该歌手暂无可用专辑。") }
             } else {
                 items(artistAlbums, key = { it.id }, contentType = { "artist-album-row" }) { album ->
@@ -385,9 +406,11 @@ internal fun MusicAlbumDetailPage(
     colorScheme: ColorScheme,
     onSongSelected: (List<NavidromeSong>, Int, Boolean) -> Unit,
     onPlayAlbumAll: () -> Unit,
-    hasVisibleError: Boolean = false
+    hasVisibleError: Boolean = false,
+    feedback: MusicLibraryFeedbackState = MusicLibraryFeedbackState(),
+    onRetry: (() -> Unit)? = null
 ) {
-    MusicPageList(isHome = false, itemSpacing = NordicSpacing.sm) {
+    MusicPageList(isHome = false, feedback = feedback, onRetry = onRetry) {
         if (album == null) {
             item { MusicDetailEmptyState("未选择专辑", "返回首页选择一张专辑。") }
         } else {
@@ -400,7 +423,8 @@ internal fun MusicAlbumDetailPage(
             }
             if (isLoadingAlbumDetail) {
                 item { MediaLoadingCard("正在加载专辑曲目", "从 Navidrome 拉取这张专辑的歌曲列表。") }
-            } else if (shouldShowMusicCollectionEmpty(false, albumDetailSongs.size, hasVisibleError)) {
+            }
+            if (shouldShowMusicCollectionEmpty(isLoadingAlbumDetail, albumDetailSongs.size, hasVisibleError || feedback.suppressesEmptyState)) {
                 item { MusicDetailEmptyState("暂无曲目", "这张专辑暂时没有曲目。") }
             } else {
                 itemsIndexed(albumDetailSongs, key = { index, song -> "album-song-${song.id}-$index" },
@@ -429,9 +453,11 @@ internal fun MusicSearchPage(
     onOpenAlbumDetail: (NavidromeAlbum) -> Unit,
     onOpenArtistDetail: (NavidromeArtist) -> Unit,
     onSearchQueryChange: (String) -> Unit,
-    onClearSearch: () -> Unit
+    onClearSearch: () -> Unit,
+    feedback: MusicLibraryFeedbackState = MusicLibraryFeedbackState(),
+    onRetry: (() -> Unit)? = null
 ) {
-    MusicPageList(isHome = false) {
+    MusicPageList(isHome = false, feedback = feedback, onRetry = onRetry) {
         item {
             MediaSearchField(
                 value = searchQuery, onValueChange = onSearchQueryChange,
@@ -482,6 +508,7 @@ internal fun MusicSearchPage(
                     density = MediaStateDensity.Compact
                 )
             }
+            item { SecondaryActionButton("重试搜索", colorScheme, onClick = { onSearchQueryChange(searchQuery) }) }
         }
 
         val result = searchResult
@@ -564,27 +591,34 @@ internal fun MusicSearchPage(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun MusicPlaylistsPage(
     isLoadingPlaylists: Boolean,
     playlists: List<NavidromePlaylist>,
     colorScheme: ColorScheme,
     onOpenPlaylistDetail: (NavidromePlaylist) -> Unit,
-    onCreatePlaylist: () -> Unit
+    onCreatePlaylist: () -> Unit,
+    feedback: MusicLibraryFeedbackState = MusicLibraryFeedbackState(),
+    onRetry: (() -> Unit)? = null
 ) {
-    MusicPageList(isHome = false) {
+    MusicPageList(isHome = false, feedback = feedback, onRetry = onRetry) {
         item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
-                verticalAlignment = Alignment.CenterVertically) {
-                Text(if (isLoadingPlaylists) "正在更新歌单" else "${playlists.size} 个歌单",
-                    style = MaterialTheme.typography.bodySmall, color = colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f))
+            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+                Text(when {
+                    isLoadingPlaylists -> "正在更新歌单"
+                    playlists.isEmpty() && feedback.suppressesEmptyState -> "我的歌单"
+                    else -> "${playlists.size} 个歌单"
+                }, style = MaterialTheme.typography.bodySmall, color = colorScheme.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.CenterVertically))
                 MusicCollectionAction("新建歌单", Icons.Filled.Add, colorScheme, onCreatePlaylist)
             }
         }
         if (isLoadingPlaylists) {
-            item { MediaLoadingCard("正在加载歌单", "从 Navidrome 拉取你的歌单列表。") }
-        } else if (playlists.isEmpty()) {
+            item { MusicListLoadingStatus("正在加载歌单", "从 Navidrome 拉取你的歌单列表。", playlists.isNotEmpty()) }
+        }
+        if (shouldShowMusicCollectionEmpty(isLoadingPlaylists, playlists.size, feedback.suppressesEmptyState)) {
             item { MusicDetailEmptyState("暂无歌单", "Navidrome 中的歌单会显示在这里，也可以新建歌单。") }
         } else {
             items(playlists, key = { it.id }, contentType = { "playlist-row" }) { playlist ->
@@ -605,9 +639,11 @@ internal fun MusicPlaylistDetailPage(
     onPlayAll: () -> Unit,
     onRenamePlaylist: () -> Unit,
     onDeletePlaylist: () -> Unit,
-    hasVisibleError: Boolean = false
+    hasVisibleError: Boolean = false,
+    feedback: MusicLibraryFeedbackState = MusicLibraryFeedbackState(),
+    onRetry: (() -> Unit)? = null
 ) {
-    MusicPageList(isHome = false) {
+    MusicPageList(isHome = false, feedback = feedback, onRetry = onRetry) {
         if (playlist == null) {
             item { MusicDetailEmptyState("未选择歌单", "返回歌单列表选择一个歌单。") }
         } else {
@@ -628,7 +664,8 @@ internal fun MusicPlaylistDetailPage(
             }
             if (isLoadingPlaylistDetail) {
                 item { MediaLoadingCard("正在加载歌单曲目", "从 Navidrome 拉取这个歌单的歌曲列表。") }
-            } else if (shouldShowMusicCollectionEmpty(false, playlistSongs.size, hasVisibleError)) {
+            }
+            if (shouldShowMusicCollectionEmpty(isLoadingPlaylistDetail, playlistSongs.size, hasVisibleError || feedback.suppressesEmptyState)) {
                 item { MusicDetailEmptyState("暂无曲目", "这个歌单暂时没有曲目。") }
             } else {
                 itemsIndexed(playlistSongs, key = { index, song -> "playlist-song-${song.id}-$index" },
@@ -638,6 +675,19 @@ internal fun MusicPlaylistDetailPage(
                     })
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun MusicListLoadingStatus(title: String, subtitle: String, hasContent: Boolean) {
+    if (!hasContent) {
+        MediaLoadingCard(title, subtitle)
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+            Text("正在更新，保留现有内容", style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+            androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth())
         }
     }
 }

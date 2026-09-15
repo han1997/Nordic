@@ -48,12 +48,13 @@ class UiCatalogScreenshotTest {
                     val bitmap = UiTestDevice.captureStableWindow()
                     val statusHeight = ViewCompat.getRootWindowInsets(compose.activity.window.decorView)!!
                         .getInsets(WindowInsetsCompat.Type.statusBars()).top
+                    val statusBarDark = UiTestDevice.expectsDarkStatusBar(screen, dark)
                     assertTrue("Status icons must match $screen/$state dark=$dark font=$font",
-                        UiTestDevice.hasExpectedSystemBarInk(bitmap, dark, statusHeight))
+                        UiTestDevice.hasExpectedSystemBarInk(bitmap, statusBarDark, statusHeight))
                     File(output, name).outputStream().use { assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
                     bitmap.recycle()
                     manifest.put(JSONObject().put("file", name).put("screen", screen).put("state", state).put("dark", dark).put("fontScale", font)
-                        .put("systemFontScale", instrumentation.targetContext.resources.configuration.fontScale).put("statusBarInkVerified", true))
+                        .put("systemFontScale", instrumentation.targetContext.resources.configuration.fontScale).put("statusBarDarkBackground", statusBarDark).put("statusBarInkVerified", true))
                 }
             }
         } finally {

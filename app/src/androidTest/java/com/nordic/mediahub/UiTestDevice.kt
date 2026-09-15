@@ -21,6 +21,10 @@ internal object UiTestDevice {
         check(name == "nordic-ui-api34") { "Refusing to change another device: $name" }
     }
 
+    /** Native playlist dialogs dim the whole window, including status bars, in either app theme. */
+    fun expectsDarkStatusBar(screen: String, darkTheme: Boolean): Boolean =
+        darkTheme || screen in listOf("playlist_create", "playlist_rename", "playlist_delete")
+
     /** Pixel guard for stale light/dark status icons; body contrast is tested separately. */
     fun hasExpectedSystemBarInk(bitmap: Bitmap, dark: Boolean, statusBarHeight: Int): Boolean {
         require(statusBarHeight > 0)
@@ -41,11 +45,16 @@ internal object UiTestDevice {
     }
 
     /** Compose idle can precede Android's window transition / final rendered frame. */
-    fun captureStableWindow(): Bitmap {
+    fun waitForStableWindow() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         instrumentation.waitForIdleSync()
         SystemClock.sleep(700)
-        return checkNotNull(instrumentation.uiAutomation.takeScreenshot())
+        instrumentation.waitForIdleSync()
+    }
+
+    fun captureStableWindow(): Bitmap {
+        waitForStableWindow()
+        return checkNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
     }
 
     fun captureInteractionImage(name: String) {
