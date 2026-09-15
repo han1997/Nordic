@@ -148,7 +148,7 @@ adb shell am start -n fun.han1997.nordic/com.nordic.mediahub.VideoPlayerPreviewA
 
 ### 全页面精修样板目录（仅 Debug）
 
-首轮样板保留现有紫青品牌，覆盖歌曲列表、专辑详情、音乐播放器／歌词／队列／倍速、模块显示与服务器表单。首轮样板方向已确认；其他页面仍需继续逐页打磨，不能把方向确认或共享组件通过测试当作整应用验收完成。
+首轮样板保留现有紫青品牌，覆盖歌曲列表、专辑详情、音乐播放器／歌词／队列／倍速、模块显示与服务器表单，方向已确认。第二轮扩展到音乐发现、专辑列表、歌手列表／详情、搜索、歌单列表／详情及歌单和下载弹层；本轮视觉确认单独记录，其他媒体域仍需逐页打磨，不能把共享组件或模拟器测试通过当作整应用验收完成。
 
 `UiCatalogActivity` 使用本地合成状态，复用正式界面组件；目录中可以切换深浅主题、字号和状态。它不连接账号、不写入设置、不启动媒体服务。封面仅来自仓库既有参考图的调试裁图，Release 不包含此入口和样例资源。
 
@@ -159,7 +159,13 @@ adb -s emulator-5580 emu avd name
 adb -s emulator-5580 shell am start -n fun.han1997.nordic/com.nordic.mediahub.UiCatalogActivity
 ```
 
-可直接选择页面：`--es screen songs|album|player|lyrics|queue|speed|modules|server|server_emby|server_webdav|settings_rows`；状态使用 `--es state normal|long|empty|loading|error|no_art|disabled`，主题使用 `--ez dark true`，字体使用 `--ef font_scale 2.0`。每项选择单个值，只有适用页面会体现对应状态。
+可通过 `--es screen <页面>` 选择单个页面：
+
+- 首轮：`songs`、`album`、`player`、`lyrics`、`queue`、`speed`、`modules`、`server`、`server_emby`、`server_webdav`、`settings_rows`。
+- 音乐浏览：`home`、`albums`、`artists`、`artist`、`search`、`search_landing`、`playlists`、`playlist`。
+- 音乐弹层：`playlist_create`、`playlist_rename`、`playlist_delete`、`music_actions`、`equalizer`。其中 `equalizer` 只是未接入组件的无音效预览；“加入歌单”暂无 UI，不由样板模拟成可用功能。
+
+状态使用 `--es state normal|long|empty|loading|error|no_art|disabled|refreshing|cached_error|library_empty`，主题使用 `--ez dark true`，字体使用 `--ef font_scale 2.0`。每项选择单个值，只有适用页面会体现对应状态；`home/empty` 表示未配置，`home/library_empty` 表示已配置但无内容，搜索不具备缓存结果状态。
 
 手动字号选项用于内容预览；包含 Dialog／系统栏的正式验收还必须切换模拟器系统字号，不能只传 `font_scale`。任务的 `research/run-ui-checks.py` 会设置并恢复系统字号、分辨率和密度，并封存 APK／源码／截图哈希；详见 `.trellis/spec/backend/ui-catalog-verification.md`。
 

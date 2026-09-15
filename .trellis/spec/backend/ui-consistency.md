@@ -16,7 +16,7 @@ internal fun shouldScrollMediaSegments(availableWidth: Dp, minimumWidths: List<D
 - `MediaPlayerSheet(title, colors, onDismiss, subtitle?, skipPartiallyExpanded?, trailingAction?, content)`：音乐/有声书/视频播放器弹层（倍速、章节、睡眠定时、书签、均衡器、播放队列等）的统一容器，内部自带标题头、关闭按钮、86% 最大高度、导航栏安全区与共享水平边距。`trailingAction` 槽位承载头部右上动作（如队列的「清空后续」），不得在弹层内部另写标题 Row。
 - `MediaPlayerChoiceRow(title, selected, colors, onClick, subtitle?)`：弹层内选择行的统一实现；`selected = null` 表示动作行（Role.Button），非空表示互斥选择（Role.RadioButton）。
 - `MediaTransientPill(message, colors, detail?)`：播放器表面 transient 提示 pill（seek 反馈、收藏失败等）的统一实现：full 圆角、surface 0.94 alpha 容器、primary 0.24 alpha 描边、primary 主文案 + 可选次要详情。不得在单个播放器里复制近似 pill。
-- `MediaChoiceChip`：有声书/视频库选择及视频类型选择；不是非交互 `MetaChip`。
+- `MediaChoiceChip`：有声书/视频库选择及视频类型选择；不是非交互 `MetaChip`。默认 `role = Role.Tab`，音乐音效预设可传 `Role.RadioButton`；真实宽高至少 48dp，保留选中/禁用和调用方的 selectableGroup。
 - `MediaSegmentedControl<T>`：音乐发现/歌曲/歌单导航、歌曲排序和专辑排序；接收稳定 key、显示标签和原始回调。
 - `MediaSearchField`：音乐远程搜索、歌曲本地过滤、视频本地搜索；数据与 debounce 仍由调用方管理。
 - `PrimaryActionButton` / `SecondaryActionButton`：详情页主要/次要动作。

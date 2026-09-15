@@ -7,9 +7,9 @@
 ## 2. 入口与命令
 
 - Debug：`UiCatalogActivity.showSample(screen, state = "normal", dark = false, fontScale = 1f)`，实现位于 `app/src/debug/`，样例封面也只能放在该 source set。
-- 无副作用内容层：`MusicPlayerContent`、`ServerEditorContent`；下载恢复、连接测试、存储、取消和草稿保护继续由生产宿主负责。
-- instrumentation：`UiCatalogScreenshotTest`、`UiCatalogInteractionTest`、`MainSettingsUiTest`，共享 `UiTestDevice` 和 `UiTestAssertions`。
-- 任务的 `research/run-ui-checks.py`：`--phase <唯一批次名>`、`--kind screenshots|interaction|live`、`--screens <逗号列表>`、`--states <逗号列表>`、`--fonts 1,1.5,2`、`--width <dp>`、`--height <dp>`。
+- 无副作用内容层：`MusicPlayerContent`、`ServerEditorContent`、音乐页/歌单弹窗/`MusicEqualizerContent`/`MusicActionsSheet`；下载恢复、连接测试、存储、取消和草稿保护继续由生产宿主负责。
+- instrumentation：`UiCatalogScreenshotTest`、`UiCatalogInteractionTest`、`MusicCatalogInteractionTest`、`MainSettingsUiTest`，共享 `UiTestDevice` 和 `UiTestAssertions`。
+- 任务的 `research/run-ui-checks.py`：`--phase <唯一批次名>`、`--kind screenshots|interaction|music|live`、`--screens <逗号列表>`、`--states <逗号列表>`、`--fonts 1,1.5,2`、`--width <dp>`、`--height <dp>`。
 - 任务的 `research/verify-build-artifacts.py`：读取 JVM/Lint 报告，检查 Debug/Release manifest、资源、签名以及实际 Release DEX 的 Retrofit 泛型合同。
 
 ```powershell
@@ -26,6 +26,9 @@ py -3 "$task/research/run-ui-checks.py" --phase review-short --kind interaction 
 - 本任务固定 API 34 AVD `nordic-ui-api34` / `emulator-5580`；脚本与 instrumentation 都校验模拟器及 AVD 名称，所有 ADB 命令带 `-s`。禁止无差别执行 `connectedAndroidTest`，不安装、停止或清理个人手机应用。
 - SDK 从 `%LOCALAPPDATA%/Android/Sdk` 定位，Gradle 使用现有 JDK 17。一个 checkout 只运行一个 Gradle 进程；同一 AVD 的测试、截图和显示设置变更必须串行。
 - 样板仅消费确定性内存数据和本地资源，复用生产 Composable 与原回调接口，不构造真实账号/播放/下载依赖。假地址不得交给网络层。
+- 样板宿主的页头/导航必须对照真实调用方，不能给子页额外添加根页导航挤掉视口。若修正既有宿主，比较记录须说明这是测试宿主修正，不能冒充生产功能变化。
+- 不存在的状态不做笛卡尔积计数：搜索没有缓存结果；歌手无独立图片分支；EQ 无生产调用方；“加入歌单”没有 UI。`home/empty` 与 `home/library_empty` 分别表示未配置与成功空库。
+
 - 真实设置冒烟和合成样板分开记录；前者可在专用空模拟器更新真实偏好并恢复原状态，不能拿合成开关证明持久化正确。
 - Release 必须同时排除样板 Activity、资源和类，不能只检查 Debug 入口在源码中的位置。
 
@@ -33,8 +36,8 @@ py -3 "$task/research/run-ui-checks.py" --phase review-short --kind interaction 
 
 - 手动目录的 LocalDensity/LocalConfiguration 仅用于内容预览。正式大字体截图必须真实设置系统 `font_scale`，并核对每张图的 `systemFontScale == fontScale`，确保 Dialog 和系统窗口也在同一条件下。
 - Debug Activity 显式处理 `fontScale` 配置变化，保持样板请求；不能只等 application resources 更新，就假定异步重建后的 Activity 已显示目标页面。生产 Activity 不为测试改变配置合同。
-- Compose idle 不等于 Android 窗口动画/Surface 已提交。`captureStableWindow()` 等待主线程 idle 和窗口稳定后使用 `UiAutomation.takeScreenshot()`；样板图与交互图必须走同一个捕获入口。
-- 系统栏像素检查要同时核对背景明暗与相反色的图标像素；只累计白色/黑色像素会把错误主题背景当作图标。该检查不替代正文 4.5:1 合成对比测试，也不替代逐张看图。
+- Compose idle 不等于 Android 窗口动画/Surface 已提交。`waitForStableWindow()` 在场景替换后同步 Android 窗口；`captureStableWindow()` 复用此同步后使用 `UiAutomation.takeScreenshot()`；样板图与交互图必须走同一个捕获入口。
+- 系统栏像素检查先区分窗口：原生歌单 Dialog 的全窗遮罩使浅主题的栏背景也变暗，记录 `statusBarDarkBackground`，不能把应用浅主题一律当作浅色栏。检查仍须同时核对背景明暗与相反色的图标像素；只累计白色/黑色像素会把错误主题背景当作图标。该检查不替代正文 4.5:1 合成对比测试，也不替代逐张看图。
 - 原始 PNG 保存在 `app/build/reports/ui-polish/<phase>/`，不覆盖已封存批次、不提交 APK/大量截图。比较图只能从真实原图缩放/排列生成，不重绘成“理想效果”。
 
 ### 证据 schemaVersion 3
@@ -49,12 +52,12 @@ py -3 "$task/research/run-ui-checks.py" --phase review-short --kind interaction 
 | 情况 | 必须结果 |
 |---|---|
 | 320/360/392/720dp、字号 1/1.5/2、双主题 | 共享布局单测覆盖规则；样板按证据索引列出实际渲染组合，不假装全矩阵逐页跑过 |
-| LazyColumn + 内嵌 LazyRow | 竖向表单选择器包含 VerticalScrollAxisRange + ScrollToIndex，不依赖模糊动作匹配 |
+| LazyColumn + 内嵌 LazyRow | 竖向选择器包含 VerticalScrollAxisRange + ScrollToIndex。performScrollTo 可能只处理最近的 LazyRow；大卡片标题还须沿竖向祖先实际滚动，再验证完整可见并真点击，不能点屏外节点 |
 | 清筛选后条目在屏外 | 先结束输入并滚动到目标，再断言；未合成的 lazy item 不等于数据不存在 |
 | 短屏 / 大字体播放器 | 保留可滚动路径，按钮真实点击；同时核对完整可见与 >=48dp，不接受部分相交的 assertIsDisplayed 作为完整可用证明 |
 | Android 14 字号 | 检查实测增高、文字布局 didOverflowHeight 和容器边界；父/子边界在同一个 UI frame 读取，不混用窗口动画前后的矩形，也不硬猜固定 dp 高度 |
 | 禁用 TextField / 保存中 | 按字段 label 定位，断言 disabled 与无 SetText；保存/测试不执行回调 |
-| IME 弹出 | 同时等待 IME bottom 和实际表单视口高度稳定后再滚动；仅 isVisible=true 可能早于动画/焦点定位完成。保存按钮在真实键盘上方完整可达，点击调用原保存事件 |
+| IME 弹出 | 同时等待键盘窗口与实际表单视口稳定后再滚动；名称输入框和保存按钮都要完整位于真实键盘上方，不能只验保存而漏掉零高度输入区。原生 Dialog 的 boundsInWindow 加窗口屏幕原点后，才可与 AccessibilityWindowInfo 的 IME 屏幕边界比较；点击仍调用原保存事件 |
 | 同应用主题与系统主题不同 / 打开关闭 sheet | Dialog 自己的系统栏和回到宿主后的系统栏均正确 |
 | 老截图缺少系统字号/源码指纹 | 标为历史证据；尤其不能作为大字体 Dialog 的严格同条件前后比较 |
 | Release / 真机 / 真实媒体服务器 | 分别核验；模拟器样板成功不能推导真实媒体播放、上报、PiP 或用户视觉确认通过 |
@@ -69,6 +72,7 @@ py -3 "$task/research/run-ui-checks.py" --phase review-short --kind interaction 
 
 - `SettingsRowLayoutTest`、`QueueItemGeometryTest`、`MusicQueueSheetTest`、`NordicDesignContractTest`：实际宽度、可变行高、兼容行为与真实合成对比。
 - `UiCatalogInteractionTest`：开关即时更新/拒绝全关、过滤/清空、空播放器零进度与禁用控制、播放/倍速回调、菜单/真实拖动、表单编辑/禁用/IME、字体下的布局/触控/完整可见、主题系统栏切换，以及不写偏好/不启动播放服务。
+- `MusicCatalogInteractionTest`：七个音乐页面的回调、缓存/错误/空态、弹窗表单与取消/点外部/忙碌保护、IME 的输入框+按钮、EQ 最后一频段、下载禁用与收藏；滑条测量真实语义边界，不只看外层 Modifier。
 - `statusIconPixelGuardRejectsBlankAndOppositeThemeFrames`：空白帧和相反主题不能通过图标像素守卫。
 - `MainSettingsUiTest`：真实设置入口、加密偏好通知及 Activity 重建后状态；保持与合成样板的结果分离。
 - 截图测试完整矩阵与每张图的窗口/系统字号检查；原图还需视检，不能仅凭 instrumentation 的 OK。
