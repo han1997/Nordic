@@ -508,3 +508,36 @@ trellis-continue 确认无活动任务且工作区干净；媒体模块显示与
 ### Next Steps
 
 - None - task complete
+
+
+## Session 187: 视频浏览与详情第四轮 UI 精修收尾
+
+**Date**: 2026-09-16
+**Task**: 视频浏览与详情第四轮 UI 精修收尾
+**Branch**: `main`
+
+### Summary
+
+完成视频浏览与详情第四轮 UI 精修：抽取生产 VideoHomeContent，统一视频卡片与续播卡的 Button 语义、封面朗读去重、次级文字对比度与字号适配；补充错误显式重试、详情当前分集高亮、Debug 视频样板、单测和 AndroidTest。版本升至 0.1.12/12，Debug/Release、JVM、Lint 通过；专用模拟器无连接设备，截图矩阵和实际 UI 交互留待设备验收。工作提交 fb8af58，任务已归档。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fb8af58` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
