@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -138,10 +139,10 @@ internal fun VideoDetailScreen(
 
             if (filteredEpisodes.isEmpty()) {
                 item {
-                    Text(
-                        "没有未看的分集",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colorScheme.onSurfaceVariant
+                    MediaStateCard(
+                        title = "没有未看的分集",
+                        subtitle = "本季已没有尚未播放的分集。",
+                        density = MediaStateDensity.Compact
                     )
                 }
             } else {
@@ -198,21 +199,38 @@ private fun VideoDetailHero(
     onPlay: () -> Unit,
     onPlayFromStart: () -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(16f / 9f)
-    ) {
-        if (!video.backdropImageUrl.isNullOrBlank()) {
-            CoverArt(
-                imageUrl = video.backdropImageUrl,
-                contentDescription = video.title,
-                colorScheme = colorScheme,
-                modifier = Modifier.fillMaxSize(),
-                shape = NordicShapes.md,
-                fallbackText = video.title
-            )
-        } else {
+    Column {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+        ) {
+            if (!video.backdropImageUrl.isNullOrBlank()) {
+                CoverArt(
+                    imageUrl = video.backdropImageUrl,
+                    contentDescription = video.title,
+                    colorScheme = colorScheme,
+                    modifier = Modifier.fillMaxSize(),
+                    shape = NordicShapes.md,
+                    fallbackText = video.title
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(NordicShapes.md)
+                        .background(
+                            Brush.verticalGradient(
+                                colorStops = arrayOf(
+                                    0f to colorScheme.primary.copy(alpha = 0.18f),
+                                    0.5f to colorScheme.secondary.copy(alpha = 0.10f),
+                                    1f to colorScheme.surfaceVariant.copy(alpha = 0.82f)
+                                )
+                            )
+                        )
+                )
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -220,54 +238,41 @@ private fun VideoDetailHero(
                     .background(
                         Brush.verticalGradient(
                             colorStops = arrayOf(
-                                0f to colorScheme.primary.copy(alpha = 0.18f),
-                                0.5f to colorScheme.secondary.copy(alpha = 0.10f),
-                                1f to colorScheme.surfaceVariant.copy(alpha = 0.82f)
+                                0f to Color.Black.copy(alpha = 0.40f),
+                                0.5f to Color.Transparent,
+                                1f to Color.Black.copy(alpha = 0.70f)
                             )
                         )
                     )
             )
-        }
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(NordicShapes.md)
-                .background(
-                    Brush.verticalGradient(
-                        colorStops = arrayOf(
-                            0f to Color.Black.copy(alpha = 0.40f),
-                            0.5f to Color.Transparent,
-                            1f to Color.Black.copy(alpha = 0.70f)
-                        )
-                    )
-                )
-        )
+            ScreenBackButton(
+                colorScheme = colorScheme,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(NordicSpacing.md),
+                onClick = onBack
+            )
 
-        ScreenBackButton(
-            colorScheme = colorScheme,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(NordicSpacing.md),
-            onClick = onBack
-        )
-
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .fillMaxWidth()
-                .padding(NordicSpacing.lg),
-            verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)
-        ) {
             Text(
                 video.title,
                 style = MaterialTheme.typography.displaySmall,
-                lineHeight = 32.sp,
                 color = Color.White,
                 maxLines = 3,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .padding(NordicSpacing.lg)
             )
+        }
 
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = NordicSpacing.md),
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.md)
+        ) {
             val chips = remember(video) { video.detailChips() }
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
@@ -325,6 +330,7 @@ internal fun VideoEpisodeRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(if (compact) Modifier else Modifier.heightIn(min = 72.dp))
             .clip(NordicShapes.sm)
             .background(if (isCurrent) colorScheme.primaryContainer else Color.Transparent)
             .semantics { selected = isCurrent }

@@ -26,15 +26,19 @@
 
 ### 详情与分集
 
-- 简介与分集标题声明 `heading()`；简介复用 `MusicCollectionDescription`，保留 itemId 隔离的展开状态。
-- Series 当前分集由 `resolveVideoDetailCurrentEpisode` 解析；详情列表必须传入 `isCurrent`，与播放器选集面板使用同一视觉和语义语言。
-- 当前分集的标签、标题、元信息使用 `onPrimaryContainer`；普通分集次级信息使用 `onSurfaceVariant`。
-- 封面不承担重复标题朗读；详情 Hero 的白字叠黑渐变是视频播放/海报上下文中的既有例外，不用本合同改成普通页面文字角色。
+- 简介与分集标题声明 `heading()`;简介复用 `MusicCollectionDescription`,保留 itemId 隔离的展开状态。
+- Series 当前分集由 `resolveVideoDetailCurrentEpisode` 解析;详情列表必须传入 `isCurrent`,与播放器选集面板使用同一视觉和语义语言。
+- 当前分集的标签、标题、元信息使用 `onPrimaryContainer`;普通分集次级信息使用 `onSurfaceVariant`。
+- 封面不承担重复标题朗读;详情 Hero 的白字叠黑渐变是视频播放/海报上下文中的既有例外,不用本合同改成普通页面文字角色。
+- 详情 Hero 标题只保留在 16:9 图内(`displaySmall` 自然行高,最多 3 行省略);Chips 与主/次播放按钮位于图下的普通内容区,不塞进固定图高 —— 长标题/大字号不会被裁切,播放动作始终可达。
+- 普通分集行最小高度 72dp(播放器选集面板 `compact=true` 不套用);主、次播放按钮继续复用 `PrimaryActionButton`/`SecondaryActionButton`,长标签最多两行、自然增高,保留 enabled/disabled 语义。
+- 未看筛选为空的详情级空态使用 `MediaStateCard(density = Compact)`,不伪造刷新/错误/空媒体库状态。
 
 ### Debug 样板与边界
 
-- `VideoCatalogSample` 只使用内存 `VideoItem`、本地 debug 封面和记录回调，不构造账号、不请求网络、不写真实偏好。
-- 覆盖 `VideoHome`、`VideoSearch`、`VideoDetail`、`VideoSeries`；状态按实际实现覆盖正常、长文本、空/未配置、空库、加载、错误、缓存刷新、无封面和未看筛选为空。
+- `VideoCatalogSample` 只使用内存 `VideoItem`、本地 debug 封面和记录回调,不构造账号、不请求网络、不写真实偏好。
+- 覆盖 `VideoHome`、`VideoSearch`、`VideoDetail`、`VideoSeries`;状态按实际实现覆盖正常、长文本、空/未配置、空库、加载、错误、缓存刷新、无封面、不可播放分集和未看筛选为空。
+- Series 样板的 Empty 状态表达「全部分集已看」,从而驱动未看筛选空态;不可播放分集由最后一集 `streamUrl = null` 表达,保留 `isNotEnabled` 语义。
 - 本合同不代表真实 Emby、个人设备、TalkBack 全路径或播放器/PiP/横竖屏验收。
 
 ## 4. 边界矩阵
@@ -44,6 +48,8 @@
 | 320/360/392/720dp，字号 1/1.5/2 | 卡片和节头不裁切；续播卡按字号增长且不超过 300dp |
 | 普通卡片次级文字 | 使用实色 `onSurfaceVariant`，真实合成对比至少 4.5:1 |
 | 当前分集 | `primaryContainer` + `onPrimaryContainer` + `selected` |
+| 详情普通分集行/主次按钮 | 最小 72dp;真实目标至少 48dp,大字体自然增高不裁切 |
+| 未看筛选为空 | 紧凑 `MediaStateCard`,不出现假空库 |
 | 错误且无缓存 | 只有错误卡和重试按钮，不出现假空态 |
 | 搜索无结果 | 显示匹配空态，保留筛选和清除路径 |
 

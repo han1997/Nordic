@@ -116,6 +116,7 @@ controls:
 - 电影/剧集卡片整卡使用 `Role.Button` 与明确打开详情标签，封面使用 `clearAndSetSemantics` 去重；次级信息使用实色 `onSurfaceVariant`。
 - 继续观看卡从 240dp 基准按系统字号增长并钳制到 300dp，中央播放装饰保持 48dp 实际尺寸；海报推荐卡继续使用 `videoShelfCardSize`。
 - 视频详情简介与分集节头声明 heading；当前分集使用 `primaryContainer`、`onPrimaryContainer` 与 `selected` 语义表达，不依赖颜色 alone。
+- 视频详情 Hero 保持白字叠黑渐变的内容语境,标题遵循 `displaySmall` 自然行高(标题在图内,播放按钮位于图外内容区,大字号不裁切);普通分集行至少 72dp,未看筛选为空时使用紧凑状态卡。
 - 连接错误在滚动内容中提供显式重试，错误且无缓存时不同时显示成功空库文案；本轮不改变 Emby 协议或播放器窗口。
 
 ### 视频播放器与窗内面板

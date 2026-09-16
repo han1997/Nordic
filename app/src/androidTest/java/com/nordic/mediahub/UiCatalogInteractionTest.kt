@@ -302,4 +302,27 @@ class UiCatalogInteractionTest {
         val current = compose.onNode(hasText("回声", substring = false) and isSelected())
         current.performScrollTo().assertIsDisplayed().assertIsSelected()
     }
+
+    @Test fun videoDetailActionsAndEpisodesRemainReachableAtLargeFont() {
+        show("video_detail", font = 2f)
+        val play = compose.onNodeWithText("继续从", substring = true)
+        play.performScrollTo().assertIsDisplayed().assertIsFullyVisible().assertMinimumTouchTarget().performTouchInput { click() }
+        compose.runOnIdle { assertTrue(compose.activity.recordedEvents.contains("video-play:video-movie-0")) }
+
+        show("video_series", font = 2f)
+        val episode = compose.onNode(hasText("回声", substring = false) and hasClickAction())
+        episode.performScrollTo().assertIsDisplayed().assertIsFullyVisible().assertMinimumTouchTarget()
+            .performTouchInput { click() }
+        compose.runOnIdle { assertTrue(compose.activity.recordedEvents.contains("video-play-episode:video-ep-1")) }
+        compose.onNodeWithText("归途", substring = false).performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test fun videoSeriesUnwatchedEmptyUsesCompactStateCard() {
+        show("video_series", state = "empty")
+        compose.onNodeWithText("未看", substring = false).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("未看", substring = false).performClick()
+        val card = compose.onNodeWithText("没有未看的分集", substring = false)
+        card.performScrollTo().assertIsDisplayed().assertIsFullyVisible()
+        compose.onNodeWithText("本季已没有尚未播放的分集。", substring = false).assertIsDisplayed()
+    }
 }

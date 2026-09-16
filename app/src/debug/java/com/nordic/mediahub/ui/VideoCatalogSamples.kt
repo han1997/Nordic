@@ -98,6 +98,7 @@ internal fun VideoCatalogSample(
             sourceId = "ui-samples"
         )
     }
+    val seriesAllWatched = request.screen == UiSampleScreen.VideoSeries && request.state == UiSampleState.Empty
     val episodes = remember(request.state) {
         listOf("序章", "回声", "长夜", "远山", "空白", "归途").mapIndexed { index, name ->
             VideoItem(
@@ -108,7 +109,7 @@ internal fun VideoCatalogSample(
                 overview = "分集简介",
                 durationSeconds = 2700,
                 playbackPositionSeconds = if (index == 1) 840 else 0,
-                isPlayed = index == 0,
+                isPlayed = seriesAllWatched || index == 0,
                 seriesId = "video-series-1",
                 seriesName = series.title,
                 seasonNumber = 1,
@@ -148,9 +149,7 @@ internal fun VideoCatalogSample(
         }
         else -> null
     }
-    val related = if (screen == UiSampleScreen.VideoSeries) {
-        if (request.state == UiSampleState.Empty) emptyList() else episodes
-    } else emptyList()
+    val related = if (screen == UiSampleScreen.VideoSeries) episodes else emptyList()
 
     BackHandler(enabled = screen != request.screen) {
         screen = request.screen
