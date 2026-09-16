@@ -640,3 +640,38 @@ trellis-continue 确认无活动任务且工作区干净；媒体模块显示与
 ### Next Steps
 
 - None - task complete
+
+
+## Session 191: 设置与服务器配置域第八轮 UI 精修
+
+**Date**: 2026-09-17
+**Task**: 设置与服务器配置域第八轮 UI 精修
+**Branch**: `main`
+
+### Summary
+
+收口设置主页分组/服务器列表/偏好页/数据页/模块显示与共享设置组件;服务器空态改紧凑状态卡、设置选择对话框补 primaryContainer 强调、无引用 ConfigCards 死卡片删除、存储读取失败改状态卡。Debug 样板新增 4 个设置域场景,交互测试新增 3 断言并通过,版本升至 0.1.16。r8 截图 81 张已封存,逐图人工视检待用户确认;3 个视频域既有 flaky 失败与本轮无关。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `a889e43` | (see git log) |
+| `f8840df` | (see git log) |
+| `3b20682` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
