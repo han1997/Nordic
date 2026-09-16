@@ -607,3 +607,36 @@ trellis-continue 确认无活动任务且工作区干净；媒体模块显示与
 ### Next Steps
 
 - None - task complete
+
+
+## Session 190: UI 精修第七轮:视频详情页
+
+**Date**: 2026-09-16
+**Task**: UI 精修第七轮:视频详情页
+**Branch**: `main`
+
+### Summary
+
+收口视频详情 Hero、简介、分集筛选与分集列表。Hero 标题保留在 16:9 图内,播放按钮移至图下内容区,消除大字号固定图高裁切;未看筛选空态改用紧凑状态卡;普通分集行最小 72dp 并保留 enabled/disabled 语义。扩展 Debug 样板:Series Empty 表达全部分集已看以驱动未看空态,最后一集 streamUrl=null 表达不可播放,并新增 2 个交互测试(大字号可达性 + 空态卡)。同步版本 0.1.15/15、CHANGELOG、DESIGN 与 video-ui 合同。质量门禁:compile/test/lint/assembleDebug/AndroidTest/Release 全绿,Release 签名与 Retrofit 泛型合同验证通过。未验证:专用模拟器不可用,r7 截图/交互证据未产出。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `b2b821a` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
