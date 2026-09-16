@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Android 应用层规范总索引与 pre-development checklist"}
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "跨域 UI 一致性约定——设置域、行组件、共享组件语言"}
+{"file": ".trellis/spec/backend/ui-catalog-verification.md", "reason": "Debug UI 样板宿主、Compose instrumentation 与截图验收流"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "共享 Compose 组件 internal、设计 token、Server Config 场景合同、Gradle 验证的 Windows 约束"}
+{"file": ".trellis/spec/backend/media-sources-webdav-settings.md", "reason": "媒体来源与 WebDAV 设置规范——连接表单、偏好字段边界"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "源码/测试/Debug 目录放置规范"}
