@@ -313,6 +313,39 @@ class AudiobookScreenTest {
         assertEquals("10分0秒后停止", sleepTimerRemainingLabel(sleepTimerRemainingSeconds = 600, atChapterEnd = false))
     }
 
+    @Test
+    fun resolveCurrentAudiobookChapter_matchesDetailProgressForHighlight() {
+        // The detail chapter list highlights the same chapter the player resolves,
+        // so both call sites must agree on the position → chapter mapping.
+        val chapters = listOf(chapter(id = 1, startSeconds = 0), chapter(id = 2, startSeconds = 1800), chapter(id = 3, startSeconds = 3600))
+
+        val current = resolveCurrentAudiobookChapter(sortAudiobookDetailChapters(chapters), 4211)
+
+        // Chapter 3 starts at 3600, at or before 4211; chapter 2 would require a
+        // position within [1800, 3600).
+        assertEquals(3, current?.id)
+        // Position is clamped to >= 0, so the first chapter (start == 0) still resolves.
+        assertEquals(1, resolveCurrentAudiobookChapter(sortAudiobookDetailChapters(chapters), -1)?.id)
+        assertEquals(2, resolveCurrentAudiobookChapter(sortAudiobookDetailChapters(chapters), 1800 + 99)?.id)
+    }
+
+    @Test
+    fun resolveCurrentAudiobookChapter_returnsLastChapterAtOrBeforePosition() {
+        val chapters = listOf(chapter(id = 1, startSeconds = 0), chapter(id = 2, startSeconds = 1800))
+
+        val current = resolveCurrentAudiobookChapter(sortAudiobookDetailChapters(chapters), 1800)
+
+        assertEquals(2, current?.id)
+    }
+
+    @Test
+    fun audiobookAuthorLabel_normalizesBlankAuthorsToUnknown() {
+        assertEquals("未知作者", audiobookAuthorLabel(""))
+        assertEquals("未知作者", audiobookAuthorLabel("   "))
+        assertEquals("未知作者", audiobookAuthorLabel(null))
+        assertEquals("刘慈欣", audiobookAuthorLabel(" 刘慈欣 "))
+    }
+
     private fun library(id: String): AudiobookLibrarySummary {
         return AudiobookLibrarySummary(
             id = id,

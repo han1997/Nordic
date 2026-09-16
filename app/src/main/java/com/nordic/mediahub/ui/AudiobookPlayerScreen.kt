@@ -83,7 +83,6 @@ import com.nordic.mediahub.data.AudiobookBookmark
 import com.nordic.mediahub.data.AudiobookChapter
 import com.nordic.mediahub.playback.resolvePlaybackSpeedLabel
 import com.nordic.mediahub.playback.AudiobookPlaybackState
-import com.nordic.mediahub.ui.theme.NordicAlpha
 import com.nordic.mediahub.ui.theme.NordicMotion
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
@@ -371,7 +370,7 @@ fun AudiobookPlayerScreen(
 }
 
 @Composable
-private fun AudiobookChapterListSheet(
+internal fun AudiobookChapterListSheet(
     chapters: List<AudiobookChapter>,
     currentPositionSeconds: Int,
     colorScheme: ColorScheme,
@@ -396,12 +395,12 @@ private fun AudiobookChapterListSheet(
 }
 
 @Composable
-private fun AudiobookPlaybackSpeedSheet(currentSpeed: Float, colorScheme: ColorScheme, onSelect: (Float) -> Unit, onDismiss: () -> Unit) {
+internal fun AudiobookPlaybackSpeedSheet(currentSpeed: Float, colorScheme: ColorScheme, onSelect: (Float) -> Unit, onDismiss: () -> Unit) {
     MediaPlaybackSpeedSheet(AUDIOBOOK_PLAYBACK_SPEED_OPTIONS, currentSpeed, colorScheme, onSelect, onDismiss)
 }
 
 @Composable
-private fun AudiobookSleepTimerSheet(
+internal fun AudiobookSleepTimerSheet(
     sleepTimerRemainingSeconds: Int?,
     sleepTimerAtChapterEnd: Boolean,
     colorScheme: ColorScheme,
@@ -448,7 +447,7 @@ internal fun sleepTimerRemainingLabel(
 }
 
 @Composable
-private fun AudiobookBookmarkSheet(
+internal fun AudiobookBookmarkSheet(
     bookmarks: List<AudiobookBookmark>,
     colorScheme: ColorScheme,
     currentPositionSeconds: Int,
@@ -493,7 +492,7 @@ private fun AudiobookBookmarkRow(
                     color = if (isCurrent) colorScheme.onPrimaryContainer else colorScheme.onSurface,
                     maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(formatDuration(bookmark.positionSeconds), style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
-                    color = if (isCurrent) colorScheme.onPrimaryContainer.copy(alpha = 0.78f) else colorScheme.onSurfaceVariant)
+                    color = if (isCurrent) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant)
             }
             MediaPlayerIconAction(MediaPlayerAction(Icons.Filled.Delete, "删除书签", onDelete), colorScheme, destructive = true)
         }

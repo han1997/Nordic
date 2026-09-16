@@ -25,8 +25,11 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,7 +46,6 @@ import com.nordic.mediahub.data.cacheKey
 import com.nordic.mediahub.data.formatCacheAge
 import com.nordic.mediahub.data.isCacheFresh
 import com.nordic.mediahub.data.isReadyForAudiobookSync
-import com.nordic.mediahub.ui.theme.NordicAlpha
 import com.nordic.mediahub.ui.theme.NordicControlSizes
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
@@ -416,7 +418,7 @@ fun AudiobookScreen(
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(NordicSpacing.lg),
-        verticalArrangement = Arrangement.spacedBy(NordicSpacing.lg)
+        verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
     ) {
         item {
             MediaPageHeader(
@@ -466,12 +468,19 @@ fun AudiobookScreen(
         }
         if (standaloneError != null) {
             item {
-                MediaStateCard(
-                    title = "AudiobookShelf 错误",
-                    subtitle = standaloneError,
-                    hint = "检查配置或点击刷新重试",
-                    tone = MediaStateTone.Error
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+                    MediaStateCard(
+                        title = "AudiobookShelf 错误",
+                        subtitle = standaloneError,
+                        hint = "检查配置或点击刷新重试",
+                        tone = MediaStateTone.Error
+                    )
+                    // Same refresh path as the header action; the explicit button
+                    // keeps retry reachable without hunting for the header icon.
+                    SecondaryActionButton("重试", colorScheme, onClick = {
+                        scope.launch { refreshAudiobooks() }
+                    })
+                }
             }
         }
 
@@ -655,15 +664,19 @@ fun AudiobookScreen(
                         )
                     }
                     if (detailChapters.isNotEmpty()) {
-                    item {
-                        Text(
-                            "章节",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = colorScheme.onSurface
-                        )
-                    }
+                        item {
+                            Text(
+                                "章节",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = colorScheme.onSurface,
+                                modifier = Modifier.semantics { heading() }
+                            )
+                        }
+                        val currentChapter = item.progress?.let { progress ->
+                            resolveCurrentAudiobookChapter(detailChapters, progress.currentTimeSeconds)
+                        }
                         items(detailChapters, key = { it.id }, contentType = { "audiobook-chapter-row" }) { chapter ->
-                            AudiobookChapterRow(chapter, colorScheme)
+                            AudiobookChapterRow(chapter, colorScheme, isCurrent = chapter.id == currentChapter?.id)
                         }
                     }
                 }
@@ -673,7 +686,7 @@ fun AudiobookScreen(
 }
 
 @Composable
-private fun AudiobookLibrarySelector(
+internal fun AudiobookLibrarySelector(
     libraries: List<AudiobookLibrarySummary>,
     selectedLibraryId: String?,
     colorScheme: ColorScheme,
@@ -699,31 +712,36 @@ private fun AudiobookLibrarySelector(
 }
 
 @Composable
-private fun AudiobookSummaryCard(
+internal fun AudiobookSummaryCard(
     item: AudiobookItemSummary,
     colorScheme: ColorScheme,
     onOpen: () -> Unit,
     onPlay: () -> Unit
 ) {
+    // The nested clickable surface consumes pointer events first, so a tap on the
+    // play button does not trip the card's open-detail click.
     Surface(
         color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
         shape = NordicShapes.md,
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen)
+        modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClickLabel = "打开详情", onClick = onOpen)
     ) {
         Row(
             modifier = Modifier.padding(NordicSpacing.md),
             horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            CoverArt(
-                imageUrl = item.coverUrl,
-                contentDescription = item.title,
-                colorScheme = colorScheme,
-                modifier = Modifier.size(72.dp),
-                shape = NordicShapes.md,
-                fallbackIcon = Icons.AutoMirrored.Filled.MenuBook
-            )
+            // The adjacent title already names this artwork; avoid duplicate TalkBack announcements.
+            Box(Modifier.clearAndSetSemantics { }) {
+                CoverArt(
+                    imageUrl = item.coverUrl,
+                    contentDescription = item.title,
+                    colorScheme = colorScheme,
+                    modifier = Modifier.size(72.dp),
+                    shape = NordicShapes.md,
+                    fallbackIcon = Icons.AutoMirrored.Filled.MenuBook
+                )
+            }
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
@@ -735,7 +753,7 @@ private fun AudiobookSummaryCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(audiobookAuthorLabel(item.author), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Normal, color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(audiobookAuthorLabel(item.author), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Normal, color = colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 val meta = remember(item) {
                     buildList {
                         if (item.narrator.isNotBlank()) add("播讲 ${item.narrator}")
@@ -744,19 +762,20 @@ private fun AudiobookSummaryCard(
                     }.joinToString("  •  ")
                 }
                 if (meta.isNotBlank()) {
-                    Text(meta, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Normal, color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(meta, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Normal, color = colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
             Surface(
                 color = colorScheme.primary,
                 contentColor = colorScheme.onPrimary,
                 shape = NordicShapes.full,
-                modifier = Modifier.size(NordicControlSizes.touchTarget).clickable(onClick = onPlay)
+                modifier = Modifier.size(NordicControlSizes.touchTarget)
+                    .clickable(role = Role.Button, onClickLabel = "播放有声书", onClick = onPlay)
             ) {
                 Box(contentAlignment = Center) {
                     Icon(
                         imageVector = Icons.Filled.PlayArrow,
-                        contentDescription = "播放有声书",
+                        contentDescription = null,
                         tint = colorScheme.onPrimary,
                         modifier = Modifier.size(22.dp)
                     )
@@ -768,7 +787,7 @@ private fun AudiobookSummaryCard(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AudiobookDetailHeader(
+internal fun AudiobookDetailHeader(
     item: AudiobookItemDetail,
     colorScheme: ColorScheme,
     onPlay: () -> Unit
@@ -776,14 +795,17 @@ private fun AudiobookDetailHeader(
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val layout = resolveAudiobookCollectionLayout(maxWidth, LocalDensity.current.fontScale)
         val artwork: @Composable () -> Unit = {
-            CoverArt(
-                imageUrl = item.coverUrl,
-                contentDescription = item.title,
-                colorScheme = colorScheme,
-                modifier = Modifier.size(layout.artworkSize),
-                shape = NordicShapes.md,
-                fallbackIcon = Icons.AutoMirrored.Filled.MenuBook
-            )
+            // Adjacent heading already names this artwork.
+            Box(Modifier.clearAndSetSemantics { }) {
+                CoverArt(
+                    imageUrl = item.coverUrl,
+                    contentDescription = item.title,
+                    colorScheme = colorScheme,
+                    modifier = Modifier.size(layout.artworkSize),
+                    shape = NordicShapes.md,
+                    fallbackIcon = Icons.AutoMirrored.Filled.MenuBook
+                )
+            }
         }
         val details: @Composable () -> Unit = {
             Column(
@@ -797,13 +819,13 @@ private fun AudiobookDetailHeader(
                     modifier = Modifier.semantics { heading() })
                 if (item.subtitle.isNotBlank()) {
                     Text(item.subtitle, style = MaterialTheme.typography.bodyMedium,
-                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
+                        color = colorScheme.onSurfaceVariant,
                         textAlign = if (layout.stacked) TextAlign.Center else TextAlign.Start,
                         maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
-                Text(audiobookAuthorLabel(item.authors.joinToString(" / ").takeIf { it.isNotBlank() }),
+                Text(audiobookAuthorLabel(item.authors.joinToString(" / ")),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.medium),
+                    color = colorScheme.onSurfaceVariant,
                     textAlign = if (layout.stacked) TextAlign.Center else TextAlign.Start,
                     maxLines = 2, overflow = TextOverflow.Ellipsis)
                 FlowRow(
@@ -860,23 +882,30 @@ private fun AudiobookDetailHeader(
 }
 
 @Composable
-private fun AudiobookChapterRow(chapter: AudiobookChapter, colorScheme: ColorScheme) {
+internal fun AudiobookChapterRow(
+    chapter: AudiobookChapter,
+    colorScheme: ColorScheme,
+    isCurrent: Boolean = false
+) {
     Surface(
-        color = colorScheme.surfaceVariant.copy(alpha = 0.42f),
+        color = if (isCurrent) colorScheme.primaryContainer else colorScheme.surfaceVariant.copy(alpha = 0.42f),
+        contentColor = if (isCurrent) colorScheme.onPrimaryContainer else colorScheme.onSurface,
         shape = NordicShapes.md,
-        border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier.padding(horizontal = NordicSpacing.md, vertical = NordicSpacing.md),
             verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)
         ) {
-            Text(chapter.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, color = colorScheme.onSurface)
+            Text(chapter.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium,
+                color = if (isCurrent) colorScheme.onPrimaryContainer else colorScheme.onSurface,
+                maxLines = 2, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.semantics { if (isCurrent) selected = true })
             Text(
                 "${formatDuration(chapter.startSeconds)} - ${formatDuration(chapter.endSeconds)}",
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
                 fontWeight = FontWeight.Normal,
-                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
+                color = if (isCurrent) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant
             )
         }
     }
