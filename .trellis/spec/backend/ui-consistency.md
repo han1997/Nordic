@@ -117,6 +117,7 @@ Text("播放", color = colorScheme.onPrimary)
 - 音乐集合、列表、封面、缺失信息与管理动作的进一步约束见 [music-ui.md](./music-ui.md)，对应组件复用本合同的字体、主题、动作尺寸和无障碍原则。
 - 有声书详情概览复用音乐集合布局策略：`resolveAudiobookCollectionLayout` 委托 `resolveMusicCollectionLayout`（窄屏/大字体堆叠居中，宽屏并列 128/160dp），不得另写固定 128dp Row。简介卡片复用 `MusicCollectionDescription`（3 行截断 + 展开/收起，按 itemId 隔离状态），保留域内标题容器。
 - 有声书作者缺省文案统一 `audiobookAuthorLabel`（空白 → 「未知作者」），summary 卡、详情作者行、页头副标题三处均不得静默省略作者行。
+- 有声书摘要卡整卡 `clickable(Role.Button)`(打开详情)与内层 48dp 播放钮 `clickable(Role.Button)` 分离,内层 Icon `contentDescription = null`;次级文字统一实色 `onSurfaceVariant`,不得用 `onSurface.copy(alpha = ...)` 叠 0.42 surfaceVariant 卡(合成对比不足 4.5:1);详情章节行 `isCurrent` 高亮必须 `primaryContainer`/`onPrimaryContainer` + `selected` 语义。完整合同与当前章节解析一致性见 [有声书页面 UI](./audiobook-ui.md)。
 - 视频域节头（推荐区、全部 N 项、分集）使用 `headlineMedium` + `onBackground` + `Modifier.semantics { heading() }` + SemiBold，与音乐首页节头同一规范。
 - 视频海报推荐卡宽度使用 `videoShelfCardSize(fontScale)`（132dp × 钳制 scale，上限 176dp），与音乐 `musicShelfArtworkSize` 同一增长策略；不得写固定宽度。
 - 视频详情分集筛选、播放器倍速面板选择行分别复用 `MediaChoiceChip`（含 `selectableGroup`）与 `MediaPlayerChoiceRow`；不得另写裸 `clickable` 自绘选中样式。
