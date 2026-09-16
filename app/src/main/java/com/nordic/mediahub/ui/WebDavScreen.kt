@@ -5,10 +5,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.foundation.selection.selectableGroup
@@ -22,6 +24,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -92,8 +97,10 @@ internal fun WebDavScreen(config: VideoServerConfig, onPlay: (VideoItem) -> Unit
                         TextButton(onClick = { open(path) }) { Text(model.displayPath(path).substringAfterLast('/')) }
                     }
                 }
+                val isFavorite = state.favorites.any { it.path == state.path }
                 IconButton(onClick = { model.favorite(state.path, model.displayPath(state.path).ifBlank { "根目录" }) }) {
-                    Icon(if (state.favorites.any { it.path == state.path }) Icons.Filled.Star else Icons.Filled.StarBorder, "收藏当前目录", tint = colors.primary)
+                    Icon(if (isFavorite) Icons.Filled.Star else Icons.Filled.StarBorder,
+                        if (isFavorite) "取消收藏当前目录" else "收藏当前目录", tint = colors.primary)
                 }
             }
         }
@@ -104,7 +111,7 @@ internal fun WebDavScreen(config: VideoServerConfig, onPlay: (VideoItem) -> Unit
         val error = state.error ?: settingError
         if (error != null) item(key = "error") {
             MediaStateCard("读取提示", error, tone = MediaStateTone.Error, density = MediaStateDensity.Compact)
-            TextButton(onClick = { settingError = null; model.refresh() }) { Text("重试") }
+            SecondaryActionButton("重试", colors, onClick = { settingError = null; model.refresh() })
         }
         if (state.path == model.initialPath && query.isBlank()) {
             val continuing = state.progress.filter { !it.completed && it.positionSeconds > 0 }
@@ -113,14 +120,18 @@ internal fun WebDavScreen(config: VideoServerConfig, onPlay: (VideoItem) -> Unit
                 item(key = "resume") {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
                         items(continuing, key = { it.path }) { record ->
-                            Surface(Modifier.width(220.dp).clickable(role = Role.Button, enabled = !state.preparing) {
+                            Surface(Modifier.width(webDavResumeCardWidth(LocalDensity.current.fontScale)).clickable(
+                                role = Role.Button, onClickLabel = "继续播放 ${record.title}", enabled = !state.preparing) {
                                 play(WebDavEntry(record.path, record.title, false))
                             }, shape = NordicShapes.md, color = colors.surfaceVariant.copy(alpha = 0.45f)) {
                                 Column(Modifier.padding(NordicSpacing.lg), verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
                                     Icon(Icons.Filled.PlayCircle, null, tint = colors.primary)
                                     Text(record.title, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
-                                    Text("${formatDuration(record.positionSeconds)} / ${formatDuration(record.durationSeconds)}", style = MaterialTheme.typography.bodySmall)
-                                    TextButton(onClick = { model.removeProgress(record.path) }) { Text("移除进度") }
+                                    Text("${formatDuration(record.positionSeconds)} / ${formatDuration(record.durationSeconds)}",
+                                        style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
+                                        color = colors.onSurfaceVariant)
+                                    TextButton(onClick = { model.removeProgress(record.path) },
+                                        modifier = Modifier.heightIn(min = NordicControlSizes.touchTarget)) { Text("移除进度") }
                                 }
                             }
                         }
@@ -134,41 +145,26 @@ internal fun WebDavScreen(config: VideoServerConfig, onPlay: (VideoItem) -> Unit
                 }
             }
         }
-        item(key = "files-title") { SettingsSectionTitle("文件与文件夹") }
-        if (showWebDavEmptyState(state.loading, state.error, rows.size)) item(key = "empty") {
-            MediaStateCard(if (query.isNotBlank()) "没有匹配项目" else "这里还没有视频", "仅显示当前目录内容，可在显示选项中查看其他文件。", density = MediaStateDensity.Compact)
-        }
-        items(rows, key = { "file:${it.path}" }) { entry ->
-            var menu by remember(entry.path) { mutableStateOf(false) }
-            val progress = state.progress.firstOrNull { it.path == entry.path && !it.completed }
-            Row(Modifier.fillMaxWidth().heightIn(min = 72.dp)
-                .clickable(enabled = !state.preparing, role = Role.Button) { if (entry.directory) open(entry.path) else if (entry.isVideo) play(entry) else detail = entry },
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
-                Icon(if (entry.directory) Icons.Filled.Folder else if (entry.isVideo) Icons.Filled.Movie else Icons.AutoMirrored.Filled.InsertDriveFile,
-                    null, Modifier.size(32.dp), tint = colors.primary)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
-                    Text(entry.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Text(if (entry.directory) "文件夹" else listOfNotNull(entry.extension.uppercase(), formatMediaBytes(entry.size),
-                        progress?.let { "已看 ${formatDuration(it.positionSeconds)}" }).joinToString(" · "),
-                        style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-                }
-                Box {
-                    IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, "${entry.name}的操作") }
-                    DropdownMenu(menu, onDismissRequest = { menu = false }) {
-                        if (entry.isVideo) DropdownMenuItem(text = { Text("从头播放") }, onClick = { menu = false; play(entry, true) })
-                        if (entry.directory) DropdownMenuItem(text = { Text(if (state.favorites.any { it.path == entry.path }) "取消收藏" else "收藏文件夹") },
-                            onClick = { menu = false; model.favorite(entry.path, entry.name) })
-                        if (progress != null) DropdownMenuItem(text = { Text("清除本机进度") }, onClick = { menu = false; model.removeProgress(entry.path) })
-                        DropdownMenuItem(text = { Text("文件信息") }, onClick = { menu = false; detail = entry })
-                    }
-                }
-            }
-            HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.4f))
-        }
+        WebDavBrowserContent(
+            rows = rows,
+            progress = state.progress,
+            favorites = state.favorites,
+            loading = state.loading,
+            error = state.error,
+            query = query,
+            preparing = state.preparing,
+            colors = colors,
+            onOpen = ::open,
+            onPlay = ::play,
+            onFavorite = { path, name -> model.favorite(path, name) },
+            onRemoveProgress = model::removeProgress,
+            onDetail = { detail = it }
+        )
     }
     if (showSort) ModalBottomSheet(onDismissRequest = { showSort = false }) {
         Column(Modifier.padding(horizontal = NordicSpacing.content).padding(bottom = NordicSpacing.xxl)) {
-            Text("目录排序与显示", style = MaterialTheme.typography.headlineMedium)
+             Text("目录排序与显示", style = MaterialTheme.typography.headlineMedium,
+                 modifier = Modifier.semantics { heading() })
             Column(Modifier.selectableGroup()) {
                 WebDavSort.entries.forEach { sort ->
                     MediaPlayerChoiceRow(sort.label, preferences.webDavSort == sort, colors,
@@ -182,7 +178,93 @@ internal fun WebDavScreen(config: VideoServerConfig, onPlay: (VideoItem) -> Unit
     }
     detail?.let { entry ->
         AlertDialog(onDismissRequest = { detail = null }, title = { Text(entry.name) },
-            text = { Text("路径：${model.displayPath(entry.path)}\n大小：${formatMediaBytes(entry.size)}\n修改时间：${entry.modifiedAtMillis?.let { java.text.DateFormat.getDateTimeInstance().format(java.util.Date(it)) } ?: "未知"}") },
-            confirmButton = { TextButton(onClick = { detail = null }) { Text("关闭") } })
+            text = { Text("路径：${model.displayPath(entry.path)}\n大小：${formatMediaBytes(entry.size)}\n修改时间：${entry.modifiedAtMillis?.let { java.text.DateFormat.getDateTimeInstance().format(java.util.Date(it)) } ?: "未知"}",
+                modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState())) },
+            confirmButton = { TextButton(onClick = { detail = null }, modifier = Modifier.heightIn(min = NordicControlSizes.touchTarget)) { Text("关闭") } })
+    }
+}
+
+internal fun LazyListScope.WebDavBrowserContent(
+    rows: List<WebDavEntry>,
+    progress: List<WebDavProgress>,
+    favorites: List<WebDavFolder>,
+    loading: Boolean,
+    error: String?,
+    query: String,
+    preparing: Boolean,
+    colors: ColorScheme,
+    onOpen: (String) -> Unit,
+    onPlay: (WebDavEntry, Boolean) -> Unit,
+    onFavorite: (String, String) -> Unit,
+    onRemoveProgress: (String) -> Unit,
+    onDetail: (WebDavEntry) -> Unit
+) {
+    item(key = "files-title") { SettingsSectionTitle("文件与文件夹") }
+    if (showWebDavEmptyState(loading, error, rows.size)) item(key = "empty") {
+        MediaStateCard(
+            if (query.isNotBlank()) "没有匹配项目" else "这里还没有视频",
+            "仅显示当前目录内容，可在显示选项中查看其他文件。",
+            density = MediaStateDensity.Compact
+        )
+    }
+    items(rows, key = { "file:${it.path}" }) { entry ->
+        var menu by remember(entry.path) { mutableStateOf(false) }
+        val entryProgress = progress.firstOrNull { it.path == entry.path && !it.completed }
+        val isFavorite = favorites.any { it.path == entry.path }
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 72.dp)
+                .clickable(
+                    enabled = !preparing,
+                    role = Role.Button,
+                    onClickLabel = when {
+                        entry.directory -> "打开文件夹 ${entry.name}"
+                        entry.isVideo -> "播放 ${entry.name}"
+                        else -> "查看 ${entry.name} 信息"
+                    }
+                ) {
+                    when {
+                        entry.directory -> onOpen(entry.path)
+                        entry.isVideo -> onPlay(entry, false)
+                        else -> onDetail(entry)
+                    }
+                },
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)
+        ) {
+            Icon(
+                if (entry.directory) Icons.Filled.Folder else if (entry.isVideo) Icons.Filled.Movie else Icons.AutoMirrored.Filled.InsertDriveFile,
+                null, Modifier.size(32.dp), tint = colors.primary
+            )
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
+                Text(entry.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(
+                    if (entry.directory) "文件夹" else listOfNotNull(
+                        entry.extension.uppercase(), formatMediaBytes(entry.size),
+                        entryProgress?.let { "已看 ${formatDuration(it.positionSeconds)}" }
+                    ).joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
+                    color = colors.onSurfaceVariant
+                )
+            }
+            Box {
+                IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, "${entry.name}的操作") }
+                DropdownMenu(menu, onDismissRequest = { menu = false }) {
+                    if (entry.isVideo) DropdownMenuItem(
+                        text = { Text("从头播放") },
+                        onClick = { menu = false; onPlay(entry, true) }
+                    )
+                    if (entry.directory) DropdownMenuItem(
+                        text = { Text(if (isFavorite) "取消收藏" else "收藏文件夹") },
+                        onClick = { menu = false; onFavorite(entry.path, entry.name) }
+                    )
+                    if (entryProgress != null) DropdownMenuItem(
+                        text = { Text("清除本机进度") },
+                        onClick = { menu = false; onRemoveProgress(entry.path) }
+                    )
+                    DropdownMenuItem(text = { Text("文件信息") }, onClick = { menu = false; onDetail(entry) })
+                }
+            }
+        }
+        HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.4f))
     }
 }

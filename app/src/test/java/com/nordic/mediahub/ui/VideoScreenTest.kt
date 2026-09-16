@@ -31,6 +31,15 @@ class VideoScreenTest {
     }
 
     @Test
+    fun webDavResumeCardWidth_growsWithFontScaleAndCapsAt300dp() {
+        assertEquals(220.dp, webDavResumeCardWidth(1f))
+        assertEquals(300.dp, webDavResumeCardWidth(1.5f))
+        assertEquals(300.dp, webDavResumeCardWidth(2f))
+        assertEquals(220.dp, webDavResumeCardWidth(0.5f))
+        assertEquals(220.dp, webDavResumeCardWidth(Float.NaN))
+    }
+
+    @Test
     fun browseCatalogVideos_excludesEpisodes() {
         val movie = video(id = "movie-1", title = "Movie One", type = "Movie")
         val series = video(id = "series-1", title = "Series One", type = "Series")

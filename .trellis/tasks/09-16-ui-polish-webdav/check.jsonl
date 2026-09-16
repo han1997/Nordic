@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/backend/media-sources-webdav-settings.md", "reason": "检查 UI 抽取未改变来源、协议、缓存、路径和本机进度合同"}
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "检查按钮/选择行/开关/搜索/对比度/安全区语义"}
+{"file": ".trellis/spec/backend/ui-catalog-verification.md", "reason": "检查 r6 样板、字号、Dialog、失败证据和 Release 隔离"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "检查 lint、共享组件复用和测试门禁"}
+{"file": ".trellis/spec/backend/build-release.md", "reason": "检查版本、签名、Release APK 和 Debug 排除"}
+{"file": ".trellis/tasks/09-16-ui-polish-webdav/prd.md", "reason": "本轮范围、验收标准和明确不在范围"}
+{"file": ".trellis/tasks/09-16-ui-polish-webdav/research/implementation-plan.md", "reason": "核对 WebDAV UI 审计项和状态矩阵"}

@@ -1,0 +1,8 @@
+{"file": ".trellis/spec/backend/media-sources-webdav-settings.md", "reason": "WebDAV 协议、来源隔离、缓存、路径安全、本机进度和设置边界"}
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "页头、搜索、选择行、开关、48dp、对比度和 Dialog 合同"}
+{"file": ".trellis/spec/backend/ui-catalog-verification.md", "reason": "Debug 样板、专用模拟器、字号/截图/交互证据合同"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "共享 UI 反模式、测试和质量门禁"}
+{"file": ".trellis/spec/backend/build-release.md", "reason": "版本 0.1.14/14、签名和 Release Debug 排除核验"}
+{"file": ".trellis/spec/backend/video-auto-play-next.md", "reason": "WebDAV 同目录播放/选集与自动连播边界"}
+{"file": ".trellis/tasks/09-16-ui-polish-webdav/research/implementation-plan.md", "reason": "本轮 WebDAV UI 源码审计、状态矩阵和不变边界"}
+{"file": ".trellis/tasks/archive/2026-09/09-16-ui-polish-video-player/prd.md", "reason": "前轮播放器范围，避免 UI 精修跨回播放器"}

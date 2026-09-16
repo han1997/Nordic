@@ -62,3 +62,12 @@
 
 - `VideoPlayerPreviewActivity` 只使用内存 `VideoItem`、离线 Surface 和记录回调，覆盖正常、电影、空、未知时长、缓冲、错误、片尾、自动连播和横屏。
 - 播放器 UI 证据使用独立 `r5-*` 批次，不覆盖浏览/详情前四轮证据；没有专用设备时记录未验证，不把编译通过当作视觉验收。
+
+## 6. WebDAV 浏览 UI
+
+- WebDAV 文件列表的生产内容层可以抽取为 `LazyListScope.WebDavBrowserContent`，但 ViewModel、ConfigRepository、偏好写入、播放准备和来源上下文必须留在 `WebDavScreen`。
+- 目录/文件行真实目标至少 48dp；文件行默认最小高度 72dp，整行使用 `Role.Button` 和明确打开/播放标签，右侧菜单保持独立动作。
+- 路径面包屑允许水平滚动，收藏按钮根据状态暴露「收藏当前目录」或「取消收藏当前目录」；路径展示不得改变协议路径编码语义。
+- 继续观看卡使用 `webDavResumeCardWidth(fontScale)`，220dp 基准并钳制到 300dp；播放与移除本机进度是两个独立可达目标，时间信息使用 tnum，并标注「仅本机」。
+- 错误态使用显式 `SecondaryActionButton("重试")`；错误且无缓存时不渲染空目录，准备播放错误不得隐藏当前目录。
+- 文件信息 Dialog 的长路径使用可滚动正文，关闭目标至少 48dp；排序面板标题声明 `heading()`，排序选择使用 `MediaPlayerChoiceRow`，显示项使用唯一 `Role.Switch`。

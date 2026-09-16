@@ -10,6 +10,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 
 internal data class WebDavBrowserState(
     val path: String = "/", val entries: List<WebDavEntry> = emptyList(), val loading: Boolean = true,
@@ -119,3 +121,8 @@ internal class WebDavBrowserViewModel(application: Application) : AndroidViewMod
 
 internal fun showWebDavEmptyState(loading: Boolean, error: String?, visibleCount: Int): Boolean =
     !loading && error == null && visibleCount == 0
+
+internal fun webDavResumeCardWidth(fontScale: Float): Dp {
+    val scale = fontScale.takeIf { it.isFinite() && it > 0f }?.coerceAtLeast(1f) ?: 1f
+    return (220.dp * scale).coerceAtMost(300.dp)
+}
