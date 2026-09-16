@@ -46,3 +46,19 @@
 | 当前分集 | `primaryContainer` + `onPrimaryContainer` + `selected` |
 | 错误且无缓存 | 只有错误卡和重试按钮，不出现假空态 |
 | 搜索无结果 | 显示匹配空态，保留筛选和清除路径 |
+
+## 5. 视频播放器与窗内面板
+
+- 播放器 Chrome 的普通工具按钮实际占位至少 48dp，主播放按钮 72dp；`resolveVideoPlayerToolLayout` 按真实可用宽高、fontScale、选集/下一集和状态预留空间，溢出动作进入「播放设置」。
+- 视频 overlay 的白字是明确例外；面板 surface 上的说明、元信息和空态使用实色 `onSurfaceVariant`，不使用未经合成验证的 `onSurface.copy(alpha = ...)`。
+- `VideoPlayerPanelHost` 只允许一个 `VideoPlayerPanel`，使用 `WindowInsets.safeDrawing`；竖屏为底部面板，全屏横向且宽度至少 600dp 时为侧面板。
+- 面板打开时禁用底层播放手势；BackHandler 先关闭面板，再解除手势锁/退出全屏，最后交给外层关闭播放器。
+- `VideoPlayerSettingRow` 暴露 `Role.Button`；开关行整行暴露唯一 `Role.Switch`，内部 `Switch(onCheckedChange = null)` 只负责视觉。
+- 速度、选集、字幕、音轨、章节和清晰度选择复用 `MediaPlayerChoiceRow`；季筛选保留选中语义和至少 48dp 目标。
+- 字幕/音轨面板使用单一滚动容器；不得在 `LazyColumn` 外再叠加 `verticalScroll`。
+- 未知时长显示 `--:--`，时间线复用 `PlayerThinSlider`，取消拖动不触发 seek；章节/选集不可播放项保持 disabled，当前项点击不重复启动播放。
+
+### 播放器 Debug 验收
+
+- `VideoPlayerPreviewActivity` 只使用内存 `VideoItem`、离线 Surface 和记录回调，覆盖正常、电影、空、未知时长、缓冲、错误、片尾、自动连播和横屏。
+- 播放器 UI 证据使用独立 `r5-*` 批次，不覆盖浏览/详情前四轮证据；没有专用设备时记录未验证，不把编译通过当作视觉验收。

@@ -1,0 +1,8 @@
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "检查按钮/选择行/开关/面板容器/对比度和 safeDrawing 合同"}
+{"file": ".trellis/spec/backend/ui-catalog-verification.md", "reason": "检查 r5 截图、横竖屏、字号、Debug 宿主隔离和失败证据"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "检查播放器数据流、选集 handoff、进度快照、方向和面板行为不越界"}
+{"file": ".trellis/spec/backend/video-auto-play-next.md", "reason": "检查片尾提示、自动连播和取消/立即播放互斥"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "检查 lint、共享 UI 反模式和视频 overlay 例外"}
+{"file": ".trellis/spec/backend/build-release.md", "reason": "检查版本、签名、Release APK 和 Debug 排除"}
+{"file": ".trellis/tasks/09-16-ui-polish-video-player/prd.md", "reason": "本轮范围、验收标准和明确不在范围"}
+{"file": ".trellis/tasks/09-16-ui-polish-video-player/research/implementation-plan.md", "reason": "核对播放器源码审计项是否逐项处理"}

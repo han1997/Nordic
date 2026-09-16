@@ -605,15 +605,31 @@ private fun BoxScope.VideoPlayerCenterMessage(
                 overflow = TextOverflow.Ellipsis
             )
         }
-        if (onRetry != null) androidx.compose.material3.TextButton(onClick = onRetry) { Text("重试播放", color = Color.White) }
-        if (onRestart != null) androidx.compose.material3.TextButton(onClick = onRestart) { Text("从头播放", color = Color.White) }
+        if (onRetry != null) {
+            androidx.compose.material3.TextButton(
+                onClick = onRetry,
+                modifier = Modifier.heightIn(min = 48.dp)
+            ) { Text("重试播放", color = Color.White) }
+        }
+        if (onRestart != null) {
+            androidx.compose.material3.TextButton(
+                onClick = onRestart,
+                modifier = Modifier.heightIn(min = 48.dp)
+            ) { Text("从头播放", color = Color.White) }
+        }
         if (onCloseAnyway != null) {
             Surface(
                 color = Color.White.copy(alpha = 0.16f),
                 contentColor = Color.White,
                 shape = NordicShapes.full,
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.22f)),
-                modifier = Modifier.clickable(onClick = onCloseAnyway)
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .clickable(
+                        role = Role.Button,
+                        onClickLabel = "仍要关闭播放器",
+                        onClick = onCloseAnyway
+                    )
             ) {
                 Text(
                     "仍要关闭",

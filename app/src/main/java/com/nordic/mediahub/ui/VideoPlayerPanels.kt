@@ -148,7 +148,7 @@ internal fun VideoPlayerPanelHost(
                                     Text(
                                         video.seriesName?.takeIf { it.isNotBlank() } ?: video.title,
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = colors.onSurface.copy(alpha = NordicAlpha.medium),
+                                        color = colors.onSurfaceVariant,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -227,7 +227,7 @@ internal fun VideoPlayerPanelHost(
                                 Text(
                                     "双击左侧后退 ${LocalAppPreferences.current.videoSkipBack} 秒，右侧前进 ${LocalAppPreferences.current.videoSkipForward} 秒；长按临时 2 倍速。左右侧滑动分别调整亮度和音量。",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = colors.onSurface.copy(alpha = NordicAlpha.medium),
+                                    color = colors.onSurfaceVariant,
                                     modifier = Modifier.padding(top = NordicSpacing.lg)
                                 )
                             }
@@ -277,7 +277,7 @@ private fun VideoPlayerSettingRow(
 ) {
     Row(
         Modifier.fillMaxWidth().heightIn(min = 64.dp)
-            .clickable(role = Role.Button, onClick = onClick)
+            .clickable(role = Role.Button, onClickLabel = "打开$title", onClick = onClick)
             .padding(vertical = NordicSpacing.sm),
         horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md),
         verticalAlignment = Alignment.CenterVertically
@@ -286,10 +286,10 @@ private fun VideoPlayerSettingRow(
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
             Text(title, style = MaterialTheme.typography.bodyMedium)
             Text(value, style = MaterialTheme.typography.bodySmall,
-                color = colors.onSurface.copy(alpha = NordicAlpha.medium),
+                color = colors.onSurfaceVariant,
                 maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        Icon(Icons.Filled.ChevronRight, null, tint = colors.onSurface.copy(alpha = NordicAlpha.subtle))
+        Icon(Icons.Filled.ChevronRight, null, tint = colors.onSurfaceVariant)
     }
 }
 
@@ -313,7 +313,7 @@ private fun VideoPlayerSettingToggleRow(
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
             Text(title, style = MaterialTheme.typography.bodyMedium)
             Text(description, style = MaterialTheme.typography.bodySmall,
-                color = colors.onSurface.copy(alpha = NordicAlpha.medium),
+                color = colors.onSurfaceVariant,
                 maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         Switch(checked = checked, onCheckedChange = null)
@@ -340,14 +340,16 @@ private fun VideoPlayerInfoContent(
         rows.forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)) {
                 Text(row.label, style = MaterialTheme.typography.bodySmall,
-                    color = colors.onSurface.copy(alpha = NordicAlpha.medium))
+                    color = colors.onSurfaceVariant)
                 Text(row.value, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
             }
         }
         Text("简介", style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(top = NordicSpacing.sm))
+            modifier = Modifier
+                .padding(top = NordicSpacing.sm)
+                .semantics { heading() })
         Text(video.overview.ifBlank { "暂无简介" }, style = MaterialTheme.typography.bodyMedium,
-            color = colors.onSurface.copy(alpha = NordicAlpha.medium))
+            color = colors.onSurfaceVariant)
     }
 }
 
@@ -383,7 +385,7 @@ private fun VideoPlayerEpisodesContent(
         Text(
             if (episodes.size <= 1) "暂无其他已载入剧集" else "已载入 ${episodes.size} 集 · 点击切换播放",
             style = MaterialTheme.typography.bodySmall,
-            color = colors.onSurface.copy(alpha = NordicAlpha.medium),
+            color = colors.onSurfaceVariant,
             modifier = Modifier.padding(vertical = NordicSpacing.sm)
         )
         LazyColumn(
@@ -458,7 +460,7 @@ private fun VideoPlayerChaptersContent(
         Text(
             "点击章节跳转到起点",
             style = MaterialTheme.typography.bodySmall,
-            color = colors.onSurface.copy(alpha = NordicAlpha.medium),
+            color = colors.onSurfaceVariant,
             modifier = Modifier.padding(vertical = NordicSpacing.sm)
         )
         LazyColumn(
@@ -490,7 +492,7 @@ private fun VideoPlayerQualityContent(
         Text(
             "切换清晰度立即生效并保留播放进度；限码率档位由服务器转码播放。",
             style = MaterialTheme.typography.bodySmall,
-            color = colors.onSurface.copy(alpha = NordicAlpha.medium),
+            color = colors.onSurfaceVariant,
             modifier = Modifier.padding(vertical = NordicSpacing.sm)
         )
         Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
@@ -520,14 +522,14 @@ private fun VideoPlayerTracksContent(
     modifier: Modifier
 ) {
     LazyColumn(
-        modifier.verticalScroll(rememberScrollState()),
+        modifier,
         verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)
     ) {
         item {
             Text(
                 "字幕",
                 style = MaterialTheme.typography.titleSmall,
-                color = colors.onSurface.copy(alpha = NordicAlpha.medium),
+            color = colors.onSurfaceVariant,
                 modifier = Modifier.padding(top = NordicSpacing.sm)
             )
         }
@@ -544,7 +546,7 @@ private fun VideoPlayerTracksContent(
                 Text(
                     "这个视频没有可用的字幕轨道",
                     style = MaterialTheme.typography.bodySmall,
-                    color = colors.onSurface.copy(alpha = NordicAlpha.medium)
+                    color = colors.onSurfaceVariant
                 )
             }
         } else {
@@ -561,7 +563,7 @@ private fun VideoPlayerTracksContent(
             Text(
                 "音轨",
                 style = MaterialTheme.typography.titleSmall,
-                color = colors.onSurface.copy(alpha = NordicAlpha.medium),
+                color = colors.onSurfaceVariant,
                 modifier = Modifier.padding(top = NordicSpacing.sm)
             )
         }
@@ -570,7 +572,7 @@ private fun VideoPlayerTracksContent(
                 Text(
                     "没有检测到其他音轨",
                     style = MaterialTheme.typography.bodySmall,
-                    color = colors.onSurface.copy(alpha = NordicAlpha.medium)
+                    color = colors.onSurfaceVariant
                 )
             }
         } else {

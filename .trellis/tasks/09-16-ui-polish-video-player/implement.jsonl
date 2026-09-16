@@ -1,0 +1,8 @@
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "播放器按钮、面板容器、选择行、开关、对比度和系统栏一致性合同"}
+{"file": ".trellis/spec/backend/ui-catalog-verification.md", "reason": "Debug 预览、专用模拟器、字号/横屏截图和证据合同"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "视频播放控制、面板、方向、进度快照和选集切换边界"}
+{"file": ".trellis/spec/backend/video-auto-play-next.md", "reason": "片尾提示与自动连播的互斥及预览边界"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "播放器 overlay 白字例外、共享控件和质量门禁"}
+{"file": ".trellis/spec/backend/build-release.md", "reason": "版本 0.1.13/13、签名和 Release Debug 排除核验"}
+{"file": ".trellis/tasks/09-16-ui-polish-video-player/research/implementation-plan.md", "reason": "本轮播放器源码审计、优先问题和不变边界"}
+{"file": ".trellis/tasks/archive/2026-09/09-16-ui-polish-video-browse/prd.md", "reason": "前轮视频域边界和方法论，避免回改浏览详情范围"}

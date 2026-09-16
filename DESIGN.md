@@ -118,6 +118,13 @@ controls:
 - 视频详情简介与分集节头声明 heading；当前分集使用 `primaryContainer`、`onPrimaryContainer` 与 `selected` 语义表达，不依赖颜色 alone。
 - 连接错误在滚动内容中提供显式重试，错误且无缓存时不同时显示成功空库文案；本轮不改变 Emby 协议或播放器窗口。
 
+### 视频播放器与窗内面板
+
+- 视频播放器保持 white-on-black overlay 例外，但按钮、时间线和状态操作使用真实 48dp 目标，主播放按钮 72dp；窄屏和大字体将低频操作收进播放设置。
+- 竖屏播放器面板使用底部布局，全屏横屏且宽度足够时使用 safeDrawing 侧面板；面板保持单一状态，不改变系统栏和 PiP 所有权。
+- 播放设置、影片信息、字幕音轨、章节和清晰度正文使用实色 onSurfaceVariant，选择行复用 MediaPlayerChoiceRow，当前集/章节使用 primaryContainer、onPrimaryContainer 和 selected 语义。
+- 播放器预览只使用 Debug-only 内存数据和绘制 Surface；不连接 Emby、不启动真实播放引擎、不写真实偏好或进度。
+
 ### 设置与服务器表单
 
 - `SettingsRow` 最低 64dp，值的位置由真实标题／值测量、图标和箭头预算决定；大字体或长值放在标题下方，不再使用字符串长度阈值。
