@@ -17,6 +17,7 @@ This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. 
 | [Error Handling](./error-handling.md) | Adding repository calls, typed exceptions, `Response<T>` validation, or UI error propagation |
 | [音乐页面 UI](./music-ui.md) | 修改音乐发现、列表、专辑/歌手/歌单详情、集合操作与文案 |
 | [有声书页面 UI](./audiobook-ui.md) | 修改有声书书库 Home、书籍详情/章节列表、播放器或书签/睡眠定时/章节/倍速弹层 |
+| [视频页面 UI](./video-ui.md) | 修改视频书库 Home、搜索/筛选、继续观看架、详情/分季选集 |
 | [音乐歌词](./music-lyrics.md) | 修改歌词解析/加载状态、完整显示、同步跟随、手动浏览和播放器视图记忆 |
 | [共享 UI 一致性](./ui-consistency.md) | 修改主题/字体、标题导航、分段选择、搜索输入或详情动作；执行跨页面一致性检查 |
 | [UI 样板验收](./ui-catalog-verification.md) | 修改 Debug UI 目录、Compose instrumentation、系统字号/窗口截图或逐页证据 |
@@ -38,6 +39,7 @@ This spec layer covers the single Kotlin/Jetpack Compose Android app in `app/`. 
 - Read [Error Handling](./error-handling.md) before adding repository methods or changing exception behavior.
 - 修改音乐浏览/集合详情/歌单弹窗前，阅读 [音乐页面 UI](./music-ui.md)。
 - 修改有声书书库、详情、播放器或弹窗前,阅读[有声书页面 UI](./audiobook-ui.md)。
+- 修改视频书库 Home、搜索/筛选、继续观看架、详情/分季选集前，阅读[视频页面 UI](./video-ui.md)。
 - 修改歌词获取、播放页歌词或相关手势前，阅读[音乐歌词](./music-lyrics.md)。
 - 修改共享视觉/交互组件前，先阅读 [共享 UI 一致性](./ui-consistency.md)，并保留逐页真机验收与自动检查的区别。
 - Read [Quality Guidelines](./quality-guidelines.md) before modifying shared UI state components, music library navigation, or cache contracts.

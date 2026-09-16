@@ -35,6 +35,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.heading
@@ -46,7 +48,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nordic.mediahub.data.VideoItem
-import com.nordic.mediahub.ui.theme.NordicAlpha
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
 
@@ -71,6 +72,9 @@ internal fun VideoDetailScreen(
     // A Series has no stream of its own: the primary play button targets the
     // next unwatched episode (or the first one). Null keeps the button disabled.
     val playTarget = remember(video, relatedEpisodes) { resolveVideoDetailPlayTarget(video, relatedEpisodes) }
+    val currentEpisode = remember(video, relatedEpisodes) {
+        resolveVideoDetailCurrentEpisode(video, relatedEpisodes)
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -101,6 +105,7 @@ internal fun VideoDetailScreen(
                     "简介",
                     style = MaterialTheme.typography.titleMedium,
                     color = colorScheme.onSurface,
+                    modifier = Modifier.semantics { heading() },
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -136,7 +141,7 @@ internal fun VideoDetailScreen(
                     Text(
                         "没有未看的分集",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
+                        color = colorScheme.onSurfaceVariant
                     )
                 }
             } else {
@@ -148,6 +153,7 @@ internal fun VideoDetailScreen(
                     VideoEpisodeRow(
                         episode = episode,
                         colorScheme = colorScheme,
+                        isCurrent = episode.id == currentEpisode?.id,
                         onClick = { onPlayEpisode(episode) }
                     )
                 }
@@ -312,6 +318,9 @@ internal fun VideoEpisodeRow(
     val showProgress = episode.playbackPositionSeconds > 0 &&
         !episode.isPlayed &&
         episode.durationSeconds > 0
+    val playable = !episode.streamUrl.isNullOrBlank()
+    val labelColor = if (isCurrent) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant
+    val titleColor = if (isCurrent) colorScheme.onPrimaryContainer else colorScheme.onSurface
 
     Row(
         modifier = Modifier
@@ -322,10 +331,12 @@ internal fun VideoEpisodeRow(
             .pressScale(
                 interactionSource,
                 pressedScale = 0.985f,
-                enabled = !episode.streamUrl.isNullOrBlank()
+                enabled = playable
             )
             .clickable(
-                enabled = !episode.streamUrl.isNullOrBlank(),
+                enabled = playable,
+                role = Role.Button,
+                onClickLabel = if (isCurrent) "正在播放" else "播放分集",
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
@@ -345,14 +356,16 @@ internal fun VideoEpisodeRow(
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f)
             ) {
-                CoverArt(
-                    imageUrl = episode.imageUrl,
-                    contentDescription = episode.title,
-                    colorScheme = colorScheme,
-                    modifier = Modifier.fillMaxSize(),
-                    shape = NordicShapes.md,
-                    fallbackText = "VIDEO"
-                )
+                Box(Modifier.clearAndSetSemantics { }) {
+                    CoverArt(
+                        imageUrl = episode.imageUrl,
+                        contentDescription = episode.title,
+                        colorScheme = colorScheme,
+                        modifier = Modifier.fillMaxSize(),
+                        shape = NordicShapes.md,
+                        fallbackText = "VIDEO"
+                    )
+                }
 
                 if (episode.isPlayed) {
                     Icon(
@@ -384,7 +397,7 @@ internal fun VideoEpisodeRow(
             Text(
                 if (isCurrent) "正在播放 · $label" else label,
                 style = MaterialTheme.typography.bodySmall,
-                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
+                color = labelColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -392,7 +405,7 @@ internal fun VideoEpisodeRow(
                 episode.title,
                 style = MaterialTheme.typography.titleMedium,
                 lineHeight = 19.sp,
-                color = colorScheme.onSurface,
+                color = titleColor,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
@@ -404,7 +417,7 @@ internal fun VideoEpisodeRow(
                     meta,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Normal,
-                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
+                    color = labelColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

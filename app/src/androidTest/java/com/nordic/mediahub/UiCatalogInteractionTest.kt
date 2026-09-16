@@ -282,4 +282,24 @@ class UiCatalogInteractionTest {
         val value = compose.onNodeWithText("上次访问的页面", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
         assertTrue("Long values should not squeeze the title into a narrow column", value.top >= title.bottom - 1f)
     }
+
+    @Test fun videoHomeCardsOpenDetailThroughProductionContent() {
+        show("video_home")
+        val card = compose.onNode(hasText("北境回声", substring = false) and hasClickAction())
+        card.assertIsDisplayed().assertMinimumTouchTarget().performTouchInput { click() }
+        compose.runOnIdle { assertTrue(compose.activity.recordedEvents.contains("video-open:video-movie-0")) }
+    }
+
+    @Test fun videoSearchShowsNoMatchStateAndKeepsClearPath() {
+        show("video_search", state = "empty")
+        compose.onNodeWithText("没有匹配的视频", substring = false).assertIsDisplayed()
+        compose.onNodeWithContentDescription("清除视频搜索关键词").assertIsDisplayed().performClick()
+        compose.runOnIdle { assertTrue(compose.activity.recordedEvents.contains("video-search:")) }
+    }
+
+    @Test fun videoSeriesHighlightsResolvedCurrentEpisode() {
+        show("video_series")
+        val current = compose.onNode(hasText("回声", substring = false) and isSelected())
+        current.performScrollTo().assertIsDisplayed().assertIsSelected()
+    }
 }

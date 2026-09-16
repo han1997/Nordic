@@ -24,6 +24,30 @@ internal fun videoShelfCardSize(fontScale: Float): Dp {
     return (132.dp * scale).coerceAtMost(176.dp)
 }
 
+/**
+ * Continue-watching landscape card width. Same clamped-scale policy as
+ * [videoShelfCardSize], starting from the 16:9 resume card's 240dp base
+ * and capping so 2× type never occupies an entire phone-width shelf.
+ */
+internal fun continueWatchingCardWidth(fontScale: Float): Dp {
+    val scale = fontScale.takeIf { it.isFinite() && it > 0f }?.coerceAtLeast(1f) ?: 1f
+    return (240.dp * scale).coerceAtMost(300.dp)
+}
+
+/**
+ * Detail-page current-episode highlight. Series use the primary play
+ * target (next unwatched / first playable); a playable Movie/Episode/Video
+ * highlights itself when it appears in [relatedEpisodes].
+ */
+internal fun resolveVideoDetailCurrentEpisode(
+    video: VideoItem,
+    relatedEpisodes: List<VideoItem>
+): VideoItem? {
+    val playTarget = resolveVideoDetailPlayTarget(video, relatedEpisodes)
+    if (relatedEpisodes.any { it.id == playTarget?.id }) return playTarget
+    return relatedEpisodes.firstOrNull { it.id == video.id }
+}
+
 internal data class VideoDetailPlayAction(
     val primaryLabel: String,
     val primaryResumeSeconds: Int,

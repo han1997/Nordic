@@ -35,7 +35,9 @@ internal enum class UiSampleScreen(val id: String, val label: String) {
     AudiobookHome("ab_home", "有声书书库"), AudiobookDetail("ab_detail", "有声书详情"),
     AudiobookPlayer("ab_player", "有声书播放器"), AudiobookChapters("ab_chapters", "章节面板"),
     AudiobookSpeed("ab_speed", "有声书倍速"), AudiobookSleep("ab_sleep", "睡眠定时"),
-    AudiobookBookmarks("ab_bookmarks", "书签")
+    AudiobookBookmarks("ab_bookmarks", "书签"),
+    VideoHome("video_home", "视频媒体库"), VideoSearch("video_search", "视频搜索"),
+    VideoDetail("video_detail", "视频详情"), VideoSeries("video_series", "剧集详情")
 }
 internal enum class UiSampleState(val id: String, val label: String) {
     Normal("normal", "正常"), LongText("long", "长文本"), Empty("empty", "空白"), Loading("loading", "加载中"),
@@ -90,6 +92,8 @@ internal fun UiCatalogContent(
         UiSampleScreen.AudiobookHome, UiSampleScreen.AudiobookDetail, UiSampleScreen.AudiobookPlayer,
         UiSampleScreen.AudiobookChapters, UiSampleScreen.AudiobookSpeed, UiSampleScreen.AudiobookSleep,
         UiSampleScreen.AudiobookBookmarks -> AudiobookCatalogSample(request, onNavigate, onEvent)
+        UiSampleScreen.VideoHome, UiSampleScreen.VideoSearch, UiSampleScreen.VideoDetail,
+        UiSampleScreen.VideoSeries -> VideoCatalogSample(request, onNavigate, onEvent)
         else -> MusicCatalogSample(request, songs, onNavigate, onEvent)
     }
 }

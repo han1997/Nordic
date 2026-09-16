@@ -1,0 +1,8 @@
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "检查共享控件复用、48dp、对比度 4.5:1、语义角色、海报栅格例外是否写清"}
+{"file": ".trellis/spec/backend/ui-catalog-verification.md", "reason": "检查 r4 批次指纹、系统字号、像素守卫、失败批次保留、不覆盖 r1-r3"}
+{"file": ".trellis/spec/backend/audiobook-ui.md", "reason": "对照有声书合同：次级文字、整卡按钮、当前行高亮不得引入不一致近似实现"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "确认未改浏览过滤/Resume/缓存协议语义"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "门禁：完整 JVM/Lint/APK；Hero overlay 例外未被误改"}
+{"file": ".trellis/spec/backend/build-release.md", "reason": "版本/签名/Release 无 Debug 资源核验"}
+{"file": ".trellis/tasks/09-16-ui-polish-video-browse/prd.md", "reason": "本轮验收标准与明确不在范围（播放器/WebDAV/设置）"}
+{"file": ".trellis/tasks/09-16-ui-polish-video-browse/research/implementation-plan.md", "reason": "核对问题清单 A1-A8 / B1-B6 / C1-C4 是否落地"}

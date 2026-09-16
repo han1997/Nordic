@@ -1,0 +1,9 @@
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "共享 UI 合同：主题/字体/页头/48dp/对比度/选择芯片；业务扩展已有视频节头与 videoShelfCardSize，本轮补浏览卡语义与次级文字"}
+{"file": ".trellis/spec/backend/ui-catalog-verification.md", "reason": "Debug 样板与设备验收：专用模拟器、系统字号截图、证据 schemaVersion 3、Release 排除样板"}
+{"file": ".trellis/spec/backend/audiobook-ui.md", "reason": "第三轮对照：onSurfaceVariant、Role.Button、封面去重、错误重试、isCurrent 高亮配对色"}
+{"file": ".trellis/spec/backend/emby-integration.md", "reason": "Emby 浏览/Resume/分库缓存协议；修 UI 不得改 repository、请求版本、Resume 只来自服务器"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "质量门禁与视频 overlay 白字例外"}
+{"file": ".trellis/spec/backend/build-release.md", "reason": "版本 0.1.12 / 12 递增、签名延续、Release 排除 Debug 样板"}
+{"file": ".trellis/tasks/09-16-ui-polish-video-browse/research/implementation-plan.md", "reason": "本轮源码审查与实施边界：抽取 VideoHomeContent、问题清单 A/B/C"}
+{"file": ".trellis/tasks/archive/2026-09/09-13-ui-polish-samples/research/coverage.md", "reason": "首轮覆盖清单：视频浏览 4 个未验条目定义"}
+{"file": ".trellis/tasks/archive/2026-09/09-15-ui-polish-audiobook/research/implementation-plan.md", "reason": "第三轮方法论：严格基线、状态真实性、不在 debug 镜像生产以免漂移"}

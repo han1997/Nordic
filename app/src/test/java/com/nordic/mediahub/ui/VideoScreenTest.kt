@@ -22,6 +22,15 @@ class VideoScreenTest {
     }
 
     @Test
+    fun continueWatchingCardWidth_growsWithFontScaleAndCapsAt300dp() {
+        assertEquals(240.dp, continueWatchingCardWidth(1f))
+        assertEquals(300.dp, continueWatchingCardWidth(1.5f))
+        assertEquals(300.dp, continueWatchingCardWidth(2f))
+        assertEquals(240.dp, continueWatchingCardWidth(0.5f))
+        assertEquals(240.dp, continueWatchingCardWidth(Float.NaN))
+    }
+
+    @Test
     fun browseCatalogVideos_excludesEpisodes() {
         val movie = video(id = "movie-1", title = "Movie One", type = "Movie")
         val series = video(id = "series-1", title = "Series One", type = "Series")
@@ -546,6 +555,26 @@ class VideoScreenTest {
 
         assertNull(resolveVideoDetailPlayTarget(series, listOf(unplayable)))
         assertNull(resolveVideoDetailPlayTarget(series, emptyList()))
+    }
+
+    @Test
+    fun resolveVideoDetailCurrentEpisode_seriesUsesResolvedPlayableEpisode() {
+        val series = video(id = "series-1", title = "Show", type = "Series")
+        val watched = playableVideo(id = "ep-1", title = "E1", type = "Episode", isPlayed = true)
+        val resumed = playableVideo(id = "ep-2", title = "E2", type = "Episode", playbackPositionSeconds = 60)
+        val fresh = playableVideo(id = "ep-3", title = "E3", type = "Episode")
+
+        assertEquals(
+            "ep-2",
+            resolveVideoDetailCurrentEpisode(series, listOf(watched, fresh, resumed))?.id
+        )
+    }
+
+    @Test
+    fun resolveVideoDetailCurrentEpisode_returnsNullWhenSeriesHasNoRelatedEpisodes() {
+        val series = video(id = "series-1", title = "Show", type = "Series")
+
+        assertNull(resolveVideoDetailCurrentEpisode(series, emptyList()))
     }
 
     @Test

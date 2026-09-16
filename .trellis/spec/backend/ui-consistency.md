@@ -122,6 +122,7 @@ Text("播放", color = colorScheme.onPrimary)
 - 视频海报推荐卡宽度使用 `videoShelfCardSize(fontScale)`（132dp × 钳制 scale，上限 176dp），与音乐 `musicShelfArtworkSize` 同一增长策略；不得写固定宽度。
 - 视频详情分集筛选、播放器倍速面板选择行分别复用 `MediaChoiceChip`（含 `selectableGroup`）与 `MediaPlayerChoiceRow`；不得另写裸 `clickable` 自绘选中样式。
 - 视频设置开关行保持最小 64dp、主题字体与间距；整行使用 `toggleable(value, role = Role.Switch)` 暴露开关状态，内部 M3 `Switch(onCheckedChange = null)` 只负责视觉，避免嵌套两个操作目标。PiP 中不组合播放器面板与控制，保留视频/字幕节点。
+- 视频浏览与详情的完整合同见 [视频页面 UI](./video-ui.md)：卡片 Button 语义、封面朗读去重、续播卡字号增长、当前分集高亮和错误重试均须逐页验收。
 - 配置页表单遵循同一语言：`ConfigTextField` 用 TextField `label` 参数承载字段名（自带关联语义），placeholder/输入统一 `bodyLarge`；服务器卡片容器 `surfaceVariant` 0.5 alpha + md 圆角 + 标题 heading 语义；保存/测试连接使用 `PrimaryActionButton`/`SecondaryActionButton`；状态消息最多三行省略。服务器类型选择复用 `MediaChoiceChip`（enabled 表达支持状态），不另写自绘选中容器。
 
 ## 设置行与样板验收扩展

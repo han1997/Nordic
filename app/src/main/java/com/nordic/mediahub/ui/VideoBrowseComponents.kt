@@ -7,6 +7,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +16,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.lazy.items
@@ -37,6 +42,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -45,7 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nordic.mediahub.data.VideoItem
 import com.nordic.mediahub.data.VideoLibrary
-import com.nordic.mediahub.ui.theme.NordicAlpha
+import com.nordic.mediahub.ui.theme.NordicControlSizes
 import com.nordic.mediahub.ui.theme.NordicShapes
 import com.nordic.mediahub.ui.theme.NordicSpacing
 
@@ -84,6 +91,8 @@ internal fun VideoCard(
             .fillMaxWidth()
             .pressScale(interactionSource)
             .clickable(
+                role = Role.Button,
+                onClickLabel = "打开详情",
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
@@ -96,16 +105,18 @@ internal fun VideoCard(
             border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
             modifier = Modifier.fillMaxWidth()
         ) {
-            CoverArt(
-                imageUrl = video.imageUrl,
-                contentDescription = video.title,
-                colorScheme = colorScheme,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(2f / 3f),
-                shape = NordicShapes.md,
-                fallbackText = "VIDEO"
-            )
+            Box(Modifier.clearAndSetSemantics { }) {
+                CoverArt(
+                    imageUrl = video.imageUrl,
+                    contentDescription = video.title,
+                    colorScheme = colorScheme,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(2f / 3f),
+                    shape = NordicShapes.md,
+                    fallbackText = "VIDEO"
+                )
+            }
         }
 
         Column {
@@ -123,7 +134,7 @@ internal fun VideoCard(
                     meta,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Normal,
-                    color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle),
+                    color = colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -151,7 +162,7 @@ internal fun VideoSpotlightSections(
                 "暂无推荐",
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Normal,
-                color = colorScheme.onSurface.copy(alpha = NordicAlpha.subtle)
+                color = colorScheme.onSurfaceVariant
             )
         }
         return
@@ -239,6 +250,192 @@ internal fun VideoSpotlightRow(
 }
 
 @Composable
+internal fun VideoHomeContent(
+    header: @Composable () -> Unit,
+    libraries: List<VideoLibrary>,
+    selectedLibraryId: String?,
+    videos: List<VideoItem>,
+    visibleVideos: List<VideoItem>,
+    browseVideos: List<VideoItem>,
+    continueWatching: List<VideoItem>,
+    topRated: List<VideoItem>,
+    unplayed: List<VideoItem>,
+    searchExpanded: Boolean,
+    searchQuery: String,
+    selectedTypeFilter: VideoTypeFilter,
+    typeFilters: List<VideoTypeFilter>,
+    isLoading: Boolean,
+    standaloneError: String?,
+    resetNotice: String?,
+    detailInvalidationNotice: String?,
+    ready: Boolean,
+    colorScheme: ColorScheme,
+    onSelectLibrary: (String) -> Unit,
+    onToggleSearch: () -> Unit,
+    onSearchChange: (String) -> Unit,
+    onSearchCollapse: () -> Unit,
+    onFilterSelected: (VideoTypeFilter) -> Unit,
+    onOpenVideo: (VideoItem) -> Unit,
+    onRetry: () -> Unit
+) {
+    val hasActiveBrowserFilter = searchQuery.isNotBlank() || selectedTypeFilter != VideoTypeFilter.All
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 156.dp),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(NordicSpacing.lg),
+        verticalArrangement = Arrangement.spacedBy(NordicSpacing.lg),
+        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)
+    ) {
+        item(span = { GridItemSpan(maxLineSpan) }) { header() }
+
+        if (standaloneError != null) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Column(verticalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
+                    MediaStateCard(
+                        title = "Emby 连接错误",
+                        subtitle = standaloneError,
+                        hint = "检查配置或点击刷新重试",
+                        tone = MediaStateTone.Error
+                    )
+                    SecondaryActionButton("重试", colorScheme, onClick = onRetry)
+                }
+            }
+        }
+
+        if (resetNotice != null) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                MediaStateCard(
+                    title = "已应用新的视频配置",
+                    subtitle = resetNotice,
+                    density = MediaStateDensity.Compact
+                )
+            }
+        }
+
+        if (detailInvalidationNotice != null) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                MediaStateCard(
+                    title = "详情已更新",
+                    subtitle = detailInvalidationNotice,
+                    density = MediaStateDensity.Compact
+                )
+            }
+        }
+
+        if (libraries.isNotEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                VideoLibrarySelector(
+                    libraries = libraries,
+                    selectedLibraryId = selectedLibraryId,
+                    colorScheme = colorScheme,
+                    onSelect = onSelectLibrary
+                )
+            }
+        }
+
+        if (videos.isNotEmpty()) {
+            if (!hasActiveBrowserFilter) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    VideoSpotlightSections(
+                        continueWatching = continueWatching,
+                        topRated = topRated,
+                        unplayed = unplayed,
+                        colorScheme = colorScheme,
+                        onVideoSelected = onOpenVideo
+                    )
+                }
+            }
+
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                VideoBrowserControls(
+                    searchExpanded = searchExpanded,
+                    searchQuery = searchQuery,
+                    selectedTypeFilter = selectedTypeFilter,
+                    filters = typeFilters,
+                    colorScheme = colorScheme,
+                    onToggleSearch = onToggleSearch,
+                    onSearchChange = onSearchChange,
+                    onSearchCollapse = onSearchCollapse,
+                    onFilterSelected = onFilterSelected
+                )
+            }
+
+            val catalogCount = if (hasActiveBrowserFilter) visibleVideos.size else browseVideos.size
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Text(
+                    "全部 $catalogCount 项",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = colorScheme.onBackground,
+                    modifier = Modifier.semantics { heading() },
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        when {
+            standaloneError != null && videos.isEmpty() -> Unit
+            isLoading && videos.isEmpty() -> {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    MediaLoadingCard(
+                        title = "正在同步 Emby",
+                        subtitle = "加载媒体库、海报和继续观看进度..."
+                    )
+                }
+            }
+            !ready -> {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    MediaStateCard(
+                        title = "先接入你的 Emby 服务器",
+                        subtitle = "填写服务器地址，并使用 API Key 或用户名密码登录。这里会显示真实媒体库和视频缩略图。",
+                        hint = "前往配置 tab 开始连接"
+                    )
+                }
+            }
+            libraries.isEmpty() && !isLoading && standaloneError == null -> {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    MediaStateCard(
+                        title = "没有可用视频媒体库",
+                        subtitle = "Emby 已连接，但当前用户没有可浏览的电影、剧集或家庭视频媒体库。"
+                    )
+                }
+            }
+            videos.isEmpty() && !isLoading && standaloneError == null -> {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    MediaStateCard(
+                        title = "这个媒体库暂时没有内容",
+                        subtitle = "切换其他媒体库，或回到 Emby 服务端检查扫描结果和用户权限。"
+                    )
+                }
+            }
+            visibleVideos.isEmpty() && !isLoading && standaloneError == null -> {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    MediaStateCard(
+                        title = "没有匹配的视频",
+                        subtitle = "换一个关键词，或切换类型筛选查看这个媒体库中的其他内容。",
+                        density = MediaStateDensity.Compact
+                    )
+                }
+            }
+            else -> {
+                gridItems(
+                    items = visibleVideos,
+                    key = { video -> "${video.libraryId}:${video.id}" },
+                    contentType = { "video-card" }
+                ) { video ->
+                    VideoCard(
+                        video = video,
+                        colorScheme = colorScheme,
+                        onClick = { onOpenVideo(video) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 internal fun ContinueWatchingCard(
     video: VideoItem,
     colorScheme: ColorScheme,
@@ -258,23 +455,27 @@ internal fun ContinueWatchingCard(
         shape = NordicShapes.md,
         border = BorderStroke(1.dp, colorScheme.onSurface.copy(alpha = 0.045f)),
         modifier = Modifier
-            .width(240.dp)
+            .width(continueWatchingCardWidth(LocalDensity.current.fontScale))
             .pressScale(interactionSource)
             .clickable(
+                role = Role.Button,
+                onClickLabel = "打开详情",
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick
             )
     ) {
         Box(modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
-            CoverArt(
-                imageUrl = video.imageUrl,
-                contentDescription = video.title,
-                colorScheme = colorScheme,
-                modifier = Modifier.fillMaxSize(),
-                shape = NordicShapes.md,
-                fallbackText = video.title
-            )
+            Box(Modifier.clearAndSetSemantics { }) {
+                CoverArt(
+                    imageUrl = video.imageUrl,
+                    contentDescription = video.title,
+                    colorScheme = colorScheme,
+                    modifier = Modifier.fillMaxSize(),
+                    shape = NordicShapes.md,
+                    fallbackText = video.title
+                )
+            }
 
             Box(
                 modifier = Modifier
@@ -298,7 +499,7 @@ internal fun ContinueWatchingCard(
                     color = Color.Black.copy(alpha = 0.46f),
                     contentColor = Color.White,
                     shape = NordicShapes.full,
-                    modifier = Modifier.size(44.dp)
+                    modifier = Modifier.size(NordicControlSizes.touchTarget)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(

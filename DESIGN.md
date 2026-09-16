@@ -50,7 +50,7 @@ controls:
 - 普通列表和表单静止时无重阴影；仅播放器与底部 Dock 等浮层保留有限高度感。
 - 颜色使用 Material 语义配对，紫青渐变只延续既有封面兜底／播放器背景，不新增循环动画或昂贵模糊。
 - 间距、圆角、字体与动效以 `ui/theme/` 的 Kotlin 定义为唯一可执行来源；本文件用于说明，不再维护另一套旧数值。
-- 全局共享实现改变不等于所有页面完成验收；首轮方向已确认，第二轮完成音乐域,第三轮完成有声书域，其余媒体域仍需分批逐页验证。
+- 全局共享实现改变不等于所有页面完成验收；首轮方向已确认，第二轮完成音乐域,第三轮完成有声书域，第四轮完成视频浏览与详情，其余媒体域仍需分批逐页验证。
 
 ## 2. 字体与颜色
 
@@ -110,6 +110,14 @@ controls:
 - 无配置/无书库/空书库/加载/错误等状态卡沿用共享卡片;错误卡下方固定显式重试入口,不依赖页头图标。
 - 次级文字统一实色 onSurfaceVariant,不在半透明卡片上降低透明度;作者缺失统一「未知作者」。播放器与书签/睡眠定时/章节/倍速弹层复用共享面板与选择行。
 
+### 视频浏览与详情
+
+- 视频书库 Home 抽取无副作用内容层，生产宿主继续持有 Emby、缓存、刷新与 Resume 数据流；Debug 样板直接复用生产内容 Composable。
+- 电影/剧集卡片整卡使用 `Role.Button` 与明确打开详情标签，封面使用 `clearAndSetSemantics` 去重；次级信息使用实色 `onSurfaceVariant`。
+- 继续观看卡从 240dp 基准按系统字号增长并钳制到 300dp，中央播放装饰保持 48dp 实际尺寸；海报推荐卡继续使用 `videoShelfCardSize`。
+- 视频详情简介与分集节头声明 heading；当前分集使用 `primaryContainer`、`onPrimaryContainer` 与 `selected` 语义表达，不依赖颜色 alone。
+- 连接错误在滚动内容中提供显式重试，错误且无缓存时不同时显示成功空库文案；本轮不改变 Emby 协议或播放器窗口。
+
 ### 设置与服务器表单
 
 - `SettingsRow` 最低 64dp，值的位置由真实标题／值测量、图标和箭头预算决定；大字体或长值放在标题下方，不再使用字符串长度阈值。
@@ -143,4 +151,4 @@ controls:
 - Debug 的 `UiCatalogActivity` 复用生产内容 Composable，提供主题、字号与状态选择；仅改变预览内存，不连接账号或启动播放服务。Release 不含入口、样例封面或测试代码。
 - 截图证明渲染被执行，不证明每个细节正确；仍需逐张视检与语义／回调断言。真实设置入口另做持久化冒烟，模拟器结果不等于真实服务器播放或个人手机验收。
 
-细化合同见 `.trellis/spec/backend/ui-consistency.md`、`music-ui.md`、`music-lyrics.md` 和 `quality-guidelines.md`。
+细化合同见 `.trellis/spec/backend/ui-consistency.md`、`music-ui.md`、`audiobook-ui.md`、`video-ui.md`、`music-lyrics.md` 和 `quality-guidelines.md`。

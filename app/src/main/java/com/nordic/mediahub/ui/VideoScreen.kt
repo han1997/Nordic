@@ -1,21 +1,12 @@
 package com.nordic.mediahub.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -23,13 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -44,7 +29,6 @@ import com.nordic.mediahub.data.cacheKey
 import com.nordic.mediahub.data.formatCacheAge
 import com.nordic.mediahub.data.isCacheFresh
 import com.nordic.mediahub.data.isReadyForVideoSync
-import com.nordic.mediahub.ui.theme.NordicSpacing
 import kotlinx.coroutines.launch
 
 @Composable
@@ -427,14 +411,81 @@ fun VideoScreen(
     val refreshErrorSubtitle = mediaRefreshErrorSubtitle(errorMessage, hasVideoContent)
     val standaloneError = standaloneMediaError(errorMessage, hasVideoContent)
 
-    LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 156.dp),
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(NordicSpacing.lg),
-        verticalArrangement = Arrangement.spacedBy(NordicSpacing.lg),
-        horizontalArrangement = Arrangement.spacedBy(NordicSpacing.md)
-    ) {
-        item(span = { GridItemSpan(maxLineSpan) }) {
+    fun selectLibrary(libraryId: String) {
+        videoResetNotice = null
+        videoDetailInvalidationNotice = null
+        videoLibraryRequestVersion += 1
+        val libraryRequestVersion = videoLibraryRequestVersion
+        selectedLibraryId = libraryId
+        selectedVideo = null
+        searchQuery = ""
+        searchExpanded = false
+        selectedTypeFilter = VideoTypeFilter.All
+        val cachedItems = itemsByLibrary[libraryId]
+        if (cachedItems != null) {
+            videos = cachedItems
+            selectedTypeFilter = resolveVideoTypeFilterAfterCatalogRefresh(
+                selectedTypeFilter = selectedTypeFilter,
+                videos = cachedItems
+            )
+        } else {
+            videos = emptyList()
+        }
+        val repo = embyRepository ?: return
+        val requestVersion = videoConfigStateVersion
+        scope.launch {
+            if (cachedItems == null) {
+                isLoading = true
+            }
+            errorMessage = null
+            try {
+                val loadedVideos = repo.getLibraryItems(libraryId)
+                if (videoConfigStateVersion == requestVersion &&
+                    videoLibraryRequestVersion == libraryRequestVersion &&
+                    selectedLibraryId == libraryId
+                ) {
+                    videos = loadedVideos
+                    selectedTypeFilter = resolveVideoTypeFilterAfterCatalogRefresh(
+                        selectedTypeFilter = selectedTypeFilter,
+                        videos = loadedVideos
+                    )
+                    itemsByLibrary = itemsByLibrary + (libraryId to loadedVideos)
+                    libraryFetchedAt = libraryFetchedAt +
+                        (libraryId to System.currentTimeMillis())
+                    cacheRepository.saveLibraryItems(savedConfig, libraryId, loadedVideos)
+                    val updatedCache = cacheRepository.buildCache(
+                        config = savedConfig,
+                        libraries = libraries,
+                        videos = loadedVideos,
+                        selectedLibraryId = libraryId,
+                        itemsByLibrary = itemsByLibrary,
+                        libraryFetchedAt = libraryFetchedAt
+                    )
+                    cacheUpdatedAtMillis = updatedCache.updatedAtMillis
+                    cacheRepository.save(savedConfig, updatedCache)
+                }
+            } catch (e: Exception) {
+                if (videoConfigStateVersion == requestVersion &&
+                    videoLibraryRequestVersion == libraryRequestVersion &&
+                    selectedLibraryId == libraryId
+                ) {
+                    if (videos.isEmpty()) {
+                        errorMessage = "加载视频列表失败: ${e.message ?: "未知错误"}"
+                    }
+                }
+            } finally {
+                if (videoConfigStateVersion == requestVersion &&
+                    videoLibraryRequestVersion == libraryRequestVersion &&
+                    selectedLibraryId == libraryId
+                ) {
+                    isLoading = false
+                }
+            }
+        }
+    }
+
+    VideoHomeContent(
+        header = {
             MediaPageHeader(
                 title = "视频",
                 subtitle = when {
@@ -446,7 +497,7 @@ fun VideoScreen(
                     savedConfig.isReadyForVideoSync() -> "已连接 Emby"
                     else -> "连接 Emby 后显示真实媒体库、海报和视频信息"
                 },
-actions = buildList {
+                actions = buildList {
                     add(
                         HeaderAction(
                             icon = Icons.Filled.Settings,
@@ -475,244 +526,46 @@ actions = buildList {
                 },
                 colorScheme = colorScheme
             )
-        }
-
-        if (standaloneError != null) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                MediaStateCard(
-                    title = "Emby 连接错误",
-                    subtitle = standaloneError,
-                    hint = "检查配置或点击刷新重试",
-                    tone = MediaStateTone.Error
-                )
-            }
-        }
-
-        if (videoResetNotice != null) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                MediaStateCard(
-                    title = "已应用新的视频配置",
-                    subtitle = videoResetNotice.orEmpty(),
-                    density = MediaStateDensity.Compact
-                )
-            }
-        }
-
-        if (videoDetailInvalidationNotice != null) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                MediaStateCard(
-                    title = "详情已更新",
-                    subtitle = videoDetailInvalidationNotice.orEmpty(),
-                    density = MediaStateDensity.Compact
-                )
-            }
-        }
-
-        if (libraries.isNotEmpty()) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                VideoLibrarySelector(
-                    libraries = libraries,
-                    selectedLibraryId = selectedLibraryId,
-                    colorScheme = colorScheme,
-                    onSelect = { libraryId ->
-                        videoResetNotice = null
-                        videoDetailInvalidationNotice = null
-                        videoLibraryRequestVersion += 1
-                        val libraryRequestVersion = videoLibraryRequestVersion
-                        selectedLibraryId = libraryId
-                        selectedVideo = null
-                        searchQuery = ""
-                        searchExpanded = false
-                        selectedTypeFilter = VideoTypeFilter.All
-                        // Stale-while-revalidate: render the cached rows for
-                        // this library instantly (no spinner), then refresh
-                        // silently. Only a library with no cached rows shows
-                        // the loading full fetch.
-                        val cachedItems = itemsByLibrary[libraryId]
-                        if (cachedItems != null) {
-                            videos = cachedItems
-                            selectedTypeFilter = resolveVideoTypeFilterAfterCatalogRefresh(
-                                selectedTypeFilter = selectedTypeFilter,
-                                videos = cachedItems
-                            )
-                        } else {
-                            videos = emptyList()
-                        }
-                        val repo = embyRepository ?: return@VideoLibrarySelector
-                        val requestVersion = videoConfigStateVersion
-                        scope.launch {
-                            if (cachedItems == null) {
-                                isLoading = true
-                            }
-                            errorMessage = null
-                            try {
-                                val loadedVideos = repo.getLibraryItems(libraryId)
-                                if (videoConfigStateVersion == requestVersion &&
-                                    videoLibraryRequestVersion == libraryRequestVersion &&
-                                    selectedLibraryId == libraryId
-                                ) {
-                                    videos = loadedVideos
-                                    selectedTypeFilter = resolveVideoTypeFilterAfterCatalogRefresh(
-                                        selectedTypeFilter = selectedTypeFilter,
-                                        videos = loadedVideos
-                                    )
-                                    itemsByLibrary = itemsByLibrary + (libraryId to loadedVideos)
-                                    libraryFetchedAt = libraryFetchedAt +
-                                        (libraryId to System.currentTimeMillis())
-                                    cacheRepository.saveLibraryItems(savedConfig, libraryId, loadedVideos)
-                                    val updatedCache = cacheRepository.buildCache(
-                                        config = savedConfig,
-                                        libraries = libraries,
-                                        videos = loadedVideos,
-                                        selectedLibraryId = libraryId,
-                                        itemsByLibrary = itemsByLibrary,
-                                        libraryFetchedAt = libraryFetchedAt
-                                    )
-                                    cacheUpdatedAtMillis = updatedCache.updatedAtMillis
-                                    cacheRepository.save(savedConfig, updatedCache)
-                                }
-                            } catch (e: Exception) {
-                                if (videoConfigStateVersion == requestVersion &&
-                                    videoLibraryRequestVersion == libraryRequestVersion &&
-                                    selectedLibraryId == libraryId
-                                ) {
-                                    // Cached rows stay visible; only a library
-                                    // with nothing cached surfaces the error.
-                                    if (videos.isEmpty()) {
-                                        errorMessage = "加载视频列表失败: ${e.message ?: "未知错误"}"
-                                    }
-                                }
-                            } finally {
-                                if (videoConfigStateVersion == requestVersion &&
-                                    videoLibraryRequestVersion == libraryRequestVersion &&
-                                    selectedLibraryId == libraryId
-                                ) {
-                                    isLoading = false
-                                }
-                            }
-                        }
-                    }
-                )
-            }
-        }
-
-        if (videos.isNotEmpty()) {
-            if (!hasActiveBrowserFilter) {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    VideoSpotlightSections(
-                        continueWatching = continueWatchingVideos,
-                        topRated = topRatedVideos,
-                        unplayed = unplayedVideos,
-                        colorScheme = colorScheme,
-                        onVideoSelected = ::openVideoDetail
-                    )
-                }
-            }
-
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                VideoBrowserControls(
-                    searchExpanded = searchExpanded,
-                    searchQuery = searchQuery,
-                    selectedTypeFilter = selectedTypeFilter,
-                    filters = visibleTypeFilters,
-                    colorScheme = colorScheme,
-                    onToggleSearch = {
-                        videoResetNotice = null
-                        searchExpanded = true
-                    },
-                    onSearchChange = {
-                        videoResetNotice = null
-                        searchQuery = it
-                    },
-                    onSearchCollapse = {
-                        videoResetNotice = null
-                        searchQuery = ""
-                        searchExpanded = false
-                    },
-                    onFilterSelected = {
-                        videoResetNotice = null
-                        selectedTypeFilter = it
-                    }
-                )
-            }
-
-            val catalogCount = if (hasActiveBrowserFilter) visibleVideos.size else browseVideos.size
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Text(
-                    "全部 $catalogCount 项",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = colorScheme.onBackground,
-                    modifier = Modifier.semantics { heading() },
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-
-        when {
-            isLoading && videos.isEmpty() -> {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    MediaLoadingCard(
-                        title = "正在同步 Emby",
-                        subtitle = "加载媒体库、海报和继续观看进度..."
-                    )
-                }
-            }
-
-            !savedConfig.isReadyForVideoSync() -> {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    MediaStateCard(
-                        title = "先接入你的 Emby 服务器",
-                        subtitle = "填写服务器地址，并使用 API Key 或用户名密码登录。这里会显示真实媒体库和视频缩略图。",
-                        hint = "前往配置 tab 开始连接"
-                    )
-                }
-            }
-
-            libraries.isEmpty() && !isLoading && standaloneError == null -> {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    MediaStateCard(
-                        title = "没有可用视频媒体库",
-                        subtitle = "Emby 已连接，但当前用户没有可浏览的电影、剧集或家庭视频媒体库。"
-                    )
-                }
-            }
-
-            videos.isEmpty() && !isLoading && standaloneError == null -> {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    MediaStateCard(
-                        title = "这个媒体库暂时没有内容",
-                        subtitle = "切换其他媒体库，或回到 Emby 服务端检查扫描结果和用户权限。"
-                    )
-                }
-            }
-
-            visibleVideos.isEmpty() && !isLoading -> {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    MediaStateCard(
-                        title = "没有匹配的视频",
-                        subtitle = "换一个关键词，或切换类型筛选查看这个媒体库中的其他内容。",
-                        density = MediaStateDensity.Compact
-                    )
-                }
-            }
-
-            else -> {
-                gridItems(
-                    items = visibleVideos,
-                    key = { video -> "${video.libraryId}:${video.id}" },
-                    contentType = { "video-card" }
-                ) { video ->
-                    VideoCard(
-                        video = video,
-                        colorScheme = colorScheme,
-                        onClick = { openVideoDetail(video) }
-                    )
-                }
-            }
-        }
-    }
+        },
+        libraries = libraries,
+        selectedLibraryId = selectedLibraryId,
+        videos = videos,
+        visibleVideos = visibleVideos,
+        browseVideos = browseVideos,
+        continueWatching = continueWatchingVideos,
+        topRated = topRatedVideos,
+        unplayed = unplayedVideos,
+        searchExpanded = searchExpanded,
+        searchQuery = searchQuery,
+        selectedTypeFilter = selectedTypeFilter,
+        typeFilters = visibleTypeFilters,
+        isLoading = isLoading,
+        standaloneError = standaloneError,
+        resetNotice = videoResetNotice,
+        detailInvalidationNotice = videoDetailInvalidationNotice,
+        ready = savedConfig.isReadyForVideoSync(),
+        colorScheme = colorScheme,
+        onSelectLibrary = ::selectLibrary,
+        onToggleSearch = {
+            videoResetNotice = null
+            searchExpanded = true
+        },
+        onSearchChange = {
+            videoResetNotice = null
+            searchQuery = it
+        },
+        onSearchCollapse = {
+            videoResetNotice = null
+            searchQuery = ""
+            searchExpanded = false
+        },
+        onFilterSelected = {
+            videoResetNotice = null
+            selectedTypeFilter = it
+        },
+        onOpenVideo = ::openVideoDetail,
+        onRetry = { scope.launch { refreshVideo() } }
+    )
 }
 
 
