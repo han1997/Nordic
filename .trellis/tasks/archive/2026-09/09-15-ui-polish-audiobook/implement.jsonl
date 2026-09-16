@@ -1,0 +1,8 @@
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "全页面共享 UI 一致性合同：主题/字体/页头/弹层容器/选择行/48dp/对比度规则；业务页面扩展已含 audiobook 布局委托与作者缺省文案合同"}
+{"file": ".trellis/spec/backend/ui-catalog-verification.md", "reason": "Debug 样板与设备验收合同：UiCatalogActivity、模拟器固定、截图/交互 instrumentation、证据 schemaVersion 3、字号/窗口/像素守卫"}
+{"file": ".trellis/spec/backend/music-ui.md", "reason": "音乐域 UI 合同（第二轮产物）：列表间距/反馈状态/弹层/下载/EQ 规则是本轮有声书域修整的对照样板"}
+{"file": ".trellis/spec/backend/audiobookshelf-integration.md", "reason": "AudiobookShelf API/缓存/进度协议；修 UI 时不得改 repository、请求版本保护、缓存存储"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "质量门禁：编译/测试/Lint/APK 要求"}
+{"file": ".trellis/spec/backend/build-release.md", "reason": "版本 0.1.11 / 11 递增、签名延续、Release 排除 Debug 样板的核验要求"}
+{"file": ".trellis/tasks/archive/2026-09/09-14-ui-polish-music/research/implementation-plan.md", "reason": "第二轮音乐域的源码审查与实施边界方法论：严格基线、状态真实性、回归边界，本轮照此模式执行"}
+{"file": ".trellis/tasks/archive/2026-09/09-13-ui-polish-samples/research/coverage.md", "reason": "首轮覆盖清单：有声书 7 个未验条目的定义与状态矩阵要求"}

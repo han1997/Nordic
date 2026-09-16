@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "检查共享控件复用、48dp、对比度 4.5:1、语义角色是否达标"}
+{"file": ".trellis/spec/backend/ui-catalog-verification.md", "reason": "检查证据批次完整性：源码/APK 指纹、系统字号核对、像素守卫、失败批次保留"}
+{"file": ".trellis/spec/backend/music-ui.md", "reason": "对照音乐域合同检查有声书是否引入了不一致的近似实现"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "门禁：完整 JVM/Lint/APK 通过"}
+{"file": ".trellis/spec/backend/build-release.md", "reason": "版本/签名/Release 无 Debug 资源核验"}
+{"file": ".trellis/tasks/09-15-ui-polish-audiobook/prd.md", "reason": "本轮验收标准与明确不在范围（章节行不加跳转、不做笔记）"}
