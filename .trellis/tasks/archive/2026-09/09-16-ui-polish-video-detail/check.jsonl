@@ -1,0 +1,6 @@
+{"file":".trellis/spec/backend/video-ui.md","reason":"核对视频详情视觉、语义和 Debug 覆盖的验收合同。"}
+{"file":".trellis/spec/backend/ui-consistency.md","reason":"核对设计 token、文本对比度、触控目标及共享控件复用。"}
+{"file":".trellis/spec/backend/ui-catalog-verification.md","reason":"核对 Debug 样板隔离和设备证据的验收要求。"}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"核对共享 UI 复用、设计 token 与测试质量约束。"}
+{"file":".trellis/spec/backend/build-release.md","reason":"核对版本号和 Debug/Release 产物验证。"}
+{"file":".trellis/spec/backend/documentation-guidelines.md","reason":"核对 CHANGELOG 与中文文档更新要求。"}
