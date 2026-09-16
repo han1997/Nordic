@@ -325,4 +325,33 @@ class UiCatalogInteractionTest {
         card.performScrollTo().assertIsDisplayed().assertIsFullyVisible()
         compose.onNodeWithText("本季已没有尚未播放的分集。", substring = false).assertIsDisplayed()
     }
+
+    @Test fun settingsHomeShowsSectionsAndProducesNavigationCallbacks() {
+        show("settings_home")
+        compose.onNodeWithText("设置", substring = false).assertIsDisplayed()
+        compose.onNodeWithText("连接", substring = false).assertIsDisplayed()
+        compose.onNodeWithText("媒体服务器", substring = false).performScrollTo().performClick()
+        compose.runOnIdle { assertTrue(compose.activity.recordedEvents.contains("settings:SERVERS")) }
+    }
+
+    @Test fun settingsServersExposeRadioRolesAndEmptyState() {
+        show("settings_servers", state = "empty")
+        compose.onNode(hasVerticalLazyScrollAction()).performScrollToNode(hasText("尚未添加音乐服务器", substring = false))
+        compose.onNodeWithText("尚未添加音乐服务器", substring = false).assertIsDisplayed()
+        compose.onNode(hasVerticalLazyScrollAction()).performScrollToNode(hasText("尚未添加视频服务器", substring = false))
+    }
+
+    @Test fun settingsPrefsAndDataPagesStayInMemoryOnly() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val preferences = File(context.applicationInfo.dataDir, "shared_prefs/secret_prefs.xml")
+        val before = preferences.takeIf(File::isFile)?.readBytes()
+        show("settings_prefs")
+        compose.onNodeWithText("主题", substring = false).assertIsDisplayed().performClick()
+        compose.onNodeWithText("浅色", substring = false).performClick()
+        compose.runOnIdle { assertTrue(compose.activity.recordedEvents.contains("prefs-update")) }
+        show("settings_data")
+        compose.onNodeWithText("恢复偏好默认值", substring = false).performScrollTo().performTouchInput { click() }
+        compose.runOnIdle { assertTrue(compose.activity.recordedEvents.contains("settings:reset-prefs")) }
+        assertArrayEquals(before, preferences.takeIf(File::isFile)?.readBytes())
+    }
 }

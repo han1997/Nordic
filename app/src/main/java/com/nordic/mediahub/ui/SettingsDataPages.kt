@@ -27,14 +27,16 @@ internal fun StorageSettingsPage(sources: MediaSourceState, onDownloads: (String
     var revision by remember { mutableIntStateOf(0) }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var loadError by remember { mutableStateOf(false) }
     var confirmation by remember { mutableStateOf<DataConfirmation?>(null) }
     val scope = rememberCoroutineScope()
     LaunchedEffect(sources, revision) {
-        try { summary = repository.inspect(sources) }
-        catch (e: Exception) { if (e is CancellationException) throw e; error = "读取存储信息失败" }
+        try { summary = repository.inspect(sources); loadError = false }
+        catch (e: Exception) { if (e is CancellationException) throw e; loadError = true }
     }
     Column {
         if (summary == null || busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (loadError) MediaStateCard("读取存储信息失败", "请稍后重试,不会删除任何数据。", tone = MediaStateTone.Error, density = MediaStateDensity.Compact)
         SettingsSectionTitle("可清理缓存")
         SettingsRow("图片缓存", "清理后会在需要时重新加载封面。", value = summary?.let { formatMediaBytes(it.imageBytes) },
             enabled = !busy, icon = Icons.Filled.Image, onClick = {
@@ -94,7 +96,7 @@ internal fun DownloadedMusicScreen(sourceId: String, name: String, onBack: () ->
                     manager.downloadSong(entry.song, source.navidromeConfig())
                 }) { Text("重试") }
             }
-            HorizontalDivider()
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
         }
     }
     deletion?.let { id -> AlertDialog(onDismissRequest = { deletion = null }, title = { Text("删除这首下载？") },

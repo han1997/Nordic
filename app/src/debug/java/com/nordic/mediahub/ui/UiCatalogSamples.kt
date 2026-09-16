@@ -7,12 +7,30 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Cached
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.ViewModule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nordic.mediahub.R
 import com.nordic.mediahub.data.*
@@ -37,7 +55,9 @@ internal enum class UiSampleScreen(val id: String, val label: String) {
     AudiobookSpeed("ab_speed", "有声书倍速"), AudiobookSleep("ab_sleep", "睡眠定时"),
     AudiobookBookmarks("ab_bookmarks", "书签"),
     VideoHome("video_home", "视频媒体库"), VideoSearch("video_search", "视频搜索"),
-    VideoDetail("video_detail", "视频详情"), VideoSeries("video_series", "剧集详情")
+    VideoDetail("video_detail", "视频详情"), VideoSeries("video_series", "剧集详情"),
+    SettingsHome("settings_home", "设置主页"), SettingsServers("settings_servers", "服务器列表"),
+    SettingsPrefs("settings_prefs", "偏好设置页"), SettingsData("settings_data", "数据与隐私页")
 }
 internal enum class UiSampleState(val id: String, val label: String) {
     Normal("normal", "正常"), LongText("long", "长文本"), Empty("empty", "空白"), Loading("loading", "加载中"),
@@ -89,6 +109,8 @@ internal fun UiCatalogContent(
         UiSampleScreen.Modules -> ModuleSample(request, onNavigate, onEvent)
         UiSampleScreen.Server, UiSampleScreen.ServerEmby, UiSampleScreen.ServerWebdav -> ServerSample(request, onNavigate, onEvent)
         UiSampleScreen.SettingsRows -> SettingsRowSample(request, onNavigate, onEvent)
+        UiSampleScreen.SettingsHome, UiSampleScreen.SettingsServers, UiSampleScreen.SettingsPrefs,
+        UiSampleScreen.SettingsData -> SettingsSample(request, onNavigate, onEvent)
         UiSampleScreen.AudiobookHome, UiSampleScreen.AudiobookDetail, UiSampleScreen.AudiobookPlayer,
         UiSampleScreen.AudiobookChapters, UiSampleScreen.AudiobookSpeed, UiSampleScreen.AudiobookSleep,
         UiSampleScreen.AudiobookBookmarks -> AudiobookCatalogSample(request, onNavigate, onEvent)
@@ -260,5 +282,190 @@ private fun SettingsRowSample(request: UiSampleRequest, onNavigate: (UiSampleScr
         SettingsSectionTitle("存储与下载")
         SettingsRow("下载目录", value = "/storage/emulated/0/Android/data/fun.han1997.nordic/files/Music/", onClick = { onEvent("directory") })
         SettingsRow("清理缓存", "不会删除已下载的音乐和播放进度。", enabled = request.state != UiSampleState.Disabled, destructive = true, onClick = { onEvent("clear-preview") })
+    }
+}
+
+@Composable
+private fun SettingsSample(request: UiSampleRequest, onNavigate: (UiSampleScreen) -> Unit, onEvent: (String) -> Unit) {
+    when (request.screen) {
+        UiSampleScreen.SettingsHome -> SettingsHomeSample(request, onNavigate, onEvent)
+        UiSampleScreen.SettingsServers -> SettingsServersSample(request, onNavigate, onEvent)
+        UiSampleScreen.SettingsPrefs -> SettingsPrefsSample(request, onNavigate, onEvent)
+        UiSampleScreen.SettingsData -> SettingsDataSample(request, onNavigate, onEvent)
+        else -> Unit
+    }
+}
+
+@Composable
+private fun SettingsHomeSample(request: UiSampleRequest, onNavigate: (UiSampleScreen) -> Unit, onEvent: (String) -> Unit) {
+    val preferences = when (request.state) {
+        UiSampleState.Disabled -> AppPreferences(showAudiobook = false)
+        else -> AppPreferences()
+    }
+    val sources = MediaSourceState(
+        sources = if (request.state != UiSampleState.Empty) listOf(
+            MediaSource(id = "sample-music", name = "家庭音乐库", kind = MediaSourceKind.NAVIDROME, serverUrl = "https://music.example.test"),
+            MediaSource(id = "sample-book", name = "我的有声书", kind = MediaSourceKind.AUDIOBOOKSHELF, serverUrl = "https://books.example.test"),
+            MediaSource(id = "sample-video", name = "影院", kind = MediaSourceKind.EMBY, serverUrl = "https://video.example.test")
+        ) else emptyList(),
+        activeMusicId = if (request.state == UiSampleState.Empty) null else "sample-music",
+        activeAudiobookId = if (request.state == UiSampleState.Empty) null else "sample-book",
+        activeVideoId = if (request.state == UiSampleState.Empty) null else "sample-video"
+    )
+    val colors = MaterialTheme.colorScheme
+    Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+        MediaPageHeader("设置", when {
+            request.state == UiSampleState.Empty -> "尚未添加任何服务器"
+            else -> "${sources.sources.size} 个已保存来源"
+        }, listOf(HeaderAction(Icons.Filled.Search, "搜索设置", onClick = { onEvent("settings-search") })),
+            colors, showBack = true, onBack = { onNavigate(UiSampleScreen.Catalog) }, modifier = Modifier.padding(horizontal = NordicSpacing.content))
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(NordicSpacing.content),
+            verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
+            if (request.state == UiSampleState.Error) item {
+                MediaStateCard("配置读取提示", "设置无法读取,原数据未被修改。", tone = MediaStateTone.Error, density = MediaStateDensity.Compact)
+            }
+            SETTINGS_HOME_PAGES.filter { it !in hiddenModulePages(preferences) }.forEach { destination ->
+                if (destination == SettingsPage.SERVERS) item { SettingsSectionTitle("连接") }
+                if (destination == SettingsPage.APPEARANCE) item { SettingsSectionTitle("体验与播放") }
+                if (destination == SettingsPage.STORAGE) item { SettingsSectionTitle("数据与应用") }
+                item {
+                    val summary = when (destination) {
+                        SettingsPage.SERVERS -> "音乐 ${sources.sources.count { it.domain == MediaDomain.MUSIC }} · 有声书 ${sources.sources.count { it.domain == MediaDomain.AUDIOBOOK }} · 视频 ${sources.sources.count { it.domain == MediaDomain.VIDEO }}"
+                        SettingsPage.APPEARANCE -> "${preferences.theme.label} · 启动${preferences.startupPage.label}"
+                        SettingsPage.MODULES -> "音乐、有声书、视频的显示开关"
+                        SettingsPage.MUSIC -> "${preferences.musicSpeed}× · ${preferences.musicDefaultView.label}"
+                        SettingsPage.AUDIOBOOK -> "${preferences.audiobookSpeed}× · 后退 ${preferences.audiobookSkipBack} 秒"
+                        SettingsPage.VIDEO -> "${preferences.videoSpeed}× · ${if (preferences.videoPip) "画中画开启" else "画中画关闭"}"
+                        SettingsPage.STORAGE -> "缓存占用与已下载音乐"
+                        SettingsPage.PRIVACY -> "本机记录、旧数据与默认设置"
+                        else -> "版本、开源声明与连接指南"
+                    }
+                    val icon = when (destination) {
+                        SettingsPage.SERVERS -> Icons.Filled.Dns
+                        SettingsPage.APPEARANCE -> Icons.Filled.Palette
+                        SettingsPage.MODULES -> Icons.Filled.ViewModule
+                        SettingsPage.MUSIC -> Icons.Filled.MusicNote
+                        SettingsPage.AUDIOBOOK -> Icons.AutoMirrored.Filled.MenuBook
+                        SettingsPage.VIDEO -> Icons.Filled.Movie
+                        SettingsPage.STORAGE -> Icons.Filled.Storage
+                        SettingsPage.PRIVACY -> Icons.Filled.Security
+                        else -> Icons.Filled.Info
+                    }
+                    SettingsRow(destination.title, summary, icon = icon, onClick = { onEvent("settings:${destination.name}") })
+                    HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsServersSample(request: UiSampleRequest, onNavigate: (UiSampleScreen) -> Unit, onEvent: (String) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val sources = if (request.state == UiSampleState.Empty) {
+        MediaSourceState()
+    } else MediaSourceState(
+        sources = listOf(
+            MediaSource(id = "sample-music", name = if (request.state == UiSampleState.LongText) "我的家庭音乐服务器 · 长名称与混合语言检查" else "家庭音乐库",
+                kind = MediaSourceKind.NAVIDROME, serverUrl = "https://music.example.test"),
+            MediaSource(id = "sample-book", name = "我的有声书", kind = MediaSourceKind.AUDIOBOOKSHELF, serverUrl = "https://books.example.test"),
+            MediaSource(id = "sample-video", name = "NAS 影院", kind = MediaSourceKind.EMBY, serverUrl = "https://video.example.test")
+        ),
+        activeMusicId = "sample-music", activeAudiobookId = "sample-book", activeVideoId = "sample-video"
+    )
+    var menuFor by remember { mutableStateOf<String?>(null) }
+    LazyColumn(Modifier.fillMaxSize().safeDrawingPadding(), contentPadding = PaddingValues(NordicSpacing.content),
+        verticalArrangement = Arrangement.spacedBy(NordicSpacing.xs)) {
+        item {
+            MediaPageHeader("媒体服务器", "音乐、有声书和视频分别选择来源", emptyList(), colors, showBack = true,
+                onBack = { onNavigate(UiSampleScreen.Catalog) })
+        }
+        item { SettingsRow("添加服务器", "支持 Navidrome、AudiobookShelf、Emby 与 WebDAV", icon = Icons.Filled.Add,
+            onClick = { onEvent("settings:add-server") }) }
+        MediaDomain.entries.forEach { domain ->
+            item { SettingsSectionTitle(domain.label) }
+            val entries = sources.sources.filter { it.domain == domain }
+            if (entries.isEmpty()) item {
+                MediaStateCard("尚未添加${domain.label}服务器", "本域的播放与浏览将暂不可用。", density = MediaStateDensity.Compact)
+            }
+            items(entries, key = { it.id }) { source ->
+                Row(Modifier.fillMaxWidth().padding(vertical = NordicSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(sources.activeId(domain) == source.id, enabled = request.state != UiSampleState.Disabled,
+                        onClick = { onEvent("settings:select") })
+                    Column(Modifier.weight(1f)) {
+                        Text(source.name, style = MaterialTheme.typography.titleMedium)
+                        Text("${source.kind.label} · ${source.serverUrl}", maxLines = 2, overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                        Text(if (request.state == UiSampleState.Error)
+                            "上次测试:连接未通过" else "上次测试:连接正常",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (request.state == UiSampleState.Error) colors.error else colors.onSurfaceVariant)
+                    }
+                    Box {
+                        IconButton(onClick = { menuFor = source.id }, enabled = request.state != UiSampleState.Disabled) { Icon(Icons.Filled.MoreVert, "管理 ${source.name}") }
+                        DropdownMenu(menuFor == source.id, onDismissRequest = { menuFor = null }) {
+                            DropdownMenuItem(text = { Text("编辑连接") }, onClick = { menuFor = null; onEvent("settings:edit") })
+                            DropdownMenuItem(text = { Text("测试连接") }, onClick = { menuFor = null; onEvent("settings:test") })
+                            DropdownMenuItem(text = { Text("删除连接") }, onClick = { menuFor = null; onEvent("settings:delete") })
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsPrefsSample(request: UiSampleRequest, onNavigate: (UiSampleScreen) -> Unit, onEvent: (String) -> Unit) {
+    var preferences by remember {
+        mutableStateOf(when (request.state) {
+            UiSampleState.Empty -> AppPreferences(musicSpeed = 1f)
+            else -> AppPreferences()
+        })
+    }
+    var choice by remember { mutableStateOf<SettingsChoiceRequest?>(null) }
+    val page = if (request.state == UiSampleState.LongText) SettingsPage.VIDEO else SettingsPage.APPEARANCE
+    Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+        MediaPageHeader(page.title, "偏好即时持久化(样板仅演示布局)", emptyList(), MaterialTheme.colorScheme,
+            showBack = true, onBack = { onNavigate(UiSampleScreen.Catalog) })
+        PreferenceSettingsPage(page, preferences, videoSource = null, highlight = null,
+            update = { transform -> preferences = transform(preferences); onEvent("prefs-update") },
+            choice = { selection -> choice = selection })
+    }
+    choice?.let { request -> SettingsChoiceDialog(request) { choice = null } }
+}
+
+@Composable
+private fun SettingsDataSample(request: UiSampleRequest, onNavigate: (UiSampleScreen) -> Unit, onEvent: (String) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Column(Modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState()).padding(NordicSpacing.content)) {
+        MediaPageHeader("存储与下载", "缓存与已下载音乐",
+            emptyList(), colors, showBack = true, onBack = { onNavigate(UiSampleScreen.Catalog) })
+        if (request.state == UiSampleState.Loading) LinearProgressIndicator(Modifier.fillMaxWidth())
+        SettingsSectionTitle("可清理缓存", topPadding = NordicSpacing.xs)
+        SettingsRow("图片缓存", "清理后会在需要时重新加载封面。", value = "12.4 MB", icon = Icons.Filled.Image,
+            enabled = request.state != UiSampleState.Disabled, onClick = { onEvent("settings:clear-images") })
+        SettingsRow("媒体目录数据", "包含来源目录列表,不含收藏文件夹与观看进度。", value = "约 2.1 MB", icon = Icons.Filled.Cached,
+            enabled = request.state != UiSampleState.Disabled, onClick = { onEvent("settings:clear-catalogs") })
+        SettingsRow("刷新占用信息", icon = Icons.Filled.Refresh, onClick = { onEvent("settings:refresh") })
+        if (request.state == UiSampleState.Empty) {
+            SettingsSectionTitle("已下载音乐 · 按来源管理")
+            MediaStateCard("暂无下载", "播放音乐时,可从播放器菜单下载当前曲目。", density = MediaStateDensity.Compact)
+            SettingsSectionTitle("隐私与数据")
+            SettingsRow("凭证加密存储", "服务器密码与密钥保存在 Android 加密存储中,不随系统备份导出。")
+            SettingsRow("媒体请求与隐私", "媒体请求直接发送到你配置的服务器。本应用不提供账号云同步或使用行为统计服务。")
+            SettingsRow("恢复偏好默认值", "保留服务器、下载、书签和观看进度。", enabled = request.state != UiSampleState.Disabled,
+                destructive = true, onClick = { onEvent("settings:reset-prefs") })
+        } else {
+            SettingsSectionTitle("已下载音乐 · 按来源管理")
+            SettingsRow("家庭音乐库", "3 首 · 24.1 MB", icon = Icons.Filled.Download, onClick = { onEvent("settings:downloads") })
+            SettingsRow("NAS 影院", "0 首 · 0 B", icon = Icons.Filled.Download, onClick = { onEvent("settings:downloads") })
+            SettingsSectionTitle("隐私与数据")
+            SettingsRow("凭证加密存储", "服务器密码与密钥保存在 Android 加密存储中,不随系统备份导出。")
+            SettingsRow("媒体请求与隐私", "媒体请求直接发送到你配置的服务器。本应用不提供账号云同步或使用行为统计服务。")
+            if (request.state == UiSampleState.Error) MediaStateCard("清理失败", "请稍后重试,不会删除你的下载。", tone = MediaStateTone.Error, density = MediaStateDensity.Compact)
+            SettingsRow("恢复偏好默认值", "保留服务器、下载、书签和观看进度。", enabled = request.state != UiSampleState.Disabled,
+                destructive = true, onClick = { onEvent("settings:reset-prefs") })
+        }
     }
 }

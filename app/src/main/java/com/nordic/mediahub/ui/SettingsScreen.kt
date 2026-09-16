@@ -145,7 +145,7 @@ internal fun SettingsScreen(
                                         else -> Icons.Filled.Info
                                     }
                                     SettingsRow(destination.title, summary, icon = icon, onClick = { navigate(destination) })
-                                    HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.4f))
+                                    HorizontalDivider(color = colors.outlineVariant.copy(alpha = 0.5f))
                                 }
                             }
                         }
@@ -154,7 +154,7 @@ internal fun SettingsScreen(
                             MediaDomain.entries.forEach { domain ->
                                 item { SettingsSectionTitle(domain.label) }
                                 val entries = sources.sources.filter { it.domain == domain }
-                                if (entries.isEmpty()) item { Text("尚未添加${domain.label}服务器", color = colors.onSurfaceVariant, modifier = Modifier.padding(vertical = NordicSpacing.md)) }
+                                if (entries.isEmpty()) item { MediaStateCard("尚未添加${domain.label}服务器", "本域的播放与浏览将暂不可用。", density = MediaStateDensity.Compact) }
                                 items(entries, key = { it.id }) { source ->
                                     var menu by remember(source.id) { mutableStateOf(false) }
                                     Row(Modifier.fillMaxWidth().padding(vertical = NordicSpacing.sm), verticalAlignment = Alignment.CenterVertically) {

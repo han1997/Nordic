@@ -122,15 +122,19 @@ internal data class SettingsChoiceRequest(val title: String, val current: String
 
 @Composable
 internal fun SettingsChoiceDialog(request: SettingsChoiceRequest, onDismiss: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
     AlertDialog(onDismissRequest = onDismiss, title = { Text(request.title) },
         text = {
             LazyColumn(Modifier.heightIn(max = 400.dp).selectableGroup()) {
                 items(request.choices, key = { it.value }) { option ->
-                    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp)
-                        .selectable(option.value == request.current, role = Role.RadioButton,
+                    val selected = option.value == request.current
+                    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clip(NordicShapes.md)
+                        .background(if (selected) colors.primaryContainer else colors.surface.copy(alpha = 0f))
+                        .selectable(selected, role = Role.RadioButton,
                             onClick = { request.select(option.value); onDismiss() }), verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(option.value == request.current, onClick = null)
-                        Text(option.label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                        RadioButton(selected, onClick = null)
+                        Text(option.label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge,
+                            color = if (selected) colors.onPrimaryContainer else colors.onSurface)
                     }
                 }
             }
