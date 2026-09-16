@@ -574,3 +574,36 @@ trellis-continue 确认无活动任务且工作区干净；媒体模块显示与
 ### Next Steps
 
 - None - task complete
+
+
+## Session 189: WebDAV 网盘浏览第六轮 UI 精修收尾
+
+**Date**: 2026-09-16
+**Task**: WebDAV 网盘浏览第六轮 UI 精修收尾
+**Branch**: `main`
+
+### Summary
+
+完成 WebDAV 网盘浏览第六轮 UI 精修：抽取生产 WebDavBrowserContent，完善路径收藏语义、继续观看卡字号适配、文件行操作标签、错误显式重试、排序面板 heading 和文件信息长路径滚动；保留来源、缓存、请求取消、本机进度与播放准备协议不变。版本升至 0.1.14/14，JVM、Lint、Debug/Release、AndroidTest 编译通过；专用模拟器无连接设备，截图矩阵和实际 UI 交互留待设备验收。工作提交 70b9177，任务已归档。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `70b9177` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
