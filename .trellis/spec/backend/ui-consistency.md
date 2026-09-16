@@ -130,4 +130,8 @@ Text("播放", color = colorScheme.onPrimary)
 - `SettingsRow` 使用 `shouldInlineSettingsValue(availableWidth, titleWidth, valueWidth, fontScale, hasIcon, hasNavigation)`：实际文字测量连同图标、箭头和间距共同预算，不能再按字符串长度决定值的位置。空间不足时值独立放在标题下，说明另起一行。
 - 设置行最小 64dp；整行暴露唯一的 Button/Switch 角色，内部 `Switch(onCheckedChange = null)` 不再重复接收操作。禁用视觉与禁用语义必须同时保留。
 - `ServerEditorScreen` 仍拥有测试连接、保存、取消及草稿保护；共享 `ServerEditorContent` 不构建 repository，复用的 `ConfigTextField` 保留安全键盘、密码显隐与 enabled。
+- 设置主页入口列表按「连接 / 体验与播放 / 数据与应用」分段,组内使用`SettingsRow` + 分隔线(0.5 alpha);页级空态(尚未添加服务器、暂无下载、无匹配设置)统一复用紧凑状态卡,不得用裸`Text`代替。
+- 服务器列表行保留 Radio `selected`语义、名称/账号或测试状态两行与溢出菜单(编辑/测试/删除);测试状态行使用实色`onSurfaceVariant`,失败用`error`。
+- 设置选择对话框(`SettingsChoiceDialog`)选中行使用`primaryContainer`背景 + `onPrimaryContainer`文案强调,与全应用选择语言一致;选项行最小 56dp。
+- 已无生产引用的单服务器`Navidrome/Audiobook/VideoConfigCard`死亡组件已从`ConfigCards.kt`移除;仅保留被`ServerEditorContent`复用的`ConfigTextField`。
 - 调试样板和真实设置流程的隔离、系统字号、全窗口截图与逐页证据合同见 [UI 样板验收](./ui-catalog-verification.md)。
