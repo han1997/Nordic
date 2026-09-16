@@ -31,7 +31,11 @@ internal enum class UiSampleScreen(val id: String, val label: String) {
     Playlists("playlists", "歌单列表"), Playlist("playlist", "歌单详情"),
     PlaylistCreate("playlist_create", "新建歌单"), PlaylistRename("playlist_rename", "重命名歌单"),
     PlaylistDelete("playlist_delete", "删除歌单"), Equalizer("equalizer", "均衡器组件 · 未接入"),
-    MusicActions("music_actions", "音乐下载操作")
+    MusicActions("music_actions", "音乐下载操作"),
+    AudiobookHome("ab_home", "有声书书库"), AudiobookDetail("ab_detail", "有声书详情"),
+    AudiobookPlayer("ab_player", "有声书播放器"), AudiobookChapters("ab_chapters", "章节面板"),
+    AudiobookSpeed("ab_speed", "有声书倍速"), AudiobookSleep("ab_sleep", "睡眠定时"),
+    AudiobookBookmarks("ab_bookmarks", "书签")
 }
 internal enum class UiSampleState(val id: String, val label: String) {
     Normal("normal", "正常"), LongText("long", "长文本"), Empty("empty", "空白"), Loading("loading", "加载中"),
@@ -83,6 +87,9 @@ internal fun UiCatalogContent(
         UiSampleScreen.Modules -> ModuleSample(request, onNavigate, onEvent)
         UiSampleScreen.Server, UiSampleScreen.ServerEmby, UiSampleScreen.ServerWebdav -> ServerSample(request, onNavigate, onEvent)
         UiSampleScreen.SettingsRows -> SettingsRowSample(request, onNavigate, onEvent)
+        UiSampleScreen.AudiobookHome, UiSampleScreen.AudiobookDetail, UiSampleScreen.AudiobookPlayer,
+        UiSampleScreen.AudiobookChapters, UiSampleScreen.AudiobookSpeed, UiSampleScreen.AudiobookSleep,
+        UiSampleScreen.AudiobookBookmarks -> AudiobookCatalogSample(request, onNavigate, onEvent)
         else -> MusicCatalogSample(request, songs, onNavigate, onEvent)
     }
 }
