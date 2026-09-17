@@ -71,6 +71,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
@@ -536,23 +540,47 @@ private fun PlayerPrimaryDisplay(
     val currentToggle by rememberUpdatedState(onToggleDisplay)
     val currentSeekRelative by rememberUpdatedState(onSeekRelative)
     val seekEnabled by rememberUpdatedState(enabled)
+    val toggleEnabled by rememberUpdatedState(enabled)
     Box(
-        modifier = modifier.pointerInput(Unit) {
-            detectTapGestures(
-                onTap = { currentToggle() },
-                onDoubleTap = { offset ->
+        modifier = modifier
+            .testTag("player-primary-display")
+            .semantics {
+                val actions = buildList {
+                    if (toggleEnabled) {
+                        add(CustomAccessibilityAction(if (showLyrics) "显示封面" else "显示歌词") {
+                            currentToggle()
+                            true
+                        })
+                    }
                     if (seekEnabled) {
-                        val half = size.width / 2f
-                        val delta = if (offset.x < half) {
-                            -MUSIC_DOUBLE_TAP_SEEK_SECONDS
-                        } else {
-                            MUSIC_DOUBLE_TAP_SEEK_SECONDS
-                        }
-                        currentSeekRelative(delta)
+                        add(CustomAccessibilityAction("后退 10 秒") {
+                            currentSeekRelative(-MUSIC_DOUBLE_TAP_SEEK_SECONDS)
+                            true
+                        })
+                        add(CustomAccessibilityAction("前进 10 秒") {
+                            currentSeekRelative(MUSIC_DOUBLE_TAP_SEEK_SECONDS)
+                            true
+                        })
                     }
                 }
-            )
-        }
+                if (actions.isNotEmpty()) customActions = actions
+            }
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = { currentToggle() },
+                    onDoubleTap = { offset ->
+                        if (seekEnabled) {
+                            val half = size.width / 2f
+                            val delta = if (offset.x < half) {
+                                -MUSIC_DOUBLE_TAP_SEEK_SECONDS
+                            } else {
+                                MUSIC_DOUBLE_TAP_SEEK_SECONDS
+                            }
+                            currentSeekRelative(delta)
+                        }
+                    }
+                )
+            }
     ) {
         if (showLyrics) {
             MusicLyricsDisplay(

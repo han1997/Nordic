@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -139,7 +140,7 @@ internal fun MediaPlayerTopBar(
         horizontalArrangement = Arrangement.spacedBy(NordicSpacing.sm)) {
         MediaPlayerIconAction(MediaPlayerAction(Icons.Filled.KeyboardArrowDown, "收起播放器", onClose), colors)
         Text(title, style = MaterialTheme.typography.titleSmall, color = colors.onSurfaceVariant,
-            maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).semantics { heading() })
         extraAction?.let { MediaPlayerIconAction(it, colors) }
         MediaPlayerTool(speedLabel, "播放速度 $speedLabel", colors, onSpeed, enabled = speedEnabled)
     }

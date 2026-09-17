@@ -71,6 +71,42 @@ class UiCatalogInteractionTest {
         compose.onNodeWithText("1:16", substring = false).assertDoesNotExist()
     }
 
+    @OptIn(ExperimentalTestApi::class)
+    private fun performPlayerAction(label: String) {
+        compose.onNodeWithTag("player-primary-display").performCustomAccessibilityActionWithLabel(label)
+    }
+
+    @Test fun playerArtworkExposesLyricsToggleAsAccessibilityAction() {
+        show("player")
+        performPlayerAction("显示歌词")
+        compose.runOnIdle { assertTrue(compose.activity.recordedEvents.contains("lyrics")) }
+        show("lyrics")
+        performPlayerAction("显示封面")
+        compose.runOnIdle { assertTrue(compose.activity.recordedEvents.contains("lyrics")) }
+    }
+
+    @Test fun playerArtworkExposesSeekAsAccessibilityActions() {
+        show("player")
+        performPlayerAction("前进 10 秒")
+        compose.runOnIdle {
+            assertTrue(
+                compose.activity.recordedEvents.toString(),
+                compose.activity.recordedEvents.any { it.startsWith("seek:") }
+            )
+        }
+    }
+
+    @Test fun emptyPlayerExposesNoCustomActions() {
+        show("player", state = "empty")
+        val actionFailed = try {
+            performPlayerAction("显示歌词")
+            false
+        } catch (error: Exception) {
+            true
+        }
+        assertTrue("Empty player must not expose playback custom actions", actionFailed)
+    }
+
     @Test fun serverFormEditsAndSavesWithoutPersistentSideEffects() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val preferences = File(context.applicationInfo.dataDir, "shared_prefs/secret_prefs.xml")
