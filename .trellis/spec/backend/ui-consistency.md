@@ -60,6 +60,8 @@ internal fun shouldScrollMediaSegments(availableWidth: Dp, minimumWidths: List<D
 - `PolishedNowPlayingBar` 最小 66dp、`PolishedBottomNav` 最小 58dp，随字体自然增高；不能固定高度后把文字裁在容器外。
 - 音乐播放器封面/歌词主显示区必须同时暴露手势与语义双路径:单击切换封面/歌词、双击左右半区快退/快进 ±10s,并配`CustomAccessibilityAction`(「显示歌词/显示封面」「后退/前进 10 秒」)映射到同一回调与`MUSIC_DOUBLE_TAP_SEEK_SECONDS`;空播放器不暴露动作。
 - 播放器顶栏(`MediaPlayerTopBar`)标题声明`heading()`,与全应用页头规范一致。
+- 底部 Dock 的播放/暂停按钮与收起把手暴露 `Role.Button`;NavItem 图标不贡献朗读文本,由标签文本与 `selected` 语义承担,避免重复朗读。
+- 迷你播放条状态文字用 `resolveDockStatusSubtitleColor(colors, hasStatus, statusIsError)`:无状态默认 onSurfaceVariant、缓冲等强调 primary、错误 error;错误与强调不混用一色。
 - 音频 sheet 与视频窗口内 panel 继续使用各自宿主，样板修正不改变全屏/PiP 生命周期。
 
 ### 输入与详情动作
