@@ -194,6 +194,16 @@ class UiCatalogInteractionTest {
         }
     }
 
+    @Test fun dockShowsErrorAndBufferingStatusWithButtonRole() {
+        show("songs", state = "error")
+        compose.onNodeWithText("连接暂时不可用", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithContentDescription("播放", substring = false)
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
+        show("songs", state = "loading")
+        compose.onNodeWithText("正在缓冲", useUnmergedTree = true).assertExists()
+        compose.onNodeWithContentDescription("播放", substring = false).assertIsDisplayed().assertMinimumTouchTarget()
+    }
+
     @Test fun sampleControlsExposeRolesSelectionAndMinimumTouchTargets() {
         for (font in listOf(1f, 2f)) {
             show("songs", font = font)

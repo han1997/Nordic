@@ -92,7 +92,9 @@ private fun DockPlayPauseButton(
         contentColor = colorScheme.onPrimary,
         shape = NordicShapes.full,
         shadowElevation = 2.dp,
-        modifier = Modifier.clickable(onClick = onPlayPause)
+        modifier = Modifier
+            .semantics { contentDescription = if (isPlaying) "暂停" else "播放" }
+            .clickable(role = Role.Button, onClick = onPlayPause)
     ) {
         Box(
             modifier = Modifier.size(NordicControlSizes.touchTarget),
@@ -100,7 +102,7 @@ private fun DockPlayPauseButton(
         ) {
             Icon(
                 imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                contentDescription = if (isPlaying) "暂停" else "播放",
+                contentDescription = null,
                 tint = colorScheme.onPrimary,
                 modifier = Modifier.size(22.dp)
             )
@@ -130,6 +132,7 @@ internal fun PolishedPlaybackDock(
     nowPlaying: DockNowPlayingContent?,
     isPlaying: Boolean,
     playbackStatus: String? = null,
+    statusIsError: Boolean = false,
     visibleDomains: List<MediaDomain> = listOf(MediaDomain.MUSIC, MediaDomain.AUDIOBOOK, MediaDomain.VIDEO),
     onOpenPlayer: () -> Unit,
     onPlayPause: () -> Unit,
@@ -172,6 +175,7 @@ internal fun PolishedPlaybackDock(
                     colorScheme = colorScheme,
                     isPlaying = isPlaying,
                     playbackStatus = playbackStatus,
+                    statusIsError = statusIsError,
                     onOpenPlayer = onOpenPlayer,
                     onPlayPause = onPlayPause
                 )
@@ -211,7 +215,7 @@ internal fun BottomDockHandle(
             modifier = Modifier
                 .clip(NordicShapes.full)
                 .semantics { contentDescription = "显示底部导航" }
-                .clickable(onClick = onClick)
+                .clickable(role = Role.Button, onClick = onClick)
         ) {
             // Visual pill stays compact; the clickable Surface is padded to the
             // 48dp touch-target standard so the small handle is easy to hit.
@@ -318,7 +322,7 @@ internal fun PolishedNavItem(
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = label,
+                contentDescription = null,
                 tint = contentColor,
                 modifier = Modifier.size(21.dp)
             )
@@ -331,12 +335,29 @@ internal fun PolishedNavItem(
         }
     }
 }
+/**
+ * Resolves the mini-player subtitle color across the three status categories:
+ * no status (default metadata), error status, and transient emphasis (buffering).
+ */
+internal fun resolveDockStatusSubtitleColor(
+    colors: ColorScheme,
+    hasStatus: Boolean,
+    statusIsError: Boolean
+): Color {
+    return when {
+        !hasStatus -> colors.onSurfaceVariant
+        statusIsError -> colors.error
+        else -> colors.primary
+    }
+}
+
 @Composable
 internal fun PolishedNowPlayingBar(
     nowPlaying: DockNowPlayingContent?,
     colorScheme: ColorScheme,
     isPlaying: Boolean,
     playbackStatus: String? = null,
+    statusIsError: Boolean = false,
     onOpenPlayer: () -> Unit,
     onPlayPause: () -> Unit
 ) {
@@ -424,11 +445,7 @@ internal fun PolishedNowPlayingBar(
                 subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Normal,
-                color = if (playbackStatus == null) {
-                    colorScheme.onSurfaceVariant
-                } else {
-                    colorScheme.primary
-                },
+                color = resolveDockStatusSubtitleColor(colorScheme, playbackStatus != null, statusIsError),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

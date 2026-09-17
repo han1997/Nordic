@@ -163,6 +163,12 @@ private fun LibrarySample(request: UiSampleRequest, songs: List<NavidromeSong>, 
             }
         }
         PolishedPlaybackDock(0, colors, DockNowPlayingContent.Music(currentSong), playing,
+            playbackStatus = when (request.state) {
+                UiSampleState.Error -> "连接暂时不可用"
+                UiSampleState.Loading -> "正在缓冲"
+                else -> null
+            },
+            statusIsError = request.state == UiSampleState.Error,
             onOpenPlayer = { onNavigate(UiSampleScreen.Player) }, onPlayPause = { playing = !playing; onEvent("dock-play") },
             onSelect = { onEvent("domain:$it"); if (it != 0) onNavigate(UiSampleScreen.Catalog) })
     }

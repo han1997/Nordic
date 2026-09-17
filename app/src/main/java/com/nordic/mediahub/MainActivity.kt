@@ -1227,6 +1227,7 @@ private fun PlaybackDockSlot(
         musicState.isBuffering -> "正在缓冲"
         else -> null
     }
+    val statusIsError = audiobookState.errorMessage != null || videoState.errorMessage != null || musicState.errorMessage != null
 
     val currentOnOpenPlayer by rememberUpdatedState(onOpenPlayer)
     val onPlayPause = remember(musicVM, audiobookVM, videoVM, currentOnOpenPlayer) {
@@ -1247,6 +1248,7 @@ private fun PlaybackDockSlot(
         nowPlaying = nowPlaying,
         isPlaying = isPlaying,
         playbackStatus = playbackStatus,
+        statusIsError = statusIsError,
         visibleDomains = visibleDomains,
         onOpenPlayer = onOpenPlayer,
         onPlayPause = onPlayPause,
