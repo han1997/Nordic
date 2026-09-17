@@ -779,3 +779,36 @@ trellis-continue 确认无活动任务且工作区干净；媒体模块显示与
 ### Next Steps
 
 - None - task complete
+
+
+## Session 195: r12 真实服务器联测验收
+
+**Date**: 2026-09-17
+**Task**: r12 真实服务器联测验收
+**Branch**: `main`
+
+### Summary
+
+逐域验真:Navidrome/AudiobookShelf/Emby/WebDAV,18张截图+报告
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `fe748dc` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
