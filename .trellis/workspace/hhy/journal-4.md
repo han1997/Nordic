@@ -710,3 +710,38 @@ trellis-continue 确认无活动任务且工作区干净；媒体模块显示与
 ### Next Steps
 
 - None - task complete
+
+
+## Session 193: 底部 Dock 全局收口
+
+**Date**: 2026-09-17
+**Task**: 底部 Dock 全局收口
+**Branch**: `main`
+
+### Summary
+
+播放/暂停按钮与收起把手补 Button 角色,导航项图标朗读去重;迷你播放条状态按语义选色(错误 error、缓冲 primary、无状态 onSurfaceVariant),新增 resolveDockStatusSubtitleColor 纯函数与 JVM 单测。MainActivity 按三媒体域错误源推导 statusIsError。调试样板覆盖 Dock 缓冲/错误态,交互测试断言通过。版本升至 0.1.18。r10 截图 40 张已封存,逐图人工视检与收起把手的真机朗读走查待用户确认。
+
+### Main Changes
+
+(Add details)
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `76b647f` | (see git log) |
+| `feed644` | (see git log) |
+| `e28a8b2` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete
