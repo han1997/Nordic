@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Android 应用层规范总索引与 pre-development checklist"}
+{"file": ".trellis/spec/backend/ui-catalog-verification.md", "reason": "验收与证据合同:专用模拟器、系统字号、截图/记录分离、真实服务器与样板区分"}
+{"file": ".trellis/spec/backend/media-sources-webdav-settings.md", "reason": "多服务器与 WebDAV 联测契约(来源身份/进度隔离/协议边界)"}
+{"file": ".trellis/spec/backend/build-release.md", "reason": "Release 产物验证:签名/manifest/DEX 与 ADB 安装流程"}
