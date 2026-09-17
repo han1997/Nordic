@@ -1,0 +1,642 @@
+[
+  {
+    "file": "player-normal-light-font1_0.png",
+    "screen": "player",
+    "state": "normal",
+    "dark": false,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "player-normal-dark-font1_0.png",
+    "screen": "player",
+    "state": "normal",
+    "dark": true,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "player-long-light-font1_0.png",
+    "screen": "player",
+    "state": "long",
+    "dark": false,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "player-long-dark-font1_0.png",
+    "screen": "player",
+    "state": "long",
+    "dark": true,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "player-empty-light-font1_0.png",
+    "screen": "player",
+    "state": "empty",
+    "dark": false,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "player-empty-dark-font1_0.png",
+    "screen": "player",
+    "state": "empty",
+    "dark": true,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "player-error-light-font1_0.png",
+    "screen": "player",
+    "state": "error",
+    "dark": false,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "player-error-dark-font1_0.png",
+    "screen": "player",
+    "state": "error",
+    "dark": true,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "lyrics-normal-light-font1_0.png",
+    "screen": "lyrics",
+    "state": "normal",
+    "dark": false,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "lyrics-normal-dark-font1_0.png",
+    "screen": "lyrics",
+    "state": "normal",
+    "dark": true,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "lyrics-long-light-font1_0.png",
+    "screen": "lyrics",
+    "state": "long",
+    "dark": false,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "lyrics-long-dark-font1_0.png",
+    "screen": "lyrics",
+    "state": "long",
+    "dark": true,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "lyrics-empty-light-font1_0.png",
+    "screen": "lyrics",
+    "state": "empty",
+    "dark": false,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "lyrics-empty-dark-font1_0.png",
+    "screen": "lyrics",
+    "state": "empty",
+    "dark": true,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "lyrics-error-light-font1_0.png",
+    "screen": "lyrics",
+    "state": "error",
+    "dark": false,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "lyrics-error-dark-font1_0.png",
+    "screen": "lyrics",
+    "state": "error",
+    "dark": true,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "queue-normal-light-font1_0.png",
+    "screen": "queue",
+    "state": "normal",
+    "dark": false,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "queue-normal-dark-font1_0.png",
+    "screen": "queue",
+    "state": "normal",
+    "dark": true,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "queue-long-light-font1_0.png",
+    "screen": "queue",
+    "state": "long",
+    "dark": false,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "queue-long-dark-font1_0.png",
+    "screen": "queue",
+    "state": "long",
+    "dark": true,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "queue-empty-light-font1_0.png",
+    "screen": "queue",
+    "state": "empty",
+    "dark": false,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "queue-empty-dark-font1_0.png",
+    "screen": "queue",
+    "state": "empty",
+    "dark": true,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "queue-error-light-font1_0.png",
+    "screen": "queue",
+    "state": "error",
+    "dark": false,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "queue-error-dark-font1_0.png",
+    "screen": "queue",
+    "state": "error",
+    "dark": true,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "speed-normal-light-font1_0.png",
+    "screen": "speed",
+    "state": "normal",
+    "dark": false,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "speed-normal-dark-font1_0.png",
+    "screen": "speed",
+    "state": "normal",
+    "dark": true,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "speed-long-light-font1_0.png",
+    "screen": "speed",
+    "state": "long",
+    "dark": false,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "speed-long-dark-font1_0.png",
+    "screen": "speed",
+    "state": "long",
+    "dark": true,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "speed-empty-light-font1_0.png",
+    "screen": "speed",
+    "state": "empty",
+    "dark": false,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "speed-empty-dark-font1_0.png",
+    "screen": "speed",
+    "state": "empty",
+    "dark": true,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "speed-error-light-font1_0.png",
+    "screen": "speed",
+    "state": "error",
+    "dark": false,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "speed-error-dark-font1_0.png",
+    "screen": "speed",
+    "state": "error",
+    "dark": true,
+    "fontScale": 1,
+    "systemFontScale": 1,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "player-normal-light-font2_0.png",
+    "screen": "player",
+    "state": "normal",
+    "dark": false,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "player-normal-dark-font2_0.png",
+    "screen": "player",
+    "state": "normal",
+    "dark": true,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "player-long-light-font2_0.png",
+    "screen": "player",
+    "state": "long",
+    "dark": false,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "player-long-dark-font2_0.png",
+    "screen": "player",
+    "state": "long",
+    "dark": true,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "player-empty-light-font2_0.png",
+    "screen": "player",
+    "state": "empty",
+    "dark": false,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "player-empty-dark-font2_0.png",
+    "screen": "player",
+    "state": "empty",
+    "dark": true,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "player-error-light-font2_0.png",
+    "screen": "player",
+    "state": "error",
+    "dark": false,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "player-error-dark-font2_0.png",
+    "screen": "player",
+    "state": "error",
+    "dark": true,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "lyrics-normal-light-font2_0.png",
+    "screen": "lyrics",
+    "state": "normal",
+    "dark": false,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "lyrics-normal-dark-font2_0.png",
+    "screen": "lyrics",
+    "state": "normal",
+    "dark": true,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "lyrics-long-light-font2_0.png",
+    "screen": "lyrics",
+    "state": "long",
+    "dark": false,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "lyrics-long-dark-font2_0.png",
+    "screen": "lyrics",
+    "state": "long",
+    "dark": true,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "lyrics-empty-light-font2_0.png",
+    "screen": "lyrics",
+    "state": "empty",
+    "dark": false,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "lyrics-empty-dark-font2_0.png",
+    "screen": "lyrics",
+    "state": "empty",
+    "dark": true,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "lyrics-error-light-font2_0.png",
+    "screen": "lyrics",
+    "state": "error",
+    "dark": false,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "lyrics-error-dark-font2_0.png",
+    "screen": "lyrics",
+    "state": "error",
+    "dark": true,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "queue-normal-light-font2_0.png",
+    "screen": "queue",
+    "state": "normal",
+    "dark": false,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "queue-normal-dark-font2_0.png",
+    "screen": "queue",
+    "state": "normal",
+    "dark": true,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "queue-long-light-font2_0.png",
+    "screen": "queue",
+    "state": "long",
+    "dark": false,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "queue-long-dark-font2_0.png",
+    "screen": "queue",
+    "state": "long",
+    "dark": true,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "queue-empty-light-font2_0.png",
+    "screen": "queue",
+    "state": "empty",
+    "dark": false,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "queue-empty-dark-font2_0.png",
+    "screen": "queue",
+    "state": "empty",
+    "dark": true,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "queue-error-light-font2_0.png",
+    "screen": "queue",
+    "state": "error",
+    "dark": false,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "queue-error-dark-font2_0.png",
+    "screen": "queue",
+    "state": "error",
+    "dark": true,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "speed-normal-light-font2_0.png",
+    "screen": "speed",
+    "state": "normal",
+    "dark": false,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "speed-normal-dark-font2_0.png",
+    "screen": "speed",
+    "state": "normal",
+    "dark": true,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "speed-long-light-font2_0.png",
+    "screen": "speed",
+    "state": "long",
+    "dark": false,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "speed-long-dark-font2_0.png",
+    "screen": "speed",
+    "state": "long",
+    "dark": true,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "speed-empty-light-font2_0.png",
+    "screen": "speed",
+    "state": "empty",
+    "dark": false,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "speed-empty-dark-font2_0.png",
+    "screen": "speed",
+    "state": "empty",
+    "dark": true,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "speed-error-light-font2_0.png",
+    "screen": "speed",
+    "state": "error",
+    "dark": false,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": false,
+    "statusBarInkVerified": true
+  },
+  {
+    "file": "speed-error-dark-font2_0.png",
+    "screen": "speed",
+    "state": "error",
+    "dark": true,
+    "fontScale": 2,
+    "systemFontScale": 2,
+    "statusBarDarkBackground": true,
+    "statusBarInkVerified": true
+  }
+]

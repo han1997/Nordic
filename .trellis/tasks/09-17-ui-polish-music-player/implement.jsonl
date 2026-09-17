@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Android 应用层规范总索引与 pre-development checklist"}
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "跨域一致性合同——播放器页头/选择/弹层/语义与可达性约定"}
+{"file": ".trellis/spec/backend/music-lyrics.md", "reason": "歌词展示与歌曲栏合同——封面/歌词切换相关语义边界"}
+{"file": ".trellis/spec/backend/ui-catalog-verification.md", "reason": "Debug 样板宿主、自定义动作 instrumentation 与截图验收流"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "共享 Compose 组件 internal、设计 token、播放器 micro-interaction 收敛、Windows Gradle 约束"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "源码/测试/Debug 目录放置规范"}
