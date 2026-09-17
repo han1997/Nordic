@@ -212,27 +212,28 @@ internal fun AudiobookCatalogSample(
             onClose = { onNavigate(UiSampleScreen.Catalog) },
             onCloseAnyway = { onNavigate(UiSampleScreen.Catalog) }
         )
-        if (screen == UiSampleScreen.AudiobookChapters) {
+        if (request.screen == UiSampleScreen.AudiobookChapters) {
             AudiobookChapterListSheet(
                 chapters = chapters.sortedBy { it.startSeconds }, currentPositionSeconds = 4211,
                 colorScheme = colors, onSeekTo = { onEvent("ab-chapter-seek:$it") }, onDismiss = { onEvent("ab-chapter-dismiss") }
             )
         }
-        if (screen == UiSampleScreen.AudiobookSpeed) {
+        if (request.screen == UiSampleScreen.AudiobookSpeed) {
             AudiobookPlaybackSpeedSheet(
                 currentSpeed = playerState.playbackSpeed, colorScheme = colors,
                 onSelect = { onEvent("ab-speed-select:$it") }, onDismiss = { onEvent("ab-speed-dismiss") }
             )
         }
-        if (screen == UiSampleScreen.AudiobookSleep) {
+        if (request.screen == UiSampleScreen.AudiobookSleep) {
             AudiobookSleepTimerSheet(
                 sleepTimerRemainingSeconds = playerState.sleepTimerRemainingSeconds,
                 sleepTimerAtChapterEnd = playerState.sleepTimerAtChapterEnd, colorScheme = colors,
+                preselectedMinutes = 45,
                 onSet = { minutes, atChapterEnd -> onEvent("ab-sleep-set:$minutes:$atChapterEnd") },
                 onCancel = { onEvent("ab-sleep-sheet-cancel") }, onDismiss = { onEvent("ab-sleep-dismiss") }
             )
         }
-        if (screen == UiSampleScreen.AudiobookBookmarks) {
+        if (request.screen == UiSampleScreen.AudiobookBookmarks) {
             AudiobookBookmarkSheet(
                 bookmarks = bookmarks, colorScheme = colors, currentPositionSeconds = 4211,
                 onAddBookmark = { onEvent("ab-bookmark-add") },

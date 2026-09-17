@@ -81,6 +81,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nordic.mediahub.data.AudiobookBookmark
 import com.nordic.mediahub.data.AudiobookChapter
+import com.nordic.mediahub.data.SLEEP_MINUTE_OPTIONS
 import com.nordic.mediahub.playback.resolvePlaybackSpeedLabel
 import com.nordic.mediahub.playback.AudiobookPlaybackState
 import com.nordic.mediahub.ui.theme.NordicMotion
@@ -406,18 +407,19 @@ internal fun AudiobookSleepTimerSheet(
     colorScheme: ColorScheme,
     onSet: (Int, Boolean) -> Unit,
     onCancel: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    preselectedMinutes: Int = LocalAppPreferences.current.audiobookSleepMinutes
 ) {
-    val preselectedMinutes = LocalAppPreferences.current.audiobookSleepMinutes
     val active = isAudiobookSleepTimerActive(sleepTimerRemainingSeconds, sleepTimerAtChapterEnd)
     MediaPlayerSheet("睡眠定时器", colorScheme, onDismiss,
         sleepTimerRemainingLabel(sleepTimerRemainingSeconds, sleepTimerAtChapterEnd), skipPartiallyExpanded = false) {
         LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false)) {
-            item { MediaPlayerChoiceRow("使用预选：" + LocalAppPreferences.current.audiobookSleepMinutes + " 分钟", null, colorScheme,
+            item { MediaPlayerChoiceRow("使用预选:$preselectedMinutes 分钟", active && !sleepTimerAtChapterEnd, colorScheme,
                 onClick = { onSet(preselectedMinutes, false) }) }
             item { MediaPlayerChoiceRow("关闭", !active, colorScheme, onCancel) }
-            items(listOf(10, 20, 30, 45, 60), key = { it }) { minutes ->
-                // Remaining time cannot tell us which preset was originally chosen.
+            items(SLEEP_MINUTE_OPTIONS.filter { it != preselectedMinutes }, key = { it }) { minutes ->
+                // The preset entry above already covers the preselected value;
+                // keep the remaining fixed options distinct to avoid duplicate actions.
                 MediaPlayerChoiceRow("$minutes 分钟后停止", null, colorScheme, onClick = { onSet(minutes, false) })
             }
             item { MediaPlayerChoiceRow("本章结束", active && sleepTimerAtChapterEnd, colorScheme,

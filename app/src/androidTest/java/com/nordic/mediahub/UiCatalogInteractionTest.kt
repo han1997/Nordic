@@ -400,4 +400,13 @@ class UiCatalogInteractionTest {
         compose.runOnIdle { assertTrue(compose.activity.recordedEvents.contains("settings:reset-prefs")) }
         assertArrayEquals(before, preferences.takeIf(File::isFile)?.readBytes())
     }
+
+    @Test fun audiobookSleepTimerDeduplicatesPresetEntry() {
+        show("ab_sleep")
+        compose.onNodeWithText("使用预选:45 分钟", substring = false).assertExists()
+        compose.onNodeWithText("30 分钟后停止", substring = false).assertExists()
+        compose.onAllNodesWithText("45 分钟后停止", substring = false).assertCountEquals(0)
+        compose.onNodeWithText("关闭", substring = false).assertExists()
+        compose.onNodeWithText("本章结束", substring = false).assertExists()
+    }
 }
