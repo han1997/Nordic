@@ -58,6 +58,8 @@ internal fun shouldScrollMediaSegments(availableWidth: Dp, minimumWidths: List<D
 - `MediaPlayerSheetHeader` 的 `trailingAction` 在字体 >1.3 或内容宽度 <320dp 时换到下一行；标题、关闭与次要操作都保持可达，不缩小触控目标。
 - `MediaPlayerSheet` 只通过其 `DialogWindowProvider` 设置自己的系统栏图标；根据应用实际 surface 明暗选择前景，不依赖系统夜间模式，也不改宿主 Activity 的窗口所有权。
 - `PolishedNowPlayingBar` 最小 66dp、`PolishedBottomNav` 最小 58dp，随字体自然增高；不能固定高度后把文字裁在容器外。
+- 音乐播放器封面/歌词主显示区必须同时暴露手势与语义双路径:单击切换封面/歌词、双击左右半区快退/快进 ±10s,并配`CustomAccessibilityAction`(「显示歌词/显示封面」「后退/前进 10 秒」)映射到同一回调与`MUSIC_DOUBLE_TAP_SEEK_SECONDS`;空播放器不暴露动作。
+- 播放器顶栏(`MediaPlayerTopBar`)标题声明`heading()`,与全应用页头规范一致。
 - 音频 sheet 与视频窗口内 panel 继续使用各自宿主，样板修正不改变全屏/PiP 生命周期。
 
 ### 输入与详情动作
