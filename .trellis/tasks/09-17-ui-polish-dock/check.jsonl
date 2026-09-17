@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Android 应用层规范总索引与 pre-development checklist"}
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "Dock 语义与状态一致性验收清单"}
+{"file": ".trellis/spec/backend/ui-catalog-verification.md", "reason": "Debug 样板验收:无网络/无账号/无写入、Dock 状态与截图证据流"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "质量门:lint/type-check/测试/构建合同、Windows Gradle 并行执行约束"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "验证新增文件与测试放置合规"}
