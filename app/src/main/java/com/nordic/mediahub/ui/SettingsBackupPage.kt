@@ -4,8 +4,6 @@ import android.app.Activity
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Cloud
@@ -94,7 +92,9 @@ internal fun BackupSettingsPage() {
         }
     }
 
-    Column(Modifier.verticalScroll(rememberScrollState())) {
+    // This page is hosted inside SettingsScreen's LazyColumn. A second vertical
+    // scroll container receives an unbounded height and crashes during measure.
+    Column {
         if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         SettingsSectionTitle("备份位置", topPadding = NordicSpacing.sm)
         SettingsRow("WebDAV 服务器", "备份上传到你自己的 WebDAV；本应用不提供云服务。",
@@ -142,13 +142,23 @@ internal fun BackupSettingsPage() {
     if (showEditor) {
         settings?.let { current ->
             BackupConfigDialog(initial = current, busy = busy, onDismiss = { showEditor = false },
-                onSave = { next ->
-                    showEditor = false
-                    launchAction {
-                        repository.saveSettings(next)
-                        repository.testConnection(next)
-                        settings = repository.currentSettings()
-                        "备份位置已保存并连接成功"
+                onSave = { next, complete ->
+                    if (busy) return@BackupConfigDialog
+                    busy = true; message = null; error = null
+                    scope.launch {
+                        try {
+                            repository.saveSettings(next)
+                            repository.testConnection(next)
+                            settings = repository.currentSettings()
+                            message = "备份位置已保存并连接成功"
+                            complete(Result.success(Unit))
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            complete(Result.failure(e))
+                        } finally {
+                            busy = false
+                        }
                     }
                 })
         }
@@ -186,7 +196,12 @@ internal fun BackupSettingsPage() {
 }
 
 @Composable
-private fun BackupConfigDialog(initial: BackupWebDavConfig, busy: Boolean, onDismiss: () -> Unit, onSave: (BackupWebDavConfig) -> Unit) {
+private fun BackupConfigDialog(
+    initial: BackupWebDavConfig,
+    busy: Boolean,
+    onDismiss: () -> Unit,
+    onSave: (BackupWebDavConfig, (Result<Unit>) -> Unit) -> Unit
+) {
     var url by remember { mutableStateOf(initial.serverUrl) }
     var username by remember { mutableStateOf(initial.username) }
     var password by remember { mutableStateOf(initial.password) }
@@ -213,7 +228,10 @@ private fun BackupConfigDialog(initial: BackupWebDavConfig, busy: Boolean, onDis
                 when {
                     url.trim().isBlank() -> error = "请输入服务器地址"
                     directory.contains("..") -> error = "备份目录不能包含上级路径"
-                    else -> onSave(BackupWebDavConfig(url.trim(), username.trim(), password, directory.trim(), allowInsecure))
+                    else -> onSave(BackupWebDavConfig(url.trim(), username.trim(), password, directory.trim(), allowInsecure)) { result ->
+                        result.onSuccess { onDismiss() }
+                            .onFailure { error = it.message ?: "保存失败，请检查服务器地址、账号和目录" }
+                    }
                 }
             }) { Text("保存") }
         },

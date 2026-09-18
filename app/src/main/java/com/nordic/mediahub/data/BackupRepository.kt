@@ -63,7 +63,9 @@ internal class BackupRepository(
 
     suspend fun testConnection(config: BackupWebDavConfig) {
         validateTarget(config)
-        clientFactory(config).testConnection()
+        val client = clientFactory(config)
+        client.ensureDirectory()
+        client.testConnection()
     }
 
     // --- Backup -----------------------------------------------------------------

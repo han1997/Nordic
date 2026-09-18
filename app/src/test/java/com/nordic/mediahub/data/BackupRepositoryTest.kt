@@ -85,6 +85,28 @@ class BackupRepositoryTest {
         assertEquals("p", settingsPrefs.getString(BackupSettingsKeys.PASS, null))
     }
 
+    @Test fun testConnectionCreatesMissingNestedBackupDirectory() = runBlocking {
+        val server = MockWebServer(); server.start()
+        try {
+            server.enqueue(MockResponse().setResponseCode(201)) // MKCOL /app/
+            server.enqueue(MockResponse().setResponseCode(201)) // MKCOL /app/backup/
+            server.enqueue(MockResponse().setResponseCode(207).setBody(propfindBody())) // PROPFIND
+            repository.testConnection(BackupWebDavConfig(
+                serverUrl = server.url("/dav/").toString(), username = "user", password = "secret",
+                directory = "app/backup", allowInsecureHttp = true
+            ))
+            val parent = server.takeRequest()
+            assertEquals("MKCOL", parent.method)
+            assertEquals("/dav/app/", parent.path)
+            val target = server.takeRequest()
+            assertEquals("MKCOL", target.method)
+            assertEquals("/dav/app/backup/", target.path)
+            val probe = server.takeRequest()
+            assertEquals("PROPFIND", probe.method)
+            assertEquals("/dav/app/backup/", probe.path)
+        } finally { server.shutdown() }
+    }
+
     @Test fun createBackupUploadsEncryptedArchiveAndPrunesHistory() = runBlocking {
         val server = MockWebServer(); server.start()
         try {

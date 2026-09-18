@@ -35,7 +35,10 @@ internal class BackupWebDavClient(config: BackupWebDavConfig, client: OkHttpClie
         }
     }
 
-    suspend fun testConnection() = execute(directoryUrl()) { response ->
+    suspend fun testConnection() = execute(directoryUrl(), configure = {
+        header("Depth", "0")
+        method("PROPFIND", PROPFIND_BODY.toRequestBody("application/xml; charset=utf-8".toMediaType()))
+    }) { response ->
         rejectRedirect(response)
         if (response.code != 207) throw webDavHttpError(response.code)
         Unit
