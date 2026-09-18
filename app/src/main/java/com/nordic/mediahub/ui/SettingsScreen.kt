@@ -130,6 +130,7 @@ internal fun SettingsScreen(
                                         SettingsPage.AUDIOBOOK -> "${preferences.audiobookSpeed}× · 后退 ${preferences.audiobookSkipBack} 秒"
                                         SettingsPage.VIDEO -> "${preferences.videoSpeed}× · ${if (preferences.videoPip) "画中画开启" else "画中画关闭"}"
                                         SettingsPage.STORAGE -> "缓存占用与已下载音乐"
+                                        SettingsPage.BACKUP -> "WebDAV 手动备份与恢复"
                                         SettingsPage.PRIVACY -> "本机记录、旧数据与默认设置"
                                         else -> "版本、开源声明与连接指南"
                                     }
@@ -141,6 +142,7 @@ internal fun SettingsScreen(
                                         SettingsPage.AUDIOBOOK -> Icons.AutoMirrored.Filled.MenuBook
                                         SettingsPage.VIDEO -> Icons.Filled.Movie
                                         SettingsPage.STORAGE -> Icons.Filled.Storage
+                                        SettingsPage.BACKUP -> Icons.Filled.Backup
                                         SettingsPage.PRIVACY -> Icons.Filled.Security
                                         else -> Icons.Filled.Info
                                     }
@@ -191,6 +193,7 @@ internal fun SettingsScreen(
                             ModuleVisibilityPage(preferences, isModuleActive, onHideModule, ::update)
                         }
                         SettingsPage.STORAGE -> item { StorageSettingsPage(sources) { id, name -> downloadsId = id; downloadsName = name; navigate(SettingsPage.DOWNLOADS) } }
+                        SettingsPage.BACKUP -> item { BackupSettingsPage() }
                         SettingsPage.PRIVACY -> item { PrivacySettingsPage(sources) { navigate(SettingsPage.LEGACY) } }
                         SettingsPage.LEGACY -> item { LegacyDataPage(sources) }
                         SettingsPage.ABOUT -> item {

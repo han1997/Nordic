@@ -193,6 +193,14 @@ class EncryptedConfigStore(
         if (!prefs.edit().putString("last_book_$sourceId", itemId).commit()) throw IOException("保存有声书位置失败")
     }
 
+    /** Restore helper: removes per-source audiobook positions that are absent from the restored set. */
+    suspend fun clearLastAudiobookItemsExcept(sourceIds: Set<String>) = withContext(Dispatchers.IO) {
+        val stale = prefs.all.keys.filter { it.startsWith("last_book_") && it.removePrefix("last_book_") !in sourceIds }
+        if (stale.isNotEmpty() && !prefs.edit().apply { stale.forEach { remove(it) } }.commit()) {
+            throw IOException("清理旧阅读位置失败")
+        }
+    }
+
     val navidromeConfig: Flow<NavidromeConfig> =
         configFlow(
             watchedKeys = setOf(

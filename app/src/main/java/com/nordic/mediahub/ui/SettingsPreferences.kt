@@ -19,11 +19,11 @@ import com.nordic.mediahub.playback.resolvePlaybackSpeedLabel
 
 internal enum class SettingsPage(val title: String) {
     HOME("设置"), SERVERS("媒体服务器"), APPEARANCE("外观与启动"), MODULES("模块显示"), MUSIC("音乐播放"), AUDIOBOOK("有声书播放"),
-    VIDEO("视频播放"), STORAGE("存储与下载"), PRIVACY("隐私与数据"), ABOUT("关于与帮助"),
+    VIDEO("视频播放"), STORAGE("存储与下载"), BACKUP("备份与恢复"), PRIVACY("隐私与数据"), ABOUT("关于与帮助"),
     ADD_SERVER("添加服务器"), EDIT_SERVER("编辑服务器"), DOWNLOADS("已下载音乐"), LEGACY("待归属旧数据"), HELP("连接帮助"), LICENSES("开源声明")
 }
 internal val SETTINGS_HOME_PAGES = listOf(SettingsPage.SERVERS, SettingsPage.APPEARANCE, SettingsPage.MODULES, SettingsPage.MUSIC,
-    SettingsPage.AUDIOBOOK, SettingsPage.VIDEO, SettingsPage.STORAGE, SettingsPage.PRIVACY, SettingsPage.ABOUT)
+    SettingsPage.AUDIOBOOK, SettingsPage.VIDEO, SettingsPage.STORAGE, SettingsPage.BACKUP, SettingsPage.PRIVACY, SettingsPage.ABOUT)
 internal data class SettingsSearchEntry(val page: SettingsPage, val id: String, val title: String, val keywords: String = "")
 internal val SETTINGS_SEARCH_ENTRIES = listOf(
     SettingsSearchEntry(SettingsPage.SERVERS, "servers", "媒体服务器", "Navidrome AudiobookShelf Emby WebDAV 账号 地址 密码 多服务器"),
@@ -46,6 +46,7 @@ internal val SETTINGS_SEARCH_ENTRIES = listOf(
     SettingsSearchEntry(SettingsPage.VIDEO, "subtitle", "默认字幕", "语言 中文 英语"),
     SettingsSearchEntry(SettingsPage.VIDEO, "audio_track", "首选音轨", "语言 中文 英语"),
     SettingsSearchEntry(SettingsPage.STORAGE, "storage", "缓存与音乐下载", "空间 占用 删除 清理"),
+    SettingsSearchEntry(SettingsPage.BACKUP, "backup", "备份与恢复", "WebDAV 备份 恢复 上传 云 加密 手动"),
     SettingsSearchEntry(SettingsPage.PRIVACY, "privacy", "本机历史与书签", "进度 恢复默认 隐私 旧数据 归属"),
     SettingsSearchEntry(SettingsPage.ABOUT, "about", "版本与帮助", "开源 协议 连接指南")
 )

@@ -26,7 +26,7 @@ class SettingsCenterTest {
     @Test fun searchCombinesKeywordsAndAllSettingsHaveUniqueIds() {
         assertTrue(searchSettings("视频 倍速").any { it.id == "video_speed" })
         assertEquals(SETTINGS_SEARCH_ENTRIES.size, SETTINGS_SEARCH_ENTRIES.map { it.id }.distinct().size)
-        assertEquals(9, SETTINGS_HOME_PAGES.size)
+        assertEquals(10, SETTINGS_HOME_PAGES.size)
     }
     @Test fun navigationGuardCanCancelAndReleaseDeferredNavigation() {
         val guard = SettingsNavigationGuard()
