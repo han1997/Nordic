@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-4.md`
-- **Total Sessions**: 195
-- **Last Active**: 2026-09-17
+- **Total Sessions**: 196
+- **Last Active**: 2026-09-18
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-4.md` | ~814 | Active |
+| `journal-4.md` | ~849 | Active |
 | `journal-3.md` | ~1965 | Archived |
 | `journal-2.md` | ~1990 | Archived |
 | `journal-1.md` | ~1971 | Archived |
@@ -32,6 +32,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 196 | 2026-09-18 | r13 覆盖清单收官审计 | `4b619e1`, `49274fd`, `c35c286` | `main` |
 | 195 | 2026-09-17 | r12 真实服务器联测验收 | `fe748dc` | `main` |
 | 194 | 2026-09-17 | 有声书播放器收口 | `b24d5b5`, `b71473d` | `main` |
 | 193 | 2026-09-17 | 底部 Dock 全局收口 | `76b647f`, `feed644`, `e28a8b2` | `main` |
