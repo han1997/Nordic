@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/backend/ui-catalog-verification.md", "reason": "验收契约：批次保留规则、指纹守卫、专用模拟器限定"}
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "收官核查跨页面一致性落实情况"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "已知反模式与缓存语义；判断保留项时依据"}
+{"file": ".trellis/spec/backend/build-release.md", "reason": "如补测触发修复与版本递增，提交前必须核对版本/签名"}
+{"file": ".trellis/tasks/archive/2026-09/09-13-ui-polish-samples/research/coverage.md", "reason": "终态更新对象，校验每条款项是否被填实"}
+{"file": ".trellis/tasks/archive/2026-09/09-17-ui-polish-live-server-verification/research/live-verification-r12.md", "reason": "校验环境限制项（Emby 流媒体）不得被宣告为已验收"}

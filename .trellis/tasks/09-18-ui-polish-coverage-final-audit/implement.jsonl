@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/backend/ui-catalog-verification.md", "reason": "r13 补测沿用 UiCatalog 截图/交互验收基建，需遵循其合同（专用模拟器、批次命名、指纹守卫）"}
+{"file": ".trellis/spec/backend/ui-consistency.md", "reason": "补测发现缺陷时修复需符合共享 UI 合同"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "评审共享组件与状态语义；收官审计结论依据"}
+{"file": ".trellis/tasks/archive/2026-09/09-13-ui-polish-samples/research/coverage.md", "reason": "68 条目+5 共享影响面基线清单，r13 追溯矩阵的基准"}
+{"file": ".trellis/tasks/archive/2026-09/09-13-ui-polish-samples/research/evidence-index.md", "reason": "r1 白名单批次与指纹结构，判断历史证据可靠性"}
+{"file": ".trellis/tasks/archive/2026-09/09-17-ui-polish-live-server-verification/research/live-verification-r12.md", "reason": "r12 真实服务器联测结果；标记环境限制项不得冒充已验收"}
+{"file": ".trellis/tasks/archive/2026-09/09-16-ui-polish-settings/research/device-verification-r8.md", "reason": "r8 证据结构与边界；3 视频 flaky 与本轮无因果的判断依据"}
