@@ -847,3 +847,24 @@ trellis-continue 确认无活动任务且工作区干净；媒体模块显示与
 ### Next Steps
 
 - None - task complete
+
+## Session 195: WebDAV 备份与恢复
+
+**Task**: 09-18-webdav-backup-restore
+**Branch**: main
+
+### Summary
+
+新增「设置 → 备份与恢复」:独立备份 WebDAV 配置(地址/账号/密码/目录,支持匿名与 HTTP 确认),PBKDF2-HMAC-SHA256(150k)+ AES-GCM 加密逻辑数据归档(来源与凭据、偏好、音乐播放历史、有声书书签/阅读位置、WebDAV 收藏/进度),上传保留最近 5 份;恢复支持列出(明文头:时间/版本/大小)、输密码校验、确认后完整覆盖(非合并),成功后提示退出应用重启;解密/格式/网络失败本地零改动。新增 EncryptedConfigStore.clearLastAudiobookItemsExcept 保证覆盖语义。单测新增 4 个测试类(crypto/archive/client/repository),758 项全绿,Lint 0 错误,版本 0.1.21/21。经验:Windows JVM 改用 FakePreferencesDataStore;RecordedRequest.body 只能读一次。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| 8309fee | feat: WebDAV 手动备份与恢复 (0.1.21) |
+| 6f62c5 | docs(spec): 沉淀 WebDAV 备份恢复持久化合同 |
+| ce2ad86 | chore(task): 09-18-webdav-backup-restore 任务文件 |
+
+### Reserved
+
+- 真机验证未执行:配置 WebDAV/匿名/TLS、上传与 PHPDAV 服务端兼容性、跨设备恢复、恢复后重启与播放停止,均需真机与真实服务器验收。
