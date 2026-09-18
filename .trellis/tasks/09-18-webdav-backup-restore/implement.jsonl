@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Pre-development checklist and verification commands"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Where to place new backup repository/store/UI files and tests"}
+{"file": ".trellis/spec/backend/media-sources-webdav-settings.md", "reason": "WebDAV patterns, media auth isolation, settings navigation conventions"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "EncryptedConfigStore / DataStore persistence rules the backup must read and restore through"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Typed exceptions and UI error propagation for backup/restore paths"}
+{"file": ".trellis/spec/backend/documentation-guidelines.md", "reason": "Chinese-first user-visible copy conventions for settings and dialogs"}
+{"file": ".trellis/spec/backend/build-release.md", "reason": "Version/code increment required with the code commit"}

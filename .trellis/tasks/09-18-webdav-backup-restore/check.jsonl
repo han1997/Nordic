@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/backend/index.md", "reason": "Verification commands (compile + unit test + lint gate)"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Test coverage and shared component review rules"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Verify typed exception usage and failure-safe restore paths"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Verify persistence access follows encrypted config / DataStore rules"}
+{"file": ".trellis/spec/backend/media-sources-webdav-settings.md", "reason": "Verify WebDAV and settings conventions are respected"}
+{"file": ".trellis/spec/backend/documentation-guidelines.md", "reason": "Verify Chinese-first copy and docs updates"}
+{"file": ".trellis/spec/backend/build-release.md", "reason": "Verify version bump discipline for the commit"}
