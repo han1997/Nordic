@@ -678,3 +678,65 @@ try {
     prefs.unregisterOnSharedPreferenceChangeListener(listener)
 }
 ```
+## Scenario: WebDAV 手动备份与恢复
+
+### 1. 范围 / 触发条件
+
+- 触发:新增或修改备份 WebDAV 配置、归档编解码（`BackupModels`/`BackupCrypto`）、`BackupWebDavClient` 的写操作、备份收集/恢复覆盖行为或设置页备份页。
+- 备份覆盖的逻辑数据:媒体来源连接与凭据、应用偏好、音乐播放历史、有声书书签与阅读位置、WebDAV 收藏/浏览状态与观看进度。不包含下载音乐与各类缓存（可从服务器重新生成）。
+- 恢复为「确认后完整覆盖」:不合并本地数据;整组替换上述逻辑数据。恢复前必须先下载、解密、完整校验,任何失败时本地数据零改动。
+
+### 2. 关键签名
+
+- `internal class BackupRepository(context?, configStore, dataStore, prefsProvider, appVersion, clientFactory)`;`suspend currentSettings/saveSettings/testConnection/createBackup/listBackups/prepareRestore/applyRestore`。
+- `internal object BackupCrypto`:PBKDF2WithHmacSHA256（迭代 `BACKUP_KEY_ITERATIONS=150_000`,256 位）+ AES/GCM/NoPadding（128 位 tag）;输出 `salt(16)||iv(12)||ciphertext`,`decrypt` 对 AEAD 失败抛 `BackupCryptoException`。
+- `internal object BackupArchiveCodec`:`NDBK` 魔数 + `FORMAT_VERSION=1` + headerLength(BE Int) + header JSON + sealed 字节;`decodeHeader` 容忍截断的 sealed 体,用于远端列表读明文头。
+- `internal object BackupPayloadCodec`:`encode/decode`,decode 校验 schemaVersion、来源合法（sources/preferences/localData 键名/lastBooks）,失败抛 `BackupFormatException`。
+- `internal fun isBackupDataKey(name)`:`navidrome_play_history`/`audiobook_bookmarks`/`webdav_browse`/`webdav_progress` 前缀 + `[A-Za-z0-9_-]{1,200}`。
+- 归档文件名 `nordic-backup-<yyyyMMddTHHmmss>Z.nbk`（UTC 字面 `Z`）,`parseBackupFileName` 用 `LocalDateTime` + UTC 偏移解析。
+- `EncryptedConfigStore.clearLastAudiobookItemsExcept(sourceIds)` 新增:删除 `last_book_<id>` 中不在恢复集内的键,保证覆盖语义。
+
+### 3. 可执行合同
+
+- 备份 WebDAV 配置是独立加密偏好键（`backup_webdav_url/user/pass/dir/insecure`）,不复用媒体来源,不加入 `EncryptedConfigKeys.ALL` 历史迁移。
+- 恢复写入顺序（全部幂等可重入）:`updateSources{payload.sources}` → `updatePreferences{payload.preferences}` → `dataStore.edit` 清除全部 `isBackupDataKey` 键并写入 `localData` → 写 `lastBooks` → `clearLastAudiobookItemsExcept`。任一步失败向上抛错,UI 显示「本地数据可能已部分更新」。
+- 手动备份流程:`ensureDirectory`（MKCOL,405 视为已存在）→ `PUT` 归档 → `pruneRemote` 列出并按文件名时间戳倒序保留最近 `BACKUP_KEEP_COUNT=5` 份,其余 DELETE。
+- `BackupWebDavClient` 只服务备份上下文:支持 Basic/匿名,Digest-only 明确报 `UNSUPPORTED`;`followRedirects(false)`,重定向报错;HTTP 需 `allowInsecureHttp` 显式确认;响应体大小受限;全部错误映射为 `WebDavException`。
+- 备份归档头部为明文（时间/版本/schema）,负载始终加密;恢复列表无需密码即可读头部,但解密与还原必须密码。
+
+### 4. 验证与错误矩阵
+
+| 条件 | 结果 |
+|---|---|
+| 归档头含非法魔数/格式版本 | `BackupFormatException`,本地零改动 |
+| payload 含未知 data 键 / 非法来源 | `BackupFormatException`,本地零改动 |
+| 密码错误 / 密文被篡改 | `BackupCryptoException`（「本地数据未修改」） |
+| 恢复文件名不含合法时间戳 | 校验前拒绝,不发任何网络请求 |
+| 覆盖写入过程中断 | 已写部分保持不变,报「可能已部分更新」;不退回明文 |
+| 远端目录 405（MKCOL）/ 重定向 / Digest-only | 类型化中文错误 |
+| 备份后出现本地多余 `last_book_*` | 恢复时被 `clearLastAudiobookItemsExcept` 清理 |
+| 恢复 localData 键名非法 | 写入前 decode 校验拒绝 |
+
+### 5. 正常 / 基础 / 错误案例
+
+- 正常:配置备份 WebDAV → 立即备份上传加密归档 → 云端保留 5 份 → 换设备选归档输密码恢复 → 重启后数据一致。
+- 基础:未配置备份 WebDAV 时备份/恢复入口禁用并提示;云端无归档时显示空态。
+- 错误:把备份客户端误接入媒体 `ScopedMediaRegistry`,或恢复直接写入加密偏好文件明文,或误合并本地与备份数据。
+
+### 6. 必需测试
+
+- `BackupCryptoTest`:加解密往返、错误密码/篡改/截断拒绝、随机盐（两次加密不同）、短密码拒绝。
+- `BackupArchiveTest`:头+sealed 往返、截断体头部解码、魔数/格式错误拒绝、payload 往返与未知键/schema 拒绝、data key 范围校验、UTC 文件名格式/解析。
+- `BackupWebDavClientTest`（MockWebServer）:PUT 路径+Basic 认证、MKCOL 405 容错、多层目录创建、PROPFIND 只返回文件、GET/Range 头、401/404 类型化、DELETE 404 容错、HTTP 未确认拒绝。
+- `BackupRepositoryTest`:`createBackup` 上传可解密负载并断言 prune PROPFIND;`prepareRestore` 错误密码不写本地;`applyRestore` 覆盖 sources/preferences/DataStore 逻辑数据并清理多余 `last_book`;`listBackups` 读头排序;非法文件名零网络请求。
+- Windows JVM 单元测试必须用 `FakePreferencesDataStore` 代替文件版 `PreferenceDataStoreFactory`（见 `TestDataStores.kt`,`File.renameTo` 在 Windows 不可靠）。
+
+### 7. 错误与正确示例
+
+```kotlin
+// 错误:用 readBytes() 两次读取 RecordedRequest.body,第二次为空。
+// 正确:先 `val uploaded = request.body.readByteArray()`,之后多处复用同一数组。
+
+// 错误:备份把服务器密码明文写进归档。
+// 正确:整个 BackupPayload 先经 BackupPayloadCodec.encode,再 BackupCrypto.encrypt 后进入归档。
+```

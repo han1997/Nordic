@@ -41,6 +41,7 @@
 ## WebDAV 协议合同
 
 - 只读 `PROPFIND Depth: 1` 与媒体 GET；不递归扫描、不上传、不修改远程文件。
+- 备份与恢复除外：`BackupWebDavClient` 在备份上下文中执行 `PUT`/`GET`/`PROPFIND`/`DELETE`/`MKCOL`，但配置与媒体来源完全独立，凭据额外受用户备份密码保护，不走 `ScopedMediaRegistry` / `MediaAuthHeaderInterceptor` 认证分发路径。
 - 支持 Basic 与匿名认证；仅 Digest 的服务明确提示不支持，不误报为密码错误。
 - 目录解析识别 DAV namespace 和每个 propstat 的状态，排除根目录自身、跨根 href、外域 href、非直接子项和失败属性块。
 - 规范路径保留编码和大小写，展示层解码一次；中文、空格、百分号、编码斜杠均须回归。禁止通过 `..` 越过根目录。
