@@ -331,8 +331,8 @@ class UiCatalogInteractionTest {
 
     @Test fun videoHomeCardsOpenDetailThroughProductionContent() {
         show("video_home")
-        val card = compose.onNode(hasText("北境回声", substring = false) and hasClickAction())
-        card.assertIsDisplayed().assertMinimumTouchTarget().performTouchInput { click() }
+        val cards = compose.onAllNodes(hasText("北境回声", substring = false) and hasClickAction())
+        cards[0].assertIsDisplayed().assertMinimumTouchTarget().performTouchInput { click() }
         compose.runOnIdle { assertTrue(compose.activity.recordedEvents.contains("video-open:video-movie-0")) }
     }
 
@@ -360,7 +360,8 @@ class UiCatalogInteractionTest {
         episode.performScrollTo().assertIsDisplayed().assertIsFullyVisible().assertMinimumTouchTarget()
             .performTouchInput { click() }
         compose.runOnIdle { assertTrue(compose.activity.recordedEvents.contains("video-play-episode:video-ep-1")) }
-        compose.onNodeWithText("归途", substring = false).performScrollTo().assertIsNotEnabled()
+        compose.onNode(hasVerticalLazyScrollAction()).performScrollToNode(hasText("归途", substring = false))
+        compose.onNodeWithText("归途", substring = false).assertIsNotEnabled()
     }
 
     @Test fun videoSeriesUnwatchedEmptyUsesCompactStateCard() {

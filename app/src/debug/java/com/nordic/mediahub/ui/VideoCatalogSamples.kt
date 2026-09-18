@@ -61,7 +61,7 @@ internal fun VideoCatalogSample(
             VideoLibrary("video-library-2", "剧集", "tvshows", 2)
         )
     }
-    val shownLibraries = if (libraryEmpty || empty) emptyList() else libraries
+    val shownLibraries = if (libraryEmpty || (empty && request.screen != UiSampleScreen.VideoSearch)) emptyList() else libraries
 
     val movies = remember(request.state) {
         listOf("北境回声", "深空尽头", "沿途的风", "留白", "远山灯火", "一个人的日落").mapIndexed { index, title ->
@@ -178,7 +178,7 @@ internal fun VideoCatalogSample(
                     subtitle = when {
                         error && hasCachedContent -> "刷新失败，先显示本地缓存"
                         refreshing -> "正在刷新，先显示本地缓存"
-                        empty -> "连接 Emby 后显示真实媒体库、海报和视频信息"
+                        empty && request.screen != UiSampleScreen.VideoSearch -> "连接 Emby 后显示真实媒体库、海报和视频信息"
                         libraryEmpty -> "已连接 Emby"
                         searchQuery.isNotBlank() || typeFilter != VideoTypeFilter.All ->
                             "${visibleVideos.size} / ${browseVideos.size} 个匹配条目"

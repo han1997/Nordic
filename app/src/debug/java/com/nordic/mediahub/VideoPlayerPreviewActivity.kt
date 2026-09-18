@@ -120,7 +120,18 @@ private fun previewEpisodes(): List<VideoItem> = (1..24).map { index ->
         seasonNumber = if (index <= 12) 1 else 2, episodeNumber = (index - 1) % 12 + 1,
         durationSeconds = 2700, playbackPositionSeconds = if (index == 5) 180 else 0,
         isPlayed = index < 4, streamUrl = if (index == 8) null else "preview://$index",
-        overview = "仅用于验证布局、选集和手势。此预览不访问媒体服务器，不会修改真实观看记录。"
+        overview = "仅用于验证布局、选集和手势。此预览不访问媒体服务器，不会修改真实观看记录。",
+        mediaStreams = listOf(
+            com.nordic.mediahub.data.VideoStreamInfo(1, com.nordic.mediahub.data.VideoStreamKind.Audio, "aac", "chi", "中文 5.1 声道", false),
+            com.nordic.mediahub.data.VideoStreamInfo(2, com.nordic.mediahub.data.VideoStreamKind.Audio, "aac", "eng", "English Stereo", false),
+            com.nordic.mediahub.data.VideoStreamInfo(3, com.nordic.mediahub.data.VideoStreamKind.Subtitle, "subrip", "chi", "中文简体（外挂）", true),
+            com.nordic.mediahub.data.VideoStreamInfo(4, com.nordic.mediahub.data.VideoStreamKind.Subtitle, "subrip", "eng", "English (SRT)", true)
+        ),
+        chapters = listOf(
+            com.nordic.mediahub.data.VideoChapterInfo("开篇", 0, 900),
+            com.nordic.mediahub.data.VideoChapterInfo("冰原之行", 900, 1800),
+            com.nordic.mediahub.data.VideoChapterInfo("海岸回声", 1800, null)
+        )
     )
 }
 
