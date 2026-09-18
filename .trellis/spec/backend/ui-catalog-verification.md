@@ -61,6 +61,8 @@ py -3 "$task/research/run-ui-checks.py" --phase review-short --kind interaction 
 | 同应用主题与系统主题不同 / 打开关闭 sheet | Dialog 自己的系统栏和回到宿主后的系统栏均正确 |
 | 老截图缺少系统字号/源码指纹 | 标为历史证据；尤其不能作为大字体 Dialog 的严格同条件前后比较 |
 | Release / 真机 / 真实媒体服务器 | 分别核验；模拟器样板成功不能推导真实媒体播放、上报、PiP 或用户视觉确认通过 |
+| 对屏外节点 performClick | 注入"成功"但坐标落在窗口外，点击落空且不报错；截图会拍到错误界面。点击前必须 assertIsDisplayed 快速失败，行项在滚动容器内时先容器级滚动（见第 7 节） |
+| 样板宿主状态标志派生不一致 | 一个 `UiSampleState`（如 `empty`）会同时驱动 libraries/ready/subtitle/查询词等多个派生标志；某屏的例外语义（如 VideoSearch+empty 表示"搜索无匹配"）必须同步到全部派生标志，否则渲染出矛盾状态（无媒体库卡顶替无匹配卡）且测试断言永不达成 |
 
 ## 5. 正反案例
 
@@ -88,4 +90,15 @@ play.assertIsDisplayed().performClick()
 compose.onNode(hasVerticalLazyScrollAction()).performScrollToNode(hasText("目标歌曲"))
 play.assertIsDisplayed().assertIsFullyVisible().assertMinimumTouchTarget()
     .performTouchInput { click() }
+```
+
+```kotlin
+// 错误：Column+verticalScroll（非 lazy）容器没有 ScrollToIndex 语义，
+// 且条目在视口外时 performClick 静默落空（注入越界坐标），截图拍到旧界面。
+compose.onNodeWithText("影片信息").performClick() // 行项在面板底部，视口外
+
+// 正确：非 lazy 滚动容器先滑动再点击，并用 assertIsDisplayed 保证点击真实落在条目上。
+compose.onNode(SemanticsMatcher.keyIsDefined(SemanticsProperties.VerticalScrollAxisRange))
+    .performTouchInput { swipeUp() }
+compose.onNodeWithText("影片信息").assertIsDisplayed().performClick()
 ```

@@ -152,3 +152,12 @@
 ## 下一关卡
 
 2026-09-14 用户已确认首轮样板方向并批准单次工作提交；工作提交 `a889a1b` 已完成，本轮按样板范围归档并记录日志。其余页面的未验状态保持不变，后续分批打磨另行推进，不把全应用标记完成。方向确认不代表未独立截图的操作层或全部菜单条目已视检。
+
+## 终态(r13 收官,2026-09-18)
+
+本清单 68 条目 + 5 共享影响面已于 r13(`09-18-ui-polish-coverage-final-audit`)逐项定论,**无"状态未知"项**;上表"后续,未逐页验收"字样自 r13 起失效。逐条目覆盖轮次、证据路径与终态见:
+
+- 追溯矩阵:`.trellis/tasks/09-18-ui-polish-coverage-final-audit/research/coverage-traceability.md`(任务归档后位于对应 archive 目录)
+- 收官报告:`.trellis/tasks/09-18-ui-polish-coverage-final-audit/research/coverage-final-report.md`
+- 补测批次:r13-ab / r13-video / r13-actions / r13-player / r13-interaction-final / r13-live(真实服务器 adb 取证)
+- 保留项:Emby 流媒体(环境)、WebDAV 字幕渲染(无字幕文件)、TalkBack 真机走查(需个人设备)、逐图人工视检(待用户确认)
